@@ -920,7 +920,7 @@ export default function ProgressCharts() {
               {/* Group days by week */}
               <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))' }}>
                 {(() => {
-                  const weeks: typeof calendarData[][] = [];
+                  const weeks: CalendarDay[][] = [];
                   for (let i = 0; i < calendarData.length; i += 7) {
                     weeks.push(calendarData.slice(i, i + 7));
                   }
