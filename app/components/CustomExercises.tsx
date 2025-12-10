@@ -17,7 +17,7 @@ export default function CustomExercises() {
 
   // Form state
   const [name, setName] = useState('');
-  const [type, setType] = useState<'compound' | 'accessory'>('compound');
+  const [type, setType] = useState<'compound' | 'accessory' | 'isolation'>('compound');
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
 
