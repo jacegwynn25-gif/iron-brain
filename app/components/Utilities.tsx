@@ -18,35 +18,35 @@ export default function Utilities() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="rounded-3xl bg-gradient-to-br from-green-500 via-teal-600 to-blue-600 p-10 shadow-2xl depth-effect animate-slideUp">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+      <div className="rounded-3xl bg-gradient-to-br from-green-500 via-teal-600 to-blue-600 p-6 sm:p-10 shadow-2xl depth-effect animate-slideUp">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm flex-shrink-0">
             <Calculator className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-5xl font-black text-white">
+          <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight text-balance">
             Workout Utilities
           </h2>
         </div>
-        <p className="text-xl font-medium text-green-100">
+        <p className="text-base sm:text-lg font-medium text-green-100 text-balance">
           Essential tools for calculating plates, 1RM estimates, and finding exercise alternatives
         </p>
       </div>
 
       {/* Tabs */}
       <div className="rounded-2xl bg-white p-6 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide animate-fadeIn">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide animate-fadeIn flex-wrap">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key as typeof activeTab)}
-              className={`flex items-center gap-2 flex-shrink-0 rounded-xl px-6 py-4 font-bold transition-all hover:scale-105 shadow-md active:scale-95 ${
+              className={`flex items-center gap-2 flex-shrink-0 rounded-xl px-4 py-3 sm:px-6 sm:py-4 font-bold transition-all hover:scale-105 shadow-md active:scale-95 ${
                 activeTab === key
                   ? 'gradient-purple text-white shadow-glow-purple'
                   : 'bg-white text-zinc-700 hover:bg-zinc-100 border-2 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:border-zinc-700'
               }`}
             >
               <Icon className="h-5 w-5" />
-              <span className="hidden sm:inline">{label}</span>
+              <span className="text-sm sm:text-base">{label}</span>
             </button>
           ))}
         </div>

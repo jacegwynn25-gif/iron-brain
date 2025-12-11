@@ -149,16 +149,16 @@ export default function DataManagement() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="rounded-3xl bg-gradient-to-br from-orange-500 via-red-600 to-pink-600 p-10 shadow-2xl depth-effect animate-slideUp">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+      <div className="rounded-3xl bg-gradient-to-br from-orange-500 via-red-600 to-pink-600 p-6 sm:p-10 shadow-2xl depth-effect animate-slideUp">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm flex-shrink-0">
             <Database className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-5xl font-black text-white">
+          <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight text-balance">
             Data Management
           </h2>
         </div>
-        <p className="text-xl font-medium text-orange-100">
+        <p className="text-base sm:text-lg font-medium text-orange-100 text-balance">
           Export, import, and manage your complete workout history
         </p>
       </div>
@@ -207,7 +207,7 @@ export default function DataManagement() {
       </div>
 
       {/* Export Section */}
-      <div className="rounded-2xl bg-white p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.1s'}}>
+      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.1s'}}>
         <div className="flex items-center gap-3 mb-4">
           <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
             <Download className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -216,14 +216,14 @@ export default function DataManagement() {
             Export Data
           </h3>
         </div>
-        <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
+        <p className="mb-6 text-sm sm:text-base font-medium text-zinc-600 dark:text-zinc-400 text-balance">
           Download your workout data for backup or analysis
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={exportToJSON}
             disabled={totalWorkouts === 0}
-            className="flex-1 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <Download className="h-5 w-5" />
             Export as JSON
@@ -231,7 +231,7 @@ export default function DataManagement() {
           <button
             onClick={exportToCSV}
             disabled={totalWorkouts === 0}
-            className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-6 py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <BarChart3 className="h-5 w-5" />
             Export as CSV
@@ -245,7 +245,7 @@ export default function DataManagement() {
       </div>
 
       {/* Import Section */}
-      <div className="rounded-2xl bg-white p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.2s'}}>
+      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.2s'}}>
         <div className="flex items-center gap-3 mb-4">
           <div className="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
             <Upload className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -254,14 +254,14 @@ export default function DataManagement() {
             Import Data
           </h3>
         </div>
-        <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
+        <p className="mb-6 text-sm sm:text-base font-medium text-zinc-600 dark:text-zinc-400 text-balance">
           Import workout data from CSV, Excel, or JSON files with intelligent exercise matching
         </p>
 
         {/* New Multi-Format Import Button */}
         <button
           onClick={() => setShowImportWizard(true)}
-          className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 px-6 py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-4"
+          className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-4 text-sm sm:text-base"
         >
           <Upload className="h-5 w-5" />
           Import Workouts (Multi-Format)
@@ -272,7 +272,7 @@ export default function DataManagement() {
           <summary className="cursor-pointer text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">
             Legacy JSON Import (Advanced)
           </summary>
-          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 px-6 py-8 transition-all hover:border-purple-400 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/10 dark:hover:border-purple-600 dark:hover:bg-purple-900/20">
+          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 px-4 py-6 sm:px-6 sm:py-8 transition-all hover:border-purple-400 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/10 dark:hover:border-purple-600 dark:hover:bg-purple-900/20 text-center">
             <div className="text-center">
               <Upload className="h-10 w-10 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
               <p className="text-base font-bold text-purple-900 dark:text-purple-100">
