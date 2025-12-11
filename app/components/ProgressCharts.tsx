@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Activity, Zap, Trophy, Heart, Calendar, BarChart3 } from 'lucide-react';
 import { defaultExercises } from '../lib/programs';
-import { analytics } from '../lib/analytics';
+import { analytics, CalendarDay } from '../lib/analytics';
 import { storage } from '../lib/storage';
 import CustomSelect from './CustomSelect';
 import HelpTooltip from './Tooltip';
