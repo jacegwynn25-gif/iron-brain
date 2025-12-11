@@ -82,8 +82,8 @@ export default function WorkoutLogger({
     prescribedReps: nextSetTemplate.prescribedReps,
     targetRPE: nextSetTemplate.targetRPE ?? undefined,
     targetRIR: nextSetTemplate.targetRIR ?? undefined,
-    lastWeight: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight)?.actualWeight,
-    lastReps: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps)?.actualReps,
+    lastWeight: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight)?.actualWeight ?? undefined,
+    lastReps: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps)?.actualReps ?? undefined,
   } : undefined;
 
   // Rest timer handlers
