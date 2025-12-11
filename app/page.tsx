@@ -1205,16 +1205,20 @@ export default function Home() {
                             No Exercises Yet
                           </h3>
                           <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
-                            Build your perfect workout by adding exercises from our library of 80+ movements!
+                            Build your perfect workout by adding exercises in the Program Builder.
                           </p>
                           <button
-                            onClick={() => setShowExerciseLibrary(true)}
+                            onClick={() => {
+                              if (!selectedProgram) return;
+                              setEditingProgramForBuilder(selectedProgram);
+                              setIsBuilding(true);
+                            }}
                             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-3 font-bold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
                           >
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            Add Your First Exercise
+                            Open Builder
                           </button>
                         </div>
                       </div>
