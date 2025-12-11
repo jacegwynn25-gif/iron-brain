@@ -169,9 +169,9 @@ export class ExcelParser implements Parser {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
 
-          // Find the first sheet with data
-          const sheetName = workbook.SheetNames[0];
-          if (!sheetName) {
+          console.log('[ExcelParser] Found sheets:', workbook.SheetNames);
+
+          if (workbook.SheetNames.length === 0) {
             return resolve({
               format: 'excel',
               sections: [],
@@ -183,10 +183,26 @@ export class ExcelParser implements Parser {
             });
           }
 
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          // Read ALL sheets and combine their data
+          let allJsonData: any[][] = [];
 
-          console.log('[ExcelParser] Total rows in Excel:', jsonData.length);
+          for (const sheetName of workbook.SheetNames) {
+            console.log(`[ExcelParser] Reading sheet: ${sheetName}`);
+            const worksheet = workbook.Sheets[sheetName];
+            const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            console.log(`[ExcelParser] Sheet "${sheetName}" has ${sheetData.length} rows`);
+
+            // Add all rows from this sheet
+            allJsonData = allJsonData.concat(sheetData);
+
+            // Add a blank row between sheets for separation
+            if (workbook.SheetNames.indexOf(sheetName) < workbook.SheetNames.length - 1) {
+              allJsonData.push([]);
+            }
+          }
+
+          const jsonData = allJsonData;
+          console.log('[ExcelParser] Total rows from all sheets:', jsonData.length);
           console.log('[ExcelParser] First 10 rows:', jsonData.slice(0, 10));
 
           const errors: ImportError[] = [];
