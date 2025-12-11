@@ -196,21 +196,36 @@ export class ExcelParser implements Parser {
           let validRows = 0;
           let headerRowIndex = -1;
 
-          // Find header row (first non-empty row that's not a section header)
+          // Find header row (first non-empty row that's not a section header and looks like headers)
           for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i];
             if (row && row.length > 0) {
               const sectionCheck = isSectionHeader(row);
               if (!sectionCheck.isHeader) {
-                headers = row;
-                headerRowIndex = i;
-                fieldMapping = detectFieldMapping(headers);
-                break;
+                // Check if this looks like a header row (has multiple non-empty strings)
+                const nonEmptyCount = row.filter((cell: any) => cell && typeof cell === 'string' && cell.trim()).length;
+                if (nonEmptyCount >= 3) {
+                  headers = row;
+                  headerRowIndex = i;
+                  fieldMapping = detectFieldMapping(headers);
+
+                  // If we found exercise field, we have the right header row
+                  if (fieldMapping.exerciseField) {
+                    break;
+                  }
+                }
               }
             }
           }
 
           if (!fieldMapping || !fieldMapping.exerciseField) {
+            // Log headers for debugging
+            console.error('Excel Parser - Could not find exercise column');
+            console.error('Available rows:', jsonData.slice(0, 5).map((r: any, i: number) => ({
+              index: i,
+              values: r?.slice(0, 10)
+            })));
+
             return resolve({
               format: 'excel',
               sections: [],
@@ -218,7 +233,7 @@ export class ExcelParser implements Parser {
               errors: [
                 {
                   type: 'missing_field',
-                  message: 'Could not detect exercise name column. Expected headers like "Exercise", "Movement", or "Lift".',
+                  message: 'Could not detect exercise name column. Expected headers like "Exercise", "Movement", or "Lift". Please ensure your file has a header row with column names.',
                 },
               ],
               warnings,
