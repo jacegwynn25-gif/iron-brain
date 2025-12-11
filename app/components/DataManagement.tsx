@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { Database, Download, Upload, Trash2, BarChart3, HardDrive } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { WorkoutSession } from '../lib/types';
+import ImportWizard from './ImportWizard/ImportWizard';
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Export to JSON
   const exportToJSON = () => {
@@ -268,26 +270,42 @@ export default function DataManagement() {
           </h3>
         </div>
         <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
-          Restore workout data from a previous backup (JSON format only)
+          Import workout data from CSV, Excel, or JSON files with intelligent exercise matching
         </p>
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 px-6 py-10 transition-all hover:border-purple-400 hover:bg-purple-100 hover:scale-[1.02] dark:border-purple-700 dark:bg-purple-900/10 dark:hover:border-purple-600 dark:hover:bg-purple-900/20">
-          <div className="text-center">
-            <Upload className="h-12 w-12 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
-            <p className="text-lg font-black text-purple-900 dark:text-purple-100">
-              {importing ? 'Processing...' : 'Choose JSON file to import'}
-            </p>
-            <p className="mt-2 text-sm font-medium text-purple-700 dark:text-purple-300">
-              Click to browse or drag and drop
-            </p>
-          </div>
-          <input
-            type="file"
-            accept=".json"
-            onChange={importFromJSON}
-            disabled={importing}
-            className="hidden"
-          />
-        </label>
+
+        {/* New Multi-Format Import Button */}
+        <button
+          onClick={() => setShowImportWizard(true)}
+          className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 px-6 py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-4"
+        >
+          <Upload className="h-5 w-5" />
+          Import Workouts (Multi-Format)
+        </button>
+
+        {/* Legacy JSON Import */}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">
+            Legacy JSON Import (Advanced)
+          </summary>
+          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 px-6 py-8 transition-all hover:border-purple-400 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/10 dark:hover:border-purple-600 dark:hover:bg-purple-900/20">
+            <div className="text-center">
+              <Upload className="h-10 w-10 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
+              <p className="text-base font-bold text-purple-900 dark:text-purple-100">
+                {importing ? 'Processing...' : 'Choose JSON file'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-purple-700 dark:text-purple-300">
+                Direct JSON import without validation
+              </p>
+            </div>
+            <input
+              type="file"
+              accept=".json"
+              onChange={importFromJSON}
+              disabled={importing}
+              className="hidden"
+            />
+          </label>
+        </details>
       </div>
 
       {/* Danger Zone */}
@@ -319,12 +337,24 @@ export default function DataManagement() {
           💡 Tips
         </h4>
         <ul className="space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <li>• <strong>Multi-Format Import</strong> supports CSV, Excel, and JSON with smart exercise matching</li>
           <li>• <strong>JSON format</strong> preserves all data and can be re-imported</li>
           <li>• <strong>CSV format</strong> is ideal for spreadsheet analysis (Excel, Google Sheets)</li>
           <li>• Regular backups recommended before major updates</li>
-          <li>• Import will let you choose to merge or replace existing data</li>
+          <li>• Import wizard detects exercise names automatically and lets you review matches</li>
         </ul>
       </div>
+
+      {/* Import Wizard Modal */}
+      {showImportWizard && (
+        <ImportWizard
+          onComplete={() => {
+            setShowImportWizard(false);
+            window.location.reload();
+          }}
+          onCancel={() => setShowImportWizard(false)}
+        />
+      )}
     </div>
   );
 }
