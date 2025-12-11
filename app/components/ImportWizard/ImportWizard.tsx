@@ -21,15 +21,19 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
     setIsProcessing(true);
 
     try {
+      console.log('Starting import for file:', file.name, 'size:', file.size);
       const newSession = await workoutImporter.startImport(file, config);
+      console.log('Import session created:', newSession.state, 'errors:', newSession.errors.length);
       setSession(newSession);
 
       if (newSession.state === 'error') {
+        console.error('Import errors:', newSession.errors);
         // Stay on upload step, show errors
         setStep('upload');
       } else if (newSession.state === 'reviewing') {
         // Check if exercise matching is needed
         const needsReview = newSession.exerciseMatches?.some((m) => m.needsReview) || false;
+        console.log('Exercise matches need review:', needsReview);
         if (needsReview) {
           setStep('matching');
         } else {
@@ -40,7 +44,23 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
         }
       }
     } catch (error: any) {
-      console.error('Import failed:', error);
+      console.error('Import failed with exception:', error);
+      // Create error session to show in UI
+      setSession({
+        id: 'error',
+        state: 'error',
+        fileName: file.name,
+        fileSize: file.size,
+        format: 'unknown',
+        config: { mergeStrategy: 'skip_duplicates' },
+        errors: [{
+          type: 'parse',
+          message: error.message || 'An unexpected error occurred during import'
+        }],
+        warnings: [],
+        createdAt: new Date(),
+      });
+      setStep('upload');
     } finally {
       setIsProcessing(false);
     }

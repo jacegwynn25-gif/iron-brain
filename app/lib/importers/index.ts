@@ -32,8 +32,10 @@ export class WorkoutImporter {
     file: File,
     config: Partial<ImportConfig> = {}
   ): Promise<ImportSession> {
+    console.log('[WorkoutImporter] Starting import for file:', file.name);
     const sessionId = `import_${Date.now()}`;
     const format = detectFileFormat(file);
+    console.log('[WorkoutImporter] Detected format:', format);
 
     // Create initial session
     const session: ImportSession = {
@@ -56,6 +58,7 @@ export class WorkoutImporter {
 
     // Validate format
     if (!isSupportedFormat(format)) {
+      console.error('[WorkoutImporter] Unsupported format:', format);
       session.state = 'error';
       session.errors.push({
         type: 'parse',
@@ -66,6 +69,7 @@ export class WorkoutImporter {
 
     // Parse file
     session.state = 'parsing';
+    console.log('[WorkoutImporter] Starting parsing...');
 
     try {
       const parser = this.parsers.find((p) => p.canParse(file));
@@ -73,19 +77,28 @@ export class WorkoutImporter {
         throw new Error('No parser available for this file format');
       }
 
+      console.log('[WorkoutImporter] Found parser:', parser.constructor.name);
       const parsedResult = await parser.parse(file);
+      console.log('[WorkoutImporter] Parse result:', {
+        sections: parsedResult.sections.length,
+        errors: parsedResult.errors.length,
+        warnings: parsedResult.warnings.length
+      });
+
       session.parsedResult = parsedResult;
       session.errors.push(...parsedResult.errors);
       session.warnings.push(...parsedResult.warnings);
 
       // Check for parse errors
       if (parsedResult.errors.length > 0) {
+        console.error('[WorkoutImporter] Parse errors found:', parsedResult.errors);
         session.state = 'error';
         return session;
       }
 
       // Match exercises
       session.state = 'matching';
+      console.log('[WorkoutImporter] Starting exercise matching...');
 
       // Extract unique exercise names from parsed data
       const exerciseNames = new Set<string>();
@@ -95,7 +108,14 @@ export class WorkoutImporter {
         });
       });
 
+      console.log('[WorkoutImporter] Found unique exercises:', Array.from(exerciseNames));
       const matcherResult = matchExercises(Array.from(exerciseNames));
+      console.log('[WorkoutImporter] Exercise matching result:', {
+        totalMatches: matcherResult.matches.length,
+        needsReview: matcherResult.needsReviewCount,
+        unmatched: matcherResult.unmatchedCount
+      });
+
       session.exerciseMatches = matcherResult.matches;
 
       // Add warnings for unmatched exercises
@@ -108,15 +128,19 @@ export class WorkoutImporter {
 
       // Determine next state
       if (matcherResult.needsReviewCount > 0) {
+        console.log('[WorkoutImporter] Moving to reviewing state - needs manual review');
         session.state = 'reviewing'; // User needs to review matches
       } else {
+        console.log('[WorkoutImporter] All exercises matched - moving to reviewing state');
         // Auto-proceed to transformation
         session.state = 'reviewing'; // Always go to review for now
         await this.transformSessions(session);
       }
 
+      console.log('[WorkoutImporter] Import session complete. Final state:', session.state);
       return session;
     } catch (error: any) {
+      console.error('[WorkoutImporter] Import failed with exception:', error);
       session.state = 'error';
       session.errors.push({
         type: 'parse',
