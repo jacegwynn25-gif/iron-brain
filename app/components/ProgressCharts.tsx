@@ -112,16 +112,17 @@ export default function ProgressCharts() {
     return analytics.getRecoveryMetrics();
   }, []);
 
-  // Chart colors
+  // Chart colors - vibrant and visible on dark backgrounds
   const COLORS = {
-    primary: '#18181b', // zinc-900
-    success: '#16a34a', // green-600
-    warning: '#eab308', // yellow-500
-    danger: '#dc2626', // red-600
-    info: '#0ea5e9', // sky-500
+    primary: '#ec4899', // pink-500 - vibrant and visible
+    success: '#10b981', // emerald-500
+    warning: '#f59e0b', // amber-500
+    danger: '#ef4444', // red-500
+    info: '#06b6d4', // cyan-500
+    purple: '#a855f7', // purple-500
   };
 
-  const PIE_COLORS = ['#18181b', '#3f3f46', '#71717a', '#a1a1aa', '#d4d4d8'];
+  const PIE_COLORS = ['#ec4899', '#a855f7', '#06b6d4', '#10b981', '#f59e0b'];
 
   if (exercisesWithHistory.length === 0) {
     return (
@@ -160,7 +161,7 @@ export default function ProgressCharts() {
       </div>
 
       {/* Exercise Selector */}
-      <div className="rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-blue-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn" style={{overflow: 'visible'}}>
+      <div className="rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-blue-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn relative z-10">
         <CustomSelect
           value={selectedExercise}
           onChange={(value) => setSelectedExercise(value)}
@@ -216,60 +217,89 @@ export default function ProgressCharts() {
           ) : (
             <>
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={e1rmData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                <LineChart data={e1rmData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="e1rmGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.3} />
                   <XAxis
                     dataKey="dateFormatted"
-                    stroke="#71717a"
-                    style={{ fontSize: '12px' }}
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '13px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
                   />
-                  <YAxis stroke="#71717a" style={{ fontSize: '12px' }} />
+                  <YAxis
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '13px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#18181b',
                       border: 'none',
-                      borderRadius: '8px',
-                      color: '#fafafa',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                     }}
+                    labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                     formatter={(value: number, name: string) => {
                       if (name === 'e1rm') return [`${value.toFixed(1)} lbs`, 'E1RM'];
                       return [value, name];
                     }}
                   />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="circle"
+                  />
                   <Line
                     type="monotone"
                     dataKey="e1rm"
                     stroke={COLORS.primary}
-                    strokeWidth={3}
-                    dot={{ fill: COLORS.primary, r: 5 }}
-                    activeDot={{ r: 7 }}
+                    strokeWidth={4}
+                    dot={{
+                      fill: '#fff',
+                      stroke: COLORS.primary,
+                      strokeWidth: 3,
+                      r: 6,
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                    }}
+                    activeDot={{
+                      r: 8,
+                      fill: COLORS.primary,
+                      stroke: '#fff',
+                      strokeWidth: 3,
+                      filter: 'drop-shadow(0 4px 8px rgba(236,72,153,0.4))'
+                    }}
+                    fill="url(#e1rmGradient)"
+                    animationDuration={1500}
+                    animationEasing="ease-in-out"
                   />
                 </LineChart>
               </ResponsiveContainer>
 
               {/* Stats Summary */}
               <div className="mt-6 grid grid-cols-3 gap-4">
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Current E1RM</p>
-                  <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} lbs
+                <div className="group rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-xs font-bold text-pink-100 uppercase tracking-wide">Current E1RM</p>
+                  <p className="mt-2 text-3xl font-black text-white">
+                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} <span className="text-xl">lbs</span>
                   </p>
                 </div>
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Starting E1RM</p>
-                  <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {e1rmData[0]?.e1rm.toFixed(1)} lbs
+                <div className="group rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-xs font-bold text-purple-100 uppercase tracking-wide">Starting E1RM</p>
+                  <p className="mt-2 text-3xl font-black text-white">
+                    {e1rmData[0]?.e1rm.toFixed(1)} <span className="text-xl">lbs</span>
                   </p>
                 </div>
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Gain</p>
-                  <p className="mt-1 text-2xl font-bold text-green-600">
-                    +
-                    {(
+                <div className="group rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-xs font-bold text-green-100 uppercase tracking-wide">Total Gain</p>
+                  <p className="mt-2 text-3xl font-black text-white">
+                    +{(
                       e1rmData[e1rmData.length - 1]?.e1rm - e1rmData[0]?.e1rm || 0
-                    ).toFixed(1)}{' '}
-                    lbs
+                    ).toFixed(1)} <span className="text-xl">lbs</span>
                   </p>
                 </div>
               </div>
@@ -301,21 +331,34 @@ export default function ProgressCharts() {
             ) : (
               <>
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={volumeData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <BarChart data={volumeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="volumeBarGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={COLORS.success} stopOpacity={1}/>
+                        <stop offset="100%" stopColor={COLORS.success} stopOpacity={0.7}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.3} />
                     <XAxis
                       dataKey="dateFormatted"
-                      stroke="#71717a"
-                      style={{ fontSize: '12px' }}
+                      stroke="#a1a1aa"
+                      style={{ fontSize: '13px', fontWeight: '500' }}
+                      tick={{ fill: '#71717a' }}
                     />
-                    <YAxis stroke="#71717a" style={{ fontSize: '12px' }} />
+                    <YAxis
+                      stroke="#a1a1aa"
+                      style={{ fontSize: '13px', fontWeight: '500' }}
+                      tick={{ fill: '#71717a' }}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#18181b',
                         border: 'none',
-                        borderRadius: '8px',
-                        color: '#fafafa',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                       }}
+                      labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                       formatter={(value: number, name: string) => {
                         if (name === 'totalVolume')
                           return [`${value.toLocaleString()} lbs`, 'Total Volume'];
@@ -323,33 +366,40 @@ export default function ProgressCharts() {
                         return [value, name];
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="totalVolume" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
+                    <Legend
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                    />
+                    <Bar
+                      dataKey="totalVolume"
+                      fill="url(#volumeBarGradient)"
+                      radius={[8, 8, 0, 0]}
+                      animationDuration={1500}
+                      animationEasing="ease-in-out"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
 
                 {/* Volume Stats */}
                 <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Volume/Session</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                  <div className="group rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-xs font-bold text-emerald-100 uppercase tracking-wide">Avg Volume/Session</p>
+                    <p className="mt-2 text-3xl font-black text-white">
                       {(
                         volumeData.reduce((sum, d) => sum + d.totalVolume, 0) / volumeData.length
                       ).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                      lbs
+                      <span className="text-xl">lbs</span>
                     </p>
                   </div>
-                  <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Sets/Session</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                      {(volumeData.reduce((sum, d) => sum + d.sets, 0) / volumeData.length).toFixed(
-                        1
-                      )}
+                  <div className="group rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-xs font-bold text-blue-100 uppercase tracking-wide">Avg Sets/Session</p>
+                    <p className="mt-2 text-3xl font-black text-white">
+                      {(volumeData.reduce((sum, d) => sum + d.sets, 0) / volumeData.length).toFixed(1)}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Sessions</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                  <div className="group rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-xs font-bold text-purple-100 uppercase tracking-wide">Total Sessions</p>
+                    <p className="mt-2 text-3xl font-black text-white">
                       {volumeData.length}
                     </p>
                   </div>
@@ -370,30 +420,47 @@ export default function ProgressCharts() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={weeklyVolumeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                <LineChart data={weeklyVolumeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="weeklyVolumeGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS.info} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS.info} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.3} />
                   <XAxis
                     dataKey="weekFormatted"
-                    stroke="#71717a"
-                    style={{ fontSize: '12px' }}
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '12px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
                   />
-                  <YAxis stroke="#71717a" style={{ fontSize: '12px' }} />
+                  <YAxis
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '12px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#18181b',
                       border: 'none',
-                      borderRadius: '8px',
-                      color: '#fafafa',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                     }}
+                    labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                     formatter={(value: number) => [`${value.toLocaleString()} lbs`, 'Weekly Volume']}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
                   <Line
                     type="monotone"
                     dataKey="totalVolume"
                     stroke={COLORS.info}
                     strokeWidth={3}
-                    dot={{ fill: COLORS.info, r: 5 }}
+                    dot={{ fill: '#fff', stroke: COLORS.info, strokeWidth: 2, r: 5 }}
+                    activeDot={{ r: 7, fill: COLORS.info, stroke: '#fff', strokeWidth: 2 }}
+                    fill="url(#weeklyVolumeGradient)"
+                    animationDuration={1500}
+                    animationEasing="ease-in-out"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -417,74 +484,98 @@ export default function ProgressCharts() {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Prescribed RPE</p>
-                  <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {rpeConsistency.avgPrescribedRPE.toFixed(1)}
-                  </p>
+              {rpeConsistency.avgPrescribedRPE === 0 ? (
+                // Imported data without prescribed RPE - show actual RPE only
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
+                    <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                      {rpeConsistency.avgActualRPE.toFixed(1)}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      Based on {rpeConsistency.setsWithRPE} sets
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-blue-100 p-4 dark:bg-blue-900/30">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      <strong>Note:</strong> This data was imported without prescribed RPE values.
+                      To see consistency analysis, start logging prescribed RPE in your workouts.
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
-                  <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {rpeConsistency.avgActualRPE.toFixed(1)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Deviation</p>
-                  <p
-                    className={`mt-1 text-2xl font-bold ${
-                      rpeConsistency.avgDeviation > 0.5
-                        ? 'text-red-600'
-                        : rpeConsistency.avgDeviation < -0.5
-                          ? 'text-blue-600'
-                          : 'text-green-600'
-                    }`}
-                  >
-                    {rpeConsistency.avgDeviation > 0 ? '+' : ''}
-                    {rpeConsistency.avgDeviation.toFixed(1)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Consistency</p>
-                  <p
-                    className={`mt-1 text-xl font-bold capitalize ${
-                      rpeConsistency.consistency === 'excellent'
-                        ? 'text-green-600'
-                        : rpeConsistency.consistency === 'good'
-                          ? 'text-blue-600'
-                          : rpeConsistency.consistency === 'fair'
-                            ? 'text-yellow-600'
-                            : 'text-red-600'
-                    }`}
-                  >
-                    {rpeConsistency.consistency}
-                  </p>
-                </div>
-              </div>
+              ) : (
+                // Full consistency analysis with prescribed RPE
+                <>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Prescribed RPE</p>
+                      <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                        {rpeConsistency.avgPrescribedRPE.toFixed(1)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
+                      <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                        {rpeConsistency.avgActualRPE.toFixed(1)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Deviation</p>
+                      <p
+                        className={`mt-1 text-2xl font-bold ${
+                          rpeConsistency.avgDeviation > 0.5
+                            ? 'text-red-600'
+                            : rpeConsistency.avgDeviation < -0.5
+                              ? 'text-blue-600'
+                              : 'text-green-600'
+                        }`}
+                      >
+                        {rpeConsistency.avgDeviation > 0 ? '+' : ''}
+                        {rpeConsistency.avgDeviation.toFixed(1)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Consistency</p>
+                      <p
+                        className={`mt-1 text-xl font-bold capitalize ${
+                          rpeConsistency.consistency === 'excellent'
+                            ? 'text-green-600'
+                            : rpeConsistency.consistency === 'good'
+                              ? 'text-blue-600'
+                              : rpeConsistency.consistency === 'fair'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                        }`}
+                      >
+                        {rpeConsistency.consistency}
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="mt-4 rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                  {rpeConsistency.avgDeviation > 0.5 ? (
-                    <span>
-                      You consistently <strong>overshoot</strong> your target RPE by{' '}
-                      {rpeConsistency.avgDeviation.toFixed(1)} points. Consider reducing weights
-                      slightly to hit prescribed intensity.
-                    </span>
-                  ) : rpeConsistency.avgDeviation < -0.5 ? (
-                    <span>
-                      You consistently <strong>undershoot</strong> your target RPE by{' '}
-                      {Math.abs(rpeConsistency.avgDeviation).toFixed(1)} points. You may be able to
-                      push harder or increase weight.
-                    </span>
-                  ) : (
-                    <span>
-                      Great job! You&apos;re consistently hitting your prescribed RPE targets. This
-                      indicates good self-awareness and load management.
-                    </span>
-                  )}
-                </p>
-              </div>
+                  <div className="mt-4 rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                    <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                      {rpeConsistency.avgDeviation > 0.5 ? (
+                        <span>
+                          You consistently <strong>overshoot</strong> your target RPE by{' '}
+                          {rpeConsistency.avgDeviation.toFixed(1)} points. Consider reducing weights
+                          slightly to hit prescribed intensity.
+                        </span>
+                      ) : rpeConsistency.avgDeviation < -0.5 ? (
+                        <span>
+                          You consistently <strong>undershoot</strong> your target RPE by{' '}
+                          {Math.abs(rpeConsistency.avgDeviation).toFixed(1)} points. You may be able to
+                          push harder or increase weight.
+                        </span>
+                      ) : (
+                        <span>
+                          Great job! You&apos;re consistently hitting your prescribed RPE targets. This
+                          indicates good self-awareness and load management.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -502,30 +593,48 @@ export default function ProgressCharts() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={sessionRPETrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                <LineChart data={sessionRPETrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="rpeGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={COLORS.warning} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={COLORS.warning} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" opacity={0.3} />
                   <XAxis
                     dataKey="dateFormatted"
-                    stroke="#71717a"
-                    style={{ fontSize: '12px' }}
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '12px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
                   />
-                  <YAxis domain={[0, 10]} stroke="#71717a" style={{ fontSize: '12px' }} />
+                  <YAxis
+                    domain={[0, 10]}
+                    stroke="#a1a1aa"
+                    style={{ fontSize: '12px', fontWeight: '500' }}
+                    tick={{ fill: '#71717a' }}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#18181b',
                       border: 'none',
-                      borderRadius: '8px',
-                      color: '#fafafa',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                     }}
+                    labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                     formatter={(value: number) => [value.toFixed(1), 'Session Avg RPE']}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
                   <Line
                     type="monotone"
                     dataKey="avgRPE"
                     stroke={COLORS.warning}
-                    strokeWidth={2}
-                    dot={{ fill: COLORS.warning, r: 4 }}
+                    strokeWidth={3}
+                    dot={{ fill: '#fff', stroke: COLORS.warning, strokeWidth: 2, r: 5 }}
+                    activeDot={{ r: 7, fill: COLORS.warning, stroke: '#fff', strokeWidth: 2 }}
+                    fill="url(#rpeGradient)"
+                    animationDuration={1500}
+                    animationEasing="ease-in-out"
                   />
                 </LineChart>
               </ResponsiveContainer>

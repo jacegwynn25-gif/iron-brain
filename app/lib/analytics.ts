@@ -261,36 +261,56 @@ export function analyzeRPEConsistency(exerciseId: string): RPEConsistency | null
 
   if (allSets.length === 0) return null;
 
-  const setsWithRPE = allSets.filter(s => s.prescribedRPE !== null && s.actualRPE !== null);
+  // For imported data: if no prescribedRPE, just show actual RPE stats
+  const setsWithBothRPE = allSets.filter(s => s.prescribedRPE !== null && s.actualRPE !== null);
+  const setsWithActualRPE = allSets.filter(s => s.actualRPE !== null);
 
-  if (setsWithRPE.length === 0) return null;
+  // If no actual RPE data at all, return null
+  if (setsWithActualRPE.length === 0) return null;
 
-  const totalPrescribed = setsWithRPE.reduce((sum, s) => sum + (s.prescribedRPE || 0), 0);
-  const totalActual = setsWithRPE.reduce((sum, s) => sum + (s.actualRPE || 0), 0);
-  const totalDeviation = setsWithRPE.reduce(
-    (sum, s) => sum + Math.abs((s.actualRPE || 0) - (s.prescribedRPE || 0)),
-    0
-  );
+  // If we have prescribed RPE data, do full consistency analysis
+  if (setsWithBothRPE.length > 0) {
+    const totalPrescribed = setsWithBothRPE.reduce((sum, s) => sum + (s.prescribedRPE || 0), 0);
+    const totalActual = setsWithBothRPE.reduce((sum, s) => sum + (s.actualRPE || 0), 0);
+    const totalDeviation = setsWithBothRPE.reduce(
+      (sum, s) => sum + Math.abs((s.actualRPE || 0) - (s.prescribedRPE || 0)),
+      0
+    );
 
-  const avgPrescribedRPE = totalPrescribed / setsWithRPE.length;
-  const avgActualRPE = totalActual / setsWithRPE.length;
-  const avgDeviation = (totalActual - totalPrescribed) / setsWithRPE.length;
-  const avgAbsDeviation = totalDeviation / setsWithRPE.length;
+    const avgPrescribedRPE = totalPrescribed / setsWithBothRPE.length;
+    const avgActualRPE = totalActual / setsWithBothRPE.length;
+    const avgDeviation = (totalActual - totalPrescribed) / setsWithBothRPE.length;
+    const avgAbsDeviation = totalDeviation / setsWithBothRPE.length;
 
-  let consistency: 'excellent' | 'good' | 'fair' | 'poor';
-  if (avgAbsDeviation < 0.5) consistency = 'excellent';
-  else if (avgAbsDeviation < 1.0) consistency = 'good';
-  else if (avgAbsDeviation < 1.5) consistency = 'fair';
-  else consistency = 'poor';
+    let consistency: 'excellent' | 'good' | 'fair' | 'poor';
+    if (avgAbsDeviation < 0.5) consistency = 'excellent';
+    else if (avgAbsDeviation < 1.0) consistency = 'good';
+    else if (avgAbsDeviation < 1.5) consistency = 'fair';
+    else consistency = 'poor';
+
+    return {
+      exerciseId,
+      totalSets: allSets.length,
+      setsWithRPE: setsWithBothRPE.length,
+      avgPrescribedRPE,
+      avgActualRPE,
+      avgDeviation,
+      consistency,
+    };
+  }
+
+  // For imported data without prescribed RPE: just show actual RPE average
+  const totalActual = setsWithActualRPE.reduce((sum, s) => sum + (s.actualRPE || 0), 0);
+  const avgActualRPE = totalActual / setsWithActualRPE.length;
 
   return {
     exerciseId,
     totalSets: allSets.length,
-    setsWithRPE: setsWithRPE.length,
-    avgPrescribedRPE,
+    setsWithRPE: setsWithActualRPE.length,
+    avgPrescribedRPE: 0, // No prescribed data
     avgActualRPE,
-    avgDeviation,
-    consistency,
+    avgDeviation: 0, // Can't calculate deviation without prescribed
+    consistency: 'excellent', // Default when no comparison available
   };
 }
 

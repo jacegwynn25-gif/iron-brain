@@ -132,6 +132,7 @@ function transformSection(
         exerciseId: match.matchedExerciseId!,
         setIndex: setIndex++,
         prescribedReps: row.reps ? row.reps.toString() : '0',
+        prescribedRPE: row.targetRPE || null, // Map targetRPE to prescribedRPE
         completed: true, // Always true since we filtered out incomplete sets
         actualReps: row.reps!,
         actualWeight: row.weightUsed!,
