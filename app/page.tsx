@@ -61,7 +61,7 @@ export default function Home() {
   // Navigation state
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'program' | 'history' | 'analytics' | 'utilities' | 'settings'>('program');
+  const [viewMode, setViewMode] = useState<'program' | 'history' | 'analytics' | 'utilities' | 'data' | 'settings'>('program');
   const [todayKey, setTodayKey] = useState<string>(() =>
     typeof window !== 'undefined' ? new Date().toISOString().split('T')[0] : ''
   );
@@ -153,6 +153,7 @@ export default function Home() {
     { key: 'h', description: 'View history', action: () => setViewMode('history') },
     { key: 'a', description: 'View analytics', action: () => setViewMode('analytics') },
     { key: 'u', description: 'Open utilities', action: () => setViewMode('utilities') },
+    { key: 'd', description: 'Data management', action: () => setViewMode('data') },
     { key: 's', description: 'Settings', action: () => setViewMode('settings') },
     { key: '?', shiftKey: true, description: 'Show keyboard shortcuts', action: () => setShowShortcutsModal(true) },
     { key: 'Escape', description: 'Close modals', action: () => {
@@ -621,6 +622,7 @@ export default function Home() {
                   <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-white px-1.5 text-[10px] font-bold text-purple-700 shadow-sm mx-1">A</kbd>
                   <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-white px-1.5 text-[10px] font-bold text-purple-700 shadow-sm mx-1">U</kbd>
                   <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-white px-1.5 text-[10px] font-bold text-purple-700 shadow-sm mx-1">D</kbd>
+                  <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-white px-1.5 text-[10px] font-bold text-purple-700 shadow-sm mx-1">S</kbd>
                   or press <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-white px-1.5 text-[10px] font-bold text-purple-700 shadow-sm mx-1">?</kbd> to see all shortcuts
                 </p>
                 <button
@@ -712,6 +714,22 @@ export default function Home() {
                   : 'bg-zinc-200 text-zinc-500 group-hover:bg-purple-100 group-hover:text-purple-700 dark:bg-zinc-700 dark:text-zinc-500 dark:group-hover:bg-purple-900/50 dark:group-hover:text-purple-400'
               }`}>U</kbd>
             </button>
+            <button
+              onClick={() => setViewMode('data')}
+              className={`group flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3.5 font-semibold transition-all whitespace-nowrap active:scale-95 touch-manipulation ${
+                viewMode === 'data'
+                  ? 'gradient-purple text-white shadow-glow-purple'
+                  : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+              }`}
+            >
+              <Database className="h-5 w-5" />
+              <span className="hidden xs:inline">Data</span>
+              <kbd className={`hidden sm:inline-flex h-5 min-w-[20px] items-center justify-center rounded px-1.5 text-[10px] font-bold transition-all ${
+                viewMode === 'data'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-zinc-200 text-zinc-500 group-hover:bg-purple-100 group-hover:text-purple-700 dark:bg-zinc-700 dark:text-zinc-500 dark:group-hover:bg-purple-900/50 dark:group-hover:text-purple-400'
+              }`}>D</kbd>
+            </button>
         <button
           onClick={() => setViewMode('settings')}
           className={`group flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3.5 font-semibold transition-all whitespace-nowrap active:scale-95 touch-manipulation ${
@@ -722,6 +740,11 @@ export default function Home() {
         >
           <SettingsIcon className="h-5 w-5" />
           <span className="hidden xs:inline">Settings</span>
+          <kbd className={`hidden sm:inline-flex h-5 min-w-[20px] items-center justify-center rounded px-1.5 text-[10px] font-bold transition-all ${
+            viewMode === 'settings'
+              ? 'bg-white/20 text-white'
+              : 'bg-zinc-200 text-zinc-500 group-hover:bg-purple-100 group-hover:text-purple-700 dark:bg-zinc-700 dark:text-zinc-500 dark:group-hover:bg-purple-900/50 dark:group-hover:text-purple-400'
+          }`}>S</kbd>
         </button>
           </div>
         </div>
@@ -732,46 +755,36 @@ export default function Home() {
         {/* Utilities View */}
         {viewMode === 'utilities' && <Utilities />}
 
+        {/* Data Management View */}
+        {viewMode === 'data' && <DataManagement />}
+
         {/* Settings View */}
         {viewMode === 'settings' && profile && (
-          <div className="space-y-6">
-            <Settings
-              name={profile.name}
-              email={profile.email}
-              onLogout={handleLogout}
-              onClearData={() => {
-                if (!profile) return;
-                if (!confirm('Clear all workout history and programs for this user?')) return;
-                localStorage.removeItem(`iron_brain_workout_history__${profile.id}`);
-                localStorage.removeItem(`iron_brain_user_programs__${profile.id}`);
-                setWorkoutHistory([]);
-                setUserPrograms([]);
-                setSelectedProgram(null);
-                setOriginalProgram(null);
-              }}
-              onExtendSession={() => {
-                if (!profile) return;
-                const updated: UserProfile = {
-                  ...profile,
-                  rememberUntil: new Date().getTime() + 30 * 24 * 60 * 60 * 1000,
-                };
-                localStorage.setItem('iron_brain_profile', JSON.stringify(updated));
-                setProfile(updated);
-                alert('Session extended for 30 days on this device.');
-              }}
-            />
-
-            <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
-              <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-50">Data Management</h3>
-              <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                Export, import, or delete your data. Actions apply to the current signed-in user.
-              </p>
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800">
-                {/* Render the data management UI inline */}
-                <DataManagement />
-              </div>
-            </div>
-          </div>
+          <Settings
+            name={profile.name}
+            email={profile.email}
+            onLogout={handleLogout}
+            onClearData={() => {
+              if (!profile) return;
+              if (!confirm('Clear all workout history and programs for this user?')) return;
+              localStorage.removeItem(`iron_brain_workout_history__${profile.id}`);
+              localStorage.removeItem(`iron_brain_user_programs__${profile.id}`);
+              setWorkoutHistory([]);
+              setUserPrograms([]);
+              setSelectedProgram(null);
+              setOriginalProgram(null);
+            }}
+            onExtendSession={() => {
+              if (!profile) return;
+              const updated: UserProfile = {
+                ...profile,
+                rememberUntil: new Date().getTime() + 30 * 24 * 60 * 60 * 1000,
+              };
+              localStorage.setItem('iron_brain_profile', JSON.stringify(updated));
+              setProfile(updated);
+              alert('Session extended for 30 days on this device.');
+            }}
+          />
         )}
 
         {/* History View */}
