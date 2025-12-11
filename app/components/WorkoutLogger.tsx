@@ -80,8 +80,8 @@ export default function WorkoutLogger({
     setNumber: nextSetTemplate.setIndex,
     totalSets: setTemplates.filter(st => st.exerciseId === nextSetTemplate.exerciseId).length,
     prescribedReps: nextSetTemplate.prescribedReps,
-    targetRPE: nextSetTemplate.targetRPE,
-    targetRIR: nextSetTemplate.targetRIR,
+    targetRPE: nextSetTemplate.targetRPE ?? undefined,
+    targetRIR: nextSetTemplate.targetRIR ?? undefined,
     lastWeight: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight)?.actualWeight,
     lastReps: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps)?.actualReps,
   } : undefined;
