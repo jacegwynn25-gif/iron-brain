@@ -386,33 +386,38 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
           </div>
 
           {/* Week Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {weeks.map(week => (
-              <div key={week.weekNumber} className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedWeek(week.weekNumber)}
-                  className={`flex-shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-                    selectedWeek === week.weekNumber
-                      ? 'gradient-purple text-white shadow-md'
-                      : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300'
-                  }`}
-                >
-                  Week {week.weekNumber}
-                  <span className="ml-2 text-xs opacity-75">({week.days.length} days)</span>
-                </button>
-                {weeks.length > 1 && (
+          <div className="rounded-2xl bg-white/80 p-3 shadow-inner ring-1 ring-zinc-100 dark:bg-zinc-900/70 dark:ring-zinc-800">
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+              {weeks.map(week => (
+                <div key={week.weekNumber} className="flex flex-shrink-0 items-center gap-2 snap-start">
                   <button
-                    onClick={() => removeWeek(week.weekNumber)}
-                    className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
-                    title="Remove week"
+                    onClick={() => setSelectedWeek(week.weekNumber)}
+                    className={`rounded-xl px-4 py-3 text-sm font-bold transition-all whitespace-nowrap ${
+                      selectedWeek === week.weekNumber
+                        ? 'gradient-purple text-white shadow-glow-purple'
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700'
+                    }`}
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <div className="flex flex-col leading-tight text-left">
+                      <span className="text-xs uppercase tracking-wide opacity-80">Week</span>
+                      <span className="text-base font-black">{week.weekNumber}</span>
+                      <span className="text-[11px] font-semibold opacity-80">{week.days.length} day{week.days.length === 1 ? '' : 's'}</span>
+                    </div>
                   </button>
-                )}
-              </div>
-            ))}
+                  {weeks.length > 1 && (
+                    <button
+                      onClick={() => removeWeek(week.weekNumber)}
+                      className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700 shadow-sm"
+                      title="Remove week"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
