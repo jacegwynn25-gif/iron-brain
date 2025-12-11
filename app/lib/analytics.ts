@@ -472,7 +472,7 @@ export function getStrengthLevel(exerciseId: string, e1rm: number, bodyweight: n
 // RECOVERY & FATIGUE INDICATORS
 // ============================================================
 
-export interface RecoveryMetrics {
+export interface RPERecoveryMetrics {
   last7DaysAvgRPE: number;
   trendDirection: 'increasing' | 'stable' | 'decreasing'; // RPE trend
   rpeVolatility: number; // Standard deviation of RPE
@@ -480,7 +480,7 @@ export interface RecoveryMetrics {
   reasoning: string;
 }
 
-export function analyzeRecovery(): RecoveryMetrics {
+export function analyzeRecovery(): RPERecoveryMetrics {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const history = storage.getWorkoutHistory();
   const recentSessions = history.filter(session => new Date(session.date) >= sevenDaysAgo);
