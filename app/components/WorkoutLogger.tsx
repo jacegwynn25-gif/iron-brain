@@ -69,12 +69,12 @@ export default function WorkoutLogger({
     : null;
   const isNextSetSameGroup = nextSetInSuperset?.supersetGroup === currentTemplate?.supersetGroup;
   const nextExerciseInSuperset = isNextSetSameGroup && nextSetInSuperset
-    ? defaultExercises.find(ex => ex.id === nextSetInSuperset.exerciseId)
+    ? (defaultExercises.find(ex => ex.id === nextSetInSuperset.exerciseId) || null)
     : null;
 
   // Calculate next set info for rest timer
   const nextSetTemplate = setTemplates[currentSetIndex + 1];
-  const nextExercise = nextSetTemplate ? defaultExercises.find(ex => ex.id === nextSetTemplate.exerciseId) : null;
+  const nextExercise = nextSetTemplate ? (defaultExercises.find(ex => ex.id === nextSetTemplate.exerciseId) || null) : null;
   const nextSetInfo = nextSetTemplate && nextExercise ? {
     exerciseName: nextExercise.name,
     setNumber: nextSetTemplate.setIndex,
