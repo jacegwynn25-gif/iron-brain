@@ -140,21 +140,6 @@ export default function DataManagement() {
     reader.readAsText(file);
   };
 
-  // Clear all data
-  const clearAllData = () => {
-    if (!confirm('⚠️ DELETE ALL WORKOUT DATA?\n\nThis action cannot be undone!')) {
-      return;
-    }
-
-    if (!confirm('⚠️ FINAL WARNING: All your workout history will be permanently deleted. Continue?')) {
-      return;
-    }
-
-    storage.setWorkoutHistory([]);
-    alert('✅ All workout data has been deleted.');
-    window.location.reload();
-  };
-
   const history = storage.getWorkoutHistory();
   const totalWorkouts = history.length;
   const totalSets = history.reduce((sum, s) => sum + s.sets.filter(set => set.completed).length, 0);
@@ -306,29 +291,6 @@ export default function DataManagement() {
             />
           </label>
         </details>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-8 shadow-lg dark:border-red-600 dark:bg-red-900/20 animate-fadeIn" style={{animationDelay: '0.3s'}}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-lg bg-red-100 p-2 dark:bg-red-900/30">
-            <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
-          </div>
-          <h3 className="text-2xl font-black text-red-900 dark:text-red-100">
-            Danger Zone
-          </h3>
-        </div>
-        <p className="mb-6 text-base font-medium text-red-800 dark:text-red-200">
-          Permanently delete all workout data. This action cannot be undone!
-        </p>
-        <button
-          onClick={clearAllData}
-          disabled={totalWorkouts === 0}
-          className="rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
-        >
-          <Trash2 className="h-5 w-5" />
-          Delete All Data
-        </button>
       </div>
 
       {/* Info Section */}

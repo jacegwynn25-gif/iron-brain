@@ -44,8 +44,8 @@ export default function ProgramSelector({
   return (
     <div className="space-y-4">
       {/* Header with Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setActiveTab('builtin')}
             className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
@@ -85,7 +85,7 @@ export default function ProgramSelector({
         </div>
         <button
           onClick={onCreateNew}
-          className="gradient-green flex items-center gap-2 rounded-xl px-6 py-3 font-bold text-white shadow-glow-green transition-all hover:scale-105 hover:shadow-xl"
+          className="gradient-green flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold text-white shadow-glow-green transition-all hover:scale-105 hover:shadow-xl sm:self-auto"
         >
           <Plus className="h-5 w-5" />
           Create New

@@ -74,7 +74,8 @@ export default function WorkoutLogger({
     : null;
 
   // Calculate next set info for rest timer
-  const nextSetTemplate = setTemplates[currentSetIndex + 1];
+  // Next set is the one coming up (currentSetIndex already advanced after logging)
+  const nextSetTemplate = setTemplates[currentSetIndex];
   const nextExercise = nextSetTemplate ? (defaultExercises.find(ex => ex.id === nextSetTemplate.exerciseId) || null) : null;
   const nextSetInfo = nextSetTemplate && nextExercise ? {
     exerciseName: nextExercise.name,
