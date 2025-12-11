@@ -256,43 +256,50 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
   }, {} as Record<string, SetTemplate[]>);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 space-y-6">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-              {existingProgram ? 'Edit Program' : 'Create New Program'}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Design your custom training program with full control
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="rounded-lg border-2 border-zinc-300 bg-white px-6 py-2 font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!programName || weeks.length === 0}
-              className="rounded-lg bg-green-600 px-6 py-2 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              Save Program
-            </button>
+        <div className="rounded-3xl bg-gradient-to-br from-zinc-900 via-purple-900 to-purple-700 p-6 sm:p-8 shadow-2xl border border-white/10 dark:border-purple-900/30">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white uppercase tracking-wide">
+                Builder
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-black text-white">
+                  {existingProgram ? 'Edit Program' : 'Create New Program'}
+                </h1>
+                <p className="mt-1 text-sm sm:text-base text-purple-100/90">
+                  Craft weeks, days, and sets with a clean, mobile-ready workflow.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                onClick={onCancel}
+                className="w-full sm:w-auto rounded-xl border-2 border-white/40 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition-all hover:bg-white/20 hover:scale-105"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!programName || weeks.length === 0}
+                className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-green-400 to-emerald-500 px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl disabled:opacity-60 disabled:hover:scale-100"
+              >
+                Save Program
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Program Metadata */}
-        <div className="mb-8 rounded-xl bg-white p-6 dark:bg-zinc-900">
-          <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+        <div className="mb-8 rounded-3xl bg-white/90 p-6 sm:p-8 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-900/90 dark:ring-zinc-800 backdrop-blur">
+          <h2 className="mb-4 text-xl font-black text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
             Program Details
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Program Name *
               </label>
               <input
@@ -300,17 +307,17 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                 value={programName}
                 onChange={e => setProgramName(e.target.value)}
                 placeholder="e.g., 5-Day Bench Specialization"
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="w-full rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-inner focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Goal
               </label>
               <select
                 value={goal}
                 onChange={e => setGoal(e.target.value as ProgramTemplate['goal'])}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="w-full rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-inner focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
               >
                 <option value="strength">Strength</option>
                 <option value="hypertrophy">Hypertrophy</option>
@@ -320,13 +327,13 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Experience Level
               </label>
               <select
                 value={experienceLevel}
                 onChange={e => setExperienceLevel(e.target.value as ProgramTemplate['experienceLevel'])}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="w-full rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-inner focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
               >
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
@@ -334,13 +341,13 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Intensity Method
               </label>
               <select
                 value={intensityMethod}
                 onChange={e => setIntensityMethod(e.target.value as ProgramTemplate['intensityMethod'])}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="w-full rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-inner focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
               >
                 <option value="rpe">RPE (Rate of Perceived Exertion)</option>
                 <option value="rir">RIR (Reps in Reserve)</option>
@@ -350,7 +357,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Description
               </label>
               <textarea
@@ -358,7 +365,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Describe this program's focus, methodology, and intended results..."
                 rows={3}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="w-full rounded-xl border-2 border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 shadow-inner focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
               />
             </div>
           </div>
@@ -366,13 +373,13 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
 
         {/* Week Management */}
         <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-50">
               Program Structure
             </h2>
             <button
               onClick={addWeek}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900"
+              className="rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-800 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:scale-105 dark:from-zinc-100 dark:to-zinc-200 dark:text-zinc-900"
             >
               + Add Week
             </button>
@@ -384,9 +391,9 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
               <div key={week.weekNumber} className="flex items-center gap-2">
                 <button
                   onClick={() => setSelectedWeek(week.weekNumber)}
-                  className={`flex-shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`flex-shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
                     selectedWeek === week.weekNumber
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
+                      ? 'gradient-purple text-white shadow-md'
                       : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300'
                   }`}
                 >
