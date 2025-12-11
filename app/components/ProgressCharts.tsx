@@ -144,24 +144,24 @@ export default function ProgressCharts() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-10 shadow-2xl depth-effect animate-slideUp">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
-            <BarChart3 className="h-8 w-8 text-white" />
+      <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-5 sm:p-8 md:p-10 shadow-2xl depth-effect animate-slideUp">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+          <div className="rounded-lg sm:rounded-xl bg-white/20 p-2 sm:p-3 backdrop-blur-sm flex-shrink-0">
+            <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
           </div>
-          <h2 className="text-5xl font-black text-white">
-            Progress Analytics
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white leading-tight">
+            Analytics
           </h2>
         </div>
-        <p className="text-xl font-medium text-blue-100">
-          Detailed performance tracking and insights powered by your workout data
+        <p className="text-sm sm:text-lg md:text-xl font-medium text-blue-100">
+          Track your progress and performance
         </p>
       </div>
 
       {/* Exercise Selector */}
-      <div className="rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-blue-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn relative z-10">
+      <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-white via-blue-50/20 to-white p-4 sm:p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-blue-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn relative z-10">
         <CustomSelect
           value={selectedExercise}
           onChange={(value) => setSelectedExercise(value)}
@@ -175,36 +175,37 @@ export default function ProgressCharts() {
       </div>
 
       {/* View Mode Tabs */}
-      <div className="flex gap-3 overflow-x-auto pb-2 animate-fadeIn" style={{animationDelay: '0.1s'}}>
+      <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 animate-fadeIn scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0" style={{animationDelay: '0.1s'}}>
         {viewModeConfig.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setViewMode(key as typeof viewMode)}
-            className={`group flex items-center gap-2 flex-shrink-0 rounded-xl px-6 py-4 text-sm font-bold transition-all hover:scale-105 shadow-md ${
+            className={`group flex items-center gap-1.5 sm:gap-2 flex-shrink-0 rounded-lg sm:rounded-xl px-3 sm:px-6 py-2.5 sm:py-4 text-xs sm:text-sm font-bold transition-all hover:scale-105 shadow-md ${
               viewMode === key
                 ? 'gradient-purple text-white shadow-glow-purple'
                 : 'bg-white text-zinc-700 hover:bg-zinc-100 border-2 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:border-zinc-700'
             }`}
           >
-            <Icon className={`h-5 w-5 ${viewMode === key ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200'}`} />
-            {label}
+            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${viewMode === key ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200'}`} />
+            <span className="whitespace-nowrap">{label}</span>
           </button>
         ))}
       </div>
 
       {/* E1RM Progression Chart */}
       {viewMode === 'e1rm' && (
-        <div className="rounded-2xl bg-gradient-to-br from-white via-purple-50/10 to-white p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
-              <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+        <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-white via-purple-50/10 to-white p-4 sm:p-6 md:p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="rounded-lg sm:rounded-xl bg-purple-100 p-2 sm:p-3 dark:bg-purple-900/30 flex-shrink-0">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
             </div>
-            <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-              Estimated 1RM Progression
+            <h3 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+              <span className="hidden sm:inline">Estimated 1RM Progression</span>
+              <span className="sm:hidden">E1RM Progress</span>
               <HelpTooltip content="E1RM (Estimated 1-Rep Max) predicts the maximum weight you could lift for one rep based on your actual performance. Calculated using the Epley formula: weight × (1 + reps/30)" />
             </h3>
           </div>
-          <p className="mb-6 text-lg font-medium text-zinc-600 dark:text-zinc-400">
+          <p className="mb-4 sm:mb-6 text-sm sm:text-base md:text-lg font-medium text-zinc-600 dark:text-zinc-400">
             {selectedExerciseData?.name}
           </p>
 
@@ -216,7 +217,7 @@ export default function ProgressCharts() {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={300} className="sm:!h-[400px]">
                 <LineChart data={e1rmData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="e1rmGradient" x1="0" y1="0" x2="0" y2="1">
@@ -281,25 +282,25 @@ export default function ProgressCharts() {
               </ResponsiveContainer>
 
               {/* Stats Summary */}
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                <div className="group rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                  <p className="text-xs font-bold text-pink-100 uppercase tracking-wide">Current E1RM</p>
-                  <p className="mt-2 text-3xl font-black text-white">
-                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} <span className="text-xl">lbs</span>
+              <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-[10px] sm:text-xs font-bold text-pink-100 uppercase tracking-wide">Current</p>
+                  <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
+                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
                   </p>
                 </div>
-                <div className="group rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                  <p className="text-xs font-bold text-purple-100 uppercase tracking-wide">Starting E1RM</p>
-                  <p className="mt-2 text-3xl font-black text-white">
-                    {e1rmData[0]?.e1rm.toFixed(1)} <span className="text-xl">lbs</span>
+                <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-[10px] sm:text-xs font-bold text-purple-100 uppercase tracking-wide">Starting</p>
+                  <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
+                    {e1rmData[0]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
                   </p>
                 </div>
-                <div className="group rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                  <p className="text-xs font-bold text-green-100 uppercase tracking-wide">Total Gain</p>
-                  <p className="mt-2 text-3xl font-black text-white">
+                <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                  <p className="text-[10px] sm:text-xs font-bold text-green-100 uppercase tracking-wide">Gain</p>
+                  <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
                     +{(
                       e1rmData[e1rmData.length - 1]?.e1rm - e1rmData[0]?.e1rm || 0
-                    ).toFixed(1)} <span className="text-xl">lbs</span>
+                    ).toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
                   </p>
                 </div>
               </div>
@@ -310,15 +311,16 @@ export default function ProgressCharts() {
 
       {/* Volume Trends */}
       {viewMode === 'volume' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Per-Session Volume */}
-          <div className="rounded-2xl bg-gradient-to-br from-white via-green-50/10 to-white p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-green-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="rounded-xl bg-green-100 p-3 dark:bg-green-900/30">
-                <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-white via-green-50/10 to-white p-4 sm:p-6 md:p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-green-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <div className="rounded-lg sm:rounded-xl bg-green-100 p-2 sm:p-3 dark:bg-green-900/30 flex-shrink-0">
+                <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50">
-                Volume Per Session - {selectedExerciseData?.name}
+              <h3 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50">
+                <span className="hidden sm:inline">Volume Per Session - {selectedExerciseData?.name}</span>
+                <span className="sm:hidden">Volume - {selectedExerciseData?.name}</span>
               </h3>
             </div>
 
@@ -330,7 +332,7 @@ export default function ProgressCharts() {
               </div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={300} className="sm:!h-[400px]">
                   <BarChart data={volumeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <defs>
                       <linearGradient id="volumeBarGradient" x1="0" y1="0" x2="0" y2="1">
@@ -381,25 +383,25 @@ export default function ProgressCharts() {
                 </ResponsiveContainer>
 
                 {/* Volume Stats */}
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="group rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-xs font-bold text-emerald-100 uppercase tracking-wide">Avg Volume/Session</p>
-                    <p className="mt-2 text-3xl font-black text-white">
+                <div className="mt-4 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-[10px] sm:text-xs font-bold text-emerald-100 uppercase tracking-wide">Avg Vol</p>
+                    <p className="mt-1 sm:mt-2 text-base sm:text-2xl md:text-3xl font-black text-white leading-tight">
                       {(
                         volumeData.reduce((sum, d) => sum + d.totalVolume, 0) / volumeData.length
                       ).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                      <span className="text-xl">lbs</span>
+                      <span className="text-xs sm:text-lg md:text-xl">lbs</span>
                     </p>
                   </div>
-                  <div className="group rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-xs font-bold text-blue-100 uppercase tracking-wide">Avg Sets/Session</p>
-                    <p className="mt-2 text-3xl font-black text-white">
+                  <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-[10px] sm:text-xs font-bold text-blue-100 uppercase tracking-wide">Avg Sets</p>
+                    <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
                       {(volumeData.reduce((sum, d) => sum + d.sets, 0) / volumeData.length).toFixed(1)}
                     </p>
                   </div>
-                  <div className="group rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-xs font-bold text-purple-100 uppercase tracking-wide">Total Sessions</p>
-                    <p className="mt-2 text-3xl font-black text-white">
+                  <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
+                    <p className="text-[10px] sm:text-xs font-bold text-purple-100 uppercase tracking-wide">Sessions</p>
+                    <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
                       {volumeData.length}
                     </p>
                   </div>
@@ -419,7 +421,7 @@ export default function ProgressCharts() {
                 <p className="text-zinc-600 dark:text-zinc-400">Not enough data for weekly view.</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={200} className="sm:!h-[250px]">
                 <LineChart data={weeklyVolumeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="weeklyVolumeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -471,33 +473,34 @@ export default function ProgressCharts() {
 
       {/* RPE Analysis */}
       {viewMode === 'rpe' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* RPE Consistency for Selected Exercise */}
           {rpeConsistency && (
-            <div className="rounded-2xl bg-gradient-to-br from-white via-yellow-50/10 to-white p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-yellow-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="rounded-xl bg-yellow-100 p-3 dark:bg-yellow-900/30">
-                  <Zap className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-white via-yellow-50/10 to-white p-4 sm:p-6 md:p-8 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-yellow-950/5 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn">
+              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <div className="rounded-lg sm:rounded-xl bg-yellow-100 p-2 sm:p-3 dark:bg-yellow-900/30 flex-shrink-0">
+                  <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50">
-                  RPE Consistency - {selectedExerciseData?.name}
+                <h3 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50">
+                  <span className="hidden sm:inline">RPE Consistency - {selectedExerciseData?.name}</span>
+                  <span className="sm:hidden">RPE - {selectedExerciseData?.name}</span>
                 </h3>
               </div>
 
               {rpeConsistency.avgPrescribedRPE === 0 ? (
                 // Imported data without prescribed RPE - show actual RPE only
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                    <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
+                    <p className="mt-1 text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50">
                       {rpeConsistency.avgActualRPE.toFixed(1)}
                     </p>
-                    <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                    <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-zinc-600 dark:text-zinc-400">
                       Based on {rpeConsistency.setsWithRPE} sets
                     </p>
                   </div>
-                  <div className="rounded-lg bg-blue-100 p-4 dark:bg-blue-900/30">
-                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                  <div className="rounded-lg bg-blue-100 p-3 sm:p-4 dark:bg-blue-900/30">
+                    <p className="text-xs sm:text-sm text-blue-900 dark:text-blue-100">
                       <strong>Note:</strong> This data was imported without prescribed RPE values.
                       To see consistency analysis, start logging prescribed RPE in your workouts.
                     </p>
@@ -506,23 +509,23 @@ export default function ProgressCharts() {
               ) : (
                 // Full consistency analysis with prescribed RPE
                 <>
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Prescribed RPE</p>
-                      <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-4">
+                    <div className="rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                      <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 leading-tight">Avg Prescribed</p>
+                      <p className="mt-1 text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50">
                         {rpeConsistency.avgPrescribedRPE.toFixed(1)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Actual RPE</p>
-                      <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                    <div className="rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                      <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 leading-tight">Avg Actual</p>
+                      <p className="mt-1 text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50">
                         {rpeConsistency.avgActualRPE.toFixed(1)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Deviation</p>
+                    <div className="rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                      <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 leading-tight">Deviation</p>
                       <p
-                        className={`mt-1 text-2xl font-bold ${
+                        className={`mt-1 text-xl sm:text-2xl font-bold ${
                           rpeConsistency.avgDeviation > 0.5
                             ? 'text-red-600'
                             : rpeConsistency.avgDeviation < -0.5
@@ -534,10 +537,10 @@ export default function ProgressCharts() {
                         {rpeConsistency.avgDeviation.toFixed(1)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Consistency</p>
+                    <div className="rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                      <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 leading-tight">Consistency</p>
                       <p
-                        className={`mt-1 text-xl font-bold capitalize ${
+                        className={`mt-1 text-base sm:text-xl font-bold capitalize ${
                           rpeConsistency.consistency === 'excellent'
                             ? 'text-green-600'
                             : rpeConsistency.consistency === 'good'
@@ -552,8 +555,8 @@ export default function ProgressCharts() {
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-                    <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                  <div className="mt-3 sm:mt-4 rounded-lg bg-zinc-100 p-3 sm:p-4 dark:bg-zinc-800">
+                    <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300">
                       {rpeConsistency.avgDeviation > 0.5 ? (
                         <span>
                           You consistently <strong>overshoot</strong> your target RPE by{' '}
@@ -592,7 +595,7 @@ export default function ProgressCharts() {
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={200} className="sm:!h-[250px]">
                 <LineChart data={sessionRPETrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="rpeGradient" x1="0" y1="0" x2="0" y2="1">
