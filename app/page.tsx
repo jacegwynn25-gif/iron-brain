@@ -769,25 +769,6 @@ export default function Home() {
         {/* Program View */}
         {viewMode === 'program' && (
           <>
-            {!selectedProgram && (
-              <div className="mb-8 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-purple-900 p-1 shadow-2xl animate-slideUp">
-                <div className="rounded-2xl sm:rounded-3xl bg-zinc-950/80 p-6 sm:p-8 text-center">
-                  <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">Pick a Program to Start</h2>
-                  <p className="text-sm sm:text-base text-zinc-300 mb-6">
-                    Select a built-in program or create your own before starting a workout.
-                  </p>
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => setShowProgramSelector(true)}
-                      className="rounded-xl bg-white px-6 py-3 font-bold text-purple-700 shadow-lg transition-all hover:scale-105"
-                    >
-                      Choose Program
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* HERO CARD - Current Day at the Top */}
             {selectedProgram && currentDay && (
               <div className="mb-8 rounded-2xl sm:rounded-3xl hero-gradient p-1 shadow-2xl animate-slideUp">
@@ -978,11 +959,11 @@ export default function Home() {
                 </div>
               )}
 
-              {showProgramCustomizationHint && selectedProgram && (
-                <div className="mt-4 animate-slideDown">
-                  <div className="rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-4 shadow-2xl border-2 border-white/30 dark:border-white/20">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-full bg-white/20 p-2 flex-shrink-0">
+            {showProgramCustomizationHint && selectedProgram && (
+              <div className="mt-4 animate-slideDown">
+                <div className="rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-4 shadow-2xl border-2 border-white/30 dark:border-white/20">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full bg-white/20 p-2 flex-shrink-0">
                         <Database className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1009,8 +990,10 @@ export default function Home() {
               )}
             </div>
 
-            {/* Collapsible Week Selector */}
-            <div className="mb-6 animate-fadeIn" style={{animationDelay: '0.2s'}}>
+            {selectedProgram && (
+              <>
+                {/* Collapsible Week Selector */}
+                <div className="mb-6 animate-fadeIn" style={{animationDelay: '0.2s'}}>
               <button
                 onClick={() => setShowWeekSelector(!showWeekSelector)}
                 className="w-full flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-all hover:shadow-xl hover:scale-[1.02] border-2 border-zinc-200 hover:border-green-300 dark:bg-zinc-900 dark:border-zinc-700 dark:hover:border-green-600 group"
@@ -1286,6 +1269,8 @@ export default function Home() {
               )}
 
             </div>
+              </>
+            )}
           </>
         )}
       </div>
