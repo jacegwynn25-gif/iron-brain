@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { Dumbbell, History, BarChart3, Wrench, ChevronDown, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
 import { allPrograms, defaultExercises } from './lib/programs';
-import { Exercise, SetTemplate, ProgramTemplate, WorkoutSession } from './lib/types';
+import { Exercise, SetTemplate, ProgramTemplate, WorkoutSession, WeekTemplate, DayTemplate } from './lib/types';
 import WorkoutLogger from './components/WorkoutLogger';
 import WorkoutHistory from './components/WorkoutHistory';
 import ProgressCharts from './components/ProgressCharts';
@@ -63,6 +63,10 @@ export default function Home() {
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'program' | 'history' | 'analytics' | 'utilities' | 'settings'>('program');
+  const [todayKey, setTodayKey] = useState<string>(() =>
+    typeof window !== 'undefined' ? new Date().toISOString().split('T')[0] : ''
+  );
+  const [userPinnedDay, setUserPinnedDay] = useState(false);
 
   // Workflow states
   const [isLogging, setIsLogging] = useState(false);
@@ -80,6 +84,14 @@ export default function Home() {
 
   useEffect(() => {
     setHydrated(true);
+  }, []);
+
+  // Keep a lightweight "today" clock so we can auto-advance the UI each day
+  useEffect(() => {
+    const updateToday = () => setTodayKey(new Date().toISOString().split('T')[0]);
+    updateToday();
+    const interval = setInterval(updateToday, 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Onboarding hints
@@ -151,6 +163,69 @@ export default function Home() {
     }},
   ], !isLogging && !isBuilding); // Disable when in logging or building mode
 
+  const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const getSuggestedWeekAndDay = (program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
+    const todayLabel = dayOrder[new Date().getDay()] as DayTemplate['dayOfWeek'];
+    const weeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
+    const findDayIndex = (week: WeekTemplate | undefined, day: DayTemplate['dayOfWeek']) =>
+      week ? week.days.findIndex(d => d.dayOfWeek === day) : -1;
+    const findWeek = (weekNumber: number) => program.weeks.find(w => w.weekNumber === weekNumber);
+    const nextWeekNumber = (current: number) => {
+      const idx = weeks.findIndex(w => w.weekNumber === current);
+      return weeks[Math.min(idx + 1, weeks.length - 1)]?.weekNumber ?? current;
+    };
+
+    const historyForProgram = [...history]
+      .filter(h => h.programId === program.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // First-time users: default to today's matching day if available
+    if (historyForProgram.length === 0) {
+      const weekWithToday = weeks.find(w => findDayIndex(w, todayLabel) !== -1) ?? weeks[0];
+      const dayIdx = findDayIndex(weekWithToday, todayLabel);
+      return {
+        week: weekWithToday.weekNumber,
+        dayIndex: dayIdx !== -1 ? dayIdx : 0,
+      };
+    }
+
+    const lastSession = historyForProgram[0];
+    const lastWeek = findWeek(lastSession.weekNumber) ?? weeks[0];
+    const lastDayIdx = findDayIndex(lastWeek, lastSession.dayOfWeek as DayTemplate['dayOfWeek']);
+    const todayIdxInLastWeek = findDayIndex(lastWeek, todayLabel);
+    const todayAfterLast = todayIso > lastSession.date;
+
+    if (todayIdxInLastWeek !== -1) {
+      const wrappedToNewCalendarWeek = todayAfterLast && lastDayIdx !== -1 && todayIdxInLastWeek < lastDayIdx;
+      if (wrappedToNewCalendarWeek) {
+        const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+        const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+        const dayIdx = findDayIndex(nextWeek, todayLabel);
+        return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+      }
+
+      // If today exists in this week, show it unless we've already passed it (same-day re-open keeps today)
+      if (todayAfterLast || todayIdxInLastWeek >= lastDayIdx) {
+        return { week: lastWeek.weekNumber, dayIndex: todayIdxInLastWeek };
+      }
+      const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+      const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+      const dayIdx = findDayIndex(nextWeek, todayLabel);
+      return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+    }
+
+    // If the program doesn't schedule this weekday, advance to the next programmed day
+    if (lastDayIdx !== -1 && lastDayIdx < lastWeek.days.length - 1 && todayAfterLast) {
+      return { week: lastWeek.weekNumber, dayIndex: lastDayIdx + 1 };
+    }
+
+    const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+    const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+    const dayIdx = findDayIndex(nextWeek, todayLabel);
+    return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+  };
+
   const handleSelectProgram = (program: ProgramTemplate) => {
     if (hasUnsavedChanges) {
       if (!confirm('You have unsaved changes. Discard them and switch programs?')) {
@@ -159,8 +234,9 @@ export default function Home() {
     }
     setSelectedProgram(program);
     setOriginalProgram(program);
-    setSelectedWeek(1);
-    setSelectedDayIndex(program.weeks?.[0]?.days.length ? 0 : null);
+    const suggestion = getSuggestedWeekAndDay(program, workoutHistory, todayKey);
+    setSelectedWeek(suggestion.week);
+    setSelectedDayIndex(suggestion.dayIndex);
   };
 
   const createId = (prefix: string) => {
@@ -301,6 +377,19 @@ export default function Home() {
   }, {} as Record<string, SetTemplate[]>);
 
   const availableWeeks = selectedProgram ? selectedProgram.weeks.map(w => w.weekNumber).sort((a, b) => a - b) : [];
+
+  // Auto-align the visible day/week with today's weekday and the user's last logged session
+  useEffect(() => {
+    if (!selectedProgram || isLogging || userPinnedDay) return;
+    const suggestion = getSuggestedWeekAndDay(selectedProgram, workoutHistory, todayKey);
+    setSelectedWeek(suggestion.week);
+    setSelectedDayIndex(suggestion.dayIndex);
+  }, [selectedProgram, workoutHistory, todayKey, isLogging, userPinnedDay]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset manual pin when switching programs or rolling to a new day
+  useEffect(() => {
+    setUserPinnedDay(false);
+  }, [selectedProgram?.id, todayKey]);
 
   // Helper function to update a specific set
   const updateSet = (weekNum: number, dayIdx: number, exerciseId: string, setIdx: number, updates: Partial<SetTemplate>) => {
@@ -1229,7 +1318,10 @@ export default function Home() {
                 {currentWeek?.days.map((day, idx) => (
                   <div key={idx} className="group relative stagger-item" style={{isolation: 'isolate'}}>
                     <button
-                      onClick={() => setSelectedDayIndex(idx)}
+                      onClick={() => {
+                        setSelectedDayIndex(idx);
+                        setUserPinnedDay(true);
+                      }}
                       className={`w-full rounded-2xl border-2 p-7 text-left transition-all hover:scale-[1.03] depth-effect shadow-md hover:shadow-xl ${
                         selectedDayIndex === idx
                           ? 'gradient-animated border-transparent text-white shadow-glow-purple'

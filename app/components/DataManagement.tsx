@@ -108,13 +108,13 @@ export default function DataManagement() {
           const newSessions = sessions.filter(s => !existingIds.has(s.id));
 
           const merged = [...existing, ...newSessions];
-          localStorage.setItem('iron_brain_workout_history', JSON.stringify(merged));
+          storage.setWorkoutHistory(merged);
 
           alert(`✅ Successfully imported ${newSessions.length} new sessions!\n${existingIds.size} duplicate sessions were skipped.`);
         } else {
           // Replace: Overwrite all data
           if (confirm('⚠️ This will DELETE all existing workout data. Are you sure?')) {
-            localStorage.setItem('iron_brain_workout_history', JSON.stringify(sessions));
+            storage.setWorkoutHistory(sessions);
             alert(`✅ Successfully replaced all data with ${sessions.length} sessions!`);
           }
         }
@@ -148,7 +148,7 @@ export default function DataManagement() {
       return;
     }
 
-    localStorage.removeItem('iron_brain_workout_history');
+    storage.setWorkoutHistory([]);
     alert('✅ All workout data has been deleted.');
     window.location.reload();
   };

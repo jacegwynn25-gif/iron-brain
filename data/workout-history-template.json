@@ -1,0 +1,93 @@
+[
+  {
+    "id": "session_replace_me_1",
+    "programId": "lifting-pro-bench-specialization",
+    "programName": "Bench Press Specialization Program",
+    "cycleNumber": 1,
+    "weekNumber": 4,
+    "dayOfWeek": "Mon",
+    "dayName": "Monday",
+    "date": "2024-07-01",
+    "startTime": "2024-07-01T07:30:00.000Z",
+    "endTime": "2024-07-01T08:25:00.000Z",
+    "durationMinutes": 55,
+    "sets": [
+      {
+        "exerciseId": "bench_paused",
+        "setIndex": 1,
+        "prescribedReps": "6",
+        "prescribedRPE": 6.5,
+        "completed": true,
+        "actualReps": 6,
+        "actualWeight": 225,
+        "actualRPE": 7,
+        "volumeLoad": 1350,
+        "e1rm": 269.6,
+        "timestamp": "2024-07-01T07:35:00.000Z",
+        "notes": "Replace weight/reps/RPE with your real numbers"
+      },
+      {
+        "exerciseId": "tricep_pressdown",
+        "setIndex": 1,
+        "prescribedReps": "10",
+        "prescribedRPE": 8,
+        "completed": true,
+        "actualReps": 10,
+        "actualWeight": 80,
+        "actualRPE": 8,
+        "volumeLoad": 800,
+        "timestamp": "2024-07-01T07:48:00.000Z"
+      }
+    ],
+    "createdAt": "2024-07-01T07:30:00.000Z",
+    "updatedAt": "2024-07-01T08:25:00.000Z",
+    "totalVolumeLoad": 2150,
+    "averageRPE": 7
+  },
+  {
+    "id": "session_replace_me_2",
+    "programId": "lifting-pro-bench-specialization",
+    "programName": "Bench Press Specialization Program",
+    "cycleNumber": 1,
+    "weekNumber": 4,
+    "dayOfWeek": "Tue",
+    "dayName": "Tuesday",
+    "date": "2024-07-02",
+    "startTime": "2024-07-02T07:30:00.000Z",
+    "endTime": "2024-07-02T08:20:00.000Z",
+    "durationMinutes": 50,
+    "sets": [
+      {
+        "exerciseId": "squat",
+        "setIndex": 1,
+        "prescribedReps": "4-6",
+        "prescribedRPE": 7,
+        "completed": true,
+        "actualReps": 5,
+        "actualWeight": 275,
+        "actualRPE": 7.5,
+        "volumeLoad": 1375,
+        "e1rm": 319.7,
+        "timestamp": "2024-07-02T07:40:00.000Z",
+        "notes": "Replace with your numbers"
+      },
+      {
+        "exerciseId": "rdl",
+        "setIndex": 1,
+        "prescribedReps": "6-7",
+        "prescribedRPE": 7,
+        "completed": true,
+        "actualReps": 6,
+        "actualWeight": 225,
+        "actualRPE": 7,
+        "volumeLoad": 1350,
+        "e1rm": 259.3,
+        "timestamp": "2024-07-02T07:55:00.000Z"
+      }
+    ],
+    "createdAt": "2024-07-02T07:30:00.000Z",
+    "updatedAt": "2024-07-02T08:20:00.000Z",
+    "totalVolumeLoad": 2725,
+    "averageRPE": 7.25
+  }
+]

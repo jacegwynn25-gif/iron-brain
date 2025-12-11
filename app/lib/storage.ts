@@ -39,6 +39,14 @@ export function getWorkoutHistory(): WorkoutSession[] {
   }
 }
 
+export function setWorkoutHistory(sessions: WorkoutSession[]): void {
+  try {
+    localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(sessions));
+  } catch (error) {
+    console.error('Failed to set workout history:', error);
+  }
+}
+
 export function getWorkoutById(id: string): WorkoutSession | null {
   const history = getWorkoutHistory();
   return history.find(w => w.id === id) || null;
@@ -501,6 +509,7 @@ export function incrementCycle(programId: string): void {
 export const storage = {
   saveWorkout,
   getWorkoutHistory,
+  setWorkoutHistory,
   getWorkoutById,
   deleteWorkout,
   deleteWorkoutSession: deleteWorkout, // Alias for clarity
