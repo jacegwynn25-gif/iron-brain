@@ -72,12 +72,21 @@ export class WorkoutImporter {
     console.log('[WorkoutImporter] Starting parsing...');
 
     try {
-      const parser = this.parsers.find((p) => p.canParse(file));
+      // Find the right parser (canParse is async, so we need to await)
+      let parser: Parser | undefined;
+      for (const p of this.parsers) {
+        const canParse = await p.canParse(file);
+        console.log(`[WorkoutImporter] Testing parser ${p.constructor.name}:`, canParse);
+        if (canParse && !parser) {
+          parser = p;
+        }
+      }
+
       if (!parser) {
         throw new Error('No parser available for this file format');
       }
 
-      console.log('[WorkoutImporter] Found parser:', parser.constructor.name);
+      console.log('[WorkoutImporter] Selected parser:', parser.constructor.name);
       const parsedResult = await parser.parse(file);
       console.log('[WorkoutImporter] Parse result:', {
         sections: parsedResult.sections.length,
