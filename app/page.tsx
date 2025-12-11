@@ -235,6 +235,7 @@ export default function Home() {
     const suggestion = getSuggestedWeekAndDay(program, workoutHistory, todayKey);
     setSelectedWeek(suggestion.week);
     setSelectedDayIndex(suggestion.dayIndex);
+    setShowProgramSelector(false);
   };
 
   const createId = (prefix: string) => {
@@ -1006,19 +1007,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
-              {showProgramSelector && (
-                <div className="mt-4 animate-fadeIn">
-                  <ProgramSelector
-                    builtInPrograms={allPrograms}
-                    userPrograms={userPrograms}
-                    selectedProgram={selectedProgram}
-                    onSelectProgram={handleSelectProgram}
-                    onCreateNew={handleCreateNewFromBuilder}
-                    onDeleteProgram={handleDeleteProgram}
-                  />
-                </div>
-              )}
             </div>
 
             {/* Collapsible Week Selector */}
@@ -1301,6 +1289,57 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {showProgramSelector && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 sm:items-center"
+          onClick={() => setShowProgramSelector(false)}
+        >
+          <div
+            className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-slideUp dark:bg-zinc-900 dark:ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-2 border-b border-zinc-200 bg-gradient-to-r from-purple-50 to-white px-6 py-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-900">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-200">Program Library</p>
+                  <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Select a program</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Pick a built-in template or one of your saved programs.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleCreateNewFromBuilder}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create New
+                  </button>
+                  <button
+                    onClick={() => setShowProgramSelector(false)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition-all hover:scale-105 hover:shadow-md dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700"
+                    aria-label="Close program selector"
+                  >
+                    <X className="h-4 w-4" />
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="max-h-[75vh] overflow-y-auto bg-zinc-50/60 px-6 py-5 dark:bg-zinc-950/40">
+              <ProgramSelector
+                builtInPrograms={allPrograms}
+                userPrograms={userPrograms}
+                selectedProgram={selectedProgram}
+                onSelectProgram={handleSelectProgram}
+                onCreateNew={handleCreateNewFromBuilder}
+                onDeleteProgram={handleDeleteProgram}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
