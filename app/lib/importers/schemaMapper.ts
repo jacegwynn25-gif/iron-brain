@@ -110,8 +110,14 @@ function transformSection(
     }
 
     // Create a SetLog for each row (each set)
+    // Only include sets that have actual workout data (completed sets)
     rows.forEach((row, index) => {
       const hasData = row.weightUsed !== undefined && row.reps !== undefined;
+
+      // Skip rows with no actual workout data - we only want completed workouts
+      if (!hasData) {
+        return;
+      }
 
       // Calculate E1RM if not provided
       let e1rm = row.e1rm;
@@ -120,15 +126,15 @@ function transformSection(
       }
 
       // Calculate volume load
-      const volumeLoad = hasData ? row.weightUsed! * row.reps! : 0;
+      const volumeLoad = row.weightUsed! * row.reps!;
 
       const setLog: SetLog = {
         exerciseId: match.matchedExerciseId!,
         setIndex: setIndex++,
-        prescribedReps: row.reps ? row.reps.toString() : '0', // Use actual as prescribed if no plan
-        completed: hasData,
-        actualReps: row.reps || null,
-        actualWeight: row.weightUsed || null,
+        prescribedReps: row.reps ? row.reps.toString() : '0',
+        completed: true, // Always true since we filtered out incomplete sets
+        actualReps: row.reps!,
+        actualWeight: row.weightUsed!,
         actualRPE: row.rpeActual || null,
         volumeLoad,
         e1rm: e1rm || null,
@@ -139,12 +145,9 @@ function transformSection(
     });
   });
 
-  // Don't create session if no valid sets
+  // Don't create session if no completed sets (blank workout)
   if (sets.length === 0) {
-    warnings.push({
-      type: 'missing_data',
-      message: `Skipping ${section.sectionHeader} - no valid sets`,
-    });
+    // This is expected for incomplete workouts - don't warn
     return null;
   }
 
@@ -170,6 +173,30 @@ function transformSection(
 }
 
 /**
+ * Analyze imported sessions to detect program progress
+ */
+function analyzeImportedSessions(sessions: WorkoutSession[]): {
+  lastCompletedWeek: number;
+  totalWeeksInProgram: number;
+  completionPercentage: number;
+} {
+  if (sessions.length === 0) {
+    return { lastCompletedWeek: 0, totalWeeksInProgram: 0, completionPercentage: 0 };
+  }
+
+  // Find the highest week number that has at least one completed workout
+  const weekNumbers = sessions.map(s => s.weekNumber);
+  const lastCompletedWeek = Math.max(...weekNumbers);
+
+  // Find total weeks in the program (from parsed data, not from sessions)
+  const totalWeeksInProgram = lastCompletedWeek; // Conservative estimate
+
+  const completionPercentage = Math.round((lastCompletedWeek / totalWeeksInProgram) * 100);
+
+  return { lastCompletedWeek, totalWeeksInProgram, completionPercentage };
+}
+
+/**
  * Transform parsed file result into WorkoutSession array
  */
 export function mapToWorkoutSessions(
@@ -180,13 +207,37 @@ export function mapToWorkoutSessions(
   const warnings: ImportWarning[] = [...parsedResult.warnings];
   const sessions: WorkoutSession[] = [];
 
+  // Count total sections vs completed sections for progress tracking
+  let totalSections = 0;
+  let completedSections = 0;
+
   // Transform each section
   parsedResult.sections.forEach((section) => {
+    totalSections++;
     const session = transformSection(section, exerciseMatches, config, warnings);
     if (session) {
       sessions.push(session);
+      completedSections++;
     }
   });
+
+  // Add informational message about skipped blank workouts
+  const skippedSections = totalSections - completedSections;
+  if (skippedSections > 0) {
+    warnings.push({
+      type: 'info',
+      message: `Skipped ${skippedSections} blank workout(s) that haven't been completed yet`,
+    });
+  }
+
+  // Add program progress info
+  if (sessions.length > 0) {
+    const analysis = analyzeImportedSessions(sessions);
+    warnings.push({
+      type: 'info',
+      message: `Program progress: Completed through Week ${analysis.lastCompletedWeek}`,
+    });
+  }
 
   return { sessions, warnings };
 }

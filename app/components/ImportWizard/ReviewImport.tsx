@@ -60,20 +60,42 @@ export default function ReviewImport({ session, onConfirm, onBack, isProcessing 
         </div>
       </div>
 
-      {/* Warnings */}
+      {/* Info and Warnings */}
       {session.warnings.length > 0 && (
-        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-          <h4 className="text-yellow-400 font-semibold mb-2">Warnings ({session.warnings.length})</h4>
-          <ul className="space-y-1 max-h-32 overflow-y-auto">
-            {session.warnings.slice(0, 5).map((warning, index) => (
-              <li key={index} className="text-yellow-300 text-sm">
-                {warning.message}
-              </li>
-            ))}
-            {session.warnings.length > 5 && (
-              <li className="text-yellow-400 text-sm">+ {session.warnings.length - 5} more warnings</li>
-            )}
-          </ul>
+        <div className="space-y-3">
+          {/* Info messages */}
+          {session.warnings.filter(w => w.type === 'info').length > 0 && (
+            <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+              <h4 className="text-blue-400 font-semibold mb-2">Import Info</h4>
+              <ul className="space-y-1">
+                {session.warnings.filter(w => w.type === 'info').map((warning, index) => (
+                  <li key={index} className="text-blue-300 text-sm">
+                    {warning.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {/* Other warnings */}
+          {session.warnings.filter(w => w.type !== 'info').length > 0 && (
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+              <h4 className="text-yellow-400 font-semibold mb-2">
+                Warnings ({session.warnings.filter(w => w.type !== 'info').length})
+              </h4>
+              <ul className="space-y-1 max-h-32 overflow-y-auto">
+                {session.warnings.filter(w => w.type !== 'info').slice(0, 5).map((warning, index) => (
+                  <li key={index} className="text-yellow-300 text-sm">
+                    {warning.message}
+                  </li>
+                ))}
+                {session.warnings.filter(w => w.type !== 'info').length > 5 && (
+                  <li className="text-yellow-400 text-sm">
+                    + {session.warnings.filter(w => w.type !== 'info').length - 5} more warnings
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

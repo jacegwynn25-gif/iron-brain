@@ -209,15 +209,33 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
 
       {/* Warnings */}
       {warnings && warnings.length > 0 && (
-        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-          <h4 className="text-yellow-400 font-semibold mb-2">Warnings</h4>
-          <ul className="space-y-1">
-            {warnings.map((warning, index) => (
-              <li key={index} className="text-yellow-300 text-sm">
-                {warning.message}
-              </li>
-            ))}
-          </ul>
+        <div>
+          {/* Info messages */}
+          {warnings.filter(w => w.type === 'info').length > 0 && (
+            <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-4">
+              <h4 className="text-blue-400 font-semibold mb-2">Import Info</h4>
+              <ul className="space-y-1">
+                {warnings.filter(w => w.type === 'info').map((warning, index) => (
+                  <li key={index} className="text-blue-300 text-sm">
+                    {warning.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {/* Other warnings */}
+          {warnings.filter(w => w.type !== 'info').length > 0 && (
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+              <h4 className="text-yellow-400 font-semibold mb-2">Warnings</h4>
+              <ul className="space-y-1">
+                {warnings.filter(w => w.type !== 'info').map((warning, index) => (
+                  <li key={index} className="text-yellow-300 text-sm">
+                    {warning.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

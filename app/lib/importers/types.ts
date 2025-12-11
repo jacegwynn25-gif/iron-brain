@@ -86,7 +86,7 @@ export interface ImportError {
 
 // Import warning
 export interface ImportWarning {
-  type: 'missing_data' | 'assumed_value' | 'duplicate' | 'low_confidence_match';
+  type: 'missing_data' | 'assumed_value' | 'duplicate' | 'low_confidence_match' | 'info';
   message: string;
   rowIndex?: number;
   field?: string;
