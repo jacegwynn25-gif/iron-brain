@@ -63,8 +63,7 @@ function detectFieldMapping(headers: any[]): FieldMapping {
     // Target/Goal RPE field (NEW - for prescribed RPE)
     if (/rpe.*target|rpe.*goal|target.*rpe|goal.*rpe/i.test(lower)) {
       if (!mapping.targetRPEField) {
-        // Store target RPE as a custom field
-        (mapping as any).targetRPEField = index.toString();
+        mapping.targetRPEField = index.toString();
       }
     }
 
@@ -150,9 +149,8 @@ function parseDataRow(
   }
 
   // Parse target/prescribed RPE
-  const targetRPEField = (fieldMapping as any).targetRPEField;
-  if (targetRPEField) {
-    const targetRPEIndex = parseInt(targetRPEField, 10);
+  if (fieldMapping.targetRPEField) {
+    const targetRPEIndex = parseInt(fieldMapping.targetRPEField, 10);
     if (row[targetRPEIndex] !== undefined) {
       const targetRPE = typeof row[targetRPEIndex] === 'number' ? row[targetRPEIndex] : parseFloat(row[targetRPEIndex]);
       if (!isNaN(targetRPE)) {

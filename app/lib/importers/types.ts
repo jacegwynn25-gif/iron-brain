@@ -59,6 +59,7 @@ export interface FieldMapping {
   weightField?: string;
   repsField?: string;
   rpeField?: string;
+  targetRPEField?: string;
   e1rmField?: string;
   orderField?: string;
   dateField?: string;
