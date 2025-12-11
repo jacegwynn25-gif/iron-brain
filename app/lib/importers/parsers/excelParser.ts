@@ -184,9 +184,20 @@ export class ExcelParser implements Parser {
           }
 
           // Read ALL sheets and combine their data
+          // Filter out non-workout sheets (settings, analytics, etc.)
+          const workoutSheetPattern = /week\s+\d+/i;
+          const workoutSheets = workbook.SheetNames.filter(name => {
+            // Include sheets that match "week 1", "week 2", etc. OR don't match common non-workout patterns
+            const isWeekSheet = workoutSheetPattern.test(name);
+            const isNonWorkout = /settings|analytics|tracker|log|readiness/i.test(name);
+            return isWeekSheet || !isNonWorkout;
+          });
+
+          console.log('[ExcelParser] Workout sheets to process:', workoutSheets);
+
           let allJsonData: any[][] = [];
 
-          for (const sheetName of workbook.SheetNames) {
+          for (const sheetName of workoutSheets) {
             console.log(`[ExcelParser] Reading sheet: ${sheetName}`);
             const worksheet = workbook.Sheets[sheetName];
             const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -196,7 +207,7 @@ export class ExcelParser implements Parser {
             allJsonData = allJsonData.concat(sheetData);
 
             // Add a blank row between sheets for separation
-            if (workbook.SheetNames.indexOf(sheetName) < workbook.SheetNames.length - 1) {
+            if (workoutSheets.indexOf(sheetName) < workoutSheets.length - 1) {
               allJsonData.push([]);
             }
           }
