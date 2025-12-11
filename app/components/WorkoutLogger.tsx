@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { Exercise, SetTemplate, SetLog, WorkoutSession, ProgramTemplate } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
+import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
 import QuickPicker from './QuickPicker';
 
@@ -421,7 +422,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
       .slice(0, 3)
       .map(session => {
         const exerciseSets = session.sets.filter(s => s.exerciseId === template.exerciseId && s.completed);
-        const sessionDate = new Date(session.date);
+        const sessionDate = parseLocalDate(session.date);
         const daysAgo = Math.floor((nowValue - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
 
         return {

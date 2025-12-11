@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import type { ImportSession } from '@/app/lib/importers/types';
 import { getAllExercises } from '@/app/lib/programs';
+import { parseLocalDate } from '@/app/lib/dateUtils';
 
 interface ReviewImportProps {
   session: ImportSession;
@@ -120,7 +121,7 @@ export default function ReviewImport({ session, onConfirm, onBack, isProcessing 
                       Week {workout.weekNumber} - {workout.dayName}
                     </div>
                     <div className="text-sm text-gray-400 mt-1">
-                      {format(new Date(workout.date), 'MMM d, yyyy')} • {workout.sets.length} sets
+                      {format(parseLocalDate(workout.date), 'MMM d, yyyy')} • {workout.sets.length} sets
                     </div>
                   </div>
                   <svg

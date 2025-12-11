@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ImportSession, ImportConfig } from '@/app/lib/importers/types';
 import { workoutImporter } from '@/app/lib/importers';
+import { parseLocalDate } from '@/app/lib/dateUtils';
 import FileUpload from './FileUpload';
 import ExerciseMatching from './ExerciseMatching';
 import ReviewImport from './ReviewImport';
@@ -188,7 +189,7 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
               </p>
               {session.dateRange && (
                 <p className="text-sm text-gray-400 mb-4">
-                  Date range: {new Date(session.dateRange.start).toLocaleDateString()} - {new Date(session.dateRange.end).toLocaleDateString()}
+                  Date range: {parseLocalDate(session.dateRange.start as any).toLocaleDateString()} - {parseLocalDate(session.dateRange.end as any).toLocaleDateString()}
                 </p>
               )}
               <div className="bg-purple-800/30 rounded-lg p-4 max-w-md mx-auto">
