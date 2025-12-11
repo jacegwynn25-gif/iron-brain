@@ -783,7 +783,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                           {dateLabel}
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-500">
-                          {sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(historySession.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                       <div className="space-y-1.5">
