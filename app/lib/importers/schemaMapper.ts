@@ -98,11 +98,14 @@ function transformSection(
     // Find exercise match
     const match = exerciseMatches.find((m) => m.originalName === exerciseName);
 
-    if (!match || !match.matchedExerciseId) {
-      warnings.push({
-        type: 'missing_data',
-        message: `Skipping exercise "${exerciseName}" - no match found`,
-      });
+    if (!match || !match.matchedExerciseId || match.matchedExerciseId === '__SKIP__') {
+      // Silently skip if user marked it as skip, otherwise warn
+      if (match?.matchedExerciseId !== '__SKIP__') {
+        warnings.push({
+          type: 'missing_data',
+          message: `Skipping exercise "${exerciseName}" - no match found`,
+        });
+      }
       return;
     }
 

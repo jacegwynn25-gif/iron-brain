@@ -109,6 +109,9 @@ export default function ExerciseMatching({
                           className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white"
                         >
                           <option value="">-- Select Exercise --</option>
+                          <option value="__SKIP__" className="text-gray-400">
+                            Skip (not a valid exercise)
+                          </option>
                           {allExercises.map((ex) => (
                             <option key={ex.id} value={ex.id}>
                               {ex.name}

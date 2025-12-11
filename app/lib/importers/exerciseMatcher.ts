@@ -215,6 +215,18 @@ export function updateExerciseMatch(
   newExerciseId: string,
   allExercises: Exercise[]
 ): ExerciseMatch {
+  // Handle special case: user wants to skip this exercise
+  if (newExerciseId === '__SKIP__') {
+    return {
+      ...match,
+      matchedExerciseId: '__SKIP__',
+      matchedExerciseName: '(Skipped)',
+      confidence: 'exact',
+      confidenceScore: 100,
+      needsReview: false,
+    };
+  }
+
   const exercise = allExercises.find((e) => e.id === newExerciseId);
 
   if (!exercise) {

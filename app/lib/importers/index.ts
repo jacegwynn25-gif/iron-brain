@@ -110,10 +110,19 @@ export class WorkoutImporter {
       console.log('[WorkoutImporter] Starting exercise matching...');
 
       // Extract unique exercise names from parsed data
+      // Filter out common non-exercise names (headers, empty values)
+      const invalidExerciseNames = new Set([
+        'exercise', 'exercises', 'workout', 'set', 'sets',
+        'reps', 'weight', 'order', '', ' '
+      ]);
+
       const exerciseNames = new Set<string>();
       parsedResult.sections.forEach((section) => {
         section.rows.forEach((row) => {
-          exerciseNames.add(row.exercise);
+          const normalized = row.exercise.toLowerCase().trim();
+          if (!invalidExerciseNames.has(normalized)) {
+            exerciseNames.add(row.exercise);
+          }
         });
       });
 
