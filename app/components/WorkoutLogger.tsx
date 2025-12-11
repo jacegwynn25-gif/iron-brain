@@ -60,7 +60,7 @@ export default function WorkoutLogger({
   // Get all set templates for this workout
   const setTemplates = day?.sets || [];
   const currentTemplate = setTemplates[currentSetIndex];
-  const currentExercise = currentTemplate ? defaultExercises.find(ex => ex.id === currentTemplate.exerciseId) : null;
+  const currentExercise = currentTemplate ? (defaultExercises.find(ex => ex.id === currentTemplate.exerciseId) || null) : null;
 
   // Check if current set is part of a superset
   const isSuperset = currentTemplate?.setType === 'superset' && currentTemplate?.supersetGroup;
