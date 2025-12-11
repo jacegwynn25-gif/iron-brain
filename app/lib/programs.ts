@@ -409,6 +409,20 @@ export const defaultExercises: Exercise[] = [
     muscleGroups: ['biceps'],
     equipment: ['cable'],
   },
+  {
+    id: 'bicep_curl_preacher',
+    name: 'Preacher Curl',
+    type: 'isolation',
+    muscleGroups: ['biceps'],
+    equipment: ['barbell', 'dumbbell'],
+  },
+  {
+    id: 'jm_press',
+    name: 'JM Press',
+    type: 'compound',
+    muscleGroups: ['triceps', 'chest'],
+    equipment: ['barbell'],
+  },
 
   // ========================================
   // MACHINE EXERCISES
@@ -2295,8 +2309,396 @@ const gzclp: ProgramTemplate = {
   ],
 };
 
+const liftingProFridayLightSets = [
+  { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6, notes: 'light' },
+  { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+  { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', restSeconds: 120, targetRPE: 6 },
+  { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '12-15', restSeconds: 120, targetRPE: 6 },
+  { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+];
+
+const liftingProSaturdayHeavyTngSets = [
+  { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '3-4', restSeconds: 180, targetRPE: 9, notes: 'heavy top set' },
+  { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', restSeconds: 180, targetRPE: 7.5, notes: '90-95% of main' },
+  { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'squat', setIndex: 1, prescribedReps: '5-6', restSeconds: 120, targetRPE: 6 },
+];
+
+const liftingProSaturdayHeavyPausedSets = [
+  { exerciseId: 'bench_paused', setIndex: 1, prescribedReps: '3-4', restSeconds: 180, targetRPE: 9, notes: 'heavy top set' },
+  { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', restSeconds: 180, targetRPE: 7.5, notes: '90-95% of main' },
+  { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', restSeconds: 120, targetRPE: 7 },
+  { exerciseId: 'squat', setIndex: 1, prescribedReps: '5-6', restSeconds: 120, targetRPE: 6 },
+];
+
+const liftingProBaseWeeks: ProgramTemplate['weeks'] = [
+  {
+    weekNumber: 1,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_paused', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'bench_paused', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'jm_press', setIndex: 1, prescribedReps: '5-6', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyTngSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+  {
+    weekNumber: 2,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'incline_bench', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyTngSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+  {
+    weekNumber: 3,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '3-0-0 tempo, 72-75%' },
+          { exerciseId: 'bench_tempo', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '3-0-0 tempo, 72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'jm_press', setIndex: 1, prescribedReps: '5-6', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'bench_paused', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyTngSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+  {
+    weekNumber: 4,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_paused', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'bench_paused', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyPausedSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+  {
+    weekNumber: 5,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'jm_press', setIndex: 1, prescribedReps: '5-6', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_cable', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'incline_bench', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyPausedSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+  {
+    weekNumber: 6,
+    days: [
+      {
+        dayOfWeek: 'Mon',
+        name: 'Monday',
+        sets: [
+          { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '3-0-0 tempo, 72-75%' },
+          { exerciseId: 'bench_tempo', setIndex: 2, prescribedReps: '6', restSeconds: 180, targetRPE: 6.5, notes: '3-0-0 tempo, 72-75%' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-12', restSeconds: 120, targetRPE: 6 },
+        ],
+      },
+      {
+        dayOfWeek: 'Tue',
+        name: 'Tuesday',
+        sets: [
+          { exerciseId: 'squat', setIndex: 1, prescribedReps: '4-6', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+          { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', restSeconds: 120, targetRPE: 8 },
+        ],
+      },
+      {
+        dayOfWeek: 'Thu',
+        name: 'Thursday',
+        sets: [
+          { exerciseId: 'bench_paused', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7.5 },
+          { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', restSeconds: 180, targetRPE: 7, notes: '90-95% of main' },
+          { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', restSeconds: 120, targetRPE: 7 },
+          { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10', restSeconds: 120, targetRPE: 6 },
+          { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-7', restSeconds: 120, targetRPE: 7 },
+        ],
+      },
+      {
+        dayOfWeek: 'Fri',
+        name: 'Friday',
+        sets: liftingProFridayLightSets.map((set) => ({ ...set })),
+      },
+      {
+        dayOfWeek: 'Sat',
+        name: 'Saturday',
+        sets: liftingProSaturdayHeavyPausedSets.map((set) => ({ ...set })),
+      },
+    ],
+  },
+];
+
+const liftingProBenchSpecialization: ProgramTemplate = {
+  id: 'lifting-pro-bench-specialization',
+  name: 'Bench Press Specialization Program',
+  description: '12-week bench press focused program with upper/lower split. Weeks 7-12 repeat weeks 1-6.',
+  author: 'G',
+  goal: 'strength',
+  experienceLevel: 'intermediate',
+  daysPerWeek: 5,
+  weekCount: 12,
+  intensityMethod: 'rpe',
+  weeks: [
+    ...liftingProBaseWeeks,
+    ...liftingProBaseWeeks.map((week) => ({
+      ...week,
+      weekNumber: week.weekNumber + 6,
+      days: week.days.map((day) => ({
+        ...day,
+        sets: day.sets.map((set) => ({ ...set })),
+      })),
+    })),
+  ],
+};
+
 // Export all available programs
 export const allPrograms: ProgramTemplate[] = [
+  liftingProBenchSpecialization,
   benchSpecialization5D,
   phul4Day,
   upperLower4Day,
