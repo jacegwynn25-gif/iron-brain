@@ -101,7 +101,6 @@ export default function Home() {
   // IMPORTANT: Week selector and day selector should be visible by default for better UX
   // Only hide program selector and advanced settings
   const [showProgramSelector, setShowProgramSelector] = useState(false);
-  const [showProgramInfo, setShowProgramInfo] = useState(false);
   const [showWeekSelector, setShowWeekSelector] = useState(true); // Changed to true - users need to see this!
 
   // Data
@@ -878,37 +877,107 @@ export default function Home() {
               </div>
             )}
 
-            {/* Collapsible Program Selector */}
+            {/* Program Overview */}
             <div className="mb-6 animate-fadeIn">
-              <button
-                onClick={() => setShowProgramSelector(!showProgramSelector)}
-                className="w-full flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-all hover:shadow-xl hover:scale-[1.02] border-2 border-zinc-200 hover:border-purple-300 dark:bg-zinc-900 dark:border-zinc-700 dark:hover:border-purple-600 group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/30 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
-                    <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Current Program
-                    </p>
-                    <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                      {selectedProgram ? selectedProgram.name : 'No program selected'}
-                    </p>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-500 mt-0.5">
-                      Click to switch programs or create new
-                    </p>
+              {selectedProgram ? (
+                <div className="rounded-2xl bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 p-1 shadow-2xl">
+                  <div className="rounded-[14px] bg-white/90 p-5 sm:p-6 dark:bg-zinc-900/90">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1 text-left">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-purple-600 dark:text-purple-200">
+                          Current Program
+                        </p>
+                        <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-50 leading-tight">
+                          {selectedProgram.name}
+                        </h2>
+                        {selectedProgram.description && (
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                            {selectedProgram.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {selectedProgram.goal && (
+                            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-800 dark:bg-purple-900/30 dark:text-purple-100">
+                              Goal: {selectedProgram.goal}
+                            </span>
+                          )}
+                          {selectedProgram.experienceLevel && (
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-100">
+                              Level: {selectedProgram.experienceLevel}
+                            </span>
+                          )}
+                          {selectedProgram.intensityMethod && (
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800 dark:bg-green-900/30 dark:text-green-100">
+                              Intensity: {selectedProgram.intensityMethod.toUpperCase()}
+                            </span>
+                          )}
+                          {selectedProgram.daysPerWeek && (
+                            <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800 dark:bg-orange-900/30 dark:text-orange-100">
+                              {selectedProgram.daysPerWeek} days/week
+                            </span>
+                          )}
+                          {selectedProgram.weekCount && (
+                            <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-bold text-pink-800 dark:bg-pink-900/30 dark:text-pink-100">
+                              {selectedProgram.weekCount} weeks
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                        <button
+                          onClick={() => {
+                            setEditingProgramForBuilder(selectedProgram);
+                            setIsBuilding(true);
+                          }}
+                          className="gradient-purple flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold text-white shadow-glow-purple transition-all hover:scale-105 hover:shadow-xl"
+                        >
+                          Edit in Builder
+                        </button>
+                        <button
+                          onClick={() => setShowProgramSelector(true)}
+                          className="w-full sm:w-auto rounded-xl border-2 border-purple-200 bg-white px-5 py-3 text-sm font-bold text-purple-700 shadow-md transition-all hover:border-purple-300 hover:shadow-lg dark:border-purple-900 dark:bg-zinc-900 dark:text-purple-200 dark:hover:border-purple-700"
+                        >
+                          Choose Different
+                        </button>
+                        <button
+                          onClick={handleCreateNewFromBuilder}
+                          className="w-full sm:w-auto rounded-xl border-2 border-zinc-200 bg-white px-5 py-3 text-sm font-bold text-zinc-800 shadow-md transition-all hover:border-green-300 hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-green-600"
+                        >
+                          Create New
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                {showProgramSelector ? (
-                  <ChevronUp className="h-6 w-6 text-zinc-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-                ) : (
-                  <ChevronDown className="h-6 w-6 text-zinc-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-                )}
-              </button>
+              ) : (
+                <div className="rounded-2xl bg-gradient-to-br from-zinc-900 via-purple-900 to-purple-700 p-1 shadow-2xl">
+                  <div className="rounded-[14px] bg-white/90 p-6 text-center dark:bg-zinc-900/90">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-100">
+                      <Database className="h-6 w-6" />
+                    </div>
+                    <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">No program selected</h2>
+                    <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                      Pick a built-in program or create your own to get started.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                      <button
+                        onClick={() => setShowProgramSelector(true)}
+                        className="w-full sm:w-auto rounded-xl bg-white px-5 py-3 text-sm font-bold text-purple-700 shadow-md transition-all hover:scale-105 hover:shadow-lg dark:bg-zinc-800 dark:text-purple-200"
+                      >
+                        Choose Program
+                      </button>
+                      <button
+                        onClick={handleCreateNewFromBuilder}
+                        className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-green-400 to-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-xl"
+                      >
+                        Create New
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {/* Program Customization Hint for First-Time Users */}
-              {showProgramCustomizationHint && (
+              {showProgramCustomizationHint && selectedProgram && (
                 <div className="mt-4 animate-slideDown">
                   <div className="rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-4 shadow-2xl border-2 border-white/30 dark:border-white/20">
                     <div className="flex items-start gap-3">
@@ -920,7 +989,7 @@ export default function Home() {
                           Customize Your Training 🎯
                         </h4>
                         <p className="text-xs sm:text-sm text-white/90 leading-relaxed">
-                          Click the <strong>Current Program</strong> card to switch between built-in programs or create your own custom routines. You can also adjust weeks and training days in the Program tab.
+                          Use the builder to adjust weeks, days, and exercises. You can always switch to a different program.
                         </p>
                       </div>
                       <button
@@ -951,92 +1020,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            {/* Collapsible Program Info */}
-            {selectedProgram && (
-              <div className="mb-6 animate-fadeIn" style={{animationDelay: '0.1s'}}>
-                <button
-                  onClick={() => setShowProgramInfo(!showProgramInfo)}
-                  className="w-full flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-all hover:shadow-xl hover:scale-[1.02] border-2 border-zinc-200 hover:border-blue-300 dark:bg-zinc-900 dark:border-zinc-700 dark:hover:border-blue-600 group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
-                      <BarChart3 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                        Program Details & Settings
-                      </p>
-                      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">
-                        View program info; edit in the builder if you want changes
-                      </p>
-                    </div>
-                  </div>
-                  {showProgramInfo ? (
-                    <ChevronUp className="h-6 w-6 text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
-                  ) : (
-                    <ChevronDown className="h-6 w-6 text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
-                  )}
-                </button>
-
-                {showProgramInfo && selectedProgram && (
-                  <div className="mt-4 animate-fadeIn mb-6">
-                    <div className="relative z-40 rounded-2xl bg-gradient-to-br from-white via-purple-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect space-y-4" style={{overflow: 'visible'}}>
-                      <div>
-                        <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">{selectedProgram.name}</h3>
-                        {selectedProgram.description && (
-                          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 text-balance">{selectedProgram.description}</p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProgram.goal && (
-                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                            Goal: {selectedProgram.goal}
-                          </span>
-                        )}
-                        {selectedProgram.experienceLevel && (
-                          <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
-                            Level: {selectedProgram.experienceLevel}
-                          </span>
-                        )}
-                        {selectedProgram.intensityMethod && (
-                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800 dark:bg-green-900/30 dark:text-green-200">
-                            Intensity: {selectedProgram.intensityMethod.toUpperCase()}
-                          </span>
-                        )}
-                        {selectedProgram.daysPerWeek && (
-                          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
-                            {selectedProgram.daysPerWeek} days/week
-                          </span>
-                        )}
-                        {selectedProgram.weekCount && (
-                          <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-bold text-pink-800 dark:bg-pink-900/30 dark:text-pink-200">
-                            {selectedProgram.weekCount} weeks
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-                        <button
-                          onClick={() => {
-                            setEditingProgramForBuilder(selectedProgram);
-                            setIsBuilding(true);
-                          }}
-                          className="gradient-purple flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold text-white shadow-glow-purple transition-all hover:scale-105 hover:shadow-xl"
-                        >
-                          Edit in Builder
-                        </button>
-                        <button
-                          onClick={() => setShowProgramSelector(true)}
-                          className="w-full sm:w-auto rounded-xl border-2 border-zinc-200 bg-white px-5 py-3 text-sm font-bold text-zinc-800 shadow-md transition-all hover:border-purple-300 hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-purple-600"
-                        >
-                          Choose Different Program
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Collapsible Week Selector */}
             <div className="mb-6 animate-fadeIn" style={{animationDelay: '0.2s'}}>
