@@ -14,7 +14,6 @@ import Utilities from './components/Utilities';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import Settings from './components/Settings';
 import DataManagement from './components/DataManagement';
-import CustomSelect from './components/CustomSelect';
 import Tooltip from './components/Tooltip';
 import { storage, setUserNamespace } from './lib/storage';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -391,81 +390,6 @@ export default function Home() {
     setUserPinnedDay(false);
   }, [selectedProgram?.id, todayKey]);
 
-  // Helper function to update a specific set
-  const updateSet = (weekNum: number, dayIdx: number, exerciseId: string, setIdx: number, updates: Partial<SetTemplate>) => {
-    if (!selectedProgram) return;
-    // Create deep copy to ensure change detection works
-    const updatedProgram = {
-      ...selectedProgram,
-      weeks: selectedProgram.weeks.map(w => ({
-        ...w,
-        days: w.days.map(d => ({
-          ...d,
-          sets: [...d.sets]
-        }))
-      }))
-    };
-
-    const week = updatedProgram.weeks.find(w => w.weekNumber === weekNum);
-    if (!week) return;
-
-    const day = week.days[dayIdx];
-    if (!day) return;
-
-    // Find the set and update it
-    const setIndexInDay = day.sets.findIndex(s => s.exerciseId === exerciseId && s.setIndex === setIdx);
-    if (setIndexInDay !== -1) {
-      day.sets[setIndexInDay] = { ...day.sets[setIndexInDay], ...updates };
-      setSelectedProgram(updatedProgram);
-    }
-  };
-
-  // Helper function to add an exercise to current day
-  const addExerciseToDay = (exerciseId: string) => {
-    if (!selectedProgram || selectedDayIndex === null) return;
-    const updatedProgram = { ...selectedProgram };
-    const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
-    if (!week) return;
-
-    const day = week.days[selectedDayIndex];
-    if (!day) return;
-
-    // Create 3 default sets for the new exercise
-    const newSets: SetTemplate[] = [1, 2, 3].map(setNum => ({
-      exerciseId,
-      setIndex: setNum,
-      prescribedReps: '8-10',
-      targetRPE: 7.5,
-      restSeconds: 90,
-    }));
-
-    day.sets.push(...newSets);
-    setSelectedProgram(updatedProgram);
-    setShowExerciseLibrary(false);
-  };
-
-  // Helper function to remove an exercise from current day
-  const removeExerciseFromDay = (exerciseId: string) => {
-    if (!selectedProgram || selectedDayIndex === null) return;
-    if (!confirm('Remove this exercise and all its sets?')) return;
-
-    const updatedProgram = { ...selectedProgram };
-    const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
-    if (!week) return;
-
-    const day = week.days[selectedDayIndex];
-    if (!day) return;
-
-    // Remove all sets for this exercise
-    day.sets = day.sets.filter(s => s.exerciseId !== exerciseId);
-    setSelectedProgram(updatedProgram);
-  };
-
-  // State for exercise library modal
-  const [showExerciseLibrary, setShowExerciseLibrary] = useState(false);
-  const [exerciseSearchQuery, setExerciseSearchQuery] = useState('');
-  const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
-
   // Avoid hydration mismatch while auth/session/profile initializes
   if (!hydrated || status === 'loading') {
     return (
@@ -565,69 +489,6 @@ export default function Home() {
       </div>
     );
   }
-  // Helper functions for week/day management
-  const addWeek = () => {
-    if (!selectedProgram) return;
-    const updatedProgram = { ...selectedProgram };
-    const maxWeekNum = Math.max(...updatedProgram.weeks.map(w => w.weekNumber), 0);
-    updatedProgram.weeks.push({
-      weekNumber: maxWeekNum + 1,
-      days: [],
-    });
-    setSelectedProgram(updatedProgram);
-    setSelectedWeek(maxWeekNum + 1);
-  };
-
-  const removeWeek = (weekNum: number) => {
-    if (!selectedProgram) return;
-    if (selectedProgram.weeks.length <= 1) {
-      alert('Programs must have at least one week');
-      return;
-    }
-    if (!confirm(`Remove Week ${weekNum} and all its training days?`)) return;
-
-    const updatedProgram = { ...selectedProgram };
-    updatedProgram.weeks = updatedProgram.weeks.filter(w => w.weekNumber !== weekNum);
-    setSelectedProgram(updatedProgram);
-
-    // Select first available week
-    if (selectedWeek === weekNum && updatedProgram.weeks.length > 0) {
-      setSelectedWeek(updatedProgram.weeks[0].weekNumber);
-    }
-  };
-
-  const addDay = (dayOfWeek: string) => {
-    if (!selectedProgram) return;
-    const updatedProgram = { ...selectedProgram };
-    const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
-    if (!week) return;
-
-    week.days.push({
-      dayOfWeek: dayOfWeek as any,
-      name: `${dayOfWeek} Workout`,
-      sets: [],
-    });
-    setSelectedProgram(updatedProgram);
-    setSelectedDayIndex(week.days.length - 1);
-  };
-
-  const removeDay = (weekNum: number, dayIdx: number) => {
-    if (!selectedProgram) return;
-    if (!confirm('Remove this training day and all its exercises?')) return;
-
-    const updatedProgram = { ...selectedProgram };
-    const week = updatedProgram.weeks.find(w => w.weekNumber === weekNum);
-    if (!week) return;
-
-    week.days.splice(dayIdx, 1);
-    setSelectedProgram(updatedProgram);
-
-    // Select first available day or none
-    if (selectedDayIndex === dayIdx) {
-      setSelectedDayIndex(Math.max(0, dayIdx - 1));
-    }
-  };
-
   // Show builder if in building mode
   if (isBuilding) {
     return (
@@ -1107,7 +968,7 @@ export default function Home() {
                         Program Details & Settings
                       </p>
                       <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1">
-                        Edit name, goal, difficulty & intensity method
+                        View program info; edit in the builder if you want changes
                       </p>
                     </div>
                   </div>
@@ -1120,68 +981,56 @@ export default function Home() {
 
                 {showProgramInfo && selectedProgram && (
                   <div className="mt-4 animate-fadeIn mb-6">
-                    <div className="relative z-40 rounded-2xl bg-gradient-to-br from-white via-purple-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect" style={{overflow: 'visible'}}>
-                      <input
-                        type="text"
-                        value={selectedProgram.name}
-                        onChange={(e) => setSelectedProgram({ ...selectedProgram, name: e.target.value })}
-                        className="mb-2 w-full border-none bg-transparent text-2xl font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:text-zinc-50 dark:focus:ring-zinc-700"
-                        placeholder="Program Name"
-                      />
-                      <textarea
-                        value={selectedProgram.description || ''}
-                        onChange={(e) => setSelectedProgram({ ...selectedProgram, description: e.target.value })}
-                        className="w-full border-none bg-transparent text-sm text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:text-zinc-400 dark:focus:ring-zinc-700"
-                        placeholder="Program description..."
-                        rows={2}
-                      />
-
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 relative z-40 pb-4" style={{overflow: 'visible'}}>
-                        <div className="relative z-30">
-                          <CustomSelect
-                            value={selectedProgram.goal || ''}
-                            onChange={(value) => setSelectedProgram({ ...selectedProgram, goal: value as any })}
-                            options={[
-                              { value: '', label: 'Select Goal' },
-                              { value: 'strength', label: 'Strength' },
-                              { value: 'hypertrophy', label: 'Hypertrophy' },
-                              { value: 'powerlifting', label: 'Powerlifting' },
-                              { value: 'peaking', label: 'Peaking' },
-                              { value: 'general', label: 'General' },
-                            ]}
-                            placeholder="Goal"
-                          />
-                        </div>
-
-                        <div className="relative z-30">
-                          <CustomSelect
-                            value={selectedProgram.experienceLevel || ''}
-                            onChange={(value) => setSelectedProgram({ ...selectedProgram, experienceLevel: value as any })}
-                            options={[
-                              { value: '', label: 'Select Level' },
-                              { value: 'beginner', label: 'Beginner' },
-                              { value: 'intermediate', label: 'Intermediate' },
-                              { value: 'advanced', label: 'Advanced' },
-                            ]}
-                            placeholder="Experience"
-                          />
-                        </div>
-
-                        <div className="relative z-30">
-                          <CustomSelect
-                            value={selectedProgram.intensityMethod || ''}
-                            onChange={(value) => setSelectedProgram({ ...selectedProgram, intensityMethod: value as any })}
-                            options={[
-                              { value: '', label: 'Select Method' },
-                              { value: 'rpe', label: 'RPE' },
-                              { value: 'rir', label: 'RIR' },
-                              { value: 'percentage', label: 'Percentage' },
-                              { value: 'amrap', label: 'AMRAP' },
-                              { value: 'custom', label: 'Custom' },
-                            ]}
-                            placeholder="Intensity Method"
-                          />
-                        </div>
+                    <div className="relative z-40 rounded-2xl bg-gradient-to-br from-white via-purple-50/20 to-white p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect space-y-4" style={{overflow: 'visible'}}>
+                      <div>
+                        <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">{selectedProgram.name}</h3>
+                        {selectedProgram.description && (
+                          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 text-balance">{selectedProgram.description}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProgram.goal && (
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+                            Goal: {selectedProgram.goal}
+                          </span>
+                        )}
+                        {selectedProgram.experienceLevel && (
+                          <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
+                            Level: {selectedProgram.experienceLevel}
+                          </span>
+                        )}
+                        {selectedProgram.intensityMethod && (
+                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800 dark:bg-green-900/30 dark:text-green-200">
+                            Intensity: {selectedProgram.intensityMethod.toUpperCase()}
+                          </span>
+                        )}
+                        {selectedProgram.daysPerWeek && (
+                          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+                            {selectedProgram.daysPerWeek} days/week
+                          </span>
+                        )}
+                        {selectedProgram.weekCount && (
+                          <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-bold text-pink-800 dark:bg-pink-900/30 dark:text-pink-200">
+                            {selectedProgram.weekCount} weeks
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                        <button
+                          onClick={() => {
+                            setEditingProgramForBuilder(selectedProgram);
+                            setIsBuilding(true);
+                          }}
+                          className="gradient-purple flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold text-white shadow-glow-purple transition-all hover:scale-105 hover:shadow-xl"
+                        >
+                          Edit in Builder
+                        </button>
+                        <button
+                          onClick={() => setShowProgramSelector(true)}
+                          className="w-full sm:w-auto rounded-xl border-2 border-zinc-200 bg-white px-5 py-3 text-sm font-bold text-zinc-800 shadow-md transition-all hover:border-purple-300 hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-purple-600"
+                        >
+                          Choose Different Program
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1220,37 +1069,18 @@ export default function Home() {
                   <div className="flex items-center gap-4">
                     <div className="flex flex-1 gap-2 overflow-x-auto rounded-2xl bg-gradient-to-br from-white to-zinc-50/50 p-4 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:to-zinc-900/50 dark:border-zinc-800 depth-effect">
                       {availableWeeks.map((weekNum) => (
-                        <div key={weekNum} className="group relative flex-shrink-0">
-                          <button
-                            onClick={() => setSelectedWeek(weekNum)}
-                            className={`rounded-xl px-5 py-2.5 font-bold transition-all hover:scale-105 ${
-                              selectedWeek === weekNum
-                                ? 'gradient-purple text-white shadow-md'
-                                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                            }`}
-                          >
-                            Week {weekNum}
-                          </button>
-                          {selectedProgram && selectedProgram.weeks.length > 1 && (
-                            <button
-                              onClick={() => removeWeek(weekNum)}
-                              className="absolute -right-2 -top-2 rounded-full bg-red-600 p-2.5 text-white opacity-0 shadow-md transition-all hover:bg-red-700 hover:scale-110 group-hover:opacity-100 touch-manipulation"
-                              title="Remove week"
-                              aria-label="Remove week"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          key={weekNum}
+                          onClick={() => setSelectedWeek(weekNum)}
+                          className={`flex-shrink-0 rounded-xl px-5 py-2.5 font-bold transition-all hover:scale-105 ${
+                            selectedWeek === weekNum
+                              ? 'gradient-purple text-white shadow-md'
+                              : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                          }`}
+                        >
+                          Week {weekNum}
+                        </button>
                       ))}
-                      <button
-                        onClick={addWeek}
-                        className="flex-shrink-0 rounded-lg border-2 border-dashed border-zinc-300 px-4 py-2 font-medium text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                      >
-                        + Week
-                      </button>
                     </div>
 
                     {/* Quick Save Button (appears when changes detected) */}
@@ -1303,13 +1133,10 @@ export default function Home() {
                         No Training Days Yet
                       </h3>
                       <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
-                        Get started by adding your first training day to Week {selectedWeek}. Choose a day of the week below!
+                        This program has no days in Week {selectedWeek}. Use the editor to add them.
                       </p>
                       <div className="flex items-center justify-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                        <span>Use the "+ Add Day" dropdown below</span>
+                        <span>Edit this program in the builder to add days.</span>
                       </div>
                     </div>
                   </div>
@@ -1349,39 +1176,8 @@ export default function Home() {
                         <span>{day.sets.length} sets</span>
                       </div>
                     </button>
-                    <button
-                      onClick={() => removeDay(selectedWeek, idx)}
-                      className="absolute right-2 top-2 rounded-lg bg-red-600 p-2.5 text-white opacity-0 shadow-md transition-all hover:bg-red-700 hover:scale-110 group-hover:opacity-100 touch-manipulation"
-                      title="Remove day"
-                      aria-label="Remove day"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
                 ))}
-
-                {/* Add Day Button */}
-                <CustomSelect
-                  value=""
-                  onChange={(value) => {
-                    if (value) {
-                      addDay(value);
-                    }
-                  }}
-                  options={[
-                    { value: '', label: '+ Add Day' },
-                    { value: 'Mon', label: 'Monday' },
-                    { value: 'Tue', label: 'Tuesday' },
-                    { value: 'Wed', label: 'Wednesday' },
-                    { value: 'Thu', label: 'Thursday' },
-                    { value: 'Fri', label: 'Friday' },
-                    { value: 'Sat', label: 'Saturday' },
-                    { value: 'Sun', label: 'Sunday' },
-                  ]}
-                  placeholder="+ Add Day"
-                />
               </div>
 
               {/* Exercise List */}
@@ -1478,112 +1274,28 @@ export default function Home() {
                             </div>
 
                             {sets.map((set, idx) => (
-                              <div key={idx}>
-                                {/* Mobile Layout - Stacked */}
-                                <div className="md:hidden space-y-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4 border-2 border-zinc-200 dark:border-zinc-700">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <label className="block">
-                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Reps</span>
-                                      <input
-                                        type="text"
-                                        value={set.prescribedReps}
-                                        onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { prescribedReps: e.target.value })}
-                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                        placeholder="8-12"
-                                      />
-                                    </label>
-                                    <label className="block">
-                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">RPE (Rate of Perceived Exertion)</span>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={set.targetRPE || ''}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                            targetRPE: val ? parseFloat(val) : null
-                                          });
-                                        }}
-                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                        placeholder="7.5"
-                                      />
-                                    </label>
-                                    <label className="block">
-                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Rest (seconds)</span>
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={set.restSeconds || ''}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                            restSeconds: val ? parseInt(val) : undefined
-                                          });
-                                        }}
-                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                        placeholder="90s"
-                                      />
-                                    </label>
-                                    <label className="block">
-                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Notes</span>
-                                      <input
-                                        type="text"
-                                        value={set.notes || ''}
-                                        onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { notes: e.target.value })}
-                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                        placeholder="Add notes..."
-                                      />
-                                    </label>
+                              <div key={idx} className="rounded-lg border border-zinc-200 bg-white/70 dark:border-zinc-800 dark:bg-zinc-900/60 p-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
+                                  <div className="flex flex-wrap gap-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-purple-800 dark:bg-purple-900/40 dark:text-purple-100">
+                                      Reps: {set.prescribedReps}
+                                    </span>
+                                    {set.targetRPE !== undefined && set.targetRPE !== null && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100">
+                                        RPE {set.targetRPE}
+                                      </span>
+                                    )}
+                                    {set.restSeconds && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-green-800 dark:bg-green-900/40 dark:text-green-100">
+                                        Rest {set.restSeconds}s
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-
-                                {/* Desktop Layout - Grid */}
-                                <div className="hidden md:grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 items-center">
-                                  <span className="text-base font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
-                                  <input
-                                    type="text"
-                                    value={set.prescribedReps}
-                                    onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { prescribedReps: e.target.value })}
-                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    placeholder="8-12"
-                                  />
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={set.targetRPE || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                        targetRPE: val ? parseFloat(val) : null
-                                      });
-                                    }}
-                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    placeholder="7.5"
-                                  />
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={set.restSeconds || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                        restSeconds: val ? parseInt(val) : undefined
-                                      });
-                                    }}
-                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    placeholder="90s"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={set.notes || ''}
-                                    onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { notes: e.target.value })}
-                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    placeholder="Add notes..."
-                                  />
-                                </div>
+                                {set.notes && (
+                                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">“{set.notes}”</p>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1591,157 +1303,13 @@ export default function Home() {
                       );
                     })}
 
-                    {/* Add Exercise Button */}
-                    <button
-                      onClick={() => setShowExerciseLibrary(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 font-semibold text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add Exercise
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Exercise Library Modal */}
-              {showExerciseLibrary && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-                  <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-premium border-2 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 animate-slideInRight">
-                    {/* Modal Header */}
-                    <div className="gradient-purple flex items-center justify-between p-6 text-white">
-                      <div>
-                        <h3 className="text-2xl font-bold">
-                          Add Exercise
-                        </h3>
-                        <p className="mt-1 text-sm text-purple-100">
-                          83 exercises available
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowExerciseLibrary(false);
-                          setExerciseSearchQuery('');
-                          setSelectedEquipment('all');
-                        }}
-                        className="rounded-lg p-2 text-white/80 hover:bg-white/20 transition-all hover:scale-110 touch-manipulation"
-                        aria-label="Close exercise library"
-                      >
-                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Search and Filter Bar */}
-                    <div className="space-y-3 border-b border-zinc-200 p-4 dark:border-zinc-700">
-                      <input
-                        type="text"
-                        value={exerciseSearchQuery}
-                        onChange={(e) => setExerciseSearchQuery(e.target.value)}
-                        placeholder="Search by name or muscle group..."
-                        className="w-full rounded-lg border border-zinc-300 px-4 py-2 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                        autoFocus
-                      />
-
-                      {/* Equipment Filter */}
-                      <div className="flex flex-wrap gap-2">
-                        {['all', 'barbell', 'dumbbell', 'cable', 'machine', 'bodyweight'].map(eq => (
-                          <button
-                            key={eq}
-                            onClick={() => setSelectedEquipment(eq)}
-                            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-                              selectedEquipment === eq
-                                ? 'bg-zinc-900 text-white shadow-md dark:bg-zinc-50 dark:text-zinc-900'
-                                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                            }`}
-                          >
-                            {eq === 'all' ? 'All Equipment' : eq.charAt(0).toUpperCase() + eq.slice(1)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Exercise List */}
-                    <div className="max-h-[50vh] overflow-y-auto p-4">
-                      <div className="space-y-2">
-                        {defaultExercises
-                          .filter(ex => {
-                            const matchesSearch = ex.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase()) ||
-                              ex.muscleGroups.some(mg => mg.toLowerCase().includes(exerciseSearchQuery.toLowerCase()));
-                            const matchesEquipment = selectedEquipment === 'all' ||
-                              (ex.equipment && ex.equipment.includes(selectedEquipment));
-                            return matchesSearch && matchesEquipment;
-                          })
-                          .map(exercise => (
-                            <button
-                              key={exercise.id}
-                              onClick={() => addExerciseToDay(exercise.id)}
-                              className="flex w-full items-center justify-between rounded-xl border-2 border-zinc-200 p-4 text-left transition-all hover:border-purple-400 hover:bg-purple-50 hover:shadow-md hover:scale-[1.02] dark:border-zinc-700 dark:hover:border-purple-600 dark:hover:bg-purple-900/10"
-                            >
-                              <div className="flex-1">
-                                <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-                                  {exercise.name}
-                                </p>
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {/* Exercise Type Badge */}
-                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                    {exercise.type}
-                                  </span>
-
-                                  {/* Equipment Badge */}
-                                  {exercise.equipment && exercise.equipment.length > 0 && (
-                                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium capitalize text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                      {exercise.equipment[0]}
-                                    </span>
-                                  )}
-
-                                  {/* Muscle Group Badges */}
-                                  {exercise.muscleGroups.slice(0, 3).map(mg => (
-                                    <span key={mg} className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium capitalize text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                      {mg}
-                                    </span>
-                                  ))}
-
-                                  {exercise.muscleGroups.length > 3 && (
-                                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                      +{exercise.muscleGroups.length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <svg className="h-5 w-5 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          ))}
-
-                        {/* Empty State */}
-                        {defaultExercises.filter(ex => {
-                          const matchesSearch = ex.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase()) ||
-                            ex.muscleGroups.some(mg => mg.toLowerCase().includes(exerciseSearchQuery.toLowerCase()));
-                          const matchesEquipment = selectedEquipment === 'all' ||
-                            (ex.equipment && ex.equipment.includes(selectedEquipment));
-                          return matchesSearch && matchesEquipment;
-                        }).length === 0 && (
-                          <div className="rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-800">
-                            <svg className="mx-auto mb-3 h-10 w-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                              No exercises found
-                            </p>
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              Try adjusting your search or filter
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300 text-center">
+                      To modify exercises or sets, edit this program in the builder.
                     </div>
                   </div>
                 </div>
               )}
+
             </div>
           </>
         )}
