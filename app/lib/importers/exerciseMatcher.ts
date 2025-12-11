@@ -37,7 +37,8 @@ const EXERCISE_ALIASES: Record<string, string[]> = {
 
   // Bicep exercises
   cable_curl: ['cable curl', 'cable bicep curl', 'cable curls'],
-  bicep_curl_preacher: ['machine preacher curl', 'preacher curl machine', 'preacher curl', 'preacher'],
+  bicep_curl_preacher: ['preacher curl', 'preacher', 'db preacher curl', 'dumbbell preacher curl'],
+  bicep_curl_preacher_machine: ['machine preacher curl', 'preacher curl machine'],
   hammer_curl: ['hammer curl', 'neutral curl', 'hammer curls', 'neutral grip curl'],
   barbell_curl: ['barbell curl', 'bb curl', 'straight bar curl'],
 

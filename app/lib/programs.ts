@@ -550,7 +550,7 @@ export const defaultExercises: Exercise[] = [
 
   // MACHINE - ARMS
   {
-    id: 'bicep_curl_preacher',
+    id: 'bicep_curl_preacher_machine',
     name: 'Machine Preacher Curl',
     type: 'isolation',
     muscleGroups: ['biceps'],
