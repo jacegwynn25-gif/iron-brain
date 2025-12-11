@@ -364,6 +364,24 @@ export default function Home() {
     return defaultExercises.find(ex => ex.id === exerciseId);
   };
 
+  // Helper function to remove an exercise from current day
+  const removeExerciseFromDay = (exerciseId: string) => {
+    if (!selectedProgram || selectedDayIndex === null) return;
+    if (!confirm('Remove this exercise and all its sets?')) return;
+
+    const updatedProgram = { ...selectedProgram };
+    const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
+    if (!week) return;
+
+    const day = week.days[selectedDayIndex];
+    if (!day) return;
+
+    // Remove all sets for this exercise
+    day.sets = day.sets.filter(set => set.exerciseId !== exerciseId);
+
+    setSelectedProgram(updatedProgram);
+  };
+
   const currentWeek = selectedProgram?.weeks.find(w => w.weekNumber === selectedWeek);
   const currentDay = selectedDayIndex !== null ? currentWeek?.days[selectedDayIndex] : undefined;
 
