@@ -73,6 +73,7 @@ export default function Home() {
   const [editingProgramForBuilder, setEditingProgramForBuilder] = useState<ProgramTemplate | undefined>(undefined);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showKeyboardHint, setShowKeyboardHint] = useState(false);
+  const [showExerciseDetails, setShowExerciseDetails] = useState(false);
   const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [rememberProfile, setRememberProfile] = useState(true);
@@ -1120,6 +1121,7 @@ export default function Home() {
                       onClick={() => {
                         setSelectedDayIndex(idx);
                         setUserPinnedDay(true);
+                        setShowExerciseDetails(true);
                       }}
                       className={`w-full rounded-2xl border-2 p-7 text-left transition-all hover:scale-[1.03] depth-effect shadow-md hover:shadow-xl ${
                         selectedDayIndex === idx
@@ -1147,21 +1149,36 @@ export default function Home() {
                         </div>
                         <span>{day.sets.length} sets</span>
                       </div>
+                      {selectedDayIndex === idx && !showExerciseDetails && (
+                        <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-purple-100">
+                          <ChevronDown className="h-4 w-4 animate-bounce" />
+                          <span>Click to view exercises</span>
+                        </div>
+                      )}
                     </button>
                   </div>
                 ))}
               </div>
 
               {/* Exercise List */}
-              {currentDay && selectedDayIndex !== null && (
+              {currentDay && selectedDayIndex !== null && showExerciseDetails && (
                 <div className="mt-4 rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn" style={{animationDelay: '0.4s'}}>
-                  <div className="mb-8 flex items-center gap-3">
-                    <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
-                      <Dumbbell className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+                  <div className="mb-8 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
+                        <Dumbbell className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50">
+                        Exercise Details
+                      </h3>
                     </div>
-                    <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50">
-                      Exercise Details
-                    </h3>
+                    <button
+                      onClick={() => setShowExerciseDetails(false)}
+                      className="flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2 font-semibold text-zinc-700 transition-all hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    >
+                      <ChevronUp className="h-5 w-5" />
+                      <span className="hidden sm:inline">Hide Details</span>
+                    </button>
                   </div>
 
                   {/* Exercise List (inline editable) */}
