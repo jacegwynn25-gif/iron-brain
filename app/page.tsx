@@ -304,6 +304,7 @@ export default function Home() {
 
   // Helper function to update a specific set
   const updateSet = (weekNum: number, dayIdx: number, exerciseId: string, setIdx: number, updates: Partial<SetTemplate>) => {
+    if (!selectedProgram) return;
     // Create deep copy to ensure change detection works
     const updatedProgram = {
       ...selectedProgram,
@@ -332,6 +333,7 @@ export default function Home() {
 
   // Helper function to add an exercise to current day
   const addExerciseToDay = (exerciseId: string) => {
+    if (!selectedProgram || selectedDayIndex === null) return;
     const updatedProgram = { ...selectedProgram };
     const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
     if (!week) return;
@@ -355,6 +357,7 @@ export default function Home() {
 
   // Helper function to remove an exercise from current day
   const removeExerciseFromDay = (exerciseId: string) => {
+    if (!selectedProgram || selectedDayIndex === null) return;
     if (!confirm('Remove this exercise and all its sets?')) return;
 
     const updatedProgram = { ...selectedProgram };
@@ -475,6 +478,7 @@ export default function Home() {
   }
   // Helper functions for week/day management
   const addWeek = () => {
+    if (!selectedProgram) return;
     const updatedProgram = { ...selectedProgram };
     const maxWeekNum = Math.max(...updatedProgram.weeks.map(w => w.weekNumber), 0);
     updatedProgram.weeks.push({
@@ -486,6 +490,7 @@ export default function Home() {
   };
 
   const removeWeek = (weekNum: number) => {
+    if (!selectedProgram) return;
     if (selectedProgram.weeks.length <= 1) {
       alert('Programs must have at least one week');
       return;
@@ -503,6 +508,7 @@ export default function Home() {
   };
 
   const addDay = (dayOfWeek: string) => {
+    if (!selectedProgram) return;
     const updatedProgram = { ...selectedProgram };
     const week = updatedProgram.weeks.find(w => w.weekNumber === selectedWeek);
     if (!week) return;
@@ -517,6 +523,7 @@ export default function Home() {
   };
 
   const removeDay = (weekNum: number, dayIdx: number) => {
+    if (!selectedProgram) return;
     if (!confirm('Remove this training day and all its exercises?')) return;
 
     const updatedProgram = { ...selectedProgram };
@@ -547,7 +554,7 @@ export default function Home() {
   }
 
   // Show logger if logging workout
-  if (isLogging) {
+  if (isLogging && selectedProgram && selectedDayIndex !== null) {
     return (
       <WorkoutLogger
         program={selectedProgram}
@@ -1135,7 +1142,7 @@ export default function Home() {
                           >
                             Week {weekNum}
                           </button>
-                          {selectedProgram.weeks.length > 1 && (
+                          {selectedProgram && selectedProgram.weeks.length > 1 && (
                             <button
                               onClick={() => removeWeek(weekNum)}
                               className="absolute -right-2 -top-2 rounded-full bg-red-600 p-2.5 text-white opacity-0 shadow-md transition-all hover:bg-red-700 hover:scale-110 group-hover:opacity-100 touch-manipulation"
@@ -1286,7 +1293,7 @@ export default function Home() {
               </div>
 
               {/* Exercise List */}
-              {currentDay && (
+              {currentDay && selectedDayIndex !== null && (
                 <div className="mt-4 rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn" style={{animationDelay: '0.4s'}}>
                   <div className="mb-8 flex items-center gap-3">
                     <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">

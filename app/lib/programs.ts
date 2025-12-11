@@ -629,35 +629,35 @@ const benchSpecialization5D: ProgramTemplate = {
           sets: [
             { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'tempo 3-0-0' },
             { exerciseId: 'bench_tempo', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: 'tempo 3-0-0' },
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Tue',
           name: 'Lower Body',
           sets: [
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: null },
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Wed',
           name: 'Volume Bench + Accessories',
           sets: [
-            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5-6', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '5-6', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5-6', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '5-6', targetRPE: 7.5, notes: undefined },
             { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'regular grip' },
-            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
             { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: 'pulldown or row' },
             { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: 'pulldown or row' },
           ],
@@ -666,10 +666,10 @@ const benchSpecialization5D: ProgramTemplate = {
           dayOfWeek: 'Thu',
           name: 'Upper Back + Arms',
           sets: [
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: undefined },
             { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: 'cable or hammer' },
           ],
         },
@@ -678,11 +678,11 @@ const benchSpecialization5D: ProgramTemplate = {
           name: 'Heavy Bench + Light Lower',
           sets: [
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '4', targetRPE: 8, notes: 'heavy' },
-            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', targetRPE: 7, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
             { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '5-6', targetRPE: 7, notes: 'light' },
           ],
         },
@@ -698,35 +698,35 @@ const benchSpecialization5D: ProgramTemplate = {
           sets: [
             { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'tempo 3-0-0' },
             { exerciseId: 'bench_tempo', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: 'tempo 3-0-0' },
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Tue',
           name: 'Lower Body',
           sets: [
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: null },
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Wed',
           name: 'Volume Bench + Accessories',
           sets: [
-            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5-6', targetRPE: 8, notes: null },
-            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '5-6', targetRPE: 8, notes: null },
+            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5-6', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '5-6', targetRPE: 8, notes: undefined },
             { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'regular grip' },
-            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
             { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: 'pulldown or row' },
             { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: 'pulldown or row' },
           ],
@@ -735,10 +735,10 @@ const benchSpecialization5D: ProgramTemplate = {
           dayOfWeek: 'Thu',
           name: 'Upper Back + Arms',
           sets: [
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: undefined },
             { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 7.5, notes: 'cable or hammer' },
           ],
         },
@@ -747,11 +747,11 @@ const benchSpecialization5D: ProgramTemplate = {
           name: 'Heavy Bench + Light Lower',
           sets: [
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '4', targetRPE: 8.5, notes: 'heavy' },
-            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3-4', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
             { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '5-6', targetRPE: 7, notes: 'light' },
           ],
         },
@@ -767,35 +767,35 @@ const benchSpecialization5D: ProgramTemplate = {
           sets: [
             { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'tempo 3-0-0' },
             { exerciseId: 'bench_tempo', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: 'tempo 3-0-0' },
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 8, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '8-10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Tue',
           name: 'Lower Body',
           sets: [
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: null },
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 8, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '8-10', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 8, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Wed',
           name: 'Volume Bench + Accessories',
           sets: [
-            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '4-5', targetRPE: 8.5, notes: null },
-            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '4-5', targetRPE: 8.5, notes: null },
+            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '4-5', targetRPE: 8.5, notes: undefined },
+            { exerciseId: 'bench_close_grip', setIndex: 2, prescribedReps: '4-5', targetRPE: 8.5, notes: undefined },
             { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4', targetRPE: 8, notes: 'regular grip' },
-            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '5-6', targetRPE: 8, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '5-6', targetRPE: 8, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
             { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: 'pulldown or row' },
             { exerciseId: 'row_neutral', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: 'pulldown or row' },
           ],
@@ -804,10 +804,10 @@ const benchSpecialization5D: ProgramTemplate = {
           dayOfWeek: 'Thu',
           name: 'Upper Back + Arms',
           sets: [
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6.5, notes: undefined },
             { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 7.5, notes: 'cable or hammer' },
           ],
         },
@@ -816,11 +816,11 @@ const benchSpecialization5D: ProgramTemplate = {
           name: 'Heavy Bench + Light Lower',
           sets: [
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '4', targetRPE: 9, notes: 'heavy - peak' },
-            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '3', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 8, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 8, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 7.5, notes: undefined },
             { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '5-6', targetRPE: 7, notes: 'light' },
           ],
         },
@@ -835,31 +835,31 @@ const benchSpecialization5D: ProgramTemplate = {
           name: 'Technique Bench + Triceps + Upper Back',
           sets: [
             { exerciseId: 'bench_tempo', setIndex: 1, prescribedReps: '5', targetRPE: 6.5, notes: 'tempo 3-0-0' },
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 6, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 6, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Tue',
           name: 'Lower Body',
           sets: [
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 6, notes: null },
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 6, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 6, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '4-6', targetRPE: 6, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '6-7', targetRPE: 6, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 6, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Wed',
           name: 'Volume Bench + Accessories',
           sets: [
-            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5', targetRPE: 6.5, notes: null },
+            { exerciseId: 'bench_close_grip', setIndex: 1, prescribedReps: '5', targetRPE: 6.5, notes: undefined },
             { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '4-5', targetRPE: 6, notes: 'regular grip' },
-            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 6, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: null },
+            { exerciseId: 'shoulder_press_machine', setIndex: 1, prescribedReps: '6-8', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: undefined },
             { exerciseId: 'row_neutral', setIndex: 1, prescribedReps: '6-8', targetRPE: 6, notes: 'pulldown or row' },
           ],
         },
@@ -867,9 +867,9 @@ const benchSpecialization5D: ProgramTemplate = {
           dayOfWeek: 'Thu',
           name: 'Upper Back + Arms',
           sets: [
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '8-10', targetRPE: 6, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 6, notes: undefined },
             { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 6, notes: 'cable or hammer' },
           ],
         },
@@ -878,11 +878,11 @@ const benchSpecialization5D: ProgramTemplate = {
           name: 'Heavy Bench + Light Lower',
           sets: [
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '3', targetRPE: 8, notes: 'taper' },
-            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '2-3', targetRPE: 6.5, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 6, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 6, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 6, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 6, notes: null },
+            { exerciseId: 'bench_backoff', setIndex: 1, prescribedReps: '2-3', targetRPE: 6.5, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '6-8', targetRPE: 6, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '6-8', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '7-8', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '7-8', targetRPE: 6, notes: undefined },
             { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '5-6', targetRPE: 6, notes: 'light' },
           ],
         },
@@ -914,31 +914,31 @@ const phul4Day: ProgramTemplate = {
           sets: [
             // Bench Press - 3-4 sets of 3-5 reps
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: 'power focus' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
 
             // Barbell Row - 3-4 sets of 3-5 reps
-            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
 
             // Overhead Press - 3-4 sets of 5-8 reps
-            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '5-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '5-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5-8', targetRPE: 7.5, notes: undefined },
 
             // Pullups - 3-4 sets of 6-10 reps
             { exerciseId: 'pullup', setIndex: 1, prescribedReps: '6-10', targetRPE: 7.5, notes: 'add weight if needed' },
-            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
 
             // Barbell Curl - 2-3 sets of 6-10 reps
-            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: null },
+            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
 
             // Skull Crushers - 2-3 sets of 6-10 reps
-            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: null },
+            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -947,29 +947,29 @@ const phul4Day: ProgramTemplate = {
           sets: [
             // Squat - 3-4 sets of 3-5 reps
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: 'power focus' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
 
             // Deadlift - 3-4 sets of 3-5 reps
-            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: null },
-            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: null },
+            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '3-5', targetRPE: 8, notes: undefined },
 
             // Leg Press - 3-5 sets of 10-15 reps
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '10-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '10-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '10-15', targetRPE: 7.5, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '10-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '10-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '10-15', targetRPE: 7.5, notes: undefined },
 
             // Leg Curl - 3-4 sets of 6-10 reps
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
 
             // Calf Raises - 4 sets of 6-10 reps
-            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '6-10', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '6-10', targetRPE: 7, notes: null },
+            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '6-10', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -978,43 +978,43 @@ const phul4Day: ProgramTemplate = {
           sets: [
             // Incline Bench - 3-4 sets of 8-12 reps
             { exerciseId: 'incline_bench', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: 'hypertrophy focus' },
-            { exerciseId: 'incline_bench', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'incline_bench', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'incline_bench', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'incline_bench', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // DB Bench Press - 3-4 sets of 8-12 reps
-            { exerciseId: 'db_bench_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_bench_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_bench_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_bench_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_bench_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_bench_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Lat Pulldown - 3-4 sets of 8-12 reps
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Cable Row - 3-4 sets of 8-12 reps
-            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // DB Shoulder Press - 3-4 sets of 8-12 reps
-            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Lateral Raises - 3-4 sets of 10-15 reps
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // Tricep Pressdown - 3-4 sets of 10-15 reps
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // DB Curl - 3-4 sets of 10-15 reps
-            { exerciseId: 'db_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1023,34 +1023,34 @@ const phul4Day: ProgramTemplate = {
           sets: [
             // Front Squat - 3-4 sets of 8-12 reps
             { exerciseId: 'front_squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: 'hypertrophy focus' },
-            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Romanian Deadlift - 3-4 sets of 8-12 reps
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Hack Squat - 3-4 sets of 8-12 reps
-            { exerciseId: 'hack_squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'hack_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'hack_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'hack_squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'hack_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'hack_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Leg Curl - 3-4 sets of 10-15 reps
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // Leg Extension - 3-4 sets of 10-15 reps
-            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // Seated Calf Raises - 4 sets of 10-15 reps
-            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 4, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 4, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
       ],
@@ -1079,113 +1079,113 @@ const upperLower4Day: ProgramTemplate = {
           dayOfWeek: 'Mon',
           name: 'Upper A',
           sets: [
-            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-10', targetRPE: 7, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'ez_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'ez_curl', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'ez_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ez_curl', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Tue',
           name: 'Lower A',
           sets: [
-            { exerciseId: 'squat', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'squat', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Thu',
           name: 'Upper B',
           sets: [
-            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
 
             { exerciseId: 'pullup', setIndex: 1, prescribedReps: '6-10', targetRPE: 7.5, notes: 'add weight if needed' },
-            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 4, prescribedReps: '6-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 4, prescribedReps: '6-10', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: null },
-            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-10', targetRPE: 7, notes: null },
+            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-10', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'hammer_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'hammer_curl', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'db_overhead_extension', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'db_overhead_extension', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_overhead_extension', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
           ],
         },
         {
           dayOfWeek: 'Fri',
           name: 'Lower B',
           sets: [
-            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5-6', targetRPE: 7.5, notes: null },
-            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '5-6', targetRPE: 7.5, notes: null },
-            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '5-6', targetRPE: 7.5, notes: null },
+            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5-6', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '5-6', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '5-6', targetRPE: 7.5, notes: undefined },
 
-            { exerciseId: 'front_squat', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
-            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: null },
+            { exerciseId: 'front_squat', setIndex: 1, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-10', targetRPE: 7.5, notes: undefined },
 
             { exerciseId: 'bulgarian_split_squat', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: 'per leg' },
             { exerciseId: 'bulgarian_split_squat', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: 'per leg' },
             { exerciseId: 'bulgarian_split_squat', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: 'per leg' },
 
-            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
       ],
@@ -1228,12 +1228,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'squat', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1253,12 +1253,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'bench_tng', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
         {
@@ -1278,9 +1278,9 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'deadlift', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1300,12 +1300,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'ohp', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
       ],
@@ -1331,12 +1331,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'squat', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1356,12 +1356,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'bench_tng', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
         {
@@ -1381,9 +1381,9 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'deadlift', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1403,12 +1403,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'ohp', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
       ],
@@ -1434,12 +1434,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'squat', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'ab_wheel', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ab_wheel', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1459,12 +1459,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'bench_tng', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_row', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_row', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
         {
@@ -1484,9 +1484,9 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'deadlift', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'hanging_leg_raise', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'hanging_leg_raise', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1506,12 +1506,12 @@ const wendler531: ProgramTemplate = {
             { exerciseId: 'ohp', setIndex: 8, prescribedReps: '10', targetRPE: 5, notes: 'BBB ~50%' },
 
             // Accessories
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 6, notes: undefined },
           ],
         },
       ],
@@ -1610,13 +1610,13 @@ const startingStrength: ProgramTemplate = {
           sets: [
             // Squat 3x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5-10 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Bench Press 3x5
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Deadlift 1x5
             { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'add 10 lbs per session' },
@@ -1628,18 +1628,18 @@ const startingStrength: ProgramTemplate = {
           sets: [
             // Squat 3x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5-10 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Overhead Press 3x5
             { exerciseId: 'ohp', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 2.5-5 lbs per session' },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Power Clean 5x3 (or Barbell Row substitute)
             { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
           ],
         },
         {
@@ -1648,13 +1648,13 @@ const startingStrength: ProgramTemplate = {
           sets: [
             // Squat 3x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5-10 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Bench Press 3x5
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '5', targetRPE: 7.5, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7.5, notes: undefined },
 
             // Deadlift 1x5
             { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'add 10 lbs per session' },
@@ -1688,24 +1688,24 @@ const strongLifts5x5: ProgramTemplate = {
           sets: [
             // Squat 5x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Bench Press 5x5
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Barbell Row 5x5
             { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1714,17 +1714,17 @@ const strongLifts5x5: ProgramTemplate = {
           sets: [
             // Squat 5x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Overhead Press 5x5
             { exerciseId: 'ohp', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 2.5 lbs per session' },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'ohp', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Deadlift 1x5
             { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'add 10 lbs per session' },
@@ -1736,24 +1736,24 @@ const strongLifts5x5: ProgramTemplate = {
           sets: [
             // Squat 5x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'squat', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Bench Press 5x5
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
 
             // Barbell Row 5x5
             { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '5', targetRPE: 7, notes: 'add 5 lbs per session' },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 5, prescribedReps: '5', targetRPE: 7, notes: undefined },
           ],
         },
       ],
@@ -1784,34 +1784,34 @@ const pushPullLegs: ProgramTemplate = {
           sets: [
             // Bench Press 4x5
             { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'strength focus' },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: undefined },
 
             // Overhead Press 3x8-12
-            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Incline DB Press 3x8-12
-            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Lateral Raises 3x15-20
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
 
             // Tricep Pressdown 3x12-15
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Overhead Extension 3x12-15
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1820,34 +1820,34 @@ const pushPullLegs: ProgramTemplate = {
           sets: [
             // Deadlift 3x5
             { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'strength focus' },
-            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: null },
+            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: undefined },
 
             // Pullups 3x8-12
             { exerciseId: 'pullup', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: 'add weight if needed' },
-            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Cable Row 3x8-12
-            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Face Pulls 3x15-20
-            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'face_pull', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
 
             // Barbell Curl 4x8-12
-            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7, notes: null },
+            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7, notes: undefined },
 
             // Hammer Curl 3x12-15
-            { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1856,30 +1856,30 @@ const pushPullLegs: ProgramTemplate = {
           sets: [
             // Squat 4x5
             { exerciseId: 'squat', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'strength focus' },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: null },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: undefined },
 
             // Romanian Deadlift 3x8-12
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Leg Press 3x12-15
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
 
             // Leg Curl 3x12-15
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Calf Raises 4x15-20
-            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1888,34 +1888,34 @@ const pushPullLegs: ProgramTemplate = {
           sets: [
             // Overhead Press 4x5
             { exerciseId: 'ohp', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'strength focus' },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: null },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: undefined },
 
             // Bench Press 3x8-12
-            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // DB Shoulder Press 3x10-15
-            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // Cable Fly 3x12-15
-            { exerciseId: 'cable_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'cable_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'cable_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'cable_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'cable_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'cable_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Lateral Raises 3x15-20
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
 
             // Skull Crushers 3x10-12
-            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1924,34 +1924,34 @@ const pushPullLegs: ProgramTemplate = {
           sets: [
             // Barbell Row 4x5
             { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '5', targetRPE: 8, notes: 'strength focus' },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '5', targetRPE: 8, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '5', targetRPE: 8, notes: undefined },
 
             // Lat Pulldown 3x8-12
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Chest-Supported Row 3x10-15
-            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: null },
-            { exerciseId: 'row_chest_supported', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: null },
+            { exerciseId: 'row_chest_supported', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 2, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_chest_supported', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: undefined },
 
             // Rear Delt Fly 3x15-20
-            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'rear_delt_fly', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'rear_delt_fly', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'rear_delt_fly', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
 
             // Preacher Curl 3x10-12
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
             // Cable Curl 3x12-15
-            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'bicep_curl_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -1959,14 +1959,14 @@ const pushPullLegs: ProgramTemplate = {
           name: 'Legs B',
           sets: [
             // Front Squat 3x8-12
-            { exerciseId: 'front_squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'front_squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'front_squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'front_squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Hack Squat 3x12-15
-            { exerciseId: 'hack_squat', setIndex: 1, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'hack_squat', setIndex: 2, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
-            { exerciseId: 'hack_squat', setIndex: 3, prescribedReps: '12-15', targetRPE: 7.5, notes: null },
+            { exerciseId: 'hack_squat', setIndex: 1, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'hack_squat', setIndex: 2, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'hack_squat', setIndex: 3, prescribedReps: '12-15', targetRPE: 7.5, notes: undefined },
 
             // Bulgarian Split Squat 3x10-15
             { exerciseId: 'bulgarian_split_squat', setIndex: 1, prescribedReps: '10-15', targetRPE: 7, notes: 'per leg' },
@@ -1974,15 +1974,15 @@ const pushPullLegs: ProgramTemplate = {
             { exerciseId: 'bulgarian_split_squat', setIndex: 3, prescribedReps: '10-15', targetRPE: 7, notes: 'per leg' },
 
             // Leg Extension 3x12-15
-            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Seated Calf Raises 4x15-20
-            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'seated_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'seated_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'seated_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
           ],
         },
       ],
@@ -2012,31 +2012,31 @@ const broSplit: ProgramTemplate = {
           name: 'Chest Day',
           sets: [
             // Bench Press 4x8-12
-            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bench_tng', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bench_tng', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Incline DB Press 4x8-12
-            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_incline_press', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_incline_press', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_incline_press', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Decline Bench 3x10-12
-            { exerciseId: 'decline_bench', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'decline_bench', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'decline_bench', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'decline_bench', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'decline_bench', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'decline_bench', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
             // Cable Fly 3x12-15
-            { exerciseId: 'cable_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'cable_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'cable_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'cable_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'cable_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'cable_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // DB Fly 3x12-15
-            { exerciseId: 'db_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'db_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'db_fly', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_fly', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'db_fly', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -2044,32 +2044,32 @@ const broSplit: ProgramTemplate = {
           name: 'Back Day',
           sets: [
             // Deadlift 4x6-8
-            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
-            { exerciseId: 'deadlift', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: null },
+            { exerciseId: 'deadlift', setIndex: 1, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 2, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 3, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'deadlift', setIndex: 4, prescribedReps: '6-8', targetRPE: 7.5, notes: undefined },
 
             // Pullups 4x8-12
             { exerciseId: 'pullup', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: 'add weight if needed' },
-            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'pullup', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'pullup', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'pullup', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Barbell Row 4x8-12
-            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'bent_over_row', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'bent_over_row', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Cable Row 3x10-12
-            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'row_cable', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'row_cable', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
             // Lat Pulldown 3x12-15
-            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lat_pulldown', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lat_pulldown', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -2077,32 +2077,32 @@ const broSplit: ProgramTemplate = {
           name: 'Shoulder Day',
           sets: [
             // Overhead Press 4x8-12
-            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'ohp', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'ohp', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // DB Shoulder Press 4x10-12
-            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '10-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '10-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '10-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'db_shoulder_press', setIndex: 4, prescribedReps: '10-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'db_shoulder_press', setIndex: 1, prescribedReps: '10-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 2, prescribedReps: '10-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 3, prescribedReps: '10-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'db_shoulder_press', setIndex: 4, prescribedReps: '10-12', targetRPE: 7.5, notes: undefined },
 
             // Lateral Raises 4x12-15
-            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'lateral_raise', setIndex: 4, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'lateral_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'lateral_raise', setIndex: 4, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Front Raises 3x12-15
-            { exerciseId: 'front_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'front_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'front_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'front_raise', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'front_raise', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'front_raise', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Face Pulls 3x15-20
-            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'face_pull', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'face_pull', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'face_pull', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -2110,36 +2110,36 @@ const broSplit: ProgramTemplate = {
           name: 'Arms Day',
           sets: [
             // Barbell Curl 4x8-12
-            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'barbell_curl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'barbell_curl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'barbell_curl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Skull Crushers 4x8-12
-            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'skull_crusher', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'skull_crusher', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'skull_crusher', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Hammer Curl 3x10-12
-            { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_hammer', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
             // Tricep Pressdown 3x10-12
-            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_pressdown', setIndex: 1, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 2, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_pressdown', setIndex: 3, prescribedReps: '10-12', targetRPE: 7, notes: undefined },
 
             // Preacher Curl 3x12-15
-            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'bicep_curl_preacher', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Overhead Cable Extension 3x12-15
-            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'tricep_overhead_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'tricep_overhead_cable', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
           ],
         },
         {
@@ -2147,37 +2147,37 @@ const broSplit: ProgramTemplate = {
           name: 'Leg Day',
           sets: [
             // Squat 4x8-12
-            { exerciseId: 'squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'squat', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'squat', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'squat', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Romanian Deadlift 4x8-12
-            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
-            { exerciseId: 'rdl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: null },
+            { exerciseId: 'rdl', setIndex: 1, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 2, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 3, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
+            { exerciseId: 'rdl', setIndex: 4, prescribedReps: '8-12', targetRPE: 7.5, notes: undefined },
 
             // Leg Press 3x12-15
-            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_press', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_press', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Leg Curl 3x12-15
-            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_curl', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_curl', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Leg Extension 3x12-15
-            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: null },
-            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: null },
+            { exerciseId: 'leg_extension', setIndex: 1, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 2, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
+            { exerciseId: 'leg_extension', setIndex: 3, prescribedReps: '12-15', targetRPE: 7, notes: undefined },
 
             // Calf Raises 4x15-20
-            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: null },
-            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: null },
+            { exerciseId: 'standing_calf_raise', setIndex: 1, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 2, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 3, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
+            { exerciseId: 'standing_calf_raise', setIndex: 4, prescribedReps: '15-20', targetRPE: 7, notes: undefined },
           ],
         },
       ],

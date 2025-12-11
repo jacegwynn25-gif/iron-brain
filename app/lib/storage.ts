@@ -442,7 +442,7 @@ export function analyzeProgressionReadiness(
   const lastSessionSets = lastSession.sets.filter(s => s.completed);
   if (lastSessionSets.length > 0) {
     const fatigueAlert = shouldTriggerAutoReduction(lastSessionSets, exerciseId);
-    if (fatigueAlert.shouldAlert && fatigueAlert.severity === 'severe') {
+    if (fatigueAlert.shouldAlert && fatigueAlert.severity === 'critical') {
       return {
         status: 'deload',
         indicator: '⬇️',
