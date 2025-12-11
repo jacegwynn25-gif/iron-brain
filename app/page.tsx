@@ -569,15 +569,15 @@ export default function Home() {
   // Main app view
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/20 dark:to-zinc-900 mesh-gradient">
-      <div className="mx-auto max-w-7xl p-6">
+      <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6">
         {/* Header */}
         <div className="mb-8 relative">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h1 className="mb-3 text-6xl font-black tracking-tight gradient-text animate-float">
+              <h1 className="mb-3 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight gradient-text animate-float">
                 Iron Brain
               </h1>
-              <p className="text-lg font-semibold text-zinc-600 dark:text-zinc-400">
+              <p className="text-sm sm:text-base md:text-lg font-semibold text-zinc-600 dark:text-zinc-400">
                 Science-backed strength training with auto-regulation
               </p>
             </div>
@@ -596,28 +596,28 @@ export default function Home() {
 
         {/* Unsaved Changes Banner */}
         {hasUnsavedChanges && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border-2 border-amber-500 bg-amber-50 p-4 shadow-lg dark:border-amber-600 dark:bg-amber-900/30">
-            <div className="flex items-center gap-3">
-              <svg className="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 rounded-xl border-2 border-amber-500 bg-amber-50 p-4 shadow-lg dark:border-amber-600 dark:bg-amber-900/30">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <svg className="h-6 w-6 flex-shrink-0 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <div>
+              <div className="min-w-0">
                 <p className="font-bold text-amber-900 dark:text-amber-100">Unsaved Changes</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
-                  You've modified this program. Save to your library or discard changes.
+                <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
+                  You've modified this program. Save or discard.
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={handleDiscardChanges}
-                className="rounded-lg bg-white px-4 py-2 font-semibold text-amber-900 shadow-md hover:bg-amber-100 dark:bg-amber-800 dark:text-amber-100 dark:hover:bg-amber-700"
+                className="flex-1 sm:flex-none rounded-lg bg-white px-4 py-2 text-sm font-semibold text-amber-900 shadow-md hover:bg-amber-100 dark:bg-amber-800 dark:text-amber-100 dark:hover:bg-amber-700"
               >
                 Discard
               </button>
               <button
                 onClick={handleSaveChanges}
-                className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 font-bold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                className="flex-1 sm:flex-none rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 sm:px-6 py-2 sm:py-2.5 text-sm font-bold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all"
               >
                 Save Changes
               </button>
@@ -1367,8 +1367,8 @@ export default function Home() {
                             </button>
                           </div>
                           <div className="space-y-4">
-                            {/* Column Headers */}
-                            <div className="grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 bg-gradient-to-r from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/50 rounded-lg p-3">
+                            {/* Column Headers - Hidden on mobile */}
+                            <div className="hidden md:grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 bg-gradient-to-r from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/50 rounded-lg p-3">
                               <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Set</span>
                               <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
                                 Reps
@@ -1386,48 +1386,112 @@ export default function Home() {
                             </div>
 
                             {sets.map((set, idx) => (
-                              <div key={idx} className="grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 items-center">
-                                <span className="text-base font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
-                                <input
-                                  type="text"
-                                  value={set.prescribedReps}
-                                  onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { prescribedReps: e.target.value })}
-                                  className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                  placeholder="8-12"
-                                />
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={set.targetRPE || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                      targetRPE: val ? parseFloat(val) : null
-                                    });
-                                  }}
-                                  className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                  placeholder="7.5"
-                                />
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={set.restSeconds || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
-                                      restSeconds: val ? parseInt(val) : undefined
-                                    });
-                                  }}
-                                  className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                  placeholder="90s"
-                                />
-                                <input
-                                  type="text"
-                                  value={set.notes || ''}
-                                  onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { notes: e.target.value })}
-                                  className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                  placeholder="Add notes..."
-                                />
+                              <div key={idx}>
+                                {/* Mobile Layout - Stacked */}
+                                <div className="md:hidden space-y-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4 border-2 border-zinc-200 dark:border-zinc-700">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label className="block">
+                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Reps</span>
+                                      <input
+                                        type="text"
+                                        value={set.prescribedReps}
+                                        onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { prescribedReps: e.target.value })}
+                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                        placeholder="8-12"
+                                      />
+                                    </label>
+                                    <label className="block">
+                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">RPE (Rate of Perceived Exertion)</span>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={set.targetRPE || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
+                                            targetRPE: val ? parseFloat(val) : null
+                                          });
+                                        }}
+                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                        placeholder="7.5"
+                                      />
+                                    </label>
+                                    <label className="block">
+                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Rest (seconds)</span>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={set.restSeconds || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
+                                            restSeconds: val ? parseInt(val) : undefined
+                                          });
+                                        }}
+                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                        placeholder="90s"
+                                      />
+                                    </label>
+                                    <label className="block">
+                                      <span className="text-xs font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Notes</span>
+                                      <input
+                                        type="text"
+                                        value={set.notes || ''}
+                                        onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { notes: e.target.value })}
+                                        className="w-full rounded-lg border-2 border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                        placeholder="Add notes..."
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+
+                                {/* Desktop Layout - Grid */}
+                                <div className="hidden md:grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 items-center">
+                                  <span className="text-base font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
+                                  <input
+                                    type="text"
+                                    value={set.prescribedReps}
+                                    onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { prescribedReps: e.target.value })}
+                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                    placeholder="8-12"
+                                  />
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={set.targetRPE || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
+                                        targetRPE: val ? parseFloat(val) : null
+                                      });
+                                    }}
+                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                    placeholder="7.5"
+                                  />
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={set.restSeconds || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, {
+                                        restSeconds: val ? parseInt(val) : undefined
+                                      });
+                                    }}
+                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                    placeholder="90s"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={set.notes || ''}
+                                    onChange={(e) => updateSet(selectedWeek, selectedDayIndex, exerciseId, set.setIndex, { notes: e.target.value })}
+                                    className="rounded-lg border-2 border-zinc-200 bg-white px-4 py-3 text-base font-bold text-zinc-900 transition-all focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                                    placeholder="Add notes..."
+                                  />
+                                </div>
                               </div>
                             ))}
                           </div>
