@@ -49,10 +49,18 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
   const handleSubmit = () => {
     if (!selectedFile) return;
 
+    // Parse date as local date to avoid timezone issues
+    // Input format: "2024-11-17" should be parsed as Nov 17 in local timezone, not UTC
+    let parsedStartDate: Date | undefined;
+    if (startDate) {
+      const [year, month, day] = startDate.split('-').map(Number);
+      parsedStartDate = new Date(year, month - 1, day); // month is 0-indexed
+    }
+
     const config: Partial<ImportConfig> = {
       programId: programId || undefined,
       programName: programName || undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
+      startDate: parsedStartDate,
       mergeStrategy,
     };
 
