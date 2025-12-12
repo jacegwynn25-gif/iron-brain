@@ -7,6 +7,8 @@ import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
 import QuickPicker from './QuickPicker';
+import SmartAlert from './SmartAlert';
+import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
 import { Dumbbell } from 'lucide-react';
 
 interface WorkoutLoggerProps {
@@ -781,6 +783,14 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   // Get last performance
   const lastWorkout = storage.getLastWorkoutForExercise(template.exerciseId);
 
+  // Workout Intelligence - Smart recommendations
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const intelligence = useWorkoutIntelligence(
+    currentSessionSets,
+    exercise,
+    lastWorkout?.bestSet
+  );
+
   // Get last 3 sessions for this exercise
   const exerciseHistory = useMemo(() => {
     const history = storage.getExerciseHistory(template.exerciseId);
@@ -982,6 +992,75 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           </div>
         </div>
       )}
+
+      {/* Smart Alerts - Science-Backed Recommendations */}
+      {intelligence.hasRecommendation && (
+        <div className="mb-3">
+          {/* Fatigue Alert (Priority 1 - Safety First) */}
+          {intelligence.fatigueAlert && !dismissedAlerts.has('fatigue') && (
+            <SmartAlert
+              type="fatigue"
+              severity={intelligence.fatigueAlert.severity}
+              title={`Fatigue Detected: ${intelligence.fatigueAlert.affectedMuscles.join(', ')}`}
+              message={intelligence.fatigueAlert.reasoning}
+              suggestedWeight={intelligence.weightRecommendation?.suggestedWeight}
+              currentWeight={lastWorkout?.bestSet.actualWeight}
+              scientificBasis={intelligence.fatigueAlert.scientificBasis}
+              confidence={intelligence.fatigueAlert.confidence}
+              onApply={() => {
+                if (intelligence.weightRecommendation?.suggestedWeight) {
+                  setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
+                }
+              }}
+              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('fatigue'))}
+            />
+          )}
+
+          {/* Weight Recommendation (Increase/Decrease) */}
+          {intelligence.weightRecommendation &&
+           intelligence.weightRecommendation.type !== 'maintain' &&
+           !intelligence.fatigueAlert &&
+           !dismissedAlerts.has('weight-rec') && (
+            <SmartAlert
+              type={intelligence.weightRecommendation.type === 'increase' ? 'progression' : 'fatigue'}
+              severity="moderate"
+              title={
+                intelligence.weightRecommendation.type === 'increase'
+                  ? 'Progression Opportunity'
+                  : 'Load Adjustment Recommended'
+              }
+              message={intelligence.weightRecommendation.reasoning}
+              suggestedWeight={intelligence.weightRecommendation.suggestedWeight}
+              currentWeight={intelligence.weightRecommendation.currentWeight}
+              scientificBasis={intelligence.weightRecommendation.scientificBasis}
+              confidence={intelligence.weightRecommendation.confidence}
+              onApply={() => {
+                setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
+              }}
+              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('weight-rec'))}
+            />
+          )}
+
+          {/* PR Opportunity */}
+          {intelligence.prOpportunity?.isOpportunity && !dismissedAlerts.has('pr') && (
+            <SmartAlert
+              type="pr-opportunity"
+              severity="mild"
+              title="Personal Record Opportunity"
+              message={`You're ${intelligence.prOpportunity.gap.toFixed(0)} lbs away from your ${intelligence.prOpportunity.type === 'max_weight' ? 'max weight' : 'E1RM'} PR!`}
+              suggestedWeight={intelligence.prOpportunity.targetWeight}
+              currentWeight={lastWorkout?.bestSet.actualWeight}
+              scientificBasis="Progressive overload: Small, incremental increases above previous bests drive long-term strength gains."
+              confidence={0.75}
+              onApply={() => {
+                setWeight(intelligence.prOpportunity!.targetWeight.toString());
+              }}
+              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('pr'))}
+            />
+          )}
+        </div>
+      )}
+
       {/* Input Fields - Ultra Clean */}
       <div>
         {renderSetBody()}
