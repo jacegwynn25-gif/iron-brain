@@ -623,154 +623,148 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
 
     return (
       <>
-        {/* Primary Inputs - Weight & Reps (Most Important) */}
-        <div className="overflow-hidden rounded-3xl border border-purple-200/70 bg-gradient-to-br from-white/95 via-purple-50/70 to-pink-50/70 p-5 shadow-xl ring-1 ring-purple-100 dark:border-purple-900/50 dark:from-zinc-900/80 dark:via-purple-950/30 dark:to-pink-950/20 dark:ring-purple-900/40">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-600 dark:text-purple-200">Primary metrics</p>
-              <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Load & reps</h3>
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">One smooth card, minimal tapping.</p>
-            </div>
-            <div className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-purple-700 shadow-sm ring-1 ring-purple-100 dark:bg-zinc-900/70 dark:text-purple-200 dark:ring-purple-900/40">
-              <span className="text-lg">🎯</span>
-              <span>Targets in view</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <QuickPicker
-              label="Weight (lbs)"
-              value={weight}
-              onChange={setWeight}
-              suggestions={[45, 95, 135, 185, 225, 275, 315, 405]}
-              step={5}
-              placeholder="225"
-              unit="lbs"
-            />
-            <QuickPicker
-              label="Reps"
-              value={reps}
-              onChange={setReps}
-              suggestions={[1, 3, 5, 8, 10, 12, 15, 20]}
-              step={1}
-              placeholder={template.prescribedReps}
-            />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
-            <span className="rounded-full bg-purple-100 px-3 py-1 font-semibold text-purple-900 dark:bg-purple-900/40 dark:text-purple-100">
-              {template.prescribedReps} reps target
-            </span>
-            {template.targetRPE && (
-              <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-                RPE {template.targetRPE}
-              </span>
-            )}
-            {template.supersetGroup && (
-              <span className="rounded-full bg-pink-100 px-3 py-1 font-semibold text-pink-900 dark:bg-pink-900/40 dark:text-pink-100">
-                Superset {template.supersetGroup}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Intensity Tracking - RPE & RIR */}
-        <div className="overflow-hidden rounded-3xl border border-orange-200/70 bg-gradient-to-br from-white/95 via-orange-50/60 to-rose-50/60 p-5 shadow-xl ring-1 ring-orange-100 dark:border-orange-900/50 dark:from-zinc-900/80 dark:via-orange-950/25 dark:to-rose-950/20 dark:ring-orange-900/40">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">Intensity</p>
-              <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Feel & effort</h3>
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Dial in RPE and leave some reps in reserve.</p>
-            </div>
-            <span className="rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-orange-700 shadow-sm ring-1 ring-orange-100 dark:bg-zinc-900/70 dark:text-orange-200 dark:ring-orange-900/40">
-              🔥 Fatigue awareness
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <QuickPicker
-              label="RPE (optional)"
-              value={rpe}
-              onChange={setRpe}
-              suggestions={[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]}
-              step={0.5}
-              placeholder="8.5"
-            />
-            <QuickPicker
-              label="RIR (optional)"
-              value={rir}
-              onChange={setRir}
-              suggestions={[0, 1, 2, 3, 4]}
-              step={1}
-              placeholder="2"
-            />
-          </div>
-        </div>
-
-        {/* Tempo & TUT (only if prescribed in program) */}
-        {showTempo && (
-          <div className="overflow-hidden rounded-3xl border border-blue-200/70 bg-gradient-to-br from-white/95 via-blue-50/70 to-cyan-50/70 p-5 shadow-xl ring-1 ring-blue-100 dark:border-blue-900/50 dark:from-zinc-900/80 dark:via-blue-950/25 dark:to-cyan-950/20 dark:ring-blue-900/40">
-            <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="space-y-4 rounded-3xl bg-white/90 p-5 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/90 dark:ring-zinc-800">
+          {/* Primary Inputs */}
+          <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
+            <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-300">Tempo</p>
-                <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Control every inch</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Primary</p>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Load & reps</h3>
               </div>
-              <span className="rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-zinc-900/70 dark:text-blue-200 dark:ring-blue-900/40">
-                ⏱️ TUT live
+              <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-purple-700 ring-1 ring-purple-100 dark:bg-zinc-800 dark:text-purple-200 dark:ring-purple-900/40">
+                🎯 Targets
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <QuickPicker
+                label="Weight (lbs)"
+                value={weight}
+                onChange={setWeight}
+                suggestions={[45, 95, 135, 185, 225, 275, 315, 405]}
+                step={5}
+                placeholder="225"
+                unit="lbs"
+              />
+              <QuickPicker
+                label="Reps"
+                value={reps}
+                onChange={setReps}
+                suggestions={[1, 3, 5, 8, 10, 12, 15, 20]}
+                step={1}
+                placeholder={template.prescribedReps}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+              <span className="rounded-full bg-purple-100 px-3 py-1 font-semibold text-purple-900 dark:bg-purple-900/30 dark:text-purple-100">
+                {template.prescribedReps} reps
+              </span>
+              {template.targetRPE && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
+                  RPE {template.targetRPE}
+                </span>
+              )}
+              {template.supersetGroup && (
+                <span className="rounded-full bg-pink-100 px-3 py-1 font-semibold text-pink-900 dark:bg-pink-900/30 dark:text-pink-100">
+                  Superset {template.supersetGroup}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Intensity */}
+          <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Intensity</p>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Feel & effort</h3>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-orange-700 ring-1 ring-orange-100 dark:bg-zinc-800 dark:text-orange-200 dark:ring-orange-900/40">
+                🔥 Fatigue
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
-                  Tempo
-                </label>
-                <input
-                  type="text"
-                  value={tempo}
-                  onChange={(e) => setTempo(e.target.value)}
-                  placeholder="3-1-2-0"
-                  className="w-full rounded-xl border border-blue-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-800 dark:bg-zinc-900 dark:text-blue-50 transition-all"
-                />
-                <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-400">
-                  Format: eccentric-pause-concentric-pause
-                </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <QuickPicker
+                label="RPE (optional)"
+                value={rpe}
+                onChange={setRpe}
+                suggestions={[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]}
+                step={0.5}
+                placeholder="8.5"
+              />
+              <QuickPicker
+                label="RIR (optional)"
+                value={rir}
+                onChange={setRir}
+                suggestions={[0, 1, 2, 3, 4]}
+                step={1}
+                placeholder="2"
+              />
+            </div>
+          </div>
+
+          {/* Tempo & TUT (only if prescribed in program) */}
+          {showTempo && (
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Tempo</p>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Control</h3>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-blue-700 ring-1 ring-blue-100 dark:bg-zinc-800 dark:text-blue-200 dark:ring-blue-900/40">
+                  ⏱️ TUT
+                </span>
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
-                  Time Under Tension
-                </label>
-                <div className="flex h-[56px] items-center justify-center rounded-xl border border-blue-200 bg-white/80 px-4 text-center shadow-sm dark:border-blue-800 dark:bg-zinc-900">
-                  {tempo && reps ? (
-                    <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                      {calculateTUT(tempo, parseInt(reps) || 0)}s
-                    </p>
-                  ) : (
-                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                      Enter tempo & reps
-                    </p>
-                  )}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                    Tempo
+                  </label>
+                  <input
+                    type="text"
+                    value={tempo}
+                    onChange={(e) => setTempo(e.target.value)}
+                    placeholder="3-1-2-0"
+                    className="w-full rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  />
+                  <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    Format: eccentric-pause-concentric-pause
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                    Time Under Tension
+                  </label>
+                  <div className="flex h-[56px] items-center justify-center rounded-xl border border-zinc-200 bg-white/80 px-4 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                    {tempo && reps ? (
+                      <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                        {calculateTUT(tempo, parseInt(reps) || 0)}s
+                      </p>
+                    ) : (
+                      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
+                        Enter tempo & reps
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Notes */}
-        <div className="rounded-3xl border border-zinc-200/80 bg-white/90 p-4 shadow-lg ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80 dark:ring-zinc-800">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">Notes</p>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Keep it short & useful</p>
+          {/* Notes */}
+          <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Notes</p>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-500">Optional</span>
             </div>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              Optional
-            </span>
-          </div>
-          <div className="mt-3 rounded-2xl bg-zinc-50/90 px-3 py-2 ring-1 ring-zinc-200 focus-within:ring-2 focus-within:ring-purple-400 dark:bg-zinc-900/60 dark:ring-zinc-800 dark:focus-within:ring-purple-700">
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Form cues, equipment, how it felt..."
-              className="w-full border-none bg-transparent px-1 py-2 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
-            />
+            <div className="mt-2 rounded-xl bg-white/80 px-3 ring-1 ring-zinc-200 focus-within:ring-2 focus-within:ring-purple-400 dark:bg-zinc-950/50 dark:ring-zinc-800 dark:focus-within:ring-purple-700">
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Form cues, equipment, how it felt..."
+                className="w-full border-none bg-transparent py-3 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
+              />
+            </div>
           </div>
         </div>
       </>
@@ -1230,10 +1224,10 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
 
       {/* Actions */}
       <div className="sticky bottom-4 z-20 mt-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 rounded-3xl bg-white/90 p-3 shadow-2xl ring-1 ring-emerald-100 backdrop-blur dark:bg-zinc-900/90 dark:ring-emerald-900/40">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 rounded-3xl bg-white/95 p-3 shadow-2xl ring-1 ring-zinc-200 backdrop-blur dark:bg-zinc-900/95 dark:ring-zinc-800">
           <button
             onClick={handleSubmit}
-            className="group flex-1 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 px-6 py-5 text-lg font-black text-white shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 dark:from-emerald-600 dark:via-emerald-500 dark:to-teal-500"
+            className="group relative flex-1 overflow-hidden rounded-2xl bg-emerald-600 px-6 py-5 text-lg font-black text-white shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
           >
             <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex items-center justify-center gap-2">
@@ -1243,7 +1237,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           </button>
           <button
             onClick={onSkip}
-            className="rounded-2xl border border-zinc-200 bg-white/80 px-6 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md active:translate-y-0 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200 dark:hover:border-zinc-600"
+            className="rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md active:translate-y-0 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600"
           >
             Skip this set
           </button>
