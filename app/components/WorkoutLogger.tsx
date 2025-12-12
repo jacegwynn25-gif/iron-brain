@@ -629,7 +629,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               step={5}
               placeholder="225"
               unit="lbs"
-              lastValue={lastWorkout?.bestSet.actualWeight.toString()}
+              lastValue={lastWorkout?.bestSet.actualWeight?.toString()}
             />
             <QuickPicker
               label="Reps"
@@ -637,7 +637,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               onChange={setReps}
               step={1}
               placeholder={template.prescribedReps}
-              lastValue={lastWorkout?.bestSet.actualReps.toString()}
+              lastValue={lastWorkout?.bestSet.actualReps?.toString()}
             />
           </div>
 
@@ -974,8 +974,8 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 <button
                   key={idx}
                   onClick={() => {
-                    setWeight(bestSet.actualWeight.toString());
-                    setReps(bestSet.actualReps.toString());
+                    if (bestSet.actualWeight) setWeight(bestSet.actualWeight.toString());
+                    if (bestSet.actualReps) setReps(bestSet.actualReps.toString());
                     if (bestSet.actualRPE) setRpe(bestSet.actualRPE.toString());
                     setShowHistory(false);
                   }}
@@ -983,7 +983,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 >
                   <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{dateLabel}</span>
                   <span className="font-bold text-zinc-900 dark:text-zinc-50">
-                    {bestSet.actualWeight}lbs × {bestSet.actualReps}
+                    {bestSet.actualWeight || 0}lbs × {bestSet.actualReps || 0}
                     {bestSet.actualRPE && <span className="ml-1 text-xs text-orange-600 dark:text-orange-400">@{bestSet.actualRPE}</span>}
                   </span>
                 </button>

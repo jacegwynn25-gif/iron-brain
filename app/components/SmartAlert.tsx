@@ -11,7 +11,7 @@ interface SmartAlertProps {
   title: string;
   message: string;
   suggestedWeight?: number;
-  currentWeight?: number;
+  currentWeight?: number | null;
   scientificBasis?: string;
   confidence?: number; // 0-1
   onDismiss?: () => void;
@@ -116,8 +116,10 @@ export default function SmartAlert({
   const Icon = getIcon();
 
   const weightChange = suggestedWeight && currentWeight
-    ? ((suggestedWeight - currentWeight) / currentWeight * 100).toFixed(0)
+    ? ((suggestedWeight - currentWeight) / currentWeight * 100)
     : null;
+
+  const weightChangeStr = weightChange !== null ? weightChange.toFixed(0) : null;
 
   if (compact) {
     // Compact inline badge for suggestions next to input
@@ -195,9 +197,9 @@ export default function SmartAlert({
                   <span className={`text-lg font-black ${colors.text}`}>
                     {suggestedWeight} lbs
                   </span>
-                  {weightChange && (
+                  {weightChangeStr && (
                     <span className={`text-xs font-bold ${colors.subtext}`}>
-                      ({weightChange > 0 ? '+' : ''}{weightChange}%)
+                      ({Number(weightChangeStr) > 0 ? '+' : ''}{weightChangeStr}%)
                     </span>
                   )}
                 </div>

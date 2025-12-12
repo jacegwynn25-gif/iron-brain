@@ -46,7 +46,7 @@ export interface WorkoutIntelligence {
 export function useWorkoutIntelligence(
   completedSets: SetLog[],
   upcomingExercise: Exercise | null,
-  lastWorkoutBestSet?: { actualWeight: number; actualReps: number; actualRPE?: number | null }
+  lastWorkoutBestSet?: { actualWeight?: number | null; actualReps?: number | null; actualRPE?: number | null }
 ): WorkoutIntelligence {
   const intelligence = useMemo(() => {
     if (!upcomingExercise) {
@@ -64,7 +64,7 @@ export function useWorkoutIntelligence(
     // 2. CHECK FOR PROGRESSION OPPORTUNITY (if no fatigue)
     let weightRecommendation: WeightRecommendation | null = null;
 
-    if (!fatigueAlert.shouldAlert && lastWorkoutBestSet) {
+    if (!fatigueAlert.shouldAlert && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight && lastWorkoutBestSet.actualReps) {
       const lastWeight = lastWorkoutBestSet.actualWeight;
       const lastReps = lastWorkoutBestSet.actualReps;
       const lastRPE = lastWorkoutBestSet.actualRPE;
@@ -141,7 +141,7 @@ export function useWorkoutIntelligence(
     }
 
     // Apply fatigue-based reduction if needed
-    if (fatigueAlert.shouldAlert && lastWorkoutBestSet) {
+    if (fatigueAlert.shouldAlert && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight) {
       const adjustedWeight = calculateAdjustedWeight(lastWorkoutBestSet.actualWeight, fatigueAlert);
       weightRecommendation = {
         type: 'decrease',
@@ -157,7 +157,7 @@ export function useWorkoutIntelligence(
     let prOpportunity: PROpportunity | null = null;
 
     const prs = storage.getPersonalRecords(upcomingExercise.id);
-    if (prs && lastWorkoutBestSet) {
+    if (prs && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight && lastWorkoutBestSet.actualReps) {
       const maxWeight = prs.maxWeight.weight;
       const maxE1RM = prs.maxE1RM.e1rm;
 
