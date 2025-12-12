@@ -624,10 +624,18 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     return (
       <>
         {/* Primary Inputs - Weight & Reps (Most Important) */}
-        <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-5 shadow-sm dark:border-purple-800 dark:from-purple-900/20 dark:to-pink-900/20">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
-            Primary Metrics
-          </p>
+        <div className="overflow-hidden rounded-3xl border border-purple-200/70 bg-gradient-to-br from-white/95 via-purple-50/70 to-pink-50/70 p-5 shadow-xl ring-1 ring-purple-100 dark:border-purple-900/50 dark:from-zinc-900/80 dark:via-purple-950/30 dark:to-pink-950/20 dark:ring-purple-900/40">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-600 dark:text-purple-200">Primary metrics</p>
+              <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Load & reps</h3>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">One smooth card, minimal tapping.</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-purple-700 shadow-sm ring-1 ring-purple-100 dark:bg-zinc-900/70 dark:text-purple-200 dark:ring-purple-900/40">
+              <span className="text-lg">🎯</span>
+              <span>Targets in view</span>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <QuickPicker
               label="Weight (lbs)"
@@ -647,13 +655,35 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               placeholder={template.prescribedReps}
             />
           </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-[12px]">
+            <span className="rounded-full bg-purple-100 px-3 py-1 font-semibold text-purple-900 dark:bg-purple-900/40 dark:text-purple-100">
+              {template.prescribedReps} reps target
+            </span>
+            {template.targetRPE && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+                RPE {template.targetRPE}
+              </span>
+            )}
+            {template.supersetGroup && (
+              <span className="rounded-full bg-pink-100 px-3 py-1 font-semibold text-pink-900 dark:bg-pink-900/40 dark:text-pink-100">
+                Superset {template.supersetGroup}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Intensity Tracking - RPE & RIR */}
-        <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-red-50 p-5 shadow-sm dark:border-orange-800 dark:from-orange-900/20 dark:to-red-900/20">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-            Intensity
-          </p>
+        <div className="overflow-hidden rounded-3xl border border-orange-200/70 bg-gradient-to-br from-white/95 via-orange-50/60 to-rose-50/60 p-5 shadow-xl ring-1 ring-orange-100 dark:border-orange-900/50 dark:from-zinc-900/80 dark:via-orange-950/25 dark:to-rose-950/20 dark:ring-orange-900/40">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">Intensity</p>
+              <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Feel & effort</h3>
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Dial in RPE and leave some reps in reserve.</p>
+            </div>
+            <span className="rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-orange-700 shadow-sm ring-1 ring-orange-100 dark:bg-zinc-900/70 dark:text-orange-200 dark:ring-orange-900/40">
+              🔥 Fatigue awareness
+            </span>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <QuickPicker
               label="RPE (optional)"
@@ -676,10 +706,16 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
 
         {/* Tempo & TUT (only if prescribed in program) */}
         {showTempo && (
-          <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 shadow-sm dark:border-blue-800 dark:from-blue-900/20 dark:to-cyan-900/20">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-              ⏱️ Tempo & Time Under Tension
-            </p>
+          <div className="overflow-hidden rounded-3xl border border-blue-200/70 bg-gradient-to-br from-white/95 via-blue-50/70 to-cyan-50/70 p-5 shadow-xl ring-1 ring-blue-100 dark:border-blue-900/50 dark:from-zinc-900/80 dark:via-blue-950/25 dark:to-cyan-950/20 dark:ring-blue-900/40">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-300">Tempo</p>
+                <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">Control every inch</h3>
+              </div>
+              <span className="rounded-full bg-white/70 px-3 py-2 text-[12px] font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-zinc-900/70 dark:text-blue-200 dark:ring-blue-900/40">
+                ⏱️ TUT live
+              </span>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
@@ -690,7 +726,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                   value={tempo}
                   onChange={(e) => setTempo(e.target.value)}
                   placeholder="3-1-2-0"
-                  className="w-full rounded-lg border-2 border-blue-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-700 dark:bg-zinc-800 dark:text-blue-50 transition-all"
+                  className="w-full rounded-xl border border-blue-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-800 dark:bg-zinc-900 dark:text-blue-50 transition-all"
                 />
                 <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-400">
                   Format: eccentric-pause-concentric-pause
@@ -700,7 +736,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
                   Time Under Tension
                 </label>
-                <div className="flex h-[52px] items-center justify-center rounded-lg border-2 border-blue-300 bg-white px-4 shadow-sm dark:border-blue-700 dark:bg-zinc-800">
+                <div className="flex h-[56px] items-center justify-center rounded-xl border border-blue-200 bg-white/80 px-4 text-center shadow-sm dark:border-blue-800 dark:bg-zinc-900">
                   {tempo && reps ? (
                     <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
                       {calculateTUT(tempo, parseInt(reps) || 0)}s
@@ -717,17 +753,25 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
         )}
 
         {/* Notes */}
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-            📝 Notes (optional)
-          </label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Form felt great, paused reps, used wrist wraps..."
-            className="w-full rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 transition-all"
-          />
+        <div className="rounded-3xl border border-zinc-200/80 bg-white/90 p-4 shadow-lg ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/80 dark:ring-zinc-800">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">Notes</p>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Keep it short & useful</p>
+            </div>
+            <span className="rounded-full bg-zinc-100 px-3 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+              Optional
+            </span>
+          </div>
+          <div className="mt-3 rounded-2xl bg-zinc-50/90 px-3 py-2 ring-1 ring-zinc-200 focus-within:ring-2 focus-within:ring-purple-400 dark:bg-zinc-900/60 dark:ring-zinc-800 dark:focus-within:ring-purple-700">
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Form cues, equipment, how it felt..."
+              className="w-full border-none bg-transparent px-1 py-2 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
+            />
+          </div>
         </div>
       </>
     );
@@ -1185,28 +1229,31 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
       </div>
 
       {/* Actions */}
-      <div className="mt-8 flex gap-3 rounded-2xl bg-white/85 p-3 shadow-lg ring-1 ring-zinc-100 backdrop-blur dark:bg-zinc-900/85 dark:ring-zinc-800 sticky bottom-4">
-        <button
-          onClick={handleSubmit}
-          className="group flex-1 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-5 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-green-700 hover:to-emerald-700 dark:from-green-700 dark:to-emerald-700 dark:hover:from-green-800 dark:hover:to-emerald-800 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <span className="flex items-center justify-center gap-2">
-            <span className="text-2xl group-hover:scale-110 transition-transform">✅</span>
-            <span>{isLastSet ? 'Complete & Finish Workout' : 'Log Set'}</span>
-          </span>
-        </button>
-        <button
-          onClick={onSkip}
-          className="rounded-xl bg-zinc-200 px-6 py-5 text-zinc-700 font-semibold shadow-md hover:bg-zinc-300 hover:shadow-lg dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 transition-all transform hover:scale-105 active:scale-95"
-        >
-          Skip
-        </button>
+      <div className="sticky bottom-4 z-20 mt-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 rounded-3xl bg-white/90 p-3 shadow-2xl ring-1 ring-emerald-100 backdrop-blur dark:bg-zinc-900/90 dark:ring-emerald-900/40">
+          <button
+            onClick={handleSubmit}
+            className="group flex-1 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 px-6 py-5 text-lg font-black text-white shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 dark:from-emerald-600 dark:via-emerald-500 dark:to-teal-500"
+          >
+            <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
+            <span className="relative flex items-center justify-center gap-2">
+              <span className="text-2xl">✅</span>
+              <span>{isLastSet ? 'Complete & Finish Workout' : 'Log Set'}</span>
+            </span>
+          </button>
+          <button
+            onClick={onSkip}
+            className="rounded-2xl border border-zinc-200 bg-white/80 px-6 py-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md active:translate-y-0 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200 dark:hover:border-zinc-600"
+          >
+            Skip this set
+          </button>
+        </div>
       </div>
 
       {isLastSet && (
         <button
           onClick={onFinish}
-          className="mt-4 w-full rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 px-6 py-4 text-sm font-semibold text-zinc-600 shadow-sm hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 transition-all"
+          className="mt-4 w-full rounded-2xl border-2 border-dashed border-zinc-300 bg-white/80 px-6 py-4 text-sm font-semibold text-zinc-600 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
         >
           🏁 Finish workout early (skip remaining sets)
         </button>
