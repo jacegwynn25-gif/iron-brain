@@ -3,7 +3,7 @@
 interface QuickPickerProps {
   label: string;
   value: string;
-  onChange: (value: string);
+  onChange: (value: string) => void;
   step?: number;
   placeholder?: string;
   unit?: string;
