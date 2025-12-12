@@ -643,12 +643,13 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
 
           {/* RPE & Notes - Compact Inline */}
           <div className="space-y-2">
-            {/* RPE inline with quick buttons */}
+            {/* RPE inline with quick buttons + manual input */}
             <div className="flex items-center gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
                 RPE
               </label>
               <div className="flex items-stretch gap-1.5 flex-1">
+                {/* Quick select buttons for common RPE values */}
                 {[7, 7.5, 8, 8.5, 9, 9.5, 10].map((val) => (
                   <button
                     key={val}
@@ -663,6 +664,18 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                     {val}
                   </button>
                 ))}
+                {/* Manual input for other values (warmups, recovery, etc.) */}
+                <input
+                  type="number"
+                  value={rpe}
+                  onChange={(e) => setRpe(e.target.value)}
+                  placeholder="?"
+                  step="0.5"
+                  min="1"
+                  max="10"
+                  className="w-12 rounded border-2 border-zinc-300 bg-white px-2 py-2 text-center text-xs font-bold text-zinc-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-orange-600"
+                  title="Enter any RPE (e.g., 5, 6, 6.5)"
+                />
               </div>
             </div>
 
