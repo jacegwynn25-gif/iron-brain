@@ -1,4 +1,3 @@
-import { WorkoutSession, SetLog } from './types';
 import { storage } from './storage';
 import { getAllExercises } from './programs';
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Exercise, SetTemplate, SetLog, WorkoutSession, ProgramTemplate } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
 import QuickPicker from './QuickPicker';
+import { Dumbbell } from 'lucide-react';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -14,9 +15,9 @@ interface WorkoutLoggerProps {
   dayIndex: number;
   onComplete: (session: WorkoutSession) => void;
   onCancel: () => void;
+  initialSession?: WorkoutSession | null;
+  onSessionUpdate?: (session: WorkoutSession) => void;
 }
-
-let sessionCounter = 0;
 
 export default function WorkoutLogger({
   program,
@@ -24,42 +25,71 @@ export default function WorkoutLogger({
   dayIndex,
   onComplete,
   onCancel,
+  initialSession,
+  onSessionUpdate,
 }: WorkoutLoggerProps) {
   const week = program.weeks.find(w => w.weekNumber === weekNumber);
   const day = week?.days[dayIndex];
 
-  const sessionIdRef = useRef<string | null>(null);
-  if (sessionIdRef.current === null) {
-    sessionCounter += 1;
+  const sessionId = useMemo(() => {
+    if (initialSession?.id) return initialSession.id;
     const uuid =
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
-        : `fallback_${sessionCounter}`;
-    sessionIdRef.current = `session_${uuid}`;
-  }
-  const sessionStartRef = useRef(new Date());
-
-  const [session, setSession] = useState<WorkoutSession>({
-    id: sessionIdRef.current,
-    programId: program.id,
-    programName: program.name,
-    cycleNumber: 1, // TODO: Track cycle from user data
-    weekNumber,
-    dayOfWeek: day?.dayOfWeek || 'Mon',
-    dayName: day?.name || '',
-    date: sessionStartRef.current.toISOString().split('T')[0],
-    startTime: sessionStartRef.current.toISOString(),
-    sets: [],
-    createdAt: sessionStartRef.current.toISOString(),
-    updatedAt: sessionStartRef.current.toISOString(),
-  });
-
-  const [currentSetIndex, setCurrentSetIndex] = useState(0);
-  const [restTimerSeconds, setRestTimerSeconds] = useState<number | null>(null);
-  const [isResting, setIsResting] = useState(false);
+        : 'fallback';
+    return `session_${uuid}`;
+  }, [initialSession?.id]);
+  const sessionStart = useMemo(
+    () => new Date(initialSession?.startTime ?? new Date()),
+    [initialSession?.startTime]
+  );
 
   // Get all set templates for this workout
-  const setTemplates = day?.sets || [];
+  const setTemplates = useMemo(() => day?.sets || [], [day]);
+  const initialCompletedSets = initialSession ? initialSession.sets.filter(s => s.completed).length : 0;
+  const initialSetIndex = Math.min(
+    Math.max(initialCompletedSets, 0),
+    Math.max(setTemplates.length - 1, 0)
+  );
+
+  const [session, setSession] = useState<WorkoutSession>(() =>
+    initialSession ?? {
+      id: sessionId,
+      programId: program.id,
+      programName: program.name,
+      cycleNumber: 1, // TODO: Track cycle from user data
+      weekNumber,
+      dayOfWeek: day?.dayOfWeek || 'Mon',
+      dayName: day?.name || '',
+      date: sessionStart.toISOString().split('T')[0],
+      startTime: sessionStart.toISOString(),
+      sets: [],
+      createdAt: sessionStart.toISOString(),
+      updatedAt: sessionStart.toISOString(),
+    }
+  );
+
+  const [currentSetIndex, setCurrentSetIndex] = useState(initialSetIndex);
+  const [restTimerSeconds, setRestTimerSeconds] = useState<number | null>(null);
+  const [isResting, setIsResting] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (onSessionUpdate) {
+      onSessionUpdate(session);
+    }
+  }, [session, onSessionUpdate]);
+
+  const sessionStartMs = session.startTime ? new Date(session.startTime).getTime() : nowMs;
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - sessionStartMs) / 1000));
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  const elapsedDisplay = `${elapsedMinutes}:${(elapsedSeconds % 60).toString().padStart(2, '0')}`;
+
   const currentTemplate = setTemplates[currentSetIndex];
   const currentExercise = currentTemplate ? (defaultExercises.find(ex => ex.id === currentTemplate.exerciseId) || null) : null;
 
@@ -99,6 +129,28 @@ export default function WorkoutLogger({
     setRestTimerSeconds(null);
   };
 
+  const buildFinalSession = useCallback((setsOverride?: SetLog[]) => {
+    const finalSets = setsOverride ?? session.sets;
+    const finishedAt = new Date();
+    const completedSets = finalSets.filter(s => s.completed);
+    const totalVolume = completedSets.reduce((sum, set) => sum + (set.volumeLoad || 0), 0);
+    const rpeValues = completedSets
+      .map(s => s.actualRPE)
+      .filter((rpe): rpe is number => rpe !== null && rpe !== undefined);
+    const avgRPE = rpeValues.length > 0 ? rpeValues.reduce((sum, rpe) => sum + rpe, 0) / rpeValues.length : undefined;
+
+    return {
+      ...session,
+      sets: finalSets,
+      endTime: finishedAt.toISOString(),
+      durationMinutes: session.startTime
+        ? Math.round((finishedAt.getTime() - new Date(session.startTime).getTime()) / 1000 / 60)
+        : undefined,
+      totalVolumeLoad: totalVolume,
+      averageRPE: avgRPE,
+    };
+  }, [session]);
+
   const logSet = useCallback((setLog: Partial<SetLog>) => {
     const completeSetLog: SetLog = {
       exerciseId: currentTemplate.exerciseId,
@@ -111,19 +163,19 @@ export default function WorkoutLogger({
       timestamp: new Date().toISOString(),
     };
 
-    // Calculate E1RM if weight and reps are provided
     if (completeSetLog.actualWeight && completeSetLog.actualReps) {
       completeSetLog.e1rm = calculateE1RM(completeSetLog.actualWeight, completeSetLog.actualReps);
       completeSetLog.volumeLoad = completeSetLog.actualWeight * completeSetLog.actualReps;
     }
 
-    setSession(prev => ({
-      ...prev,
-      sets: [...prev.sets, completeSetLog],
+    const updatedSets = [...session.sets, completeSetLog];
+    const updatedSession: WorkoutSession = {
+      ...session,
+      sets: updatedSets,
       updatedAt: new Date().toISOString(),
-    }));
+    };
+    setSession(updatedSession);
 
-    // Move to next set first (so we can check if it's part of the same superset)
     const nextIndex = currentSetIndex + 1;
     const willMoveToNext = nextIndex < setTemplates.length;
 
@@ -131,27 +183,32 @@ export default function WorkoutLogger({
       setCurrentSetIndex(nextIndex);
     }
 
-    // Only start rest timer if NOT moving to another exercise in the same superset
     const nextTemplate = willMoveToNext ? setTemplates[nextIndex] : null;
     const isNextInSameSuperset = currentTemplate.setType === 'superset' &&
                                   nextTemplate?.setType === 'superset' &&
                                   currentTemplate.supersetGroup === nextTemplate?.supersetGroup;
 
+    if (!willMoveToNext) {
+      const finalSession = buildFinalSession(updatedSets);
+      setIsResting(false);
+      setRestTimerSeconds(null);
+      onComplete(finalSession);
+      return;
+    }
+
     if (!isNextInSameSuperset) {
-      // Start rest timer - smart duration based on exercise type
       let restTime = currentTemplate.restSeconds || currentExercise?.defaultRestSeconds;
       if (!restTime && currentExercise) {
-        // Auto-determine based on exercise type
         if (currentExercise.type === 'compound') {
-          restTime = 180; // 3 minutes for compounds
+          restTime = 180;
         } else {
-          restTime = 90; // 1.5 minutes for accessories
+          restTime = 90;
         }
       }
       setRestTimerSeconds(restTime || 90);
       setIsResting(true);
     }
-  }, [currentTemplate, currentExercise, currentSetIndex, setTemplates]);
+  }, [currentTemplate, currentExercise, currentSetIndex, setTemplates, session, buildFinalSession, onComplete]);
 
   const skipSet = useCallback(() => {
     const skippedSetLog: SetLog = {
@@ -175,24 +232,9 @@ export default function WorkoutLogger({
   }, [currentTemplate, currentSetIndex, setTemplates.length]);
 
   const finishWorkout = useCallback(() => {
-    // Calculate session metrics
-    const completedSets = session.sets.filter(s => s.completed);
-    const totalVolume = completedSets.reduce((sum, set) => sum + (set.volumeLoad || 0), 0);
-    const rpeValues = completedSets.map(s => s.actualRPE).filter((rpe): rpe is number => rpe !== null && rpe !== undefined);
-    const avgRPE = rpeValues.length > 0 ? rpeValues.reduce((sum, rpe) => sum + rpe, 0) / rpeValues.length : undefined;
-    const finishedAt = new Date();
-
-    const finalSession: WorkoutSession = {
-      ...session,
-      endTime: finishedAt.toISOString(),
-      durationMinutes: session.startTime
-        ? Math.round((finishedAt.getTime() - new Date(session.startTime).getTime()) / 1000 / 60)
-        : undefined,
-      totalVolumeLoad: totalVolume,
-      averageRPE: avgRPE,
-    };
+    const finalSession = buildFinalSession();
     onComplete(finalSession);
-  }, [session, onComplete]);
+  }, [buildFinalSession, onComplete]);
 
   if (!day || !currentTemplate) {
     return (
@@ -210,35 +252,67 @@ export default function WorkoutLogger({
 
   const isLastSet = currentSetIndex >= setTemplates.length - 1;
   const completedSets = session.sets.filter(s => s.completed).length;
-  const progressPercentage = (completedSets / setTemplates.length) * 100;
+  const progressPercentage = setTemplates.length ? (completedSets / setTemplates.length) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-purple-50/40 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/25 dark:to-zinc-900">
       <div className="mx-auto max-w-4xl px-4 py-8">
         {/* Header with Progress */}
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              {day.name}
-            </h1>
-            <button
-              onClick={onCancel}
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Cancel
-            </button>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-            <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {completedSets} / {setTemplates.length} sets completed
-          </p>
-        </div>
+        <div className="mb-6 rounded-3xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 p-1 shadow-xl">
+          <div className="rounded-3xl bg-white/90 p-5 sm:p-6 dark:bg-zinc-950/90 backdrop-blur">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-purple-500 dark:text-purple-200">Logging</p>
+                <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-50">
+                  {day.name}
+                </h1>
+                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                  {day.dayOfWeek} • Week {weekNumber} • {program.name}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-bold text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50 ring-1 ring-purple-200/60 dark:ring-purple-800/60">
+                  <span className="text-lg">⏱️</span>
+                  <span className="tabular-nums text-base">{elapsedDisplay}</span>
+                </div>
+                <button
+                  onClick={onCancel}
+                  className="rounded-xl border-2 border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-red-400 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-red-700 dark:hover:text-red-300"
+                >
+                  Exit
+                </button>
+              </div>
+            </div>
 
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-2xl bg-zinc-100/80 p-3 text-sm font-semibold text-zinc-700 shadow-inner dark:bg-zinc-800/70 dark:text-zinc-200">
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Progress</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${progressPercentage}%` }} />
+                  </div>
+                  <span className="tabular-nums text-xs text-zinc-600 dark:text-zinc-300">
+                    {Math.round(progressPercentage)}%
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm font-semibold text-zinc-800 shadow-inner ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800">
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Sets</p>
+                <p className="mt-1 text-lg font-black">
+                  {completedSets} / {setTemplates.length}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm font-semibold text-zinc-800 shadow-inner ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800">
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Timer</p>
+                <p className="mt-1 text-lg font-black tabular-nums">{elapsedDisplay}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm font-semibold text-zinc-800 shadow-inner ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800">
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">Rest</p>
+                <p className="mt-1 text-lg font-black">{isResting ? `${restTimerSeconds ?? 0}s` : 'Ready'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Current Set Card */}
         <SetLogger
@@ -257,13 +331,13 @@ export default function WorkoutLogger({
           <h3 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Upcoming Sets
           </h3>
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {setTemplates.slice(currentSetIndex + 1, currentSetIndex + 4).map((template, idx) => {
               const ex = defaultExercises.find(e => e.id === template.exerciseId);
               return (
                 <div
                   key={idx}
-                  className="rounded-lg bg-white p-3 text-sm dark:bg-zinc-900"
+                  className="rounded-lg bg-white p-3 text-sm shadow-sm ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800"
                 >
                   <span className="font-medium text-zinc-900 dark:text-zinc-50">
                     {ex?.name}
@@ -307,7 +381,7 @@ interface SetLoggerProps {
 }
 
 function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, currentSessionSets, nextExerciseInSuperset }: SetLoggerProps) {
-  const nowValue = useRef<number>(new Date().getTime()).current;
+  const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
   const isDropSet = setType === 'drop';
   const isRestPause = setType === 'rest-pause';
@@ -351,6 +425,312 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     const [eccentric, bottomPause, concentric, topPause] = parts;
     const repDuration = eccentric + bottomPause + concentric + topPause;
     return repDuration * reps;
+  };
+
+  const renderSetBody = () => {
+    if (isRestPause) {
+      return (
+        <div className="space-y-4 rounded-xl border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-5 shadow-md dark:border-red-700 dark:from-red-900/20 dark:to-pink-900/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-base font-bold text-red-900 dark:text-red-100">⏸️ Rest-Pause Rounds</p>
+              <p className="text-xs font-medium text-red-700 dark:text-red-300">Mini-sets with 10-15s rest</p>
+            </div>
+            <button
+              onClick={() => setRestPauseRounds([...restPauseRounds, { reps: '', restSeconds: '15' }])}
+              className="rounded-lg bg-gradient-to-r from-red-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-red-700 hover:to-pink-700 transition-all transform hover:scale-105"
+            >
+              + Add Round
+            </button>
+          </div>
+
+          {restPauseRounds.map((round, idx) => (
+            <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-pink-600 text-sm font-bold text-white shadow">
+                {idx + 1}
+              </span>
+              <input
+                type="number"
+                placeholder="Reps"
+                value={round.reps}
+                onChange={(e) => {
+                  const updated = [...restPauseRounds];
+                  updated[idx].reps = e.target.value;
+                  setRestPauseRounds(updated);
+                }}
+                className="w-24 rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-sm font-semibold dark:border-red-700 dark:bg-zinc-800 focus:border-red-500 focus:ring-2 focus:ring-red-500 transition-all"
+              />
+              <input
+                type="number"
+                placeholder="Rest (s)"
+                value={round.restSeconds}
+                onChange={(e) => {
+                  const updated = [...restPauseRounds];
+                  updated[idx].restSeconds = e.target.value;
+                  setRestPauseRounds(updated);
+                }}
+                className="flex-1 rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-sm font-semibold dark:border-red-700 dark:bg-zinc-800 focus:border-red-500 focus:ring-2 focus:ring-red-500 transition-all"
+              />
+              {restPauseRounds.length > 1 && (
+                <button
+                  onClick={() => setRestPauseRounds(restPauseRounds.filter((_, i) => i !== idx))}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 transition-all"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="rounded-lg bg-red-100 px-4 py-2 dark:bg-red-900/30">
+            <p className="text-sm font-bold text-red-900 dark:text-red-100">
+              Total reps: {restPauseRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (isCluster) {
+      return (
+        <div className="space-y-4 rounded-xl border-2 border-indigo-300 bg-gradient-to-br from-indigo-50 to-purple-50 p-5 shadow-md dark:border-indigo-700 dark:from-indigo-900/20 dark:to-purple-900/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-base font-bold text-indigo-900 dark:text-indigo-100">🔗 Cluster Rounds</p>
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">Small clusters with short rest</p>
+            </div>
+            <button
+              onClick={() => setClusterRounds([...clusterRounds, { reps: '2', restSeconds: '20' }])}
+              className="rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105"
+            >
+              + Add Cluster
+            </button>
+          </div>
+
+          {clusterRounds.map((round, idx) => (
+            <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-sm font-bold text-white shadow">
+                {idx + 1}
+              </span>
+              <input
+                type="number"
+                placeholder="Reps"
+                value={round.reps}
+                onChange={(e) => {
+                  const updated = [...clusterRounds];
+                  updated[idx].reps = e.target.value;
+                  setClusterRounds(updated);
+                }}
+                className="w-24 rounded-lg border-2 border-indigo-300 bg-white px-3 py-2 text-sm font-semibold dark:border-indigo-700 dark:bg-zinc-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+              />
+              <input
+                type="number"
+                placeholder="Rest (s)"
+                value={round.restSeconds}
+                onChange={(e) => {
+                  const updated = [...clusterRounds];
+                  updated[idx].restSeconds = e.target.value;
+                  setClusterRounds(updated);
+                }}
+                className="flex-1 rounded-lg border-2 border-indigo-300 bg-white px-3 py-2 text-sm font-semibold dark:border-indigo-700 dark:bg-zinc-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+              />
+              {clusterRounds.length > 1 && (
+                <button
+                  onClick={() => setClusterRounds(clusterRounds.filter((_, i) => i !== idx))}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition-all"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="rounded-lg bg-indigo-100 px-4 py-2 dark:bg-indigo-900/30">
+            <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
+              Total reps: {clusterRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (isDropSet) {
+      return (
+        <div className="space-y-4 rounded-xl border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 p-5 shadow-md dark:border-orange-700 dark:from-orange-900/20 dark:to-yellow-900/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-base font-bold text-orange-900 dark:text-orange-100">📉 Drop Set Rounds</p>
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-300">Decreasing weight, push to failure</p>
+            </div>
+            <button
+              onClick={() => setDropSetRounds([...dropSetRounds, { weight: '', reps: '', rpe: '' }])}
+              className="rounded-lg bg-gradient-to-r from-orange-600 to-yellow-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-orange-700 hover:to-yellow-700 transition-all transform hover:scale-105"
+            >
+              + Add Round
+            </button>
+          </div>
+
+          {dropSetRounds.map((round, idx) => (
+            <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-600 to-yellow-600 text-sm font-bold text-white shadow">
+                {idx + 1}
+              </span>
+              <input
+                type="number"
+                placeholder="Weight"
+                value={round.weight}
+                onChange={(e) => {
+                  const updated = [...dropSetRounds];
+                  updated[idx].weight = e.target.value;
+                  setDropSetRounds(updated);
+                }}
+                className="flex-1 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
+              />
+              <input
+                type="number"
+                placeholder="Reps"
+                value={round.reps}
+                onChange={(e) => {
+                  const updated = [...dropSetRounds];
+                  updated[idx].reps = e.target.value;
+                  setDropSetRounds(updated);
+                }}
+                className="w-24 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
+              />
+              <input
+                type="number"
+                placeholder="RPE"
+                value={round.rpe}
+                onChange={(e) => {
+                  const updated = [...dropSetRounds];
+                  updated[idx].rpe = e.target.value;
+                  setDropSetRounds(updated);
+                }}
+                step="0.5"
+                className="w-24 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
+              />
+              {dropSetRounds.length > 1 && (
+                <button
+                  onClick={() => setDropSetRounds(dropSetRounds.filter((_, i) => i !== idx))}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 transition-all"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {/* Primary Inputs - Weight & Reps (Most Important) */}
+        <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-5 shadow-sm dark:border-purple-800 dark:from-purple-900/20 dark:to-pink-900/20">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+            Primary Metrics
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <QuickPicker
+              label="Weight (lbs)"
+              value={weight}
+              onChange={setWeight}
+              suggestions={[45, 95, 135, 185, 225, 275, 315, 405]}
+              step={5}
+              placeholder="225"
+              unit="lbs"
+            />
+            <QuickPicker
+              label="Reps"
+              value={reps}
+              onChange={setReps}
+              suggestions={[1, 3, 5, 8, 10, 12, 15, 20]}
+              step={1}
+              placeholder={template.prescribedReps}
+            />
+          </div>
+        </div>
+
+        {/* Intensity Tracking - RPE & RIR */}
+        <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-red-50 p-5 shadow-sm dark:border-orange-800 dark:from-orange-900/20 dark:to-red-900/20">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
+            Intensity
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <QuickPicker
+              label="RPE (optional)"
+              value={rpe}
+              onChange={setRpe}
+              suggestions={[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]}
+              step={0.5}
+              placeholder="8.5"
+            />
+            <QuickPicker
+              label="RIR (optional)"
+              value={rir}
+              onChange={setRir}
+              suggestions={[0, 1, 2, 3, 4]}
+              step={1}
+              placeholder="2"
+            />
+          </div>
+        </div>
+
+        {/* Tempo & TUT (only if prescribed in program) */}
+        {showTempo && (
+          <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 shadow-sm dark:border-blue-800 dark:from-blue-900/20 dark:to-cyan-900/20">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+              ⏱️ Tempo & Time Under Tension
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
+                  Tempo
+                </label>
+                <input
+                  type="text"
+                  value={tempo}
+                  onChange={(e) => setTempo(e.target.value)}
+                  placeholder="3-1-2-0"
+                  className="w-full rounded-lg border-2 border-blue-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-700 dark:bg-zinc-800 dark:text-blue-50 transition-all"
+                />
+                <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-400">
+                  Format: eccentric-pause-concentric-pause
+                </p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
+                  Time Under Tension
+                </label>
+                <div className="flex h-[52px] items-center justify-center rounded-lg border-2 border-blue-300 bg-white px-4 shadow-sm dark:border-blue-700 dark:bg-zinc-800">
+                  {tempo && reps ? (
+                    <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                      {calculateTUT(tempo, parseInt(reps) || 0)}s
+                    </p>
+                  ) : (
+                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
+                      Enter tempo & reps
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            📝 Notes (optional)
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Form felt great, paused reps, used wrist wraps..."
+            className="w-full rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 transition-all"
+          />
+        </div>
+      </>
+    );
   };
 
   // Get weight suggestion - memoize to recalculate when currentSessionSets changes
@@ -532,77 +912,35 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   if (!exercise) return null;
 
   return (
-    <div className="rounded-xl bg-white p-6 shadow-lg dark:bg-zinc-900">
+    <div className="rounded-3xl bg-white/90 p-5 sm:p-6 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/90 dark:ring-zinc-800">
       {/* Exercise Header */}
-      <div className="mb-6">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-            {exercise.name}
-          </h2>
-          {/* Progression Indicator */}
-          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-bold ${
-            progressionStatus.status === 'ready'
-              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-              : progressionStatus.status === 'deload'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-          }`} title={progressionStatus.message}>
-            <span className="text-lg">{progressionStatus.indicator}</span>
-            <span className="text-xs">{progressionStatus.message}</span>
+          <div className={`flex h-12 w-12 items-center justify-center rounded-xl shadow-md ${
+            exercise?.type === 'compound'
+              ? 'bg-gradient-to-br from-purple-500 to-purple-700 text-white'
+              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
+          }`}>
+            <Dumbbell className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">{exercise.name}</h2>
+            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              Set {template.setIndex} • {exercise?.type} • {exercise?.muscleGroups.slice(0, 2).join(', ')}
+            </p>
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <span className="rounded-full bg-zinc-200 px-3 py-1 text-xs font-medium dark:bg-zinc-700">
-            Set {template.setIndex}
-          </span>
-
-          {/* Set Type Indicators */}
-          {isWarmup && (
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-900 dark:bg-blue-900/30 dark:text-blue-100">
-              WARM-UP
-            </span>
-          )}
-          {isAMRAP && (
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-900 dark:bg-green-900/30 dark:text-green-100">
-              💯 AMRAP
-            </span>
-          )}
-          {isDropSet && (
-            <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-900 dark:bg-orange-900/30 dark:text-orange-100">
-              📉 DROP SET
-            </span>
-          )}
-          {isRestPause && (
-            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-900 dark:bg-red-900/30 dark:text-red-100">
-              ⏸️ REST-PAUSE
-            </span>
-          )}
-          {isCluster && (
-            <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-100">
-              🔗 CLUSTER
-            </span>
-          )}
-
-          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-900 dark:bg-blue-900/30 dark:text-blue-100">
-            {template.prescribedReps} reps
-          </span>
-          {template.targetRPE && (
-            <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-900 dark:bg-orange-900/30 dark:text-orange-100">
-              RPE {template.targetRPE}
-            </span>
-          )}
-          {tempo && (
-            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-100">
-              ⏱️ {tempo}
-            </span>
-          )}
-          {template.notes && (
-            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-900 dark:bg-purple-900/30 dark:text-purple-100">
-              {template.notes}
-            </span>
-          )}
+        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
+          progressionStatus.status === 'ready'
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+            : progressionStatus.status === 'deload'
+              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+        }`} title={progressionStatus.message}>
+          <span className="text-base">{progressionStatus.indicator}</span>
+          <span>{progressionStatus.message}</span>
         </div>
-
+      </div>
         {/* Superset Indicator */}
         {nextExerciseInSuperset && (
           <div className="mt-4 rounded-xl border-2 border-purple-500 bg-gradient-to-r from-purple-50 to-pink-50 p-4 dark:border-purple-600 dark:from-purple-900/30 dark:to-pink-900/30">
@@ -623,165 +961,32 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           </div>
         )}
 
-        {/* Smart Suggestions */}
-        {(suggestion || lastWorkout) && (
-          <div className="mt-4 space-y-2">
-            {suggestion && (
-              <div className={`rounded-xl border-2 shadow-lg ${
-                suggestion.basedOn === 'rpe_adjustment'
-                  ? suggestion.fatigueAlert?.severity === 'critical'
-                    ? 'border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-900/30'
-                    : suggestion.fatigueAlert?.severity === 'high'
-                      ? 'border-orange-500 bg-orange-50 dark:border-orange-600 dark:bg-orange-900/30'
-                      : 'border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/30'
-                  : 'border-blue-500 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/30'
-              }`}>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      {suggestion.basedOn === 'rpe_adjustment' && suggestion.fatigueAlert && (
-                        <div className="mb-2 flex items-center gap-2">
-                          <p className={`text-xs font-bold uppercase tracking-wide ${
-                            suggestion.fatigueAlert.severity === 'critical'
-                              ? 'text-red-800 dark:text-red-300'
-                              : suggestion.fatigueAlert.severity === 'high'
-                                ? 'text-orange-800 dark:text-orange-300'
-                                : 'text-yellow-800 dark:text-yellow-300'
-                          }`}>
-                            {suggestion.fatigueAlert.severity === 'critical' && 'CRITICAL FATIGUE'}
-                            {suggestion.fatigueAlert.severity === 'high' && 'HIGH FATIGUE'}
-                            {suggestion.fatigueAlert.severity === 'moderate' && 'MODERATE FATIGUE'}
-                            {suggestion.fatigueAlert.severity === 'mild' && 'FATIGUE DETECTED'}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {suggestion.fatigueAlert.affectedMuscles.map(muscle => (
-                              <span
-                                key={muscle}
-                                className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-xs font-medium capitalize dark:bg-zinc-50/10"
-                              >
-                                {muscle}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                        Suggested: {suggestion.suggestedWeight}lbs
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {suggestion.reasoning}
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                        Confidence: {suggestion.confidence} • Based on: {suggestion.basedOn.replace('_', ' ')}
-                      </p>
-
-                      {/* Expandable Details */}
-                      {suggestion.fatigueAlert && (
-                        <div className="mt-3">
-                          <button
-                            onClick={() => setShowFatigueDetails(!showFatigueDetails)}
-                            className="flex items-center gap-1 text-xs font-semibold text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-                          >
-                            {showFatigueDetails ? '▼' : '▶'} Show Detailed Analysis
-                          </button>
-
-                          {showFatigueDetails && (
-                            <div className="mt-2 rounded-lg bg-white/50 p-3 text-xs dark:bg-zinc-900/50">
-                              <div className="space-y-2 text-zinc-700 dark:text-zinc-300">
-                                {suggestion.fatigueAlert.detailedExplanation.split('\n').map((line, idx) => {
-                                  // Handle bold headers (e.g., **Fatigue Analysis:**)
-                                  if (line.startsWith('**') && line.includes(':**')) {
-                                    const text = line.replace(/\*\*/g, '').trim();
-                                    return (
-                                      <p key={idx} className="font-bold text-zinc-900 dark:text-zinc-50">
-                                        {text}
-                                      </p>
-                                    );
-                                  }
-                                  // Handle bullet points (e.g., • Exercise Name)
-                                  if (line.startsWith('•') || line.startsWith('-')) {
-                                    const text = line.replace(/^[•\-]\s*/, '').trim();
-                                    return (
-                                      <p key={idx} className="ml-4 flex gap-2">
-                                        <span className="text-zinc-500 dark:text-zinc-400">•</span>
-                                        <span>{text}</span>
-                                      </p>
-                                    );
-                                  }
-                                  // Handle regular paragraphs
-                                  if (line.trim()) {
-                                    // Remove any remaining markdown asterisks
-                                    const cleanText = line.replace(/\*\*/g, '').trim();
-                                    return (
-                                      <p key={idx} className="leading-relaxed">
-                                        {cleanText}
-                                      </p>
-                                    );
-                                  }
-                                  return null;
-                                })}
-                              </div>
-                              <div className="mt-3 border-t border-zinc-300 pt-2 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-                                {suggestion.fatigueAlert.scientificBasis}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setWeight(suggestion.suggestedWeight.toString())}
-                      className={`flex-shrink-0 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg ${
-                        suggestion.basedOn === 'rpe_adjustment'
-                          ? suggestion.fatigueAlert?.severity === 'critical'
-                            ? 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
-                            : suggestion.fatigueAlert?.severity === 'high'
-                              ? 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800'
-                              : 'bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-800'
-                          : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'
-                      }`}
-                    >
-                      Use
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-            {lastWorkout && (
-              <div className="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Last time: {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}
-                  {lastWorkout.bestSet.actualRPE && ` @ RPE ${lastWorkout.bestSet.actualRPE}`}
-                  {lastWorkout.bestSet.e1rm && ` (E1RM: ${lastWorkout.bestSet.e1rm}lbs)`}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Set History - Last 3 Sessions */}
         {exerciseHistory.length > 0 && (
           <div className="mt-4">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2 text-sm font-semibold text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors"
+              className="flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-zinc-100 to-purple-50 px-4 py-3 text-sm font-semibold text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:shadow-md dark:from-zinc-900 dark:to-purple-950/30 dark:text-zinc-200 dark:ring-zinc-800"
             >
-              <span>{showHistory ? '▼' : '▶'}</span>
-              <span>Previous Sessions ({exerciseHistory.length})</span>
+              <span className="flex items-center gap-2">
+                <span className="text-lg">{showHistory ? '📂' : '🗂️'}</span>
+                <span>Previous Sessions ({exerciseHistory.length})</span>
+              </span>
+              <span className="text-xs text-zinc-500">{showHistory ? 'Hide' : 'Show'}</span>
             </button>
 
             {showHistory && (
-              <div className="mt-3 space-y-2 animate-slideDown">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 animate-slideDown">
                 {exerciseHistory.map((historySession, idx) => {
                   const dateLabel = historySession.daysAgo === 0 ? 'Today' : historySession.daysAgo === 1 ? 'Yesterday' : `${historySession.daysAgo}d ago`;
 
                   return (
                     <div
                       key={idx}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50"
+                      className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3 shadow-sm ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:ring-zinc-800"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-[11px] font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                           {dateLabel}
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-500">
@@ -795,7 +1000,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                             className="flex items-center justify-between text-sm"
                           >
                             <div className="flex items-center gap-3">
-                              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-500">
+                              <span className="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                                 Set {set.setIndex}
                               </span>
                               <button
@@ -805,7 +1010,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                                   if (set.actualRPE) setRpe(set.actualRPE.toString());
                                   if (set.actualRIR) setRir(set.actualRIR.toString());
                                 }}
-                                className="group flex items-center gap-2 rounded-md px-2 py-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                                className="group flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-purple-50 dark:hover:bg-purple-900/30"
                                 title="Copy this set"
                               >
                                 <span className="font-bold text-zinc-900 dark:text-zinc-50">
@@ -816,7 +1021,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                                     @ RPE {set.actualRPE}
                                   </span>
                                 )}
-                                <span className="opacity-0 group-hover:opacity-100 text-xs text-purple-600 dark:text-purple-400 transition-opacity">
+                                <span className="text-[11px] text-purple-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-purple-400">
                                   Copy
                                 </span>
                               </button>
@@ -836,8 +1041,6 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             )}
           </div>
         )}
-      </div>
-
       {/* Input Fields */}
       <div className="space-y-5">
         {/* Quick Copy Previous Set Button */}
@@ -853,317 +1056,136 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           </button>
         )}
 
-        {isRestPause ? (
-          /* Rest-Pause Interface */
-          <div className="space-y-4 rounded-xl border-2 border-red-300 bg-gradient-to-br from-red-50 to-pink-50 p-5 shadow-md dark:border-red-700 dark:from-red-900/20 dark:to-pink-900/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-bold text-red-900 dark:text-red-100">
-                  ⏸️ Rest-Pause Rounds
-                </p>
-                <p className="text-xs font-medium text-red-700 dark:text-red-300">
-                  Mini-sets with 10-15s rest
-                </p>
-              </div>
-              <button
-                onClick={() => setRestPauseRounds([...restPauseRounds, { reps: '', restSeconds: '15' }])}
-                className="rounded-lg bg-gradient-to-r from-red-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-red-700 hover:to-pink-700 transition-all transform hover:scale-105"
-              >
-                + Add Round
-              </button>
-            </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+            Set {template.setIndex}
+          </span>
+          <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-900 dark:bg-purple-900/40 dark:text-purple-200">
+            {isWarmup ? 'Warm-up' : isAMRAP ? 'AMRAP' : isDropSet ? 'Drop set' : isRestPause ? 'Rest-pause' : isCluster ? 'Cluster' : 'Straight set'}
+          </span>
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-900 dark:bg-blue-900/40 dark:text-blue-200">
+            Target {template.prescribedReps} reps
+          </span>
+          {template.targetRPE && (
+            <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-900 dark:bg-orange-900/40 dark:text-orange-200">
+              RPE {template.targetRPE}
+            </span>
+          )}
+          {showTempo && (
+            <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-900 dark:bg-cyan-900/40 dark:text-cyan-200">
+              Tempo {tempo || template.tempo}
+            </span>
+          )}
+          {template.supersetGroup && (
+            <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-semibold text-pink-900 dark:bg-pink-900/40 dark:text-pink-200">
+              Superset {template.supersetGroup}
+            </span>
+          )}
+        </div>
 
-            {restPauseRounds.map((round, idx) => (
-              <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-pink-600 text-sm font-bold text-white shadow">
-                  {idx + 1}
-                </span>
-                <input
-                  type="number"
-                  placeholder="Reps"
-                  value={round.reps}
-                  onChange={(e) => {
-                    const updated = [...restPauseRounds];
-                    updated[idx].reps = e.target.value;
-                    setRestPauseRounds(updated);
-                  }}
-                  className="w-24 rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-sm font-semibold dark:border-red-700 dark:bg-zinc-800 focus:border-red-500 focus:ring-2 focus:ring-red-500 transition-all"
-                />
-                <input
-                  type="number"
-                  placeholder="Rest (s)"
-                  value={round.restSeconds}
-                  onChange={(e) => {
-                    const updated = [...restPauseRounds];
-                    updated[idx].restSeconds = e.target.value;
-                    setRestPauseRounds(updated);
-                  }}
-                  className="flex-1 rounded-lg border-2 border-red-300 bg-white px-3 py-2 text-sm font-semibold dark:border-red-700 dark:bg-zinc-800 focus:border-red-500 focus:ring-2 focus:ring-red-500 transition-all"
-                />
-                {restPauseRounds.length > 1 && (
-                  <button
-                    onClick={() => setRestPauseRounds(restPauseRounds.filter((_, i) => i !== idx))}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 transition-all"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            <div className="rounded-lg bg-red-100 px-4 py-2 dark:bg-red-900/30">
-              <p className="text-sm font-bold text-red-900 dark:text-red-100">
-                Total reps: {restPauseRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
-              </p>
-            </div>
-          </div>
-        ) : isCluster ? (
-          /* Cluster Set Interface */
-          <div className="space-y-4 rounded-xl border-2 border-indigo-300 bg-gradient-to-br from-indigo-50 to-purple-50 p-5 shadow-md dark:border-indigo-700 dark:from-indigo-900/20 dark:to-purple-900/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-bold text-indigo-900 dark:text-indigo-100">
-                  🔗 Cluster Rounds
-                </p>
-                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                  Small clusters with short rest
-                </p>
-              </div>
-              <button
-                onClick={() => setClusterRounds([...clusterRounds, { reps: '2', restSeconds: '20' }])}
-                className="rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105"
-              >
-                + Add Cluster
-              </button>
-            </div>
-
-            {clusterRounds.map((round, idx) => (
-              <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-sm font-bold text-white shadow">
-                  {idx + 1}
-                </span>
-                <input
-                  type="number"
-                  placeholder="Reps"
-                  value={round.reps}
-                  onChange={(e) => {
-                    const updated = [...clusterRounds];
-                    updated[idx].reps = e.target.value;
-                    setClusterRounds(updated);
-                  }}
-                  className="w-24 rounded-lg border-2 border-indigo-300 bg-white px-3 py-2 text-sm font-semibold dark:border-indigo-700 dark:bg-zinc-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-                <input
-                  type="number"
-                  placeholder="Rest (s)"
-                  value={round.restSeconds}
-                  onChange={(e) => {
-                    const updated = [...clusterRounds];
-                    updated[idx].restSeconds = e.target.value;
-                    setClusterRounds(updated);
-                  }}
-                  className="flex-1 rounded-lg border-2 border-indigo-300 bg-white px-3 py-2 text-sm font-semibold dark:border-indigo-700 dark:bg-zinc-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-                {clusterRounds.length > 1 && (
-                  <button
-                    onClick={() => setClusterRounds(clusterRounds.filter((_, i) => i !== idx))}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition-all"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            <div className="rounded-lg bg-indigo-100 px-4 py-2 dark:bg-indigo-900/30">
-              <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
-                Total reps: {clusterRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
-              </p>
-            </div>
-          </div>
-        ) : isDropSet ? (
-          /* Drop Set Interface */
-          <div className="space-y-4 rounded-xl border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 p-5 shadow-md dark:border-orange-700 dark:from-orange-900/20 dark:to-yellow-900/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base font-bold text-orange-900 dark:text-orange-100">
-                  📉 Drop Set Rounds
-                </p>
-                <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                  Decreasing weight, push to failure
-                </p>
-              </div>
-              <button
-                onClick={() => setDropSetRounds([...dropSetRounds, { weight: '', reps: '', rpe: '' }])}
-                className="rounded-lg bg-gradient-to-r from-orange-600 to-yellow-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:shadow-lg hover:from-orange-700 hover:to-yellow-700 transition-all transform hover:scale-105"
-              >
-                + Add Round
-              </button>
-            </div>
-
-            {dropSetRounds.map((round, idx) => (
-              <div key={idx} className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-zinc-900">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-600 to-yellow-600 text-sm font-bold text-white shadow">
-                  {idx + 1}
-                </span>
-                <input
-                  type="number"
-                  placeholder="Weight"
-                  value={round.weight}
-                  onChange={(e) => {
-                    const updated = [...dropSetRounds];
-                    updated[idx].weight = e.target.value;
-                    setDropSetRounds(updated);
-                  }}
-                  className="flex-1 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
-                />
-                <input
-                  type="number"
-                  placeholder="Reps"
-                  value={round.reps}
-                  onChange={(e) => {
-                    const updated = [...dropSetRounds];
-                    updated[idx].reps = e.target.value;
-                    setDropSetRounds(updated);
-                  }}
-                  className="w-24 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
-                />
-                <input
-                  type="number"
-                  placeholder="RPE"
-                  value={round.rpe}
-                  onChange={(e) => {
-                    const updated = [...dropSetRounds];
-                    updated[idx].rpe = e.target.value;
-                    setDropSetRounds(updated);
-                  }}
-                  step="0.5"
-                  className="w-24 rounded-lg border-2 border-orange-300 bg-white px-3 py-2 text-sm font-semibold dark:border-orange-700 dark:bg-zinc-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 transition-all"
-                />
-                {dropSetRounds.length > 1 && (
-                  <button
-                    onClick={() => setDropSetRounds(dropSetRounds.filter((_, i) => i !== idx))}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 transition-all"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Regular Set Interface */
-          <>
-            {/* Primary Inputs - Weight & Reps (Most Important) */}
-            <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-5 shadow-sm dark:border-purple-800 dark:from-purple-900/20 dark:to-pink-900/20">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
-                Primary Metrics
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <QuickPicker
-                  label="Weight (lbs)"
-                  value={weight}
-                  onChange={setWeight}
-                  suggestions={[45, 95, 135, 185, 225, 275, 315, 405]}
-                  step={5}
-                  placeholder="225"
-                  unit="lbs"
-                />
-                <QuickPicker
-                  label="Reps"
-                  value={reps}
-                  onChange={setReps}
-                  suggestions={[1, 3, 5, 8, 10, 12, 15, 20]}
-                  step={1}
-                  placeholder={template.prescribedReps}
-                />
-              </div>
-            </div>
-
-            {/* Intensity Tracking - RPE & RIR */}
-            <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-red-50 p-5 shadow-sm dark:border-orange-800 dark:from-orange-900/20 dark:to-red-900/20">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-300">
-                Intensity
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <QuickPicker
-                  label="RPE (optional)"
-                  value={rpe}
-                  onChange={setRpe}
-                  suggestions={[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]}
-                  step={0.5}
-                  placeholder="8.5"
-                />
-                <QuickPicker
-                  label="RIR (optional)"
-                  value={rir}
-                  onChange={setRir}
-                  suggestions={[0, 1, 2, 3, 4]}
-                  step={1}
-                  placeholder="2"
-                />
-              </div>
-            </div>
-
-            {/* Tempo & TUT (only if prescribed in program) */}
-            {showTempo && (
-              <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 shadow-sm dark:border-blue-800 dark:from-blue-900/20 dark:to-cyan-900/20">
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                  ⏱️ Tempo & Time Under Tension
-                </p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
-                      Tempo
-                    </label>
-                    <input
-                      type="text"
-                      value={tempo}
-                      onChange={(e) => setTempo(e.target.value)}
-                      placeholder="3-1-2-0"
-                      className="w-full rounded-lg border-2 border-blue-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-700 dark:bg-zinc-800 dark:text-zinc-50 transition-all"
-                    />
-                    <p className="mt-1.5 text-xs text-blue-700 dark:text-blue-400">
-                      Format: eccentric-pause-concentric-pause
+        {(suggestion || lastWorkout) && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {suggestion && (
+              <div className="overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-white/90 via-white to-purple-50/70 p-4 shadow-md ring-1 ring-purple-100 dark:border-purple-800 dark:from-zinc-900/80 dark:via-zinc-900 dark:to-purple-950/30 dark:ring-purple-900/40">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-300">
+                      Smart adjust
                     </p>
+                    <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                      {suggestion.suggestedWeight} lbs
+                    </p>
+                    <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {suggestion.reasoning}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-semibold text-purple-900 dark:bg-purple-900/40 dark:text-purple-100">
+                        Confidence: {suggestion.confidence}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100">
+                        Based on {suggestion.basedOn.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {suggestion.fatigueAlert && (
+                      <button
+                        onClick={() => setShowFatigueDetails(prev => !prev)}
+                        className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-purple-700 shadow-sm ring-1 ring-purple-100 transition hover:shadow-md dark:bg-zinc-900/70 dark:text-purple-200 dark:ring-purple-900/50"
+                      >
+                        {showFatigueDetails ? 'Hide analysis' : 'View fatigue analysis'}
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-blue-900 dark:text-blue-100">
-                      Time Under Tension
-                    </label>
-                    <div className="flex h-[52px] items-center justify-center rounded-lg border-2 border-blue-300 bg-white px-4 shadow-sm dark:border-blue-700 dark:bg-zinc-800">
-                      {tempo && reps ? (
-                        <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                          {calculateTUT(tempo, parseInt(reps) || 0)}s
+                  <button
+                    onClick={() => setWeight(suggestion.suggestedWeight.toString())}
+                    className="rounded-xl bg-purple-600 px-4 py-3 text-xs font-bold text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-purple-700"
+                  >
+                    Apply
+                  </button>
+                </div>
+
+                {suggestion.fatigueAlert && showFatigueDetails && (
+                  <div className="mt-4 rounded-xl bg-white/80 p-3 text-xs text-zinc-700 ring-1 ring-purple-100 dark:bg-zinc-900/70 dark:text-zinc-200 dark:ring-purple-900/40">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold uppercase tracking-wide text-red-800 dark:bg-red-900/40 dark:text-red-200">
+                        {suggestion.fatigueAlert.severity} fatigue
+                      </span>
+                      {suggestion.fatigueAlert.affectedMuscles.map(muscle => (
+                        <span
+                          key={muscle}
+                          className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium capitalize text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                        >
+                          {muscle}
+                        </span>
+                      ))}
+                    </div>
+                    {suggestion.fatigueAlert.detailedExplanation
+                      .split('\n')
+                      .filter(Boolean)
+                      .map((line, idx) => (
+                        <p key={idx} className="mb-1 leading-relaxed">
+                          {line.replace(/\*\*/g, '').replace(/^[-•]\s*/, '')}
                         </p>
-                      ) : (
-                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                          Enter tempo & reps
-                        </p>
-                      )}
+                      ))}
+                    <div className="mt-2 border-t border-purple-100 pt-2 text-[11px] italic text-zinc-500 dark:border-purple-900/40 dark:text-zinc-400">
+                      {suggestion.fatigueAlert.scientificBasis}
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+            {lastWorkout && (
+              <div className="rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/80 dark:ring-zinc-800/80">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      Recent best
+                    </p>
+                    <p className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                      {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}
+                    </p>
+                    {lastWorkout.bestSet.actualRPE && (
+                      <p className="text-xs font-medium text-orange-600 dark:text-orange-300">
+                        @ RPE {lastWorkout.bestSet.actualRPE}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleCopyPreviousSet}
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 transition-all"
+                  >
+                    Copy
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* Notes */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                📝 Notes (optional)
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Form felt great, paused reps, used wrist wraps..."
-                className="w-full rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-zinc-900 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 transition-all"
-              />
-            </div>
-          </>
+          </div>
         )}
+
+        {renderSetBody()}
       </div>
 
       {/* Actions */}
-      <div className="mt-8 flex gap-3">
+      <div className="mt-8 flex gap-3 rounded-2xl bg-white/85 p-3 shadow-lg ring-1 ring-zinc-100 backdrop-blur dark:bg-zinc-900/85 dark:ring-zinc-800 sticky bottom-4">
         <button
           onClick={handleSubmit}
           className="group flex-1 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-5 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-green-700 hover:to-emerald-700 dark:from-green-700 dark:to-emerald-700 dark:hover:from-green-800 dark:hover:to-emerald-800 transition-all transform hover:scale-[1.02] active:scale-[0.98]"

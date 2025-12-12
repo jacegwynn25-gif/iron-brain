@@ -395,7 +395,6 @@ export function analyzeProgressionReadiness(
   // Count how many sessions achieved target reps + RPE
   let sessionsAtTarget = 0;
   let sessionsOvershot = 0;
-  let sessionsUndershot = 0;
 
   for (const session of recentSessions) {
     const sessionSets = session.sets.filter(s => s.exerciseId === exerciseId && s.completed);
@@ -410,8 +409,6 @@ export function analyzeProgressionReadiness(
         sessionsAtTarget++;
       } else if (avgRPE > targetRPE + 1) {
         sessionsOvershot++;
-      } else {
-        sessionsUndershot++;
       }
     }
   }

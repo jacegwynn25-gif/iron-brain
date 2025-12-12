@@ -100,10 +100,6 @@ export default function ProgressCharts() {
     return analytics.getTrainingCalendar(90); // Last 90 days
   }, []);
 
-  const recoveryMetrics = useMemo(() => {
-    return analytics.analyzeRecovery();
-  }, []);
-
   const deloadAnalysis = useMemo(() => {
     return analytics.analyzeDeloadNeed();
   }, []);
@@ -121,8 +117,6 @@ export default function ProgressCharts() {
     info: '#06b6d4', // cyan-500
     purple: '#a855f7', // purple-500
   };
-
-  const PIE_COLORS = ['#ec4899', '#a855f7', '#06b6d4', '#10b981', '#f59e0b'];
 
   if (exercisesWithHistory.length === 0) {
     return (
@@ -174,22 +168,18 @@ export default function ProgressCharts() {
         />
       </div>
 
-      {/* View Mode Tabs */}
-      <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 animate-fadeIn scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0" style={{animationDelay: '0.1s'}}>
-        {viewModeConfig.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setViewMode(key as typeof viewMode)}
-            className={`group flex items-center gap-1.5 sm:gap-2 flex-shrink-0 rounded-lg sm:rounded-xl px-3 sm:px-6 py-2.5 sm:py-4 text-xs sm:text-sm font-bold transition-all hover:scale-105 shadow-md ${
-              viewMode === key
-                ? 'gradient-purple text-white shadow-glow-purple'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100 border-2 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:border-zinc-700'
-            }`}
-          >
-            <Icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${viewMode === key ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200'}`} />
-            <span className="whitespace-nowrap">{label}</span>
-          </button>
-        ))}
+      {/* Analytics View Selector */}
+      <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-white via-purple-50/20 to-white p-4 sm:p-6 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-purple-950/10 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn relative z-[9]" style={{animationDelay: '0.1s'}}>
+        <CustomSelect
+          value={viewMode}
+          onChange={(value) => setViewMode(value as typeof viewMode)}
+          options={viewModeConfig.map(({ key, label }) => ({
+            value: key,
+            label: label
+          }))}
+          label="Select Analytics View"
+          className="w-full"
+        />
       </div>
 
       {/* E1RM Progression Chart */}

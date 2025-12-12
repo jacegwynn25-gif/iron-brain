@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Database, Download, Upload, Trash2, BarChart3, HardDrive } from 'lucide-react';
+import { Database, Download, Upload, BarChart3, HardDrive } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { WorkoutSession } from '../lib/types';
 import ImportWizard from './ImportWizard/ImportWizard';

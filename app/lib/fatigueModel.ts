@@ -1,4 +1,4 @@
-import { SetLog, Exercise } from './types';
+import { SetLog } from './types';
 import { defaultExercises } from './programs';
 
 /**

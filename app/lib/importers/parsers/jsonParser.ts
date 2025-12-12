@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Parser, ParsedFileResult, ImportError } from '../types';
 import { WorkoutSession } from '../../types';
 

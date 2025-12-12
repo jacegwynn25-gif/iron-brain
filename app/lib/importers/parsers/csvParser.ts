@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Papa from 'papaparse';
 import type {
   Parser,
@@ -10,8 +11,6 @@ import type {
 } from '../types';
 
 const SECTION_HEADER_REGEX = /Week\s+(\d+)\s*[-–]\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i;
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
 /**
  * Detect if a row is a section header (e.g., "Week 2 - Monday")
  */

@@ -1,17 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { detectFileFormat, isSupportedFormat } from './formatDetector';
 import { CSVParser } from './parsers/csvParser';
 import { ExcelParser } from './parsers/excelParser';
 import { JSONParser } from './parsers/jsonParser';
-import { matchExercises, updateExerciseMatch } from './exerciseMatcher';
+import { matchExercises } from './exerciseMatcher';
 import { mapToWorkoutSessions } from './schemaMapper';
-import { getAllExercises } from '../programs';
 import { getWorkoutHistory, setWorkoutHistory } from '../storage';
 import type {
   ImportSession,
   ImportConfig,
   Parser,
   ExerciseMatch,
-  MergeStrategy,
 } from './types';
 import type { WorkoutSession } from '../types';
 

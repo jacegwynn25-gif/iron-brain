@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { WorkoutSession } from '../types';
 
 // File format types

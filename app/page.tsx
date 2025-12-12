@@ -1,6 +1,7 @@
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { Dumbbell, History, BarChart3, Wrench, ChevronDown, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
 import { allPrograms, defaultExercises } from './lib/programs';
@@ -14,7 +15,6 @@ import Utilities from './components/Utilities';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import Settings from './components/Settings';
 import DataManagement from './components/DataManagement';
-import Tooltip from './components/Tooltip';
 import { storage, setUserNamespace } from './lib/storage';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -81,6 +81,10 @@ export default function Home() {
     () => (profile ? `iron_brain_user_programs__${profile.id}` : 'iron_brain_user_programs_default'),
     [profile]
   );
+  const activeSessionKey = useMemo(
+    () => (profile ? `iron_brain_active_session__${profile.id}` : 'iron_brain_active_session__guest'),
+    [profile]
+  );
 
   useEffect(() => {
     setHydrated(true);
@@ -106,6 +110,14 @@ export default function Home() {
 
   // Data
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
+  const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [activeSessionPayload, setActiveSessionPayload] = useState<{
+    session: WorkoutSession;
+    weekNumber: number;
+    dayIndex: number;
+    programId: string;
+  } | null>(null);
 
   // Load user-scoped data when profile changes
   useEffect(() => {
@@ -146,6 +158,36 @@ export default function Home() {
       setTimeout(() => setShowProgramCustomizationHint(true), 6000);
     }
   }, [profile, userProgramsKey]);
+
+  // Resume active logging session if present
+  useEffect(() => {
+    if (isLogging) return;
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem(activeSessionKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as {
+        session: WorkoutSession;
+        weekNumber: number;
+        dayIndex: number;
+        programId: string;
+      };
+      const program =
+        userPrograms.find(p => p.id === parsed.programId) || allPrograms.find(p => p.id === parsed.programId) || null;
+      if (!program) {
+        localStorage.removeItem(activeSessionKey);
+        return;
+      }
+      setSelectedProgram(program);
+      setOriginalProgram(program);
+      setSelectedWeek(parsed.weekNumber);
+      setSelectedDayIndex(parsed.dayIndex);
+      setActiveSessionPayload(parsed);
+      setIsLogging(true);
+    } catch {
+      localStorage.removeItem(activeSessionKey);
+    }
+  }, [activeSessionKey, isLogging, userPrograms]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -321,8 +363,51 @@ export default function Home() {
   const handleWorkoutComplete = (session: WorkoutSession) => {
     storage.saveWorkout(session);
     setWorkoutHistory(prev => [...prev, session]);
+    setSummarySession(session);
+    setShowCelebration(true);
+    localStorage.removeItem(activeSessionKey);
+    setActiveSessionPayload(null);
     setIsLogging(false);
   };
+
+  const persistActiveSession = useCallback(
+    (payload: { session: WorkoutSession; weekNumber: number; dayIndex: number; programId: string }) => {
+      setActiveSessionPayload(payload);
+      localStorage.setItem(activeSessionKey, JSON.stringify(payload));
+    },
+    [activeSessionKey]
+  );
+
+  const handleCancelLogging = () => {
+    localStorage.removeItem(activeSessionKey);
+    setActiveSessionPayload(null);
+    setIsLogging(false);
+  };
+
+  const initialSessionForLogger = useMemo(() => {
+    if (!activeSessionPayload || !selectedProgram || selectedDayIndex === null) return null;
+    if (
+      activeSessionPayload.programId !== selectedProgram.id ||
+      activeSessionPayload.weekNumber !== selectedWeek ||
+      activeSessionPayload.dayIndex !== selectedDayIndex
+    ) {
+      return null;
+    }
+    return activeSessionPayload.session;
+  }, [activeSessionPayload, selectedProgram, selectedWeek, selectedDayIndex]);
+
+  const handleSessionUpdate = useCallback(
+    (session: WorkoutSession) => {
+      if (!selectedProgram || selectedDayIndex === null) return;
+      persistActiveSession({
+        session,
+        weekNumber: selectedWeek,
+        dayIndex: selectedDayIndex,
+        programId: selectedProgram.id,
+      });
+    },
+    [persistActiveSession, selectedProgram, selectedWeek, selectedDayIndex]
+  );
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -523,7 +608,6 @@ export default function Home() {
     );
   }
 
-  // Show logger if logging workout
   if (isLogging && selectedProgram && selectedDayIndex !== null) {
     return (
       <WorkoutLogger
@@ -531,15 +615,17 @@ export default function Home() {
         weekNumber={selectedWeek}
         dayIndex={selectedDayIndex}
         onComplete={handleWorkoutComplete}
-        onCancel={() => setIsLogging(false)}
+        onCancel={handleCancelLogging}
+        initialSession={initialSessionForLogger}
+        onSessionUpdate={handleSessionUpdate}
       />
     );
   }
 
   // Main app view
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/20 dark:to-zinc-900 mesh-gradient">
-      <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/20 dark:to-zinc-900 mesh-gradient">
+        <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6">
         {/* Header */}
         <div className="mb-8 relative">
           <div className="flex items-start justify-between">
@@ -551,10 +637,10 @@ export default function Home() {
                 Science-backed strength training with auto-regulation
               </p>
             </div>
-            {/* Keyboard Shortcuts Button */}
+            {/* Keyboard Shortcuts Button (hide on mobile) */}
             <button
               onClick={() => setShowShortcutsModal(true)}
-              className="group flex h-10 w-10 items-center justify-center rounded-xl bg-white text-zinc-600 shadow-md transition-all hover:scale-105 hover:bg-purple-500 hover:text-white hover:shadow-xl active:scale-95 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-purple-600"
+              className="group hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-white text-zinc-600 shadow-md transition-all hover:scale-105 hover:bg-purple-500 hover:text-white hover:shadow-xl active:scale-95 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-purple-600"
               title="Keyboard shortcuts (Press ?)"
             >
               <span className="text-xl font-bold">?</span>
@@ -574,7 +660,7 @@ export default function Home() {
               <div className="min-w-0">
                 <p className="font-bold text-amber-900 dark:text-amber-100">Unsaved Changes</p>
                 <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
-                  You've modified this program. Save or discard.
+                  You&apos;ve modified this program. Save or discard.
                 </p>
               </div>
             </div>
@@ -810,7 +896,7 @@ export default function Home() {
                       <div className="flex items-center gap-2 mb-3">
                         <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-purple-200 animate-sparkle" />
                         <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-purple-200">
-                          Today's Workout
+                          Today&apos;s Workout
                         </p>
                       </div>
                       <h2 className="text-3xl sm:text-5xl font-black text-white mb-3 leading-tight">
@@ -1107,221 +1193,325 @@ export default function Home() {
                   Select Training Day
                 </h3>
               </div>
-              <div className="relative z-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 mb-10" style={{overflow: 'visible'}}>
-                {/* Empty State - No Days */}
-                {(!currentWeek?.days || currentWeek.days.length === 0) && (
-                  <div className="col-span-full rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/50 animate-fadeIn">
-                    <div className="mx-auto max-w-md">
-                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
-                        <Dumbbell className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <h3 className="mb-2 text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                        No Training Days Yet
-                      </h3>
-                      <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
-                        This program has no days in Week {selectedWeek}. Use the editor to add them.
-                      </p>
-                      <div className="flex items-center justify-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                        <span>Edit this program in the builder to add days.</span>
-                      </div>
+
+              {/* Empty State - No Days */}
+              {(!currentWeek?.days || currentWeek.days.length === 0) && (
+                <div className="rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/50 animate-fadeIn">
+                  <div className="mx-auto max-w-md">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+                      <Dumbbell className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                     </div>
-                  </div>
-                )}
-
-                {currentWeek?.days.map((day, idx) => (
-                  <div key={idx} className="group relative stagger-item" style={{isolation: 'isolate'}}>
-                    <button
-                      onClick={() => {
-                        setSelectedDayIndex(idx);
-                        setUserPinnedDay(true);
-                        setShowExerciseDetails(true);
-                      }}
-                      className={`w-full rounded-2xl border-2 p-7 text-left transition-all hover:scale-[1.03] depth-effect shadow-md hover:shadow-xl ${
-                        selectedDayIndex === idx
-                          ? 'gradient-animated border-transparent text-white shadow-glow-purple'
-                          : 'border-zinc-200 bg-gradient-to-br from-white to-zinc-50 hover:border-purple-300 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-900/50 dark:hover:border-purple-700'
-                      }`}
-                    >
-                      <p className={`text-sm font-bold uppercase tracking-wider mb-2 ${
-                        selectedDayIndex === idx ? 'text-purple-200' : 'text-zinc-500 dark:text-zinc-400'
-                      }`}>
-                        {day.dayOfWeek}
-                      </p>
-                      <p className={`text-2xl font-black mb-3 ${
-                        selectedDayIndex === idx ? 'text-white' : 'text-zinc-900 dark:text-zinc-50'
-                      }`}>
-                        {day.name}
-                      </p>
-                      <div className={`flex items-center gap-2 text-base font-bold ${
-                        selectedDayIndex === idx ? 'text-purple-100' : 'text-zinc-600 dark:text-zinc-400'
-                      }`}>
-                        <div className={`rounded-lg p-1.5 ${
-                          selectedDayIndex === idx ? 'bg-white/20' : 'bg-zinc-100 dark:bg-zinc-800'
-                        }`}>
-                          <Dumbbell className="h-4 w-4" />
-                        </div>
-                        <span>{day.sets.length} sets</span>
-                      </div>
-                      {selectedDayIndex === idx && !showExerciseDetails && (
-                        <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-purple-100">
-                          <ChevronDown className="h-4 w-4 animate-bounce" />
-                          <span>Click to view exercises</span>
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Exercise List */}
-              {currentDay && selectedDayIndex !== null && showExerciseDetails && (
-                <div className="mt-4 rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect animate-fadeIn" style={{animationDelay: '0.4s'}}>
-                  <div className="mb-8 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
-                        <Dumbbell className="h-7 w-7 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50">
-                        Exercise Details
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setShowExerciseDetails(false)}
-                      className="flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2 font-semibold text-zinc-700 transition-all hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                    >
-                      <ChevronUp className="h-5 w-5" />
-                      <span className="hidden sm:inline">Hide Details</span>
-                    </button>
-                  </div>
-
-                  {/* Exercise List (inline editable) */}
-                  <div className="space-y-6">
-                    {/* Empty State - No Exercises */}
-                    {(!groupedSets || Object.keys(groupedSets).length === 0) && (
-                      <div className="rounded-2xl border-2 border-dashed border-purple-300 bg-purple-50 p-10 text-center dark:border-purple-700 dark:bg-purple-900/10 animate-fadeIn">
-                        <div className="mx-auto max-w-md">
-                          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
-                            <Dumbbell className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <h3 className="mb-2 text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                            No Exercises Yet
-                          </h3>
-                          <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
-                            Build your perfect workout by adding exercises in the Program Builder.
-                          </p>
-                          <button
-                            onClick={() => {
-                              if (!selectedProgram) return;
-                              setEditingProgramForBuilder(selectedProgram);
-                              setIsBuilding(true);
-                            }}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-3 font-bold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
-                          >
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Open Builder
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {groupedSets && Object.entries(groupedSets).map(([exerciseId, sets], idx) => {
-                      const exercise = getExercise(exerciseId);
-                      return (
-                        <div key={exerciseId} className="group relative rounded-2xl border-2 border-zinc-200 bg-gradient-to-br from-white via-zinc-50/50 to-white p-6 shadow-md transition-all hover:shadow-xl hover:shadow-purple-500/20 hover:border-purple-400 dark:border-zinc-700 dark:from-zinc-900 dark:via-zinc-900/80 dark:to-zinc-900 dark:hover:border-purple-600 depth-effect stagger-item" style={{animationDelay: `${idx * 0.05}s`, isolation: 'isolate'}}>
-                          <div className="mb-5 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className={`flex h-14 w-14 items-center justify-center rounded-xl shadow-md ${
-                                exercise?.type === 'compound'
-                                  ? 'gradient-purple text-white'
-                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                              }`}>
-                                <Dumbbell className="h-7 w-7" />
-                              </div>
-                              <div>
-                                <h4 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mb-1">
-                                  {exercise?.name}
-                                </h4>
-                                <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 capitalize">
-                                  {exercise?.type} • {exercise?.muscleGroups.slice(0, 2).join(', ')}
-                                </p>
-                              </div>
-                            </div>
-                            {/* Remove Exercise Button */}
-                            <button
-                              onClick={() => removeExerciseFromDay(exerciseId)}
-                              className="rounded-lg bg-red-600 p-2.5 text-white opacity-0 transition-all hover:bg-red-700 hover:scale-110 group-hover:opacity-100 touch-manipulation"
-                              title="Remove exercise"
-                              aria-label="Remove exercise"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                          <div className="space-y-4">
-                            {/* Column Headers - Hidden on mobile */}
-                            <div className="hidden md:grid grid-cols-[80px_100px_100px_120px_1fr] gap-3 bg-gradient-to-r from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/50 rounded-lg p-3">
-                              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Set</span>
-                              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                                Reps
-                                <Tooltip content="Number of repetitions to perform (e.g., 8-12 for a range, or 10 for an exact number)" />
-                              </span>
-                              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                                RPE
-                                <Tooltip content="Rate of Perceived Exertion (1-10 scale). RPE 10 = maximum effort, RPE 7 = could do 3 more reps, RPE 8 = could do 2 more reps" />
-                              </span>
-                              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-                                Rest
-                                <Tooltip content="Rest time in seconds between sets (e.g., 90 for 90 seconds, 120 for 2 minutes)" />
-                              </span>
-                              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Notes</span>
-                            </div>
-
-                            {sets.map((set, idx) => (
-                              <div key={idx} className="rounded-lg border border-zinc-200 bg-white/70 dark:border-zinc-800 dark:bg-zinc-900/60 p-4">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
-                                  <div className="flex flex-wrap gap-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-purple-800 dark:bg-purple-900/40 dark:text-purple-100">
-                                      Reps: {set.prescribedReps}
-                                    </span>
-                                    {set.targetRPE !== undefined && set.targetRPE !== null && (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100">
-                                        RPE {set.targetRPE}
-                                      </span>
-                                    )}
-                                    {set.restSeconds && (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-green-800 dark:bg-green-900/40 dark:text-green-100">
-                                        Rest {set.restSeconds}s
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                {set.notes && (
-                                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">“{set.notes}”</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300 text-center">
-                      To modify exercises or sets, edit this program in the builder.
+                    <h3 className="mb-2 text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                      No Training Days Yet
+                    </h3>
+                    <p className="mb-6 text-base font-medium text-zinc-600 dark:text-zinc-400">
+                      This program has no days in Week {selectedWeek}. Use the editor to add them.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-500">
+                      <span>Edit this program in the builder to add days.</span>
                     </div>
                   </div>
                 </div>
               )}
 
+              <div className="relative z-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3" style={{overflow: 'visible'}}>
+                {currentWeek?.days.map((day, idx) => (
+                  <React.Fragment key={idx}>
+                    {/* Day Card */}
+                    <div className="group relative stagger-item" style={{ isolation: 'isolate' }}>
+                      <button
+                        onClick={() => {
+                          if (selectedDayIndex === idx && showExerciseDetails) {
+                            setShowExerciseDetails(false);
+                            setUserPinnedDay(false);
+                          } else {
+                            setSelectedDayIndex(idx);
+                            setUserPinnedDay(true);
+                            setShowExerciseDetails(true);
+                          }
+                        }}
+                        className={`w-full rounded-2xl border-2 p-7 text-left transition-all hover:scale-[1.03] depth-effect shadow-md hover:shadow-xl ${
+                          selectedDayIndex === idx
+                            ? 'gradient-animated border-transparent text-white shadow-glow-purple'
+                            : 'border-zinc-200 bg-gradient-to-br from-white to-zinc-50 hover:border-purple-300 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-900/50 dark:hover:border-purple-700'
+                        }`}
+                      >
+                        <p className={`text-sm font-bold uppercase tracking-wider mb-2 ${
+                          selectedDayIndex === idx ? 'text-purple-200' : 'text-zinc-500 dark:text-zinc-400'
+                        }`}>
+                          {day.dayOfWeek}
+                        </p>
+                        <p className={`text-2xl font-black mb-3 ${
+                          selectedDayIndex === idx ? 'text-white' : 'text-zinc-900 dark:text-zinc-50'
+                        }`}>
+                          {day.name}
+                        </p>
+                        <div className={`flex items-center gap-2 text-base font-bold ${
+                          selectedDayIndex === idx ? 'text-purple-100' : 'text-zinc-600 dark:text-zinc-400'
+                        }`}>
+                          <div className={`rounded-lg p-1.5 ${
+                            selectedDayIndex === idx ? 'bg-white/20' : 'bg-zinc-100 dark:bg-zinc-800'
+                          }`}>
+                            <Dumbbell className="h-4 w-4" />
+                          </div>
+                          <span>{day.sets.length} sets</span>
+                        </div>
+                        {selectedDayIndex === idx && showExerciseDetails && (
+                          <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-purple-100">
+                            <ChevronUp className="h-4 w-4" />
+                            <span>Click to collapse</span>
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Exercise Details - Appears right below the selected day */}
+                      {selectedDayIndex === idx && (
+                      <div
+                        className={`origin-top overflow-hidden transform-gpu transition-[transform,opacity,max-height,margin] duration-300 ease-in-out ${
+                          showExerciseDetails
+                            ? 'max-h-[4000px] scale-y-100 opacity-100 mt-5'
+                            : 'max-h-0 scale-y-95 opacity-0 mt-0 pointer-events-none'
+                        }`}
+                        style={{ transformOrigin: 'top' }}
+                      >
+                        <div className="rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-6 sm:p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect origin-top">
+                          <div className="mb-6 sm:mb-8 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
+                                <Dumbbell className="h-6 w-6 sm:h-7 sm:w-7 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <h3 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-50">
+                                Exercise Details
+                              </h3>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setShowExerciseDetails(false);
+                                setUserPinnedDay(false);
+                              }}
+                              className="flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 sm:px-4 sm:py-2 font-semibold text-zinc-700 transition-all hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 text-sm"
+                            >
+                              <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
+                              <span className="hidden sm:inline">Collapse</span>
+                            </button>
+                          </div>
+
+                          {/* Exercise List */}
+                          <div className="space-y-4 sm:space-y-6">
+                            {/* Empty State - No Exercises */}
+                            {(!groupedSets || Object.keys(groupedSets).length === 0) && (
+                              <div className="rounded-2xl border-2 border-dashed border-purple-300 bg-purple-50 p-8 sm:p-10 text-center dark:border-purple-700 dark:bg-purple-900/10 animate-fadeIn">
+                                <div className="mx-auto max-w-md">
+                                  <div className="mx-auto mb-4 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+                                    <Dumbbell className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 dark:text-purple-400" />
+                                  </div>
+                                  <h3 className="mb-2 text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                                    No Exercises Yet
+                                  </h3>
+                                  <p className="mb-6 text-sm sm:text-base font-medium text-zinc-600 dark:text-zinc-400">
+                                    Build your perfect workout by adding exercises in the Program Builder.
+                                  </p>
+                                  <button
+                                    onClick={() => {
+                                      if (!selectedProgram) return;
+                                      setEditingProgramForBuilder(selectedProgram);
+                                      setIsBuilding(true);
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 px-5 py-2.5 sm:px-6 sm:py-3 font-bold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 text-sm sm:text-base"
+                                  >
+                                    <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Open Builder
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {groupedSets && Object.entries(groupedSets).map(([exerciseId, sets], exerciseIdx) => {
+                              const exercise = getExercise(exerciseId);
+                              return (
+                                <div key={exerciseId} className="group relative rounded-2xl border-2 border-zinc-200 bg-gradient-to-br from-white via-zinc-50/50 to-white p-4 sm:p-6 shadow-md transition-all hover:shadow-xl hover:shadow-purple-500/20 hover:border-purple-400 dark:border-zinc-700 dark:from-zinc-900 dark:via-zinc-900/80 dark:to-zinc-900 dark:hover:border-purple-600 depth-effect stagger-item" style={{animationDelay: `${exerciseIdx * 0.05}s`, isolation: 'isolate'}}>
+                                  <div className="mb-4 sm:mb-5 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                      <div className={`flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-xl shadow-md flex-shrink-0 ${
+                                        exercise?.type === 'compound'
+                                          ? 'gradient-purple text-white'
+                                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                      }`}>
+                                        <Dumbbell className="h-5 w-5 sm:h-7 sm:w-7" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="text-lg sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 mb-0.5 sm:mb-1 truncate">
+                                          {exercise?.name}
+                                        </h4>
+                                        <p className="text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-400 capitalize truncate">
+                                          {exercise?.type} • {exercise?.muscleGroups.slice(0, 2).join(', ')}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {/* Remove Exercise Button */}
+                                    <button
+                                      onClick={() => removeExerciseFromDay(exerciseId)}
+                                      className="rounded-lg bg-red-600 p-2 sm:p-2.5 text-white opacity-0 transition-all hover:bg-red-700 hover:scale-110 group-hover:opacity-100 touch-manipulation flex-shrink-0"
+                                      title="Remove exercise"
+                                      aria-label="Remove exercise"
+                                    >
+                                      <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                  <div className="space-y-3 sm:space-y-4">
+                                    {sets.map((set, setIdx) => (
+                                      <div key={setIdx} className="rounded-lg border border-zinc-200 bg-white/70 dark:border-zinc-800 dark:bg-zinc-900/60 p-3 sm:p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+                                          <span className="text-base sm:text-lg font-black text-zinc-900 dark:text-zinc-50">Set {set.setIndex}</span>
+                                          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 sm:px-3 py-1 text-purple-800 dark:bg-purple-900/40 dark:text-purple-100">
+                                              Reps: {set.prescribedReps}
+                                            </span>
+                                            {set.targetRPE !== undefined && set.targetRPE !== null && (
+                                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 sm:px-3 py-1 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100">
+                                                RPE {set.targetRPE}
+                                              </span>
+                                            )}
+                                            {set.restSeconds && (
+                                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 sm:px-3 py-1 text-green-800 dark:bg-green-900/40 dark:text-green-100">
+                                                Rest {set.restSeconds}s
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {set.notes && (
+                                          <p className="mt-2 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">&quot;{set.notes}&quot;</p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-3 sm:p-4 text-xs sm:text-sm font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300 text-center">
+                              To modify exercises or sets, edit this program in the builder.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      )}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
-              </>
-            )}
           </>
         )}
+      </>
+    )}
       </div>
+
+      {summarySession && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setSummarySession(null); setShowCelebration(false); }} />
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 shadow-2xl ring-4 ring-white/40">
+            <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.2),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.15),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(255,255,255,0.25),transparent_45%)]" />
+            {showCelebration && (
+              <div className="pointer-events-none absolute inset-0">
+                {Array.from({ length: 26 }).map((_, idx) => (
+                  <span
+                    key={idx}
+                    className="absolute inline-block h-2 w-2 rounded-sm opacity-80"
+                    style={{
+                      left: `${(idx * 37) % 100}%`,
+                      top: '-10%',
+                      background: ['#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#a855f7'][idx % 5],
+                      transform: `rotate(${idx * 13}deg)`,
+                      animation: `confetti-fall 1.6s ease-out forwards`,
+                      animationDelay: `${idx * 0.03}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="relative p-6 sm:p-8 text-white space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Workout Complete</p>
+                  <h3 className="text-3xl sm:text-4xl font-black leading-tight drop-shadow">Great job, {profile?.name || 'athlete'}!</h3>
+                </div>
+                <div className="rounded-2xl bg-white/15 px-4 py-3 text-center shadow-lg backdrop-blur">
+                  <p className="text-sm font-semibold text-white/80">Total Volume</p>
+                  <p className="text-2xl sm:text-3xl font-black">{Math.round(summarySession.totalVolumeLoad || 0)} lbs</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl bg-white/15 p-4 shadow-inner backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.12em] text-white/70 font-semibold">Duration</p>
+                  <p className="text-lg sm:text-xl font-black">{summarySession.durationMinutes ? `${summarySession.durationMinutes} min` : '—'}</p>
+                </div>
+                <div className="rounded-2xl bg-white/15 p-4 shadow-inner backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.12em] text-white/70 font-semibold">Sets Logged</p>
+                  <p className="text-lg sm:text-xl font-black">{summarySession.sets.length}</p>
+                </div>
+                <div className="rounded-2xl bg-white/15 p-4 shadow-inner backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.12em] text-white/70 font-semibold">Avg RPE</p>
+                  <p className="text-lg sm:text-xl font-black">{summarySession.averageRPE ? summarySession.averageRPE.toFixed(1) : '—'}</p>
+                </div>
+                <div className="rounded-2xl bg-white/15 p-4 shadow-inner backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.12em] text-white/70 font-semibold">Day</p>
+                  <p className="text-lg sm:text-xl font-black">{summarySession.dayName || summarySession.dayOfWeek}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur">
+                <p className="text-sm font-semibold text-white/80 mb-2">Session Highlights</p>
+                <ul className="text-sm sm:text-base space-y-1 text-white/90">
+                  <li>• Program: {summarySession.programName}</li>
+                  <li>• Date: {summarySession.date}</li>
+                  {summarySession.totalVolumeLoad !== undefined && <li>• Volume: {Math.round(summarySession.totalVolumeLoad)} lbs</li>}
+                  {summarySession.averageRPE !== undefined && <li>• Average RPE: {summarySession.averageRPE.toFixed(1)}</li>}
+                </ul>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="text-sm text-white/80">
+                  Keep the streak alive tomorrow!
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => {
+                      setSummarySession(null);
+                      setShowCelebration(false);
+                    }}
+                    className="rounded-xl bg-white text-purple-700 font-bold px-5 py-3 shadow-lg transition-all hover:scale-105 active:scale-95"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSummarySession(null);
+                      setShowCelebration(false);
+                      setViewMode('history');
+                    }}
+                    className="rounded-xl border-2 border-white/70 text-white font-bold px-5 py-3 shadow-lg transition-all hover:scale-105 active:scale-95"
+                  >
+                    View History
+                  </button>
+                </div>
+              </div>
+            </div>
+            <style>{`
+              @keyframes confetti-fall {
+                0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                80% { opacity: 1; }
+                100% { transform: translateY(140vh) rotate(360deg); opacity: 0; }
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
 
       {showProgramSelector && (
         <div

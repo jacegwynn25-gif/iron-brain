@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from 'react';
 import type { ImportSession, ImportConfig } from '@/app/lib/importers/types';

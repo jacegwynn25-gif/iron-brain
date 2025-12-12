@@ -1,4 +1,4 @@
-import { format, addWeeks, addDays, parseISO } from 'date-fns';
+import { format, addWeeks, addDays } from 'date-fns';
 import type { WorkoutSession, SetLog } from '../types';
 import type {
   ParsedFileResult,
@@ -111,7 +111,7 @@ function transformSection(
 
     // Create a SetLog for each row (each set)
     // Only include sets that have actual workout data (completed sets)
-    rows.forEach((row, index) => {
+    rows.forEach((row) => {
       const hasData = row.weightUsed !== undefined && row.reps !== undefined;
 
       // Skip rows with no actual workout data - we only want completed workouts
