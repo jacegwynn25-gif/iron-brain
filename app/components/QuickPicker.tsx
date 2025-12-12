@@ -34,47 +34,49 @@ export default function QuickPicker({
     }
   };
 
+  const buttonDelta = Math.max(step, 1);
+
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-        {label}
+      <label className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+        <span>{label}</span>
+        {unit && (
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+            {unit}
+          </span>
+        )}
       </label>
 
       {/* Input with inline buttons */}
-      <div className="flex items-stretch gap-2">
-        {/* -5 Button */}
+      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2.5 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+        {/* Decrement */}
         <button
           type="button"
-          onClick={() => incrementValue(-step * 5)}
-          className="flex items-center justify-center rounded-lg bg-red-50 px-3 text-sm font-bold text-red-700 hover:bg-red-100 active:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30 transition-colors flex-shrink-0"
+          onClick={() => incrementValue(-buttonDelta)}
+          className="h-11 w-11 flex-shrink-0 rounded-xl bg-white text-base font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          aria-label={`Decrease ${label}`}
         >
-          −5
+          -{buttonDelta}
         </button>
 
         {/* Main Input */}
-        <div className="relative flex-1">
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            step={step}
-            className="w-full rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-center text-2xl font-black text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-purple-600"
-          />
-          {unit && (
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              {unit}
-            </span>
-          )}
-        </div>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          step={step}
+          className="flex-1 border-none bg-transparent text-center text-3xl font-black text-zinc-900 focus:outline-none focus:ring-0 dark:text-zinc-50"
+        />
 
-        {/* +5 Button */}
+        {/* Increment */}
         <button
           type="button"
-          onClick={() => incrementValue(step * 5)}
-          className="flex items-center justify-center rounded-lg bg-green-50 px-3 text-sm font-bold text-green-700 hover:bg-green-100 active:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30 transition-colors flex-shrink-0"
+          onClick={() => incrementValue(buttonDelta)}
+          className="h-11 w-11 flex-shrink-0 rounded-xl bg-white text-base font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          aria-label={`Increase ${label}`}
         >
-          +5
+          +{buttonDelta}
         </button>
       </div>
 
@@ -83,7 +85,7 @@ export default function QuickPicker({
         <button
           type="button"
           onClick={matchLast}
-          className="mt-2 w-full rounded-lg bg-purple-50 py-2 text-sm font-bold text-purple-700 hover:bg-purple-100 active:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30 transition-colors"
+          className="mt-2 w-full rounded-xl border border-dashed border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 transition-all hover:bg-purple-100 active:scale-[0.99] dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-100"
         >
           Match Last ({lastValue}{unit ? ` ${unit}` : ''})
         </button>

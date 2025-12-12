@@ -390,6 +390,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   const [notes, setNotes] = useState('');
   const [showFatigueDetails, setShowFatigueDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   // Drop set state
   const [dropSetRounds, setDropSetRounds] = useState<Array<{ weight: string; reps: string; rpe: string }>>([
     { weight: '', reps: '', rpe: '' },
@@ -408,6 +409,13 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   // Tempo tracking (only when prescribed in template)
   const [tempo, setTempo] = useState(template.tempo || '');
   const showTempo = Boolean(template.tempo);
+
+  useEffect(() => {
+    const updateIsMobile = () => setIsMobile(window.innerWidth <= 640);
+    updateIsMobile();
+    window.addEventListener('resize', updateIsMobile);
+    return () => window.removeEventListener('resize', updateIsMobile);
+  }, []);
 
   // Calculate Time Under Tension (TUT) from tempo
   const calculateTUT = (tempo: string, reps: number): number | null => {
@@ -619,9 +627,9 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     return (
       <>
         {/* Ultra-Compact Single Card - Zero Scrolling */}
-        <div className="rounded-xl bg-white/95 p-4 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800">
+        <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
           {/* Weight & Reps - Side by Side */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
             <QuickPicker
               label="Weight"
               value={weight}
@@ -641,41 +649,47 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             />
           </div>
 
-          {/* RPE & Notes - Compact Inline */}
-          <div className="space-y-2">
-            {/* RPE inline with quick buttons + manual input */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
+          {/* RPE & Notes - Mobile Optimized */}
+          <div className="space-y-3">
+            {/* RPE - Large touch-friendly input */}
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                 RPE
               </label>
-              <div className="flex items-stretch gap-1.5 flex-1">
-                {/* Quick select buttons for common RPE values */}
-                {[7, 7.5, 8, 8.5, 9, 9.5, 10].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setRpe(val.toString())}
-                    className={`flex-1 rounded py-2 text-xs font-bold transition-colors ${
-                      rpe === val.toString()
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
-                {/* Manual input for other values (warmups, recovery, etc.) */}
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   value={rpe}
                   onChange={(e) => setRpe(e.target.value)}
-                  placeholder="?"
+                  placeholder="8"
                   step="0.5"
                   min="1"
                   max="10"
-                  className="w-12 rounded border-2 border-zinc-300 bg-white px-2 py-2 text-center text-xs font-bold text-zinc-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-orange-600"
-                  title="Enter any RPE (e.g., 5, 6, 6.5)"
+                  className="flex-1 rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-center text-2xl font-black text-zinc-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-orange-600"
                 />
+                {/* Quick +/- buttons */}
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setRpe((prev) => {
+                      const current = parseFloat(prev) || 8;
+                      return Math.min(10, current + 0.5).toString();
+                    })}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  >
+                    +0.5
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRpe((prev) => {
+                      const current = parseFloat(prev) || 8;
+                      return Math.max(1, current - 0.5).toString();
+                    })}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  >
+                    -0.5
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -920,7 +934,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   if (!exercise) return null;
 
   return (
-    <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
+        <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
       {/* Exercise Header - Ultra Compact Single Line */}
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1020,6 +1034,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               currentWeight={lastWorkout?.bestSet.actualWeight}
               scientificBasis={intelligence.fatigueAlert.scientificBasis}
               confidence={intelligence.fatigueAlert.confidence}
+              compact={isMobile}
               onApply={() => {
                 if (intelligence.weightRecommendation?.suggestedWeight) {
                   setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
@@ -1047,6 +1062,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               currentWeight={intelligence.weightRecommendation.currentWeight}
               scientificBasis={intelligence.weightRecommendation.scientificBasis}
               confidence={intelligence.weightRecommendation.confidence}
+              compact={isMobile}
               onApply={() => {
                 setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
               }}
@@ -1065,6 +1081,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               currentWeight={lastWorkout?.bestSet.actualWeight}
               scientificBasis="Progressive overload: Small, incremental increases above previous bests drive long-term strength gains."
               confidence={0.75}
+              compact={isMobile}
               onApply={() => {
                 setWeight(intelligence.prOpportunity!.targetWeight.toString());
               }}

@@ -122,17 +122,27 @@ export default function SmartAlert({
   const weightChangeStr = weightChange !== null ? weightChange.toFixed(0) : null;
 
   if (compact) {
-    // Compact inline badge for suggestions next to input
+    // Compact mobile-friendly pill
     return (
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${colors.bg} ${colors.border} border`}>
-        <Icon className={`h-3.5 w-3.5 ${colors.icon} flex-shrink-0`} />
-        <span className={`text-xs font-bold ${colors.text}`}>
-          {suggestedWeight && `Suggested: ${suggestedWeight} lbs`}
-        </span>
+      <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${colors.bg} ${colors.border}`}>
+        <Icon className={`h-4 w-4 ${colors.icon} flex-shrink-0`} />
+        <div className="min-w-0 flex-1">
+          <p className={`text-[11px] font-black leading-tight ${colors.text} truncate`}>
+            {title}
+          </p>
+          <p className={`text-[11px] leading-tight ${colors.subtext} truncate`}>
+            {message}
+          </p>
+        </div>
+        {suggestedWeight && (
+          <span className={`flex-shrink-0 rounded-lg bg-white/70 px-2 py-1 text-[11px] font-black ${colors.text} dark:bg-black/20`}>
+            {suggestedWeight} lbs
+          </span>
+        )}
         {onApply && (
           <button
             onClick={onApply}
-            className={`ml-2 px-2 py-0.5 rounded text-[10px] font-bold text-white ${colors.button} transition-colors`}
+            className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold text-white ${colors.button} transition-all active:scale-95`}
           >
             Apply
           </button>
@@ -140,9 +150,9 @@ export default function SmartAlert({
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className={`ml-1 ${colors.subtext} hover:${colors.text} transition-colors`}
+            className={`flex-shrink-0 rounded-full p-1 ${colors.subtext} transition-colors`}
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
@@ -151,7 +161,7 @@ export default function SmartAlert({
 
   // Full banner alert
   return (
-    <div className={`rounded-xl ${colors.bg} ${colors.border} border-2 p-4 shadow-lg mb-4 animate-fadeIn`}>
+    <div className={`rounded-xl ${colors.bg} ${colors.border} border-2 p-3 shadow-lg mb-3 animate-fadeIn sm:p-4`}>
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div className={`flex-shrink-0 rounded-lg bg-white/50 p-2 dark:bg-black/20`}>
