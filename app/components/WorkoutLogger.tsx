@@ -631,8 +631,8 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Primary</p>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Load & reps</h3>
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-purple-700 ring-1 ring-purple-100 dark:bg-zinc-800 dark:text-purple-200 dark:ring-purple-900/40">
-                🎯 Targets
+              <div className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-purple-700 ring-1 ring-purple-100 dark:bg-zinc-800 dark:text-purple-200 dark:ring-purple-900/40">
+                Targets
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -679,7 +679,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Feel & effort</h3>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-orange-700 ring-1 ring-orange-100 dark:bg-zinc-800 dark:text-orange-200 dark:ring-orange-900/40">
-                🔥 Fatigue
+                Fatigue check
               </span>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1004,12 +1004,9 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           <div className="mt-4">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-zinc-100 to-purple-50 px-4 py-3 text-sm font-semibold text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:shadow-md dark:from-zinc-900 dark:to-purple-950/30 dark:text-zinc-200 dark:ring-zinc-800"
+              className="flex w-full items-center justify-between rounded-2xl border border-zinc-200 bg-white/90 px-4 py-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200"
             >
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{showHistory ? '📂' : '🗂️'}</span>
-                <span>Previous Sessions ({exerciseHistory.length})</span>
-              </span>
+              <span>Previous Sessions ({exerciseHistory.length})</span>
               <span className="text-xs text-zinc-500">{showHistory ? 'Hide' : 'Show'}</span>
             </button>
 
@@ -1021,7 +1018,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                   return (
                     <div
                       key={idx}
-                      className="rounded-2xl border border-zinc-200/80 bg-white/90 p-3 shadow-sm ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:ring-zinc-800"
+                      className="rounded-2xl border border-zinc-200 bg-white/90 p-3 shadow-sm ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:ring-zinc-800"
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <span className="rounded-full bg-zinc-100 px-3 py-1 text-[11px] font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
@@ -1085,11 +1082,19 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
         {lastWorkout && (
           <button
             onClick={handleCopyPreviousSet}
-            className="group w-full rounded-xl border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50 px-5 py-4 text-sm font-bold text-purple-700 shadow-sm hover:border-purple-400 hover:shadow-md dark:border-purple-700 dark:from-purple-900/20 dark:to-pink-900/20 dark:text-purple-300 dark:hover:border-purple-600 transition-all transform hover:scale-[1.01]"
+            className="group w-full rounded-2xl border border-zinc-200 bg-white/90 px-5 py-4 text-sm font-semibold text-zinc-800 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:border-zinc-700"
           >
-            <div className="flex items-center justify-center gap-2">
-              <span>Copy Last Set: {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}</span>
-              {lastWorkout.bestSet.actualRPE && <span className="text-xs opacity-80">@ RPE {lastWorkout.bestSet.actualRPE}</span>}
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-left">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-500">Copy last set</p>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
+                  {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}
+                  {lastWorkout.bestSet.actualRPE && <span className="ml-2 text-xs text-zinc-500">RPE {lastWorkout.bestSet.actualRPE}</span>}
+                </p>
+              </div>
+              <span className="rounded-full bg-zinc-100 px-3 py-1 text-[12px] font-semibold text-zinc-700 ring-1 ring-zinc-200 group-hover:ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700">
+                Copy
+              </span>
             </div>
           </button>
         )}
@@ -1230,9 +1235,8 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             className="group relative flex-1 overflow-hidden rounded-2xl bg-emerald-600 px-6 py-5 text-lg font-black text-white shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
           >
             <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
-            <span className="relative flex items-center justify-center gap-2">
-              <span className="text-2xl">✅</span>
-              <span>{isLastSet ? 'Complete & Finish Workout' : 'Log Set'}</span>
+            <span className="relative flex items-center justify-center">
+              {isLastSet ? 'Complete & Finish Workout' : 'Log Set'}
             </span>
           </button>
           <button
