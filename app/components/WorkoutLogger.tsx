@@ -616,149 +616,103 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
 
     return (
       <>
-        <div className="space-y-3 rounded-2xl bg-white/95 p-4 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800">
-          {/* Primary Inputs */}
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
-            <div className="mb-2 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Primary</p>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Load & reps</h3>
-              </div>
-              <div className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-purple-700 ring-1 ring-purple-100 dark:bg-zinc-800 dark:text-purple-200 dark:ring-purple-900/40">
-                Targets
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <QuickPicker
-                label="Weight (lbs)"
-                value={weight}
-                onChange={setWeight}
-                suggestions={[45, 95, 135, 185, 225, 275, 315, 405]}
-                step={5}
-                placeholder="225"
-                unit="lbs"
-              />
-              <QuickPicker
-                label="Reps"
-                value={reps}
-                onChange={setReps}
-                suggestions={[1, 3, 5, 8, 10, 12, 15, 20]}
-                step={1}
-                placeholder={template.prescribedReps}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-              <span className="rounded-full bg-purple-100 px-3 py-1 font-semibold text-purple-900 dark:bg-purple-900/30 dark:text-purple-100">
-                {template.prescribedReps} reps
-              </span>
-              {template.targetRPE && (
-                <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
-                  RPE {template.targetRPE}
-                </span>
-              )}
-              {template.supersetGroup && (
-                <span className="rounded-full bg-pink-100 px-3 py-1 font-semibold text-pink-900 dark:bg-pink-900/30 dark:text-pink-100">
-                  Superset {template.supersetGroup}
-                </span>
-              )}
-            </div>
+        {/* Ultra-Compact Single Card - Zero Scrolling */}
+        <div className="rounded-xl bg-white/95 p-4 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800">
+          {/* Weight & Reps - Side by Side */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <QuickPicker
+              label="Weight"
+              value={weight}
+              onChange={setWeight}
+              step={5}
+              placeholder="225"
+              unit="lbs"
+              lastValue={lastWorkout?.bestSet.actualWeight.toString()}
+            />
+            <QuickPicker
+              label="Reps"
+              value={reps}
+              onChange={setReps}
+              step={1}
+              placeholder={template.prescribedReps}
+              lastValue={lastWorkout?.bestSet.actualReps.toString()}
+            />
           </div>
 
-          {/* Intensity */}
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
-            <div className="mb-2 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Intensity</p>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Feel & effort</h3>
+          {/* RPE & Notes - Compact Inline */}
+          <div className="space-y-2">
+            {/* RPE inline with quick buttons */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
+                RPE
+              </label>
+              <div className="flex items-stretch gap-1.5 flex-1">
+                {[7, 7.5, 8, 8.5, 9, 9.5, 10].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setRpe(val.toString())}
+                    className={`flex-1 rounded py-2 text-xs font-bold transition-colors ${
+                      rpe === val.toString()
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
               </div>
-              <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-orange-700 ring-1 ring-orange-100 dark:bg-zinc-800 dark:text-orange-200 dark:ring-orange-900/40">
-                Fatigue check
-              </span>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <QuickPicker
-                label="RPE (optional)"
-                value={rpe}
-                onChange={setRpe}
-                suggestions={[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]}
-                step={0.5}
-                placeholder="8.5"
-              />
-              <QuickPicker
-                label="RIR (optional)"
-                value={rir}
-                onChange={setRir}
-                suggestions={[0, 1, 2, 3, 4]}
-                step={1}
-                placeholder="2"
-              />
-            </div>
+
+            {/* Notes inline */}
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className="w-full rounded-lg border border-zinc-300 bg-white/80 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+            />
           </div>
 
-          {/* Tempo & TUT (only if prescribed in program) */}
-          {showTempo && (
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
-              <div className="mb-2 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Tempo</p>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Control</h3>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-blue-700 ring-1 ring-blue-100 dark:bg-zinc-800 dark:text-blue-200 dark:ring-blue-900/40">
-                  ⏱️ TUT
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                    Tempo
-                  </label>
-                  <input
-                    type="text"
-                    value={tempo}
-                    onChange={(e) => setTempo(e.target.value)}
-                    placeholder="3-1-2-0"
-                    className="w-full rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 text-zinc-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                  />
-                  <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                    Format: eccentric-pause-concentric-pause
-                  </p>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                    Time Under Tension
-                  </label>
-                  <div className="flex h-[56px] items-center justify-center rounded-xl border border-zinc-200 bg-white/80 px-4 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    {tempo && reps ? (
-                      <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                        {calculateTUT(tempo, parseInt(reps) || 0)}s
-                      </p>
-                    ) : (
-                      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                        Enter tempo & reps
-                      </p>
-                    )}
+          {/* Advanced Options - Collapsible */}
+          {(showTempo || template.targetRIR) && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200">
+                Advanced Options
+              </summary>
+              <div className="mt-2 space-y-2">
+                {template.targetRIR && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
+                      RIR
+                    </label>
+                    <input
+                      type="number"
+                      value={rir}
+                      onChange={(e) => setRir(e.target.value)}
+                      placeholder="2"
+                      step={1}
+                      className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-lg font-bold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
                   </div>
-                </div>
+                )}
+                {showTempo && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
+                      Tempo
+                    </label>
+                    <input
+                      type="text"
+                      value={tempo}
+                      onChange={(e) => setTempo(e.target.value)}
+                      placeholder="3-1-2-0"
+                      className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            </details>
           )}
-
-          {/* Notes */}
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3 shadow-sm ring-1 ring-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Notes</p>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-500">Optional</span>
-            </div>
-            <div className="mt-2 rounded-xl bg-white/80 px-3 ring-1 ring-zinc-200 focus-within:ring-2 focus-within:ring-purple-400 dark:bg-zinc-950/50 dark:ring-zinc-800 dark:focus-within:ring-purple-700">
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Form cues, equipment, how it felt..."
-                className="w-full border-none bg-transparent py-3 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
-              />
-            </div>
-          </div>
         </div>
       </>
     );
@@ -943,287 +897,93 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   if (!exercise) return null;
 
   return (
-    <div className="rounded-2xl bg-white/90 p-4 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/90 dark:ring-zinc-800">
-      {/* Exercise Header - More Compact */}
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg shadow-md ${
+    <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
+      {/* Exercise Header - Ultra Compact Single Line */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${
             exercise?.type === 'compound'
               ? 'bg-gradient-to-br from-purple-500 to-purple-700 text-white'
               : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
           }`}>
-            <Dumbbell className="h-5 w-5" />
+            <Dumbbell className="h-4 w-4" />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 truncate">{exercise.name}</h2>
-            <p className="text-[10px] sm:text-xs font-bold text-zinc-500 dark:text-zinc-400">
-              Set {template.setIndex + 1} • {exercise?.type} • {exercise?.muscleGroups.slice(0, 2).join(', ')}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-50 truncate">{exercise.name}</h2>
+            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+              Set {template.setIndex + 1} of {setTemplates.filter(s => s.exerciseId === exercise.id).length}
+              {template.prescribedReps && ` • ${template.prescribedReps} reps`}
+              {template.targetRPE && ` @ RPE ${template.targetRPE}`}
             </p>
           </div>
         </div>
-        <div
-          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] sm:text-xs font-bold shadow-sm flex-shrink-0 ${
-            progressionStatus.status === 'ready'
-              ? 'border-emerald-200 bg-white/80 text-emerald-700 dark:border-emerald-900/50 dark:bg-zinc-900/70 dark:text-emerald-200'
-              : progressionStatus.status === 'deload'
-                ? 'border-amber-200 bg-white/80 text-amber-800 dark:border-amber-900/50 dark:bg-zinc-900/70 dark:text-amber-200'
-                : 'border-zinc-200 bg-white/80 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200'
-          }`}
-          title={progressionStatus.message}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              progressionStatus.status === 'ready'
-                ? 'bg-emerald-500'
-                : progressionStatus.status === 'deload'
-                  ? 'bg-amber-500'
-                  : 'bg-zinc-500'
-            }`}
-          />
-          <span className="truncate">{progressionStatus.message}</span>
-        </div>
-      </div>
-        {/* Superset Indicator - More Compact */}
-        {nextExerciseInSuperset && (
-          <div className="mb-3 rounded-xl border-2 border-purple-500 bg-gradient-to-r from-purple-50 to-pink-50 p-3 dark:border-purple-600 dark:from-purple-900/30 dark:to-pink-900/30">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-white font-bold text-sm flex-shrink-0">
-                {template.supersetGroup}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-purple-900 dark:text-purple-100">
-                  SUPERSET
-                </p>
-                <p className="text-[10px] text-purple-700 dark:text-purple-300 truncate">
-                  Next: {nextExerciseInSuperset.name}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Set History - More Compact */}
+        {/* History Icon Button */}
         {exerciseHistory.length > 0 && (
-          <div className="mt-3">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white/90 px-3 py-2 text-xs sm:text-sm font-bold text-zinc-700 shadow-sm transition hover:border-purple-300 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:border-purple-700"
-            >
-              <span>Previous Sessions ({exerciseHistory.length})</span>
-              <svg className={`h-4 w-4 text-zinc-500 dark:text-zinc-400 transition-transform ${showHistory ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {showHistory && (
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 animate-slideDown">
-                {exerciseHistory.map((historySession, idx) => {
-                  const dateLabel = historySession.daysAgo === 0 ? 'Today' : historySession.daysAgo === 1 ? 'Yesterday' : `${historySession.daysAgo}d ago`;
-
-                  return (
-                    <div
-                      key={idx}
-                      className="rounded-xl border border-zinc-200 bg-white/90 p-2.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/70"
-                    >
-                      <div className="mb-1.5 flex items-center justify-between">
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                          {dateLabel}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-500">
-                          {new Date(historySession.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {historySession.sets.map((set, setIdx) => (
-                          <div
-                            key={setIdx}
-                            className="flex items-center justify-between text-xs"
-                          >
-                            <button
-                              onClick={() => {
-                                if (set.actualWeight) setWeight(set.actualWeight.toString());
-                                if (set.actualReps) setReps(set.actualReps.toString());
-                                if (set.actualRPE) setRpe(set.actualRPE.toString());
-                                if (set.actualRIR) setRir(set.actualRIR.toString());
-                              }}
-                              className="group flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-purple-50 dark:hover:bg-purple-900/30"
-                              title="Copy this set"
-                            >
-                              <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
-                                Set {set.setIndex + 1}:
-                              </span>
-                              <span className="font-bold text-zinc-900 dark:text-zinc-50">
-                                {set.actualWeight}×{set.actualReps}
-                              </span>
-                              {set.actualRPE && (
-                                <span className="text-[10px] text-orange-600 dark:text-orange-400">
-                                  @{set.actualRPE}
-                                </span>
-                              )}
-                            </button>
-                            {set.e1rm && (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-500">
-                                E1RM: {Math.round(set.e1rm)}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      {/* Input Fields */}
-      <div className="space-y-3">
-        {/* Quick Copy Previous Set Button - More Compact */}
-        {lastWorkout && (
           <button
-            onClick={handleCopyPreviousSet}
-            className="group w-full rounded-xl border border-zinc-200 bg-white/90 px-3 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm transition hover:border-purple-300 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:border-purple-700"
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex-shrink-0 rounded-lg bg-zinc-100 p-2 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+            title="View history"
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-left min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">Copy last set</p>
-                <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-50 truncate">
-                  {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}
-                  {lastWorkout.bestSet.actualRPE && <span className="ml-1.5 text-[10px] text-zinc-500">RPE {lastWorkout.bestSet.actualRPE}</span>}
-                </p>
-              </div>
-              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-700 ring-1 ring-zinc-200 group-hover:ring-purple-300 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700 dark:group-hover:ring-purple-700 flex-shrink-0">
-                Copy
-              </span>
-            </div>
+            <svg className="h-5 w-5 text-zinc-700 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </button>
         )}
+      </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-            Set {template.setIndex + 1}
-          </span>
-          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900 dark:bg-purple-900/40 dark:text-purple-200">
-            {isWarmup ? 'Warm-up' : isAMRAP ? 'AMRAP' : isDropSet ? 'Drop set' : isRestPause ? 'Rest-pause' : isCluster ? 'Cluster' : 'Straight set'}
-          </span>
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-900 dark:bg-blue-900/40 dark:text-blue-200">
-            Target {template.prescribedReps} reps
-          </span>
-          {template.targetRPE && (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-900 dark:bg-orange-900/40 dark:text-orange-200">
-              RPE {template.targetRPE}
-            </span>
-          )}
-          {showTempo && (
-            <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-900 dark:bg-cyan-900/40 dark:text-cyan-200">
-              Tempo {tempo || template.tempo}
-            </span>
-          )}
-          {template.supersetGroup && (
-            <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-900 dark:bg-pink-900/40 dark:text-pink-200">
-              Superset {template.supersetGroup}
-            </span>
-          )}
+      {/* Superset Indicator - Inline */}
+      {nextExerciseInSuperset && (
+        <div className="mb-3 rounded-lg border border-purple-300 bg-purple-50 px-3 py-2 text-xs dark:border-purple-800 dark:bg-purple-900/20">
+          <span className="font-bold text-purple-900 dark:text-purple-200">SUPERSET</span>
+          <span className="mx-1.5 text-purple-700 dark:text-purple-400">→</span>
+          <span className="text-purple-800 dark:text-purple-300">{nextExerciseInSuperset.name}</span>
         </div>
+      )}
 
-        {(suggestion || lastWorkout) && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {suggestion && (
-              <div className="overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-white/90 via-white to-purple-50/70 p-4 shadow-md ring-1 ring-purple-100 dark:border-purple-800 dark:from-zinc-900/80 dark:via-zinc-900 dark:to-purple-950/30 dark:ring-purple-900/40">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-300">
-                      Smart adjust
-                    </p>
-                    <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                      {suggestion.suggestedWeight} lbs
-                    </p>
-                    <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                      {suggestion.reasoning}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full border border-purple-200 bg-white/80 px-3 py-1 text-[11px] font-semibold text-purple-800 ring-1 ring-purple-100 dark:border-purple-900/40 dark:bg-zinc-900/60 dark:text-purple-200 dark:ring-purple-900/40">
-                        Confidence: {suggestion.confidence}
-                      </span>
-                      <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-100 dark:border-emerald-900/40 dark:bg-zinc-900/60 dark:text-emerald-200 dark:ring-emerald-900/40">
-                        Based on {suggestion.basedOn.replace('_', ' ')}
-                      </span>
-                    </div>
-                    {suggestion.fatigueAlert && (
-                      <button
-                        onClick={() => setShowFatigueDetails(prev => !prev)}
-                        className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-purple-700 shadow-sm ring-1 ring-purple-100 transition hover:shadow-md dark:bg-zinc-900/70 dark:text-purple-200 dark:ring-purple-900/50"
-                      >
-                        {showFatigueDetails ? 'Hide analysis' : 'View fatigue analysis'}
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setWeight(suggestion.suggestedWeight.toString())}
-                    className="rounded-xl bg-purple-600 px-4 py-3 text-xs font-bold text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-purple-700"
-                  >
-                    Apply
-                  </button>
-                </div>
-
-                {suggestion.fatigueAlert && showFatigueDetails && (
-                  <div className="mt-4 rounded-xl bg-white/80 p-3 text-xs text-zinc-700 ring-1 ring-purple-100 dark:bg-zinc-900/70 dark:text-zinc-200 dark:ring-purple-900/40">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold uppercase tracking-wide text-red-800 dark:bg-red-900/40 dark:text-red-200">
-                        {suggestion.fatigueAlert.severity} fatigue
-                      </span>
-                      {suggestion.fatigueAlert.affectedMuscles.map(muscle => (
-                        <span
-                          key={muscle}
-                          className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium capitalize text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-                        >
-                          {muscle}
-                        </span>
-                      ))}
-                    </div>
-                    {suggestion.fatigueAlert.detailedExplanation
-                      .split('\n')
-                      .filter(Boolean)
-                      .map((line, idx) => (
-                        <p key={idx} className="mb-1 leading-relaxed">
-                          {line.replace(/\*\*/g, '').replace(/^[-•]\s*/, '')}
-                        </p>
-                      ))}
-                    <div className="mt-2 border-t border-purple-100 pt-2 text-[11px] italic text-zinc-500 dark:border-purple-900/40 dark:text-zinc-400">
-                      {suggestion.fatigueAlert.scientificBasis}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {lastWorkout && (
-              <div className="rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm ring-1 ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/80 dark:ring-zinc-800/80">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      Recent best
-                    </p>
-                    <p className="text-lg font-black text-zinc-900 dark:text-zinc-50">
-                      {lastWorkout.bestSet.actualWeight}lbs × {lastWorkout.bestSet.actualReps}
-                    </p>
-                    {lastWorkout.bestSet.actualRPE && (
-                      <p className="text-xs font-medium text-orange-600 dark:text-orange-300">
-                        @ RPE {lastWorkout.bestSet.actualRPE}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleCopyPreviousSet}
-                    className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 transition-all"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            )}
+      {/* Set History - Overlay when open */}
+      {showHistory && exerciseHistory.length > 0 && (
+        <div className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Recent Sets</span>
+            <button
+              onClick={() => setShowHistory(false)}
+              className="text-xs font-bold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Close
+            </button>
           </div>
-        )}
+          <div className="space-y-1.5">
+            {exerciseHistory.slice(0, 3).map((historySession, idx) => {
+              const dateLabel = historySession.daysAgo === 0 ? 'Today' : historySession.daysAgo === 1 ? 'Yesterday' : `${historySession.daysAgo}d ago`;
+              const bestSet = historySession.sets.reduce((best, set) =>
+                (set.e1rm || 0) > (best.e1rm || 0) ? set : best
+              );
 
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setWeight(bestSet.actualWeight.toString());
+                    setReps(bestSet.actualReps.toString());
+                    if (bestSet.actualRPE) setRpe(bestSet.actualRPE.toString());
+                    setShowHistory(false);
+                  }}
+                  className="w-full flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm hover:bg-purple-50 active:bg-purple-100 dark:bg-zinc-900 dark:hover:bg-purple-900/20 transition-colors"
+                >
+                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{dateLabel}</span>
+                  <span className="font-bold text-zinc-900 dark:text-zinc-50">
+                    {bestSet.actualWeight}lbs × {bestSet.actualReps}
+                    {bestSet.actualRPE && <span className="ml-1 text-xs text-orange-600 dark:text-orange-400">@{bestSet.actualRPE}</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {/* Input Fields - Ultra Clean */}
+      <div>
         {renderSetBody()}
       </div>
 

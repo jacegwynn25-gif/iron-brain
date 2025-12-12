@@ -3,107 +3,90 @@
 interface QuickPickerProps {
   label: string;
   value: string;
-  onChange: (value: string) => void;
-  suggestions: number[];
+  onChange: (value: string);
   step?: number;
   placeholder?: string;
   unit?: string;
+  lastValue?: string; // For "Match Last" button
 }
 
 /**
- * Mobile-optimized quick picker with large touch targets
- * Shows common values as quick-tap buttons
+ * Ultra-simplified picker - just input and 3 smart buttons
+ * Zero scrolling, maximum speed
  */
 export default function QuickPicker({
   label,
   value,
   onChange,
-  suggestions,
   step = 1,
   placeholder,
   unit,
+  lastValue,
 }: QuickPickerProps) {
-  const handleQuickSelect = (val: number) => {
-    onChange(val.toString());
-  };
-
   const incrementValue = (amount: number) => {
     const current = parseFloat(value) || 0;
     onChange((current + amount).toString());
   };
 
+  const matchLast = () => {
+    if (lastValue) {
+      onChange(lastValue);
+    }
+  };
+
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
         {label}
       </label>
 
-      {/* Current Value Display */}
-      <div className="mb-2 flex items-center gap-2">
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          step={step}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-lg font-semibold text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-        />
-        {unit && (
-          <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{unit}</span>
-        )}
-      </div>
-
-      {/* Quick Adjust Buttons */}
-      <div className="mb-2 flex gap-2">
+      {/* Input with inline buttons */}
+      <div className="flex items-stretch gap-2">
+        {/* -5 Button */}
         <button
           type="button"
           onClick={() => incrementValue(-step * 5)}
-          className="flex-1 rounded-lg bg-red-100 py-2 text-sm font-semibold text-red-900 hover:bg-red-200 active:bg-red-300 dark:bg-red-900/30 dark:text-red-100 dark:hover:bg-red-900/40"
+          className="flex items-center justify-center rounded-lg bg-red-50 px-3 text-sm font-bold text-red-700 hover:bg-red-100 active:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30 transition-colors flex-shrink-0"
         >
-          -{step * 5}
+          −5
         </button>
-        <button
-          type="button"
-          onClick={() => incrementValue(-step)}
-          className="flex-1 rounded-lg bg-orange-100 py-2 text-sm font-semibold text-orange-900 hover:bg-orange-200 active:bg-orange-300 dark:bg-orange-900/30 dark:text-orange-100 dark:hover:bg-orange-900/40"
-        >
-          -{step}
-        </button>
-        <button
-          type="button"
-          onClick={() => incrementValue(step)}
-          className="flex-1 rounded-lg bg-green-100 py-2 text-sm font-semibold text-green-900 hover:bg-green-200 active:bg-green-300 dark:bg-green-900/30 dark:text-green-100 dark:hover:bg-green-900/40"
-        >
-          +{step}
-        </button>
+
+        {/* Main Input */}
+        <div className="relative flex-1">
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            step={step}
+            className="w-full rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-center text-2xl font-black text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-purple-600"
+          />
+          {unit && (
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+              {unit}
+            </span>
+          )}
+        </div>
+
+        {/* +5 Button */}
         <button
           type="button"
           onClick={() => incrementValue(step * 5)}
-          className="flex-1 rounded-lg bg-blue-100 py-2 text-sm font-semibold text-blue-900 hover:bg-blue-200 active:bg-blue-300 dark:bg-blue-900/30 dark:text-blue-100 dark:hover:bg-blue-900/40"
+          className="flex items-center justify-center rounded-lg bg-green-50 px-3 text-sm font-bold text-green-700 hover:bg-green-100 active:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30 transition-colors flex-shrink-0"
         >
-          +{step * 5}
+          +5
         </button>
       </div>
 
-      {/* Quick Select Suggestions */}
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              onClick={() => handleQuickSelect(suggestion)}
-              className={`min-w-[60px] rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                value === suggestion.toString()
-                  ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-              }`}
-            >
-              {suggestion}
-              {unit && <span className="ml-1 text-xs opacity-70">{unit}</span>}
-            </button>
-          ))}
-        </div>
+      {/* Match Last Button (if available) */}
+      {lastValue && (
+        <button
+          type="button"
+          onClick={matchLast}
+          className="mt-2 w-full rounded-lg bg-purple-50 py-2 text-sm font-bold text-purple-700 hover:bg-purple-100 active:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30 transition-colors"
+        >
+          Match Last ({lastValue}{unit ? ` ${unit}` : ''})
+        </button>
       )}
     </div>
   );
