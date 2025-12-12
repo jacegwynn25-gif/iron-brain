@@ -911,7 +911,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-50 truncate">{exercise.name}</h2>
             <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
-              Set {template.setIndex + 1} of {setTemplates.filter(s => s.exerciseId === exercise.id).length}
+              Set {template.setIndex + 1}
               {template.prescribedReps && ` • ${template.prescribedReps} reps`}
               {template.targetRPE && ` @ RPE ${template.targetRPE}`}
             </p>
