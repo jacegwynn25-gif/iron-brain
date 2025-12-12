@@ -968,15 +968,26 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             </p>
           </div>
         </div>
-        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
-          progressionStatus.status === 'ready'
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-            : progressionStatus.status === 'deload'
-              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-        }`} title={progressionStatus.message}>
-          <span className="text-base">{progressionStatus.indicator}</span>
-          <span>{progressionStatus.message}</span>
+        <div
+          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm ${
+            progressionStatus.status === 'ready'
+              ? 'border-emerald-200 bg-white/80 text-emerald-700 dark:border-emerald-900/50 dark:bg-zinc-900/70 dark:text-emerald-200'
+              : progressionStatus.status === 'deload'
+                ? 'border-amber-200 bg-white/80 text-amber-800 dark:border-amber-900/50 dark:bg-zinc-900/70 dark:text-amber-200'
+                : 'border-zinc-200 bg-white/80 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200'
+          }`}
+          title={progressionStatus.message}
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              progressionStatus.status === 'ready'
+                ? 'bg-emerald-500'
+                : progressionStatus.status === 'deload'
+                  ? 'bg-amber-500'
+                  : 'bg-zinc-500'
+            }`}
+          />
+          <span className="truncate">{progressionStatus.message}</span>
         </div>
       </div>
         {/* Superset Indicator */}
@@ -1142,10 +1153,10 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                       {suggestion.reasoning}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-purple-100 px-3 py-1 text-[11px] font-semibold text-purple-900 dark:bg-purple-900/40 dark:text-purple-100">
+                      <span className="rounded-full border border-purple-200 bg-white/80 px-3 py-1 text-[11px] font-semibold text-purple-800 ring-1 ring-purple-100 dark:border-purple-900/40 dark:bg-zinc-900/60 dark:text-purple-200 dark:ring-purple-900/40">
                         Confidence: {suggestion.confidence}
                       </span>
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100">
+                      <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-100 dark:border-emerald-900/40 dark:bg-zinc-900/60 dark:text-emerald-200 dark:ring-emerald-900/40">
                         Based on {suggestion.basedOn.replace('_', ' ')}
                       </span>
                     </div>
