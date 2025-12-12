@@ -256,6 +256,12 @@ export default function WorkoutLogger({
   const isLastSet = currentSetIndex >= setTemplates.length - 1;
   const completedSets = session.sets.filter(s => s.completed).length;
   const progressPercentage = setTemplates.length ? (completedSets / setTemplates.length) * 100 : 0;
+  const totalSetsForExercise = currentTemplate
+    ? setTemplates.filter(st => st.exerciseId === currentTemplate.exerciseId).length
+    : 0;
+  const positionForExercise = currentTemplate
+    ? setTemplates.slice(0, currentSetIndex + 1).filter(st => st.exerciseId === currentTemplate.exerciseId).length
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-purple-50/40 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/25 dark:to-zinc-900">
@@ -301,6 +307,8 @@ export default function WorkoutLogger({
           onFinish={finishWorkout}
           currentSessionSets={session.sets}
           nextExerciseInSuperset={nextExerciseInSuperset}
+          setPositionForExercise={positionForExercise}
+          totalSetsForExercise={totalSetsForExercise}
         />
 
         {/* Upcoming Sets Preview - Collapsible */}
@@ -373,22 +381,32 @@ interface SetLoggerProps {
   onFinish: () => void;
   currentSessionSets: SetLog[];
   nextExerciseInSuperset: Exercise | null;
+  setPositionForExercise: number;
+  totalSetsForExercise: number;
 }
 
-function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, currentSessionSets, nextExerciseInSuperset }: SetLoggerProps) {
+function SetLogger({
+  template,
+  exercise,
+  onLog,
+  onSkip,
+  isLastSet,
+  onFinish,
+  currentSessionSets,
+  nextExerciseInSuperset,
+  setPositionForExercise,
+  totalSetsForExercise,
+}: SetLoggerProps) {
   const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
   const isDropSet = setType === 'drop';
   const isRestPause = setType === 'rest-pause';
   const isCluster = setType === 'cluster';
-  const isWarmup = setType === 'warmup';
-  const isAMRAP = setType === 'amrap';
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [rpe, setRpe] = useState('');
   const [rir, setRir] = useState('');
   const [notes, setNotes] = useState('');
-  const [showFatigueDetails, setShowFatigueDetails] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   // Drop set state
@@ -423,19 +441,6 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     window.addEventListener('resize', updateIsMobile);
     return () => window.removeEventListener('resize', updateIsMobile);
   }, []);
-
-  // Calculate Time Under Tension (TUT) from tempo
-  const calculateTUT = (tempo: string, reps: number): number | null => {
-    if (!tempo || !reps) return null;
-
-    // Tempo format: eccentric-pause-concentric-pause (e.g., "3-1-2-0")
-    const parts = tempo.split('-').map(p => parseInt(p));
-    if (parts.length !== 4 || parts.some(isNaN)) return null;
-
-    const [eccentric, bottomPause, concentric, topPause] = parts;
-    const repDuration = eccentric + bottomPause + concentric + topPause;
-    return repDuration * reps;
-  };
 
   const renderSetBody = () => {
     if (isRestPause) {
@@ -639,7 +644,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
             <QuickPicker
               label="Weight"
-              value={weight}
+              value={weightDisplay}
               onChange={setWeight}
               step={0.5}
               min={0}
@@ -648,7 +653,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             />
             <QuickPicker
               label="Reps"
-              value={reps}
+              value={repsDisplay}
               onChange={setReps}
               step={1}
               min={0}
@@ -659,12 +664,12 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
           {/* RPE & Notes - Mobile Optimized */}
           <div className="space-y-3">
             {/* RPE - Slider */}
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 shadow-inner dark:border-zinc-800 dark:bg-zinc-900/60">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                  RPE Slider
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                  RPE
                 </label>
-                <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-black text-orange-700 dark:bg-orange-900/40 dark:text-orange-200">
+                <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-black text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
                   {rpe || '8'}
                 </span>
               </div>
@@ -675,7 +680,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                 step="0.5"
                 value={rpe || '8'}
                 onChange={(e) => setRpe(e.target.value)}
-                className="w-full accent-orange-500"
+                className="w-full accent-purple-500"
               />
               <div className="mt-1 flex justify-between text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                 {[6, 7, 8, 9, 10].map(val => (
@@ -685,13 +690,15 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             </div>
 
             {/* Notes inline */}
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              className="w-full rounded-lg border border-zinc-300 bg-white/80 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
-            />
+            <div className="rounded-2xl border border-zinc-200 bg-white/90 px-3.5 py-2.5 shadow-sm ring-1 ring-zinc-100 focus-within:border-purple-300 focus-within:ring-2 focus-within:ring-purple-500/30 transition-colors dark:border-zinc-800 dark:bg-zinc-900/70 dark:ring-zinc-800 dark:focus-within:border-purple-700 dark:focus-within:ring-purple-500/40">
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full border-none bg-transparent text-[15px] font-semibold text-zinc-900 placeholder:text-zinc-400/80 focus:outline-none focus:ring-0 dark:text-zinc-50 dark:placeholder:text-zinc-500/80"
+              />
+            </div>
           </div>
 
           {/* Advanced Options - Collapsible */}
@@ -824,17 +831,8 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     return base;
   }, [basePrescribedReps, intelligence.fatigueAlert, intelligence.weightRecommendation]);
 
-  useEffect(() => {
-    if (!weight && weightSeed !== null) {
-      setWeight(weightSeed.toString());
-    }
-  }, [weight, weightSeed]);
-
-  useEffect(() => {
-    if (!reps && repSeed !== null) {
-      setReps(repSeed.toString());
-    }
-  }, [reps, repSeed]);
+  const weightDisplay = weight || (weightSeed !== null ? weightSeed.toString() : '');
+  const repsDisplay = reps || (repSeed !== null ? repSeed.toString() : '');
 
   // Get last 3 sessions for this exercise
   const exerciseHistory = useMemo(() => {
@@ -854,24 +852,6 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
       })
       .filter(h => h.sets.length > 0);
   }, [template.exerciseId, nowValue]);
-
-  // Get progression readiness
-  const targetReps = parseInt(template.prescribedReps.split('-')[0]) || 5;
-  const progressionStatus = storage.analyzeProgressionReadiness(
-    template.exerciseId,
-    targetReps,
-    template.targetRPE
-  );
-
-  const handleCopyPreviousSet = useCallback(() => {
-    if (!lastWorkout) return;
-
-    const { bestSet } = lastWorkout;
-    if (bestSet.actualWeight) setWeight(bestSet.actualWeight.toString());
-    if (bestSet.actualReps) setReps(bestSet.actualReps.toString());
-    if (bestSet.actualRPE) setRpe(bestSet.actualRPE.toString());
-    if (bestSet.actualRIR) setRir(bestSet.actualRIR.toString());
-  }, [lastWorkout]);
 
   const handleSubmit = () => {
     const setType = template.setType || 'straight';
@@ -954,7 +934,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   return (
         <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
       {/* Exercise Header - Ultra Compact Single Line */}
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${
             exercise?.type === 'compound'
@@ -964,27 +944,27 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
             <Dumbbell className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-50 truncate">{exercise.name}</h2>
-            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
-              Set {template.setIndex + 1}
-              {template.prescribedReps && ` • ${template.prescribedReps} reps`}
-              {template.targetRPE && ` @ RPE ${template.targetRPE}`}
-            </p>
+            <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 truncate">{exercise.name}</h2>
           </div>
         </div>
-
-        {/* History Icon Button */}
-        {exerciseHistory.length > 0 && (
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="flex-shrink-0 rounded-lg bg-zinc-100 p-2 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
-            title="View history"
-          >
-            <svg className="h-5 w-5 text-zinc-700 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-        )}
+        <div className="flex items-center justify-between gap-2 sm:justify-end sm:flex-none">
+          <p className="text-[11px] sm:text-xs font-bold text-zinc-500 dark:text-zinc-400 sm:text-right">
+            Set {setPositionForExercise} of {totalSetsForExercise}
+            {template.prescribedReps && ` • ${template.prescribedReps} reps`}
+            {template.targetRPE && ` @ RPE ${template.targetRPE}`}
+          </p>
+          {exerciseHistory.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex-shrink-0 rounded-lg bg-zinc-100 p-2 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+              title="View history"
+            >
+              <svg className="h-5 w-5 text-zinc-700 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Superset Indicator - Inline */}
@@ -1153,7 +1133,7 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-2xl bg-white/95 p-2.5 shadow-2xl ring-1 ring-zinc-200 backdrop-blur dark:bg-zinc-900/95 dark:ring-zinc-800">
           <button
             onClick={handleSubmit}
-            className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-3.5 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
+            className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3.5 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
           >
             <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex items-center justify-center">

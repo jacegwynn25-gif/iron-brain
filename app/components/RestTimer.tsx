@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface RestTimerProps {
   isActive: boolean;
@@ -23,13 +23,29 @@ interface RestTimerProps {
 export default function RestTimer({ isActive, duration, onComplete, onSkip, nextSetInfo }: RestTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
+  const endTimeRef = useRef<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const completedRef = useRef(false);
+  const remainingRef = useRef<number>(duration);
+  const pausedRef = useRef<boolean>(false);
+  const onCompleteRef = useRef(onComplete);
+  const onSkipRef = useRef(onSkip);
 
-  // Reset timer when duration changes or becomes active
   useEffect(() => {
-    if (!isActive) return;
-    setTimeRemaining(duration);
-    setIsPaused(false);
-  }, [isActive, duration]);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    onSkipRef.current = onSkip;
+  }, [onSkip]);
+
+  useEffect(() => {
+    remainingRef.current = timeRemaining;
+  }, [timeRemaining]);
+
+  useEffect(() => {
+    pausedRef.current = isPaused;
+  }, [isPaused]);
 
   const playCompletionSound = () => {
     // Create a simple beep using Web Audio API
@@ -55,36 +71,74 @@ export default function RestTimer({ isActive, duration, onComplete, onSkip, next
     }
   };
 
-  // Countdown logic
+  const clearTimer = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    endTimeRef.current = null;
+    completedRef.current = false;
+  };
+
+  // Countdown logic based on end timestamp
   useEffect(() => {
-    if (!isActive || isPaused) return;
+    if (!isActive) {
+      clearTimer();
+      setTimeRemaining(duration);
+      setIsPaused(false);
+      return;
+    }
 
-    const interval = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          // Timer complete
-          if (onComplete) onComplete();
-          playCompletionSound();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    endTimeRef.current = Date.now() + duration * 1000;
+    completedRef.current = false;
+    setIsPaused(false);
+    pausedRef.current = false;
 
-    return () => clearInterval(interval);
-  }, [isActive, isPaused, onComplete]);
+    const tick = () => {
+      if (!endTimeRef.current) return;
+      if (pausedRef.current) return;
+      const msLeft = endTimeRef.current - Date.now();
+      const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
+      setTimeRemaining(secLeft);
+      if (secLeft === 0 && !completedRef.current) {
+        completedRef.current = true;
+        clearTimer();
+        onCompleteRef.current?.();
+        playCompletionSound();
+      }
+    };
+
+    tick();
+    intervalRef.current = setInterval(tick, 250);
+
+    return () => clearTimer();
+  }, [isActive, duration]);
 
   const handleSkip = () => {
+    clearTimer();
     setTimeRemaining(0);
-    if (onSkip) onSkip();
+    onSkipRef.current?.();
   };
 
   const handleAddTime = (seconds: number) => {
-    setTimeRemaining(prev => prev + seconds);
+    if (endTimeRef.current && !pausedRef.current) {
+      endTimeRef.current += seconds * 1000;
+    }
+    setTimeRemaining(prev => {
+      const next = prev + seconds;
+      remainingRef.current = next;
+      return next;
+    });
   };
 
   const togglePause = () => {
-    setIsPaused(prev => !prev);
+    setIsPaused(prev => {
+      const next = !prev;
+      pausedRef.current = next;
+      if (!next) {
+        const secsLeft = remainingRef.current;
+        endTimeRef.current = Date.now() + secsLeft * 1000;
+      }
+      return next;
+    });
   };
 
   if (!isActive) return null;

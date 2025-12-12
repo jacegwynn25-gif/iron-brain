@@ -116,7 +116,6 @@ export function useWorkoutIntelligence(
       // Check for stagnation (no E1RM improvement in 4+ sessions)
       if (recentSessions.length >= 4 && !weightRecommendation) {
         const recent4 = recentSessions.slice(-4);
-        const avgE1RM = recent4.reduce((sum, s) => sum + s.e1rm, 0) / 4;
         const first2Avg = recent4.slice(0, 2).reduce((sum, s) => sum + s.e1rm, 0) / 2;
         const last2Avg = recent4.slice(-2).reduce((sum, s) => sum + s.e1rm, 0) / 2;
 

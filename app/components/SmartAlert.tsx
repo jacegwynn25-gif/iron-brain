@@ -38,6 +38,13 @@ export default function SmartAlert({
   onApply,
   compact = false,
 }: SmartAlertProps) {
+  const iconMap = {
+    fatigue: AlertTriangle,
+    progression: TrendingUp,
+    'pr-opportunity': Award,
+    info: Info,
+  };
+
   // Color scheme based on type and severity
   const getColors = () => {
     switch (type) {
@@ -99,21 +106,8 @@ export default function SmartAlert({
     }
   };
 
-  const getIcon = () => {
-    switch (type) {
-      case 'fatigue':
-        return AlertTriangle;
-      case 'progression':
-        return TrendingUp;
-      case 'pr-opportunity':
-        return Award;
-      default:
-        return Info;
-    }
-  };
-
   const colors = getColors();
-  const Icon = getIcon();
+  const Icon = iconMap[type] ?? Info;
 
   const weightChange = suggestedWeight && currentWeight
     ? ((suggestedWeight - currentWeight) / currentWeight * 100)

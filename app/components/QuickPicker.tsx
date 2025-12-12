@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 interface QuickPickerProps {
   label: string;
@@ -16,50 +16,90 @@ type HoldConfig = {
   startDelay?: number;
   startInterval?: number;
   minInterval?: number;
-  acceleration?: number;
+  accelFactor?: number;
+  accelerate?: boolean;
 };
 
-function useAcceleratingHold(action: () => void, config?: HoldConfig) {
-  const holdDelayRef = useRef<NodeJS.Timeout | null>(null);
-  const repeatRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<number>(config?.startInterval ?? 150); // ~6-7/s start
+function useHoldRepeat(action: () => void, config?: HoldConfig) {
+  const holdTimeoutRef = useRef<number | null>(null);
+  const repeatTimeoutRef = useRef<number | null>(null);
+  const intervalRef = useRef(config?.startInterval ?? 160);
+  const pressedRef = useRef(false);
+  const suppressClickRef = useRef(false);
 
-  const clearTimers = () => {
-    if (holdDelayRef.current) clearTimeout(holdDelayRef.current);
-    if (repeatRef.current) clearTimeout(repeatRef.current);
-    holdDelayRef.current = null;
-    repeatRef.current = null;
-  };
+  const clearTimers = useCallback(() => {
+    if (holdTimeoutRef.current !== null) window.clearTimeout(holdTimeoutRef.current);
+    if (repeatTimeoutRef.current !== null)
+      window.clearTimeout(repeatTimeoutRef.current);
+    holdTimeoutRef.current = null;
+    repeatTimeoutRef.current = null;
+  }, []);
 
-  useEffect(() => clearTimers, []);
+  const stop = useCallback(() => {
+    pressedRef.current = false;
+    clearTimers();
+  }, [clearTimers]);
 
   const startRepeating = () => {
-    intervalRef.current = config?.startInterval ?? 150;
+    const accelerate = config?.accelerate !== false;
+    const accelFactor = config?.accelFactor ?? 0.92;
+    const minInterval = config?.minInterval ?? 55;
+    const baseInterval = config?.startInterval ?? 160;
+
     const tick = () => {
+      if (!pressedRef.current) return;
       action();
-      intervalRef.current = Math.max(
-        config?.minInterval ?? 60, // cap ~16/s
-        intervalRef.current * (config?.acceleration ?? 0.9)
+
+      if (accelerate) {
+        intervalRef.current = Math.max(minInterval, intervalRef.current * accelFactor);
+      } else {
+        intervalRef.current = baseInterval;
+      }
+
+      repeatTimeoutRef.current = window.setTimeout(
+        tick,
+        accelerate ? intervalRef.current : baseInterval
       );
-      repeatRef.current = setTimeout(tick, intervalRef.current);
     };
-    repeatRef.current = setTimeout(tick, intervalRef.current);
+
+    intervalRef.current = baseInterval;
+    tick();
   };
 
-  const handlePointerDown = () => {
-    action(); // initial step
-    holdDelayRef.current = setTimeout(startRepeating, config?.startDelay ?? 320);
-  };
-
-  const stop = () => {
-    clearTimers();
-  };
+  useEffect(() => {
+    const stopAll = () => stop();
+    window.addEventListener('pointerup', stopAll);
+    window.addEventListener('pointercancel', stopAll);
+    window.addEventListener('blur', stopAll);
+    return () => {
+      window.removeEventListener('pointerup', stopAll);
+      window.removeEventListener('pointercancel', stopAll);
+      window.removeEventListener('blur', stopAll);
+      clearTimers();
+    };
+  }, [clearTimers, stop]);
 
   return {
-    onPointerDown: handlePointerDown,
+    onPointerDown: (e: React.PointerEvent) => {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      if (pressedRef.current) return;
+      pressedRef.current = true;
+      suppressClickRef.current = false;
+      intervalRef.current = config?.startInterval ?? 160;
+
+      holdTimeoutRef.current = window.setTimeout(() => {
+        if (!pressedRef.current) return;
+        suppressClickRef.current = true;
+        startRepeating();
+      }, config?.startDelay ?? 280);
+    },
     onPointerUp: stop,
-    onPointerLeave: stop,
+    onPointerLeave: () => {},
     onPointerCancel: stop,
+    suppressClickRef,
+    resetSuppressClick: () => {
+      suppressClickRef.current = false;
+    },
   };
 }
 
@@ -76,6 +116,11 @@ export default function QuickPicker({
   unit,
   min = 0,
 }: QuickPickerProps) {
+  const valueRef = useRef<string>(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
   const precision = useMemo(() => {
     const parts = step.toString().split('.');
     return parts[1]?.length || 0;
@@ -84,69 +129,139 @@ export default function QuickPicker({
   const formatValue = (val: number) => val.toFixed(precision);
 
   const incrementValue = (amount: number) => {
-    const current = parseFloat(value) || 0;
+    const current = parseFloat(valueRef.current) || 0;
     const nextRaw = current + amount;
     const rounded = Math.round(nextRaw / step) * step;
     const clamped = Math.max(min, rounded);
-    onChange(formatValue(clamped));
+    const nextStr = formatValue(clamped);
+    console.log('[QP] increment', {
+      control,
+      prev: current,
+      delta: amount,
+      next: clamped,
+    });
+    valueRef.current = nextStr;
+    onChange(nextStr);
   };
 
   const sanitizeInput = () => {
-    const num = parseFloat(value);
+    const num = parseFloat(valueRef.current);
     if (isNaN(num)) {
+      valueRef.current = '';
       onChange('');
       return;
     }
     const rounded = Math.round(num / step) * step;
     const clamped = Math.max(min, rounded);
-    onChange(formatValue(clamped));
+    const formatted = formatValue(clamped);
+    valueRef.current = formatted;
+    onChange(formatted);
   };
 
-  const incHandlers = useAcceleratingHold(() => incrementValue(step));
-  const decHandlers = useAcceleratingHold(() => incrementValue(-step));
+  const control = label.toLowerCase().includes('weight') ? 'weight' : 'reps';
+  const isWeight = control === 'weight';
+
+  const holdConfig: HoldConfig = isWeight
+    ? { startInterval: 160, minInterval: 55, accelFactor: 0.92, accelerate: true }
+    : { startInterval: 140, accelerate: false };
+
+  const incHandlers = useHoldRepeat(() => incrementValue(step), holdConfig);
+  const decHandlers = useHoldRepeat(() => incrementValue(-step), holdConfig);
+
+  const logEvent = (btn: 'plus' | 'minus', type: string) => {
+    console.log(`[QP] ${control} ${btn} ${type}`, { value });
+  };
+
+  const addLogs = (
+    base: ReturnType<typeof useHoldRepeat>,
+    btn: 'plus' | 'minus'
+  ) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      logEvent(btn, 'pointerdown');
+      base.onPointerDown(e);
+    },
+    onPointerUp: () => {
+      logEvent(btn, 'pointerup');
+      base.onPointerUp();
+    },
+    onPointerLeave: () => {
+      logEvent(btn, 'pointerleave');
+      base.onPointerLeave();
+    },
+    onPointerCancel: () => {
+      logEvent(btn, 'pointercancel');
+      base.onPointerCancel();
+    },
+  });
+
+  const plusHandlers = addLogs(incHandlers, 'plus');
+  const minusHandlers = addLogs(decHandlers, 'minus');
 
   return (
     <div>
-      <label className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+      <label className="mb-2 flex flex-col items-center text-base font-black uppercase tracking-wide text-purple-700 dark:text-purple-200">
         <span>{label}</span>
-        {unit && (
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-            {unit}
-          </span>
-        )}
       </label>
 
-      {/* Input with inline buttons (plus left, minus right) */}
-      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2.5 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
-        {/* Increment on left */}
+      {/* Input with inline buttons (minus left, value center, plus right) */}
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2.5 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+        {/* Decrement on left */}
         <button
           type="button"
-          {...incHandlers}
-          className="h-11 w-11 flex-shrink-0 rounded-xl bg-white text-base font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
-          aria-label={`Increase ${label}`}
+          {...minusHandlers}
+          onClick={() => {
+          logEvent('minus', 'click');
+            if (decHandlers.suppressClickRef.current) {
+              decHandlers.resetSuppressClick();
+              return;
+            }
+            incrementValue(-step);
+          }}
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          aria-label={`Decrease ${label}`}
+          style={{ pointerEvents: 'auto', touchAction: 'none' }}
         >
-          +{step}
+          -
         </button>
 
         {/* Main Input */}
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={sanitizeInput}
-          placeholder={placeholder}
-          step={step}
-          className="flex-1 border-none bg-transparent text-center text-3xl font-black text-zinc-900 focus:outline-none focus:ring-0 dark:text-zinc-50"
-        />
+        <div className="flex items-center justify-center gap-2">
+          <input
+            type="number"
+            value={value}
+            onChange={(e) => {
+              valueRef.current = e.target.value;
+              onChange(e.target.value);
+            }}
+            onBlur={sanitizeInput}
+            placeholder={placeholder}
+            step={step}
+            className="w-24 border-none bg-transparent text-center text-3xl font-black text-zinc-900 focus:outline-none focus:ring-0 dark:text-zinc-50"
+          />
+          {unit && (
+            <span className="text-sm font-bold text-zinc-500 dark:text-zinc-300">
+              {unit}
+            </span>
+          )}
+        </div>
 
-        {/* Decrement on right */}
+        {/* Increment on right */}
         <button
           type="button"
-          {...decHandlers}
-          className="h-11 w-11 flex-shrink-0 rounded-xl bg-white text-base font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
-          aria-label={`Decrease ${label}`}
+          {...plusHandlers}
+          onClick={() => {
+            logEvent('plus', 'click');
+            if (incHandlers.suppressClickRef.current) {
+              incHandlers.resetSuppressClick();
+              return;
+            }
+            incrementValue(step);
+          }}
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          aria-label={`Increase ${label}`}
+          style={{ pointerEvents: 'auto', touchAction: 'none' }}
         >
-          -{step}
+          +
         </button>
       </div>
     </div>
