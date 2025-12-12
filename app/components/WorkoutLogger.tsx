@@ -9,7 +9,7 @@ import RestTimer from './RestTimer';
 import QuickPicker from './QuickPicker';
 import SmartAlert from './SmartAlert';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, AlertTriangle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -409,6 +409,13 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
   // Tempo tracking (only when prescribed in template)
   const [tempo, setTempo] = useState(template.tempo || '');
   const showTempo = Boolean(template.tempo);
+  const [activeAlert, setActiveAlert] = useState<'fatigue' | 'weight-rec' | null>(null);
+
+  const basePrescribedReps = useMemo(() => {
+    if (!template.prescribedReps) return null;
+    const first = parseInt(template.prescribedReps.split('-')[0]);
+    return isNaN(first) ? null : first;
+  }, [template.prescribedReps]);
 
   useEffect(() => {
     const updateIsMobile = () => setIsMobile(window.innerWidth <= 640);
@@ -634,62 +641,46 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               label="Weight"
               value={weight}
               onChange={setWeight}
-              step={5}
+              step={0.5}
+              min={0}
               placeholder="225"
               unit="lbs"
-              lastValue={lastWorkout?.bestSet.actualWeight?.toString()}
             />
             <QuickPicker
               label="Reps"
               value={reps}
               onChange={setReps}
               step={1}
+              min={0}
               placeholder={template.prescribedReps}
-              lastValue={lastWorkout?.bestSet.actualReps?.toString()}
             />
           </div>
 
           {/* RPE & Notes - Mobile Optimized */}
           <div className="space-y-3">
-            {/* RPE - Large touch-friendly input */}
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                RPE
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={rpe}
-                  onChange={(e) => setRpe(e.target.value)}
-                  placeholder="8"
-                  step="0.5"
-                  min="1"
-                  max="10"
-                  className="flex-1 rounded-lg border-2 border-zinc-300 bg-white px-4 py-3 text-center text-2xl font-black text-zinc-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-orange-600"
-                />
-                {/* Quick +/- buttons */}
-                <div className="flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setRpe((prev) => {
-                      const current = parseFloat(prev) || 8;
-                      return Math.min(10, current + 0.5).toString();
-                    })}
-                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  >
-                    +0.5
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRpe((prev) => {
-                      const current = parseFloat(prev) || 8;
-                      return Math.max(1, current - 0.5).toString();
-                    })}
-                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  >
-                    -0.5
-                  </button>
-                </div>
+            {/* RPE - Slider */}
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 shadow-inner dark:border-zinc-800 dark:bg-zinc-900/60">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                  RPE Slider
+                </label>
+                <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-black text-orange-700 dark:bg-orange-900/40 dark:text-orange-200">
+                  {rpe || '8'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="6"
+                max="10"
+                step="0.5"
+                value={rpe || '8'}
+                onChange={(e) => setRpe(e.target.value)}
+                className="w-full accent-orange-500"
+              />
+              <div className="mt-1 flex justify-between text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
+                {[6, 7, 8, 9, 10].map(val => (
+                  <span key={val}>{val}</span>
+                ))}
               </div>
             </div>
 
@@ -817,6 +808,33 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
     exercise,
     lastWorkout?.bestSet
   );
+
+  const weightSeed = useMemo(() => {
+    if (intelligence.weightRecommendation?.suggestedWeight) return intelligence.weightRecommendation.suggestedWeight;
+    if (suggestion?.suggestedWeight) return suggestion.suggestedWeight;
+    if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
+    return null;
+  }, [intelligence.weightRecommendation, suggestion?.suggestedWeight, lastWorkout?.bestSet.actualWeight]);
+
+  const repSeed = useMemo(() => {
+    let base = basePrescribedReps;
+    if (intelligence.fatigueAlert || intelligence.weightRecommendation?.type === 'decrease') {
+      base = base !== null ? Math.max(1, base - 1) : base;
+    }
+    return base;
+  }, [basePrescribedReps, intelligence.fatigueAlert, intelligence.weightRecommendation]);
+
+  useEffect(() => {
+    if (!weight && weightSeed !== null) {
+      setWeight(weightSeed.toString());
+    }
+  }, [weight, weightSeed]);
+
+  useEffect(() => {
+    if (!reps && repSeed !== null) {
+      setReps(repSeed.toString());
+    }
+  }, [reps, repSeed]);
 
   // Get last 3 sessions for this exercise
   const exerciseHistory = useMemo(() => {
@@ -1020,11 +1038,59 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
         </div>
       )}
 
-      {/* Smart Alerts - Science-Backed Recommendations */}
+      {/* Smart Alerts - Icon triggers */}
       {intelligence.hasRecommendation && (
-        <div className="mb-3">
-          {/* Fatigue Alert (Priority 1 - Safety First) */}
-          {intelligence.fatigueAlert && !dismissedAlerts.has('fatigue') && (
+        <div className="mb-3 space-y-2">
+          <div className="flex gap-2">
+            {intelligence.fatigueAlert && !dismissedAlerts.has('fatigue') && (
+              <button
+                onClick={() => setActiveAlert(activeAlert === 'fatigue' ? null : 'fatigue')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all shadow-sm ${
+                  activeAlert === 'fatigue'
+                    ? 'border-red-400 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100'
+                    : 'border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-zinc-900 dark:text-red-200 dark:hover:bg-red-900/20'
+                }`}
+                title="Fatigue adjustment available"
+              >
+                <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="absolute inset-0 animate-ping rounded-full bg-red-300/40" />
+                </span>
+                <span className="text-left leading-tight">
+                  Lower weight recommended
+                </span>
+              </button>
+            )}
+            {intelligence.weightRecommendation &&
+             intelligence.weightRecommendation.type !== 'maintain' &&
+             !dismissedAlerts.has('weight-rec') && (
+              <button
+                onClick={() => setActiveAlert(activeAlert === 'weight-rec' ? null : 'weight-rec')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all shadow-sm ${
+                  activeAlert === 'weight-rec'
+                    ? 'border-emerald-400 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100'
+                    : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-zinc-900 dark:text-emerald-200 dark:hover:bg-emerald-900/20'
+                }`}
+                title="Progression suggestion"
+              >
+                <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                  {intelligence.weightRecommendation.type === 'increase' ? (
+                    <ArrowUpCircle className="h-4 w-4" />
+                  ) : (
+                    <ArrowDownCircle className="h-4 w-4" />
+                  )}
+                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300/40" />
+                </span>
+                <span className="text-left leading-tight">
+                  {intelligence.weightRecommendation.type === 'increase' ? 'Add load' : 'Drop load'}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {activeAlert === 'fatigue' &&
+           intelligence.fatigueAlert &&
+           !dismissedAlerts.has('fatigue') && (
             <SmartAlert
               type="fatigue"
               severity={intelligence.fatigueAlert.severity}
@@ -1040,14 +1106,16 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
                   setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
                 }
               }}
-              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('fatigue'))}
+              onDismiss={() => {
+                setDismissedAlerts(prev => new Set(prev).add('fatigue'));
+                setActiveAlert(null);
+              }}
             />
           )}
 
-          {/* Weight Recommendation (Increase/Decrease) */}
-          {intelligence.weightRecommendation &&
+          {activeAlert === 'weight-rec' &&
+           intelligence.weightRecommendation &&
            intelligence.weightRecommendation.type !== 'maintain' &&
-           !intelligence.fatigueAlert &&
            !dismissedAlerts.has('weight-rec') && (
             <SmartAlert
               type={intelligence.weightRecommendation.type === 'increase' ? 'progression' : 'fatigue'}
@@ -1066,26 +1134,10 @@ function SetLogger({ template, exercise, onLog, onSkip, isLastSet, onFinish, cur
               onApply={() => {
                 setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
               }}
-              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('weight-rec'))}
-            />
-          )}
-
-          {/* PR Opportunity */}
-          {intelligence.prOpportunity?.isOpportunity && !dismissedAlerts.has('pr') && (
-            <SmartAlert
-              type="pr-opportunity"
-              severity="mild"
-              title="Personal Record Opportunity"
-              message={`You're ${intelligence.prOpportunity.gap.toFixed(0)} lbs away from your ${intelligence.prOpportunity.type === 'max_weight' ? 'max weight' : 'E1RM'} PR!`}
-              suggestedWeight={intelligence.prOpportunity.targetWeight}
-              currentWeight={lastWorkout?.bestSet.actualWeight}
-              scientificBasis="Progressive overload: Small, incremental increases above previous bests drive long-term strength gains."
-              confidence={0.75}
-              compact={isMobile}
-              onApply={() => {
-                setWeight(intelligence.prOpportunity!.targetWeight.toString());
+              onDismiss={() => {
+                setDismissedAlerts(prev => new Set(prev).add('weight-rec'));
+                setActiveAlert(null);
               }}
-              onDismiss={() => setDismissedAlerts(prev => new Set(prev).add('pr'))}
             />
           )}
         </div>
