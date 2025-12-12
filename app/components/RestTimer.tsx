@@ -57,7 +57,7 @@ export default function RestTimer({ isActive, duration, onComplete, onSkip, next
 
   // Countdown logic
   useEffect(() => {
-    if (!isActive || isPaused || timeRemaining <= 0) return;
+    if (!isActive || isPaused) return;
 
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
@@ -72,7 +72,7 @@ export default function RestTimer({ isActive, duration, onComplete, onSkip, next
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, isPaused, timeRemaining, onComplete]);
+  }, [isActive, isPaused, onComplete]);
 
   const handleSkip = () => {
     setTimeRemaining(0);
