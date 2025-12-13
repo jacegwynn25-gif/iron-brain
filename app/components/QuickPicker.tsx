@@ -204,7 +204,7 @@ export default function QuickPicker({
       </label>
 
       {/* Input with inline buttons (minus left, value center, plus right) */}
-      <div className="grid grid-cols-[48px_minmax(0,1fr)_48px] sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
+      <div className="grid grid-cols-[44px_minmax(92px,1fr)_44px] sm:grid-cols-[48px_minmax(120px,1fr)_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
         {/* Decrement on left */}
         <button
           type="button"
@@ -218,7 +218,7 @@ export default function QuickPicker({
             incrementValue(-step);
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-manipulation dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
+          className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Decrease ${label}`}
           style={{
             WebkitTapHighlightColor: 'transparent',
@@ -233,8 +233,8 @@ export default function QuickPicker({
         </button>
 
         {/* Main Input */}
-        <div className="min-w-0 flex flex-col items-center justify-center px-2 sm:px-3">
-          <div className="flex items-center justify-center gap-2 min-w-0">
+        <div className="min-w-0 w-full flex flex-col items-center justify-center px-1 sm:px-3">
+          <div className="flex items-center justify-center gap-2 min-w-0 w-full">
             <input
               type="number"
               value={value}
@@ -245,7 +245,7 @@ export default function QuickPicker({
               onBlur={sanitizeInput}
               placeholder={placeholder}
               step={step}
-              className="w-full max-w-[110px] min-w-0 border-none bg-transparent text-center text-2xl font-black tabular-nums text-zinc-900 select-text focus:outline-none focus:ring-0 dark:text-zinc-50 sm:max-w-[140px] sm:text-3xl"
+              className="w-full min-w-0 border-none bg-transparent text-center text-2xl leading-none font-black tabular-nums text-zinc-900 select-text focus:outline-none focus:ring-0 dark:text-zinc-50 sm:text-3xl"
             />
             {unit && (
               <span className="hidden sm:inline text-sm font-bold text-zinc-500 dark:text-zinc-300">
@@ -254,7 +254,7 @@ export default function QuickPicker({
             )}
           </div>
           {unit && (
-            <span className="mt-0.5 text-[11px] font-bold text-zinc-500 dark:text-zinc-300 sm:hidden">
+            <span className="mt-0.5 text-[11px] font-bold leading-none text-zinc-500 dark:text-zinc-300 sm:hidden">
               {unit}
             </span>
           )}
@@ -273,7 +273,7 @@ export default function QuickPicker({
             incrementValue(step);
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-manipulation dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
+          className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Increase ${label}`}
           style={{
             WebkitTapHighlightColor: 'transparent',
