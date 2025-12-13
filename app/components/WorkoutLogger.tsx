@@ -632,9 +632,9 @@ function SetLogger({
     return (
       <>
         {/* Ultra-Compact Single Card - Zero Scrolling */}
-        <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
+        <div className="rounded-xl bg-white/95 p-2 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
           {/* Weight & Reps - Side by Side */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 -mx-1 sm:mx-0">
             <div className="min-w-0">
               <QuickPicker
                 label="Weight"

@@ -204,7 +204,7 @@ export default function QuickPicker({
       </label>
 
       {/* Input with inline buttons (minus left, value center, plus right) */}
-      <div className="grid grid-cols-[44px_minmax(92px,1fr)_44px] sm:grid-cols-[48px_minmax(120px,1fr)_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
+      <div className="grid w-full grid-cols-[44px_minmax(0,1fr)_44px] sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm overflow-visible dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
         {/* Decrement on left */}
         <button
           type="button"
@@ -218,7 +218,7 @@ export default function QuickPicker({
             incrementValue(-step);
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Decrease ${label}`}
           style={{
             WebkitTapHighlightColor: 'transparent',
@@ -273,7 +273,7 @@ export default function QuickPicker({
             incrementValue(step);
           }}
           onContextMenu={(e) => e.preventDefault()}
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Increase ${label}`}
           style={{
             WebkitTapHighlightColor: 'transparent',
