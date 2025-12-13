@@ -1,9 +1,10 @@
 'use client';
+
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Dumbbell, History, BarChart3, Wrench, ChevronDown, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
+import { Dumbbell, History, BarChart3, Wrench, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
 import { allPrograms, defaultExercises } from './lib/programs';
 import { Exercise, SetTemplate, ProgramTemplate, WorkoutSession, WeekTemplate, DayTemplate } from './lib/types';
 import WorkoutLogger from './components/WorkoutLogger';
@@ -81,6 +82,10 @@ export default function Home() {
     () => (profile ? `iron_brain_user_programs__${profile.id}` : 'iron_brain_user_programs_default'),
     [profile]
   );
+  const selectedProgramKey = useMemo(
+    () => (profile ? `iron_brain_selected_program__${profile.id}` : 'iron_brain_selected_program__guest'),
+    [profile]
+  );
   const activeSessionKey = useMemo(
     () => (profile ? `iron_brain_active_session__${profile.id}` : 'iron_brain_active_session__guest'),
     [profile]
@@ -106,7 +111,6 @@ export default function Home() {
   // IMPORTANT: Week selector and day selector should be visible by default for better UX
   // Only hide program selector and advanced settings
   const [showProgramSelector, setShowProgramSelector] = useState(false);
-  const [showWeekSelector, setShowWeekSelector] = useState(true); // Changed to true - users need to see this!
 
   // Data
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
@@ -205,9 +209,8 @@ export default function Home() {
     }},
   ], !isLogging && !isBuilding); // Disable when in logging or building mode
 
-  const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const getSuggestedWeekAndDay = (program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
+  const getSuggestedWeekAndDay = useCallback((program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
+    const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const todayLabel = dayOrder[new Date().getDay()] as DayTemplate['dayOfWeek'];
     const weeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
     const findDayIndex = (week: WeekTemplate | undefined, day: DayTemplate['dayOfWeek']) =>
@@ -266,26 +269,42 @@ export default function Home() {
     const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
     const dayIdx = findDayIndex(nextWeek, todayLabel);
     return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
-  };
+  }, []);
 
-  const handleSelectProgram = (program: ProgramTemplate) => {
+  const createId = useCallback((prefix: string) => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
+    return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  }, []);
+
+  const handleSelectProgram = useCallback((program: ProgramTemplate) => {
     if (hasUnsavedChanges) {
       if (!confirm('You have unsaved changes. Discard them and switch programs?')) {
         return;
       }
     }
-    setSelectedProgram(program);
-    setOriginalProgram(program);
-    const suggestion = getSuggestedWeekAndDay(program, workoutHistory, todayKey);
+    const isBuiltIn = allPrograms.some(p => p.id === program.id);
+    let programToUse = program;
+
+    if (isBuiltIn) {
+      const clone: ProgramTemplate = {
+        ...program,
+        id: `userprog_${createId('prog')}`,
+      };
+      const updatedUserPrograms = [...userPrograms, clone];
+      setUserPrograms(updatedUserPrograms);
+      localStorage.setItem(userProgramsKey, JSON.stringify(updatedUserPrograms));
+      programToUse = clone;
+    }
+
+    localStorage.setItem(selectedProgramKey, programToUse.id);
+
+    setSelectedProgram(programToUse);
+    setOriginalProgram(programToUse);
+    const suggestion = getSuggestedWeekAndDay(programToUse, workoutHistory, todayKey);
     setSelectedWeek(suggestion.week);
     setSelectedDayIndex(suggestion.dayIndex);
     setShowProgramSelector(false);
-  };
-
-  const createId = (prefix: string) => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
-    return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-  };
+  }, [createId, hasUnsavedChanges, userPrograms, userProgramsKey, workoutHistory, todayKey, selectedProgramKey, getSuggestedWeekAndDay]);
 
   const handleSaveChanges = () => {
     if (!selectedProgram) return;
@@ -328,6 +347,21 @@ export default function Home() {
       setSelectedProgram(originalProgram);
     }
   };
+
+  // Restore selected program from storage if available
+  useEffect(() => {
+    if (!hydrated || isLogging || selectedProgram) return;
+    if (typeof window === 'undefined') return;
+    const storedId = localStorage.getItem(selectedProgramKey);
+    if (!storedId) return;
+    const program =
+      userPrograms.find(p => p.id === storedId) ||
+      allPrograms.find(p => p.id === storedId) ||
+      null;
+    if (program) {
+      handleSelectProgram(program);
+    }
+  }, [hydrated, isLogging, selectedProgram, selectedProgramKey, userPrograms, handleSelectProgram]);
 
   const handleDeleteProgram = (programId: string) => {
     const updatedUserPrograms = userPrograms.filter(p => p.id !== programId);
@@ -445,7 +479,7 @@ export default function Home() {
       localStorage.setItem('iron_brain_profile', JSON.stringify(mapped));
       setProfile(mapped);
     }
-  }, [session, rememberProfile]);
+  }, [session, rememberProfile, createId]);
 
   const getExercise = (exerciseId: string): Exercise | undefined => {
     return defaultExercises.find(ex => ex.id === exerciseId);
@@ -1033,21 +1067,15 @@ export default function Home() {
                         >
                           Edit in Builder
                         </button>
-                        <button
-                          onClick={() => setShowProgramSelector(true)}
-                          className="w-full sm:w-auto rounded-xl border-2 border-purple-200 bg-white px-5 py-3 text-sm font-bold text-purple-700 shadow-md transition-all hover:border-purple-300 hover:shadow-lg dark:border-purple-900 dark:bg-zinc-900 dark:text-purple-200 dark:hover:border-purple-700"
-                        >
-                          Choose Different
-                        </button>
-                        <button
-                          onClick={handleCreateNewFromBuilder}
-                          className="w-full sm:w-auto rounded-xl border-2 border-zinc-200 bg-white px-5 py-3 text-sm font-bold text-zinc-800 shadow-md transition-all hover:border-green-300 hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-green-600"
-                        >
-                          Create New
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setShowProgramSelector(true)}
+                        className="w-full sm:w-auto rounded-xl border-2 border-purple-200 bg-white px-5 py-3 text-sm font-bold text-purple-700 shadow-md transition-all hover:border-purple-300 hover:shadow-lg dark:border-purple-900 dark:bg-zinc-900 dark:text-purple-200 dark:hover:border-purple-700"
+                      >
+                        Choose Different
+                      </button>
                     </div>
                   </div>
+                </div>
                 </div>
               ) : (
                 <div className="rounded-2xl bg-gradient-to-br from-zinc-900 via-purple-900 to-purple-700 p-1 shadow-2xl">
@@ -1109,79 +1137,54 @@ export default function Home() {
             </div>
 
             {selectedProgram && (
-              <>
-                {/* Collapsible Week Selector */}
-                <div className="mb-6 animate-fadeIn" style={{animationDelay: '0.2s'}}>
-              <button
-                onClick={() => setShowWeekSelector(!showWeekSelector)}
-                className="w-full flex items-center justify-between rounded-xl bg-white p-5 shadow-md transition-all hover:shadow-xl hover:scale-[1.02] border-2 border-zinc-200 hover:border-green-300 dark:bg-zinc-900 dark:border-zinc-700 dark:hover:border-green-600 group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                    <History className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Current Week
-                    </p>
-                    <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                      Week {selectedWeek}
-                    </p>
-                  </div>
-                </div>
-                {showWeekSelector ? (
-                  <ChevronUp className="h-6 w-6 text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" />
-                ) : (
-                  <ChevronDown className="h-6 w-6 text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" />
-                )}
-              </button>
-
-              {showWeekSelector && (
-                <div className="mt-4 animate-fadeIn">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-1 gap-2 overflow-x-auto rounded-2xl bg-gradient-to-br from-white to-zinc-50/50 p-4 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:to-zinc-900/50 dark:border-zinc-800 depth-effect">
-                      {availableWeeks.map((weekNum) => (
-                        <button
-                          key={weekNum}
-                          onClick={() => setSelectedWeek(weekNum)}
-                          className={`flex-shrink-0 rounded-xl px-5 py-2.5 font-bold transition-all hover:scale-105 ${
-                            selectedWeek === weekNum
-                              ? 'gradient-purple text-white shadow-md'
-                              : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                          }`}
-                        >
-                          Week {weekNum}
-                        </button>
-                      ))}
+              <div className="mb-6 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-md border-2 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
+                      <History className="h-6 w-6 text-green-600 dark:text-green-400" />
                     </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Select Week</p>
+                      <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Week {selectedWeek}</p>
+                    </div>
+                  </div>
+                  {hasUnsavedChanges && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDiscardChanges}
+                        className="flex items-center gap-2 rounded-xl border-2 border-zinc-300 bg-white px-4 py-2 font-semibold text-zinc-700 shadow-md transition-all hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      >
+                        Discard
+                      </button>
+                      <button
+                        onClick={handleSaveChanges}
+                        className="flex items-center gap-2 gradient-green rounded-xl px-4 py-2 font-bold text-white shadow-glow-green transition-all hover:shadow-xl hover:scale-105"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-                    {/* Quick Save Button (appears when changes detected) */}
-                    {hasUnsavedChanges && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleDiscardChanges}
-                          className="flex items-center gap-2 rounded-xl border-2 border-zinc-300 bg-white px-6 py-3 font-semibold text-zinc-700 shadow-md transition-all hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          Discard
-                        </button>
-                        <button
-                          onClick={handleSaveChanges}
-                          className="flex items-center gap-2 gradient-green rounded-xl px-6 py-3 font-bold text-white shadow-glow-green transition-all hover:shadow-xl hover:scale-105"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Save Program
-                        </button>
-                      </div>
-                    )}
+                <div className="mt-4 animate-fadeIn">
+                  <div className="flex flex-wrap gap-2">
+                    {availableWeeks.map((weekNum) => (
+                      <button
+                        key={weekNum}
+                        onClick={() => setSelectedWeek(weekNum)}
+                        className={`flex-shrink-0 rounded-xl px-4 py-2 font-bold transition-all ${
+                          selectedWeek === weekNum
+                            ? 'gradient-purple text-white shadow-md'
+                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                        }`}
+                      >
+                        Week {weekNum}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Day Selector */}
             <div className="mb-8 animate-fadeIn" style={{animationDelay: '0.3s'}}>
@@ -1407,8 +1410,6 @@ export default function Home() {
             </div>
           </>
         )}
-      </>
-    )}
       </div>
 
       {summarySession && (

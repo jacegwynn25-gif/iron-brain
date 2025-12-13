@@ -46,7 +46,8 @@ export interface WorkoutIntelligence {
 export function useWorkoutIntelligence(
   completedSets: SetLog[],
   upcomingExercise: Exercise | null,
-  lastWorkoutBestSet?: { actualWeight?: number | null; actualReps?: number | null; actualRPE?: number | null }
+  lastWorkoutBestSet?: { actualWeight?: number | null; actualReps?: number | null; actualRPE?: number | null },
+  targetRPE?: number | null
 ): WorkoutIntelligence {
   const intelligence = useMemo(() => {
     if (!upcomingExercise) {
@@ -68,6 +69,7 @@ export function useWorkoutIntelligence(
       const lastWeight = lastWorkoutBestSet.actualWeight;
       const lastReps = lastWorkoutBestSet.actualReps;
       const lastRPE = lastWorkoutBestSet.actualRPE;
+      const targetRpeValue = targetRPE ?? null;
 
       // Get progression history for this exercise
       const progression = getE1RMProgression(upcomingExercise.id);
@@ -76,40 +78,53 @@ export function useWorkoutIntelligence(
       // Progressive overload logic
       // Based on Zourdos et al. (2016) - 2-5% increases when RPE < 8.5
       if (lastRPE !== null && lastRPE !== undefined) {
-        // INCREASE: Consistently undershooting RPE
-        if (lastRPE < 7.5 && lastReps >= 8) {
-          const increase = Math.max(5, Math.round(lastWeight * 0.025)); // 2.5% or minimum 5lbs
-          weightRecommendation = {
-            type: 'increase',
-            suggestedWeight: lastWeight + increase,
-            currentWeight: lastWeight,
-            reasoning: `Last set felt easy (RPE ${lastRPE}). Ready for progressive overload.`,
-            confidence: 0.85,
-            scientificBasis: 'Zourdos et al. (2016): 2-5% load increases recommended when RPE consistently < 8.0 and technique is solid.',
-          };
-        }
-        // INCREASE: Hitting high reps with room to spare
-        else if (lastRPE <= 8.0 && lastReps >= 12) {
-          const increase = Math.max(5, Math.round(lastWeight * 0.03)); // 3% or minimum 5lbs
-          weightRecommendation = {
-            type: 'increase',
-            suggestedWeight: lastWeight + increase,
-            currentWeight: lastWeight,
-            reasoning: `High reps (${lastReps}) with moderate RPE (${lastRPE}). Time to increase load.`,
-            confidence: 0.80,
-            scientificBasis: 'Schoenfeld et al. (2017): Progressive overload is key for hypertrophy. When rep count exceeds 12 with RPE < 8, load should increase.',
-          };
-        }
-        // MAINTAIN: Good progression
-        else if (lastRPE >= 7.5 && lastRPE <= 9.0) {
+        const overshotTarget = targetRpeValue !== null && lastRPE > targetRpeValue + 0.25;
+
+        if (overshotTarget) {
           weightRecommendation = {
             type: 'maintain',
             suggestedWeight: lastWeight,
             currentWeight: lastWeight,
-            reasoning: `RPE ${lastRPE} is in the optimal hypertrophy range (7.5-9.0).`,
-            confidence: 0.90,
-            scientificBasis: 'Helms et al. (2018): RPE 7.5-9.0 provides optimal stimulus-to-fatigue ratio for muscle growth.',
+            reasoning: `Overshot target RPE ${targetRpeValue} (actual ${lastRPE}). Hold load to stay on prescription.`,
+            confidence: 0.6,
+            scientificBasis: 'Autoregulated progression avoids load increases when target RPE is exceeded.',
           };
+        } else {
+          // INCREASE: Consistently undershooting RPE
+          if (lastRPE < 7.5 && lastReps >= 8) {
+            const increase = Math.max(5, Math.round(lastWeight * 0.025)); // 2.5% or minimum 5lbs
+            weightRecommendation = {
+              type: 'increase',
+              suggestedWeight: lastWeight + increase,
+              currentWeight: lastWeight,
+              reasoning: `Last set felt easy (RPE ${lastRPE}). Ready for progressive overload.`,
+              confidence: 0.85,
+              scientificBasis: 'Zourdos et al. (2016): 2-5% load increases recommended when RPE consistently < 8.0 and technique is solid.',
+            };
+          }
+          // INCREASE: Hitting high reps with room to spare
+          else if (lastRPE <= 8.0 && lastReps >= 12) {
+            const increase = Math.max(5, Math.round(lastWeight * 0.03)); // 3% or minimum 5lbs
+            weightRecommendation = {
+              type: 'increase',
+              suggestedWeight: lastWeight + increase,
+              currentWeight: lastWeight,
+              reasoning: `High reps (${lastReps}) with moderate RPE (${lastRPE}). Time to increase load.`,
+              confidence: 0.80,
+              scientificBasis: 'Schoenfeld et al. (2017): Progressive overload is key for hypertrophy. When rep count exceeds 12 with RPE < 8, load should increase.',
+            };
+          }
+          // MAINTAIN: Good progression
+          else if (lastRPE >= 7.5 && lastRPE <= 9.0) {
+            weightRecommendation = {
+              type: 'maintain',
+              suggestedWeight: lastWeight,
+              currentWeight: lastWeight,
+              reasoning: `RPE ${lastRPE} is in the optimal hypertrophy range (7.5-9.0).`,
+              confidence: 0.90,
+              scientificBasis: 'Helms et al. (2018): RPE 7.5-9.0 provides optimal stimulus-to-fatigue ratio for muscle growth.',
+            };
+          }
         }
       }
 
@@ -196,7 +211,7 @@ export function useWorkoutIntelligence(
       prOpportunity,
       hasRecommendation,
     };
-  }, [completedSets, upcomingExercise, lastWorkoutBestSet]);
+  }, [completedSets, upcomingExercise, lastWorkoutBestSet, targetRPE]);
 
   return intelligence;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Exercise, SetTemplate, SetLog, WorkoutSession, ProgramTemplate } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
@@ -408,7 +408,6 @@ function SetLogger({
   const [rir, setRir] = useState('');
   const [notes, setNotes] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   // Drop set state
   const [dropSetRounds, setDropSetRounds] = useState<Array<{ weight: string; reps: string; rpe: string }>>([
     { weight: '', reps: '', rpe: '' },
@@ -428,19 +427,13 @@ function SetLogger({
   const [tempo, setTempo] = useState(template.tempo || '');
   const showTempo = Boolean(template.tempo);
   const [activeAlert, setActiveAlert] = useState<'fatigue' | 'weight-rec' | null>(null);
+  const closeAlert = useCallback(() => setActiveAlert(null), []);
 
   const basePrescribedReps = useMemo(() => {
     if (!template.prescribedReps) return null;
     const first = parseInt(template.prescribedReps.split('-')[0]);
     return isNaN(first) ? null : first;
   }, [template.prescribedReps]);
-
-  useEffect(() => {
-    const updateIsMobile = () => setIsMobile(window.innerWidth <= 640);
-    updateIsMobile();
-    window.addEventListener('resize', updateIsMobile);
-    return () => window.removeEventListener('resize', updateIsMobile);
-  }, []);
 
   const renderSetBody = () => {
     if (isRestPause) {
@@ -641,7 +634,7 @@ function SetLogger({
         {/* Ultra-Compact Single Card - Zero Scrolling */}
         <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
           {/* Weight & Reps - Side by Side */}
-          <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3">
             <QuickPicker
               label="Weight"
               value={weightDisplay}
@@ -813,7 +806,8 @@ function SetLogger({
   const intelligence = useWorkoutIntelligence(
     currentSessionSets,
     exercise,
-    lastWorkout?.bestSet
+    lastWorkout?.bestSet,
+    template.targetRPE ?? null
   );
 
   const weightSeed = useMemo(() => {
@@ -833,6 +827,59 @@ function SetLogger({
 
   const weightDisplay = weight || (weightSeed !== null ? weightSeed.toString() : '');
   const repsDisplay = reps || (repSeed !== null ? repSeed.toString() : '');
+  let alertContent: React.ReactNode = null;
+  if (activeAlert === 'fatigue' && intelligence.fatigueAlert && !dismissedAlerts.has('fatigue')) {
+    alertContent = (
+      <SmartAlert
+        type="fatigue"
+        severity={intelligence.fatigueAlert.severity}
+        title={`Fatigue Detected: ${intelligence.fatigueAlert.affectedMuscles.join(', ')}`}
+        message={intelligence.fatigueAlert.reasoning}
+        suggestedWeight={intelligence.weightRecommendation?.suggestedWeight}
+        currentWeight={lastWorkout?.bestSet.actualWeight}
+        scientificBasis={intelligence.fatigueAlert.scientificBasis}
+        confidence={intelligence.fatigueAlert.confidence}
+        onApply={() => {
+          if (intelligence.weightRecommendation?.suggestedWeight) {
+            setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
+          }
+        }}
+        onDismiss={() => {
+          setDismissedAlerts(prev => new Set(prev).add('fatigue'));
+          closeAlert();
+        }}
+      />
+    );
+  } else if (
+    activeAlert === 'weight-rec' &&
+    intelligence.weightRecommendation &&
+    intelligence.weightRecommendation.type !== 'maintain' &&
+    !dismissedAlerts.has('weight-rec')
+  ) {
+    alertContent = (
+      <SmartAlert
+        type={intelligence.weightRecommendation.type === 'increase' ? 'progression' : 'fatigue'}
+        severity="moderate"
+        title={
+          intelligence.weightRecommendation.type === 'increase'
+            ? 'Progression Opportunity'
+            : 'Load Adjustment Recommended'
+        }
+        message={intelligence.weightRecommendation.reasoning}
+        suggestedWeight={intelligence.weightRecommendation.suggestedWeight}
+        currentWeight={intelligence.weightRecommendation.currentWeight}
+        scientificBasis={intelligence.weightRecommendation.scientificBasis}
+        confidence={intelligence.weightRecommendation.confidence}
+        onApply={() => {
+          setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
+        }}
+        onDismiss={() => {
+          setDismissedAlerts(prev => new Set(prev).add('weight-rec'));
+          closeAlert();
+        }}
+      />
+    );
+  }
 
   // Get last 3 sessions for this exercise
   const exerciseHistory = useMemo(() => {
@@ -1068,58 +1115,6 @@ function SetLogger({
             )}
           </div>
 
-          {activeAlert === 'fatigue' &&
-           intelligence.fatigueAlert &&
-           !dismissedAlerts.has('fatigue') && (
-            <SmartAlert
-              type="fatigue"
-              severity={intelligence.fatigueAlert.severity}
-              title={`Fatigue Detected: ${intelligence.fatigueAlert.affectedMuscles.join(', ')}`}
-              message={intelligence.fatigueAlert.reasoning}
-              suggestedWeight={intelligence.weightRecommendation?.suggestedWeight}
-              currentWeight={lastWorkout?.bestSet.actualWeight}
-              scientificBasis={intelligence.fatigueAlert.scientificBasis}
-              confidence={intelligence.fatigueAlert.confidence}
-              compact={isMobile}
-              onApply={() => {
-                if (intelligence.weightRecommendation?.suggestedWeight) {
-                  setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
-                }
-              }}
-              onDismiss={() => {
-                setDismissedAlerts(prev => new Set(prev).add('fatigue'));
-                setActiveAlert(null);
-              }}
-            />
-          )}
-
-          {activeAlert === 'weight-rec' &&
-           intelligence.weightRecommendation &&
-           intelligence.weightRecommendation.type !== 'maintain' &&
-           !dismissedAlerts.has('weight-rec') && (
-            <SmartAlert
-              type={intelligence.weightRecommendation.type === 'increase' ? 'progression' : 'fatigue'}
-              severity="moderate"
-              title={
-                intelligence.weightRecommendation.type === 'increase'
-                  ? 'Progression Opportunity'
-                  : 'Load Adjustment Recommended'
-              }
-              message={intelligence.weightRecommendation.reasoning}
-              suggestedWeight={intelligence.weightRecommendation.suggestedWeight}
-              currentWeight={intelligence.weightRecommendation.currentWeight}
-              scientificBasis={intelligence.weightRecommendation.scientificBasis}
-              confidence={intelligence.weightRecommendation.confidence}
-              compact={isMobile}
-              onApply={() => {
-                setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
-              }}
-              onDismiss={() => {
-                setDismissedAlerts(prev => new Set(prev).add('weight-rec'));
-                setActiveAlert(null);
-              }}
-            />
-          )}
         </div>
       )}
 
@@ -1156,6 +1151,28 @@ function SetLogger({
         >
           Finish workout early
         </button>
+      )}
+
+      {alertContent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeAlert}
+        >
+          <div
+            className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {alertContent}
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={closeAlert}
+                className="rounded-lg bg-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

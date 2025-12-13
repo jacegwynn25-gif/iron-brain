@@ -21,7 +21,8 @@ export default function ProgramSelector({
   onCreateNew,
   onDeleteProgram,
 }: ProgramSelectorProps) {
-  const [activeTab, setActiveTab] = useState<'builtin' | 'mine'>('builtin');
+  const initialTab: 'builtin' | 'mine' = userPrograms.length > 0 ? 'mine' : 'builtin';
+  const [activeTab, setActiveTab] = useState<'builtin' | 'mine'>(initialTab);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const displayPrograms = activeTab === 'builtin' ? builtInPrograms : userPrograms;

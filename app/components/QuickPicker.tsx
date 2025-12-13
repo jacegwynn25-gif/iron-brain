@@ -198,30 +198,38 @@ export default function QuickPicker({
   const minusHandlers = addLogs(decHandlers, 'minus');
 
   return (
-    <div>
+    <div className="select-none">
       <label className="mb-2 flex flex-col items-center text-base font-black uppercase tracking-wide text-purple-700 dark:text-purple-200">
         <span>{label}</span>
       </label>
 
       {/* Input with inline buttons (minus left, value center, plus right) */}
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2.5 py-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
         {/* Decrement on left */}
         <button
           type="button"
           {...minusHandlers}
           onClick={() => {
-          logEvent('minus', 'click');
+            logEvent('minus', 'click');
             if (decHandlers.suppressClickRef.current) {
               decHandlers.resetSuppressClick();
               return;
             }
             incrementValue(-step);
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          onContextMenu={(e) => e.preventDefault()}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-manipulation dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Decrease ${label}`}
-          style={{ pointerEvents: 'auto', touchAction: 'none' }}
+          style={{
+            WebkitTapHighlightColor: 'transparent',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+            touchAction: 'manipulation',
+            pointerEvents: 'auto',
+          }}
         >
-          -
+          <span className="pointer-events-none select-none">-</span>
         </button>
 
         {/* Main Input */}
@@ -236,7 +244,7 @@ export default function QuickPicker({
             onBlur={sanitizeInput}
             placeholder={placeholder}
             step={step}
-            className="w-24 border-none bg-transparent text-center text-3xl font-black text-zinc-900 focus:outline-none focus:ring-0 dark:text-zinc-50"
+            className="w-16 border-none bg-transparent text-center text-2xl font-black text-zinc-900 select-text focus:outline-none focus:ring-0 dark:text-zinc-50 sm:w-24 sm:text-3xl"
           />
           {unit && (
             <span className="text-sm font-bold text-zinc-500 dark:text-zinc-300">
@@ -257,11 +265,19 @@ export default function QuickPicker({
             }
             incrementValue(step);
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 touch-none dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          onContextMenu={(e) => e.preventDefault()}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg font-black text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 select-none touch-manipulation dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:h-12 sm:w-12 sm:text-xl"
           aria-label={`Increase ${label}`}
-          style={{ pointerEvents: 'auto', touchAction: 'none' }}
+          style={{
+            WebkitTapHighlightColor: 'transparent',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+            touchAction: 'manipulation',
+            pointerEvents: 'auto',
+          }}
         >
-          +
+          <span className="pointer-events-none select-none">+</span>
         </button>
       </div>
     </div>
