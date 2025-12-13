@@ -634,24 +634,28 @@ function SetLogger({
         {/* Ultra-Compact Single Card - Zero Scrolling */}
         <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
           {/* Weight & Reps - Side by Side */}
-          <div className="grid grid-cols-2 gap-2 mb-4 sm:gap-3">
-            <QuickPicker
-              label="Weight"
-              value={weightDisplay}
-              onChange={setWeight}
-              step={0.5}
-              min={0}
-              placeholder="225"
-              unit="lbs"
-            />
-            <QuickPicker
-              label="Reps"
-              value={repsDisplay}
-              onChange={setReps}
-              step={1}
-              min={0}
-              placeholder={template.prescribedReps}
-            />
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="min-w-0">
+              <QuickPicker
+                label="Weight"
+                value={weightDisplay}
+                onChange={setWeight}
+                step={0.5}
+                min={0}
+                placeholder="225"
+                unit="lbs"
+              />
+            </div>
+            <div className="min-w-0">
+              <QuickPicker
+                label="Reps"
+                value={repsDisplay}
+                onChange={setReps}
+                step={1}
+                min={0}
+                placeholder={template.prescribedReps}
+              />
+            </div>
           </div>
 
           {/* RPE & Notes - Mobile Optimized */}
