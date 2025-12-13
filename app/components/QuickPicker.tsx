@@ -204,7 +204,7 @@ export default function QuickPicker({
       </label>
 
       {/* Input with inline buttons (minus left, value center, plus right) */}
-      <div className="grid grid-cols-[40px_1fr_40px] sm:grid-cols-[48px_1fr_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
+      <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-2 py-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/70 sm:px-2.5 sm:py-2">
         {/* Decrement on left */}
         <button
           type="button"
@@ -233,7 +233,7 @@ export default function QuickPicker({
         </button>
 
         {/* Main Input */}
-        <div className="min-w-0 flex items-center justify-center gap-1">
+        <div className="min-w-0 flex items-baseline justify-center gap-2 px-2 sm:px-3">
           <input
             type="number"
             value={value}
@@ -244,10 +244,10 @@ export default function QuickPicker({
             onBlur={sanitizeInput}
             placeholder={placeholder}
             step={step}
-            className="w-14 border-none bg-transparent text-center text-2xl font-black text-zinc-900 select-text focus:outline-none focus:ring-0 dark:text-zinc-50 sm:w-24 sm:text-3xl"
+            className="w-16 min-w-0 border-none bg-transparent text-right text-2xl font-black tabular-nums text-zinc-900 select-text focus:outline-none focus:ring-0 dark:text-zinc-50 sm:w-24 sm:text-3xl"
           />
           {unit && (
-            <span className="text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-300">
+            <span className="flex-shrink-0 text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-300">
               {unit}
             </span>
           )}
