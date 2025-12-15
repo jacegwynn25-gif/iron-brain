@@ -6,9 +6,8 @@ import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
-import SmartAlert from './SmartAlert';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
-import { Dumbbell, AlertTriangle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Dumbbell } from 'lucide-react';
 import HardyStepper from './HardyStepper';
 
 interface WorkoutLoggerProps {
@@ -76,6 +75,7 @@ export default function WorkoutLogger({
   const [isResting, setIsResting] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [showUpcomingSets, setShowUpcomingSets] = useState(false);
+  const [appliedRestTimerWeight, setAppliedRestTimerWeight] = useState<number | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000);
@@ -107,9 +107,19 @@ export default function WorkoutLogger({
     : null;
 
   // Calculate next set info for rest timer
-  // Next set is the one coming up (currentSetIndex already advanced after logging)
   const nextSetTemplate = setTemplates[currentSetIndex];
   const nextExercise = nextSetTemplate ? (defaultExercises.find(ex => ex.id === nextSetTemplate.exerciseId) || null) : null;
+
+  // Get weight suggestion for the next set
+  const nextSetSuggestion = nextSetTemplate
+    ? storage.suggestWeight(
+        nextSetTemplate.exerciseId,
+        parseInt(String(nextSetTemplate.prescribedReps)) || 5,
+        nextSetTemplate.targetRPE,
+        session.sets
+      )
+    : null;
+
   const nextSetInfo = nextSetTemplate && nextExercise ? {
     exerciseName: nextExercise.name,
     setNumber: nextSetTemplate.setIndex,
@@ -117,8 +127,10 @@ export default function WorkoutLogger({
     prescribedReps: nextSetTemplate.prescribedReps,
     targetRPE: nextSetTemplate.targetRPE ?? undefined,
     targetRIR: nextSetTemplate.targetRIR ?? undefined,
-    lastWeight: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight)?.actualWeight ?? undefined,
-    lastReps: session.sets.find(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps)?.actualReps ?? undefined,
+    suggestedWeight: nextSetSuggestion?.suggestedWeight ?? undefined,
+    weightReasoning: nextSetSuggestion?.reasoning ?? undefined,
+    lastWeight: session.sets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight).slice(-1)[0]?.actualWeight ?? undefined,
+    lastReps: session.sets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps).slice(-1)[0]?.actualReps ?? undefined,
   } : undefined;
 
   // Rest timer handlers
@@ -309,6 +321,7 @@ export default function WorkoutLogger({
           nextExerciseInSuperset={nextExerciseInSuperset}
           setPositionForExercise={positionForExercise}
           totalSetsForExercise={totalSetsForExercise}
+          initialWeight={appliedRestTimerWeight}
         />
 
         {/* Upcoming Sets Preview - Collapsible */}
@@ -356,13 +369,61 @@ export default function WorkoutLogger({
         )}
       </div>
 
-      {/* Rest Timer - Fixed overlay */}
+      {/* Rest Timer - Full Screen Overlay */}
       <RestTimer
         isActive={isResting}
         duration={restTimerSeconds || 0}
         onComplete={handleRestComplete}
         onSkip={handleSkipRest}
         nextSetInfo={nextSetInfo}
+        fatigueAlert={nextSetSuggestion?.fatigueAlert ? {
+          severity: nextSetSuggestion.fatigueAlert.severity,
+          affectedMuscles: nextSetSuggestion.fatigueAlert.affectedMuscles,
+          reasoning: nextSetSuggestion.fatigueAlert.detailedExplanation || nextSetSuggestion.reasoning,
+          scientificBasis: nextSetSuggestion.fatigueAlert.scientificBasis,
+        } : null}
+        weightRecommendation={(() => {
+          if (!nextSetSuggestion) return null;
+          
+          // Get the last weight used for this exercise in the CURRENT session
+          const lastSessionWeight = session.sets
+            .filter(s => s.exerciseId === nextSetTemplate?.exerciseId && s.actualWeight)
+            .slice(-1)[0]?.actualWeight;
+          
+          // Get historical weight from previous workouts
+          const historicalData = storage.getLastWorkoutForExercise(nextSetTemplate?.exerciseId || '');
+          const lastHistoricalWeight = historicalData?.bestSet?.actualWeight;
+          
+          // Determine the reference weight (prefer current session, fall back to history)
+          const referenceWeight = lastSessionWeight ?? lastHistoricalWeight;
+          
+          // Determine recommendation type
+          let recType: 'increase' | 'decrease' | 'maintain' = 'maintain';
+          
+          if (nextSetSuggestion.basedOn === 'rpe_adjustment' && nextSetSuggestion.fatigueAlert) {
+            // Fatigue-based decrease
+            recType = 'decrease';
+          } else if (referenceWeight && nextSetSuggestion.suggestedWeight > referenceWeight) {
+            // Only show "increase" if we have a valid reference AND suggestion is higher
+            recType = 'increase';
+          } else if (referenceWeight && nextSetSuggestion.suggestedWeight < referenceWeight * 0.95) {
+            // Show "decrease" if suggestion is more than 5% lower than reference
+            recType = 'decrease';
+          }
+          // Otherwise stays 'maintain' - no alert shown
+          
+          return {
+            type: recType,
+            suggestedWeight: nextSetSuggestion.suggestedWeight,
+            currentWeight: referenceWeight,
+            reasoning: nextSetSuggestion.reasoning,
+            confidence: nextSetSuggestion.confidence === 'high' ? 0.9 : nextSetSuggestion.confidence === 'medium' ? 0.7 : 0.5,
+            scientificBasis: nextSetSuggestion.fatigueAlert?.scientificBasis || 'Based on your recent performance data',
+          };
+        })()}
+        onApplyWeightSuggestion={(weight) => {
+          setAppliedRestTimerWeight(weight);
+        }}
       />
     </div>
   );
@@ -383,6 +444,7 @@ interface SetLoggerProps {
   nextExerciseInSuperset: Exercise | null;
   setPositionForExercise: number;
   totalSetsForExercise: number;
+  initialWeight?: number | null;
 }
 
 const getPrecision = (step: number) => {
@@ -408,6 +470,7 @@ function SetLogger({
   nextExerciseInSuperset,
   setPositionForExercise,
   totalSetsForExercise,
+  initialWeight,
 }: SetLoggerProps) {
   const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
@@ -440,8 +503,15 @@ function SetLogger({
   // Tempo tracking (only when prescribed in template)
   const [tempo, setTempo] = useState(template.tempo || '');
   const showTempo = Boolean(template.tempo);
-  const [activeAlert, setActiveAlert] = useState<'fatigue' | 'weight-rec' | null>(null);
-  const closeAlert = useCallback(() => setActiveAlert(null), []);
+
+  useEffect(() => {
+    if (initialWeight != null && initialWeight > 0) {
+      const formatted = formatToStep(initialWeight, 0.5, 0);
+      weightRef.current = formatted;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWeight(formatted);
+    }
+  }, [initialWeight]);
 
   const applyWeight = useCallback((next: number) => {
     const formatted = formatToStep(next, 0.5, 0);
@@ -861,7 +931,6 @@ function SetLogger({
   const lastWorkout = storage.getLastWorkoutForExercise(template.exerciseId);
 
   // Workout Intelligence - Smart recommendations
-  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const intelligence = useWorkoutIntelligence(
     currentSessionSets,
     exercise,
@@ -894,59 +963,6 @@ function SetLogger({
   useEffect(() => {
     repsRef.current = repsDisplay;
   }, [repsDisplay]);
-  let alertContent: React.ReactNode = null;
-  if (activeAlert === 'fatigue' && intelligence.fatigueAlert && !dismissedAlerts.has('fatigue')) {
-    alertContent = (
-      <SmartAlert
-        type="fatigue"
-        severity={intelligence.fatigueAlert.severity}
-        title={`Fatigue Detected: ${intelligence.fatigueAlert.affectedMuscles.join(', ')}`}
-        message={intelligence.fatigueAlert.reasoning}
-        suggestedWeight={intelligence.weightRecommendation?.suggestedWeight}
-        currentWeight={lastWorkout?.bestSet.actualWeight}
-        scientificBasis={intelligence.fatigueAlert.scientificBasis}
-        confidence={intelligence.fatigueAlert.confidence}
-        onApply={() => {
-          if (intelligence.weightRecommendation?.suggestedWeight) {
-            setWeight(intelligence.weightRecommendation.suggestedWeight.toString());
-          }
-        }}
-        onDismiss={() => {
-          setDismissedAlerts(prev => new Set(prev).add('fatigue'));
-          closeAlert();
-        }}
-      />
-    );
-  } else if (
-    activeAlert === 'weight-rec' &&
-    intelligence.weightRecommendation &&
-    intelligence.weightRecommendation.type !== 'maintain' &&
-    !dismissedAlerts.has('weight-rec')
-  ) {
-    alertContent = (
-      <SmartAlert
-        type={intelligence.weightRecommendation.type === 'increase' ? 'progression' : 'fatigue'}
-        severity="moderate"
-        title={
-          intelligence.weightRecommendation.type === 'increase'
-            ? 'Progression Opportunity'
-            : 'Load Adjustment Recommended'
-        }
-        message={intelligence.weightRecommendation.reasoning}
-        suggestedWeight={intelligence.weightRecommendation.suggestedWeight}
-        currentWeight={intelligence.weightRecommendation.currentWeight}
-        scientificBasis={intelligence.weightRecommendation.scientificBasis}
-        confidence={intelligence.weightRecommendation.confidence}
-        onApply={() => {
-          setWeight(intelligence.weightRecommendation!.suggestedWeight.toString());
-        }}
-        onDismiss={() => {
-          setDismissedAlerts(prev => new Set(prev).add('weight-rec'));
-          closeAlert();
-        }}
-      />
-    );
-  }
 
   // Get last 3 sessions for this exercise
   const exerciseHistory = useMemo(() => {
@@ -970,10 +986,15 @@ function SetLogger({
   const handleSubmit = () => {
     const setType = template.setType || 'straight';
 
+    const actualWeight = weightDisplay ? parseFloat(weightDisplay) : null;
+    const actualReps = repsDisplay ? parseInt(repsDisplay, 10) : null;
+    const rpeDisplay = rpe || '8';
+    const actualRPE = rpeDisplay ? parseFloat(rpeDisplay) : null;
+
     const setLog: Partial<SetLog> = {
-      actualWeight: weight ? parseFloat(weight) : null,
-      actualReps: reps ? parseInt(reps) : null,
-      actualRPE: rpe ? parseFloat(rpe) : null,
+      actualWeight,
+      actualReps,
+      actualRPE,
       actualRIR: rir ? parseInt(rir) : null,
       notes: notes || undefined,
       weightUnit: 'lbs', // TODO: Get from user settings
@@ -1132,58 +1153,6 @@ function SetLogger({
         </div>
       )}
 
-      {/* Smart Alerts - Icon triggers */}
-      {intelligence.hasRecommendation && (
-        <div className="mb-3 space-y-2">
-          <div className="flex gap-2">
-            {intelligence.fatigueAlert && !dismissedAlerts.has('fatigue') && (
-              <button
-                onClick={() => setActiveAlert(activeAlert === 'fatigue' ? null : 'fatigue')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all shadow-sm ${
-                  activeAlert === 'fatigue'
-                    ? 'border-red-400 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100'
-                    : 'border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-zinc-900 dark:text-red-200 dark:hover:bg-red-900/20'
-                }`}
-                title="Fatigue adjustment available"
-              >
-                <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="absolute inset-0 animate-ping rounded-full bg-red-300/40" />
-                </span>
-                <span className="text-left leading-tight">
-                  Lower weight recommended
-                </span>
-              </button>
-            )}
-            {intelligence.weightRecommendation &&
-             intelligence.weightRecommendation.type !== 'maintain' &&
-             !dismissedAlerts.has('weight-rec') && (
-              <button
-                onClick={() => setActiveAlert(activeAlert === 'weight-rec' ? null : 'weight-rec')}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all shadow-sm ${
-                  activeAlert === 'weight-rec'
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100'
-                    : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-zinc-900 dark:text-emerald-200 dark:hover:bg-emerald-900/20'
-                }`}
-                title="Progression suggestion"
-              >
-                <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                  {intelligence.weightRecommendation.type === 'increase' ? (
-                    <ArrowUpCircle className="h-4 w-4" />
-                  ) : (
-                    <ArrowDownCircle className="h-4 w-4" />
-                  )}
-                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300/40" />
-                </span>
-                <span className="text-left leading-tight">
-                  {intelligence.weightRecommendation.type === 'increase' ? 'Add load' : 'Drop load'}
-                </span>
-              </button>
-            )}
-          </div>
-
-        </div>
-      )}
 
       {/* Input Fields - Ultra Clean */}
       <div>
@@ -1218,28 +1187,6 @@ function SetLogger({
         >
           Finish workout early
         </button>
-      )}
-
-      {alertContent && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={closeAlert}
-        >
-          <div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {alertContent}
-            <div className="mt-2 flex justify-end">
-              <button
-                onClick={closeAlert}
-                className="rounded-lg bg-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
