@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Exercise, SetTemplate, SetLog, WorkoutSession, ProgramTemplate } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
-import QuickPicker from './QuickPicker';
 import SmartAlert from './SmartAlert';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
 import { Dumbbell, AlertTriangle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import HardyStepper from './HardyStepper';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -265,7 +265,7 @@ export default function WorkoutLogger({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-purple-50/40 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/25 dark:to-zinc-900">
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="w-full max-w-none px-2 py-4 sm:mx-auto sm:max-w-4xl sm:px-4 sm:py-8">
         {/* Compact Header */}
         <div className="mb-4 rounded-2xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 p-1 shadow-xl">
           <div className="rounded-2xl bg-white/95 p-4 dark:bg-zinc-950/95 backdrop-blur">
@@ -385,6 +385,18 @@ interface SetLoggerProps {
   totalSetsForExercise: number;
 }
 
+const getPrecision = (step: number) => {
+  const parts = step.toString().split('.');
+  return parts[1]?.length || 0;
+};
+
+const formatToStep = (val: number, step: number, min: number) => {
+  const precision = getPrecision(step);
+  const rounded = Math.round(val / step) * step;
+  const clamped = Math.max(min, rounded);
+  return clamped.toFixed(precision);
+};
+
 function SetLogger({
   template,
   exercise,
@@ -408,6 +420,8 @@ function SetLogger({
   const [rir, setRir] = useState('');
   const [notes, setNotes] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const weightRef = useRef<string>('');
+  const repsRef = useRef<string>('');
   // Drop set state
   const [dropSetRounds, setDropSetRounds] = useState<Array<{ weight: string; reps: string; rpe: string }>>([
     { weight: '', reps: '', rpe: '' },
@@ -428,6 +442,50 @@ function SetLogger({
   const showTempo = Boolean(template.tempo);
   const [activeAlert, setActiveAlert] = useState<'fatigue' | 'weight-rec' | null>(null);
   const closeAlert = useCallback(() => setActiveAlert(null), []);
+
+  const applyWeight = useCallback((next: number) => {
+    const formatted = formatToStep(next, 0.5, 0);
+    weightRef.current = formatted;
+    setWeight(formatted);
+  }, []);
+
+  const applyReps = useCallback((next: number) => {
+    const formatted = formatToStep(next, 1, 0);
+    repsRef.current = formatted;
+    setReps(formatted);
+  }, []);
+
+  const sanitizeWeight = useCallback(() => {
+    const num = parseFloat(weightRef.current);
+    if (isNaN(num)) {
+      weightRef.current = '';
+      setWeight('');
+      return;
+    }
+    applyWeight(num);
+  }, [applyWeight]);
+
+  const sanitizeReps = useCallback(() => {
+    const num = parseFloat(repsRef.current);
+    if (isNaN(num)) {
+      repsRef.current = '';
+      setReps('');
+      return;
+    }
+    applyReps(num);
+  }, [applyReps]);
+
+  const incrementWeight = useCallback((delta: number) => {
+    const current = parseFloat(weightRef.current);
+    const base = isNaN(current) ? 0 : current;
+    applyWeight(base + delta);
+  }, [applyWeight]);
+
+  const incrementReps = useCallback((delta: number) => {
+    const current = parseFloat(repsRef.current);
+    const base = isNaN(current) ? 0 : current;
+    applyReps(base + delta);
+  }, [applyReps]);
 
   const basePrescribedReps = useMemo(() => {
     if (!template.prescribedReps) return null;
@@ -630,115 +688,112 @@ function SetLogger({
     }
 
     return (
-      <>
-        {/* Ultra-Compact Single Card - Zero Scrolling */}
-        <div className="rounded-xl bg-white/95 p-2 shadow-xl ring-1 ring-zinc-200 dark:bg-zinc-950/95 dark:ring-zinc-800 sm:p-4">
-          {/* Weight & Reps - Side by Side */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 -mx-1 sm:mx-0">
-            <div className="min-w-0">
-              <QuickPicker
-                label="Weight"
-                value={weightDisplay}
-                onChange={setWeight}
-                step={0.5}
-                min={0}
-                placeholder="225"
-                unit="lbs"
-              />
-            </div>
-            <div className="min-w-0">
-              <QuickPicker
-                label="Reps"
-                value={repsDisplay}
-                onChange={setReps}
-                step={1}
-                min={0}
-                placeholder={template.prescribedReps}
-              />
-            </div>
-          </div>
-
-          {/* RPE & Notes - Mobile Optimized */}
-          <div className="space-y-3">
-            {/* RPE - Slider */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-                  RPE
-                </label>
-                <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-black text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
-                  {rpe || '8'}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="6"
-                max="10"
-                step="0.5"
-                value={rpe || '8'}
-                onChange={(e) => setRpe(e.target.value)}
-                className="w-full accent-purple-500"
-              />
-              <div className="mt-1 flex justify-between text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                {[6, 7, 8, 9, 10].map(val => (
-                  <span key={val}>{val}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Notes inline */}
-            <div className="rounded-2xl border border-zinc-200 bg-white/90 px-3.5 py-2.5 shadow-sm ring-1 ring-zinc-100 focus-within:border-purple-300 focus-within:ring-2 focus-within:ring-purple-500/30 transition-colors dark:border-zinc-800 dark:bg-zinc-900/70 dark:ring-zinc-800 dark:focus-within:border-purple-700 dark:focus-within:ring-purple-500/40">
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes (optional)"
-                className="w-full border-none bg-transparent text-[15px] font-semibold text-zinc-900 placeholder:text-zinc-400/80 focus:outline-none focus:ring-0 dark:text-zinc-50 dark:placeholder:text-zinc-500/80"
-              />
-            </div>
-          </div>
-
-          {/* Advanced Options - Collapsible */}
-          {(showTempo || template.targetRIR) && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200">
-                Advanced Options
-              </summary>
-              <div className="mt-2 space-y-2">
-                {template.targetRIR && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
-                      RIR
-                    </label>
-                    <input
-                      type="number"
-                      value={rir}
-                      onChange={(e) => setRir(e.target.value)}
-                      placeholder="2"
-                      step={1}
-                      className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-lg font-bold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    />
-                  </div>
-                )}
-                {showTempo && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 flex-shrink-0 w-16">
-                      Tempo
-                    </label>
-                    <input
-                      type="text"
-                      value={tempo}
-                      onChange={(e) => setTempo(e.target.value)}
-                      placeholder="3-1-2-0"
-                      className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    />
-                  </div>
-                )}
-              </div>
-            </details>
-          )}
+      <div className="space-y-3">
+        {/* Weight & Reps - Hardy Style Side by Side */}
+        <div className="grid w-full grid-cols-2 gap-3">
+          <HardyStepper
+            label="Weight"
+            value={weightDisplay}
+            onChange={(val) => {
+              weightRef.current = val;
+              setWeight(val);
+            }}
+            onIncrement={() => incrementWeight(0.5)}
+            onDecrement={() => incrementWeight(-0.5)}
+            onSanitize={sanitizeWeight}
+            inputMode="decimal"
+            displayUnit="lbs"
+            accelerate
+          />
+          <HardyStepper
+            label="Reps"
+            value={repsDisplay}
+            onChange={(val) => {
+              repsRef.current = val;
+              setReps(val);
+            }}
+            onIncrement={() => incrementReps(1)}
+            onDecrement={() => incrementReps(-1)}
+            onSanitize={sanitizeReps}
+            inputMode="numeric"
+            accelerate={false}
+          />
         </div>
-      </>
+
+        {/* RPE Slider - Full Width Row */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+              RPE {rpe || '8'}
+            </span>
+            {template.targetRIR != null && (
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                {template.targetRIR} RIR
+              </span>
+            )}
+          </div>
+          <input
+            type="range"
+            min="6"
+            max="10"
+            step="0.5"
+            value={rpe || '8'}
+            onChange={(e) => setRpe(e.target.value)}
+            className="w-full h-2 appearance-none rounded-full bg-zinc-200 accent-purple-500 dark:bg-zinc-700"
+          />
+        </div>
+
+        {/* Notes */}
+        <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-purple-600">
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes (optional)"
+            className="w-full border-none bg-transparent text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
+          />
+        </div>
+
+        {/* Advanced Options - Collapsible */}
+        {(showTempo || template.targetRIR != null) && (
+          <details className="pt-1">
+            <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+              Advanced Options
+            </summary>
+            <div className="mt-2 space-y-2">
+              {template.targetRIR != null && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 w-16 flex-shrink-0">
+                    RIR
+                  </label>
+                  <input
+                    type="number"
+                    value={rir}
+                    onChange={(e) => setRir(e.target.value)}
+                    placeholder="2"
+                    step={1}
+                    className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-lg font-bold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  />
+                </div>
+              )}
+              {showTempo && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 w-16 flex-shrink-0">
+                    Tempo
+                  </label>
+                  <input
+                    type="text"
+                    value={tempo}
+                    onChange={(e) => setTempo(e.target.value)}
+                    placeholder="3-1-2-0"
+                    className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  />
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
     );
   };
 
@@ -831,6 +886,14 @@ function SetLogger({
 
   const weightDisplay = weight || (weightSeed !== null ? weightSeed.toString() : '');
   const repsDisplay = reps || (repSeed !== null ? repSeed.toString() : '');
+
+  useEffect(() => {
+    weightRef.current = weightDisplay;
+  }, [weightDisplay]);
+
+  useEffect(() => {
+    repsRef.current = repsDisplay;
+  }, [repsDisplay]);
   let alertContent: React.ReactNode = null;
   if (activeAlert === 'fatigue' && intelligence.fatigueAlert && !dismissedAlerts.has('fatigue')) {
     alertContent = (
@@ -983,7 +1046,7 @@ function SetLogger({
   if (!exercise) return null;
 
   return (
-        <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
+    <div className="rounded-xl bg-white/95 p-3 shadow-xl ring-1 ring-zinc-100 dark:bg-zinc-950/95 dark:ring-zinc-800">
       {/* Exercise Header - Ultra Compact Single Line */}
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-1">
