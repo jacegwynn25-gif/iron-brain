@@ -415,7 +415,7 @@ export default function WorkoutLogger({
           return {
             type: recType,
             suggestedWeight: nextSetSuggestion.suggestedWeight,
-            currentWeight: referenceWeight,
+            currentWeight: referenceWeight ?? undefined,
             reasoning: nextSetSuggestion.reasoning,
             confidence: nextSetSuggestion.confidence === 'high' ? 0.9 : nextSetSuggestion.confidence === 'medium' ? 0.7 : 0.5,
             scientificBasis: nextSetSuggestion.fatigueAlert?.scientificBasis || 'Based on your recent performance data',
