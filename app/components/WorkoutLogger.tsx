@@ -76,6 +76,7 @@ export default function WorkoutLogger({
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [showUpcomingSets, setShowUpcomingSets] = useState(false);
   const [appliedRestTimerWeight, setAppliedRestTimerWeight] = useState<number | null>(null);
+  const [ignoredSuggestion, setIgnoredSuggestion] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000);
@@ -196,6 +197,8 @@ export default function WorkoutLogger({
 
     if (willMoveToNext) {
       setCurrentSetIndex(nextIndex);
+      setIgnoredSuggestion(false); // Reset for next set
+      setAppliedRestTimerWeight(null); // Clear applied weight for next set
     }
 
     const nextTemplate = willMoveToNext ? setTemplates[nextIndex] : null;
@@ -322,6 +325,7 @@ export default function WorkoutLogger({
           setPositionForExercise={positionForExercise}
           totalSetsForExercise={totalSetsForExercise}
           initialWeight={appliedRestTimerWeight}
+          ignoredSuggestion={ignoredSuggestion}
         />
 
         {/* Upcoming Sets Preview - Collapsible */}
@@ -423,6 +427,11 @@ export default function WorkoutLogger({
         })()}
         onApplyWeightSuggestion={(weight) => {
           setAppliedRestTimerWeight(weight);
+          setIgnoredSuggestion(false);
+        }}
+        onIgnoreSuggestion={() => {
+          setIgnoredSuggestion(true);
+          setAppliedRestTimerWeight(null);
         }}
       />
     </div>
@@ -445,6 +454,7 @@ interface SetLoggerProps {
   setPositionForExercise: number;
   totalSetsForExercise: number;
   initialWeight?: number | null;
+  ignoredSuggestion?: boolean;
 }
 
 const getPrecision = (step: number) => {
@@ -471,6 +481,7 @@ function SetLogger({
   setPositionForExercise,
   totalSetsForExercise,
   initialWeight,
+  ignoredSuggestion,
 }: SetLoggerProps) {
   const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
@@ -939,19 +950,36 @@ function SetLogger({
   );
 
   const weightSeed = useMemo(() => {
+    // If user applied a specific weight from rest timer, use that
+    if (initialWeight != null && initialWeight > 0) {
+      return initialWeight;
+    }
+    
+    // If user ignored the suggestion, skip fatigue-adjusted weights and use historical data
+    if (ignoredSuggestion) {
+      if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
+      return null;
+    }
+    
+    // Normal flow: use intelligent suggestions
     if (intelligence.weightRecommendation?.suggestedWeight) return intelligence.weightRecommendation.suggestedWeight;
     if (suggestion?.suggestedWeight) return suggestion.suggestedWeight;
     if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
     return null;
-  }, [intelligence.weightRecommendation, suggestion?.suggestedWeight, lastWorkout?.bestSet.actualWeight]);
+  }, [intelligence.weightRecommendation, suggestion?.suggestedWeight, lastWorkout?.bestSet.actualWeight, initialWeight, ignoredSuggestion]);
 
   const repSeed = useMemo(() => {
+    // If user ignored suggestion, don't reduce reps
+    if (ignoredSuggestion) {
+      return basePrescribedReps;
+    }
+    
     let base = basePrescribedReps;
     if (intelligence.fatigueAlert || intelligence.weightRecommendation?.type === 'decrease') {
       base = base !== null ? Math.max(1, base - 1) : base;
     }
     return base;
-  }, [basePrescribedReps, intelligence.fatigueAlert, intelligence.weightRecommendation]);
+  }, [basePrescribedReps, intelligence.fatigueAlert, intelligence.weightRecommendation, ignoredSuggestion]);
 
   const weightDisplay = weight || (weightSeed !== null ? weightSeed.toString() : '');
   const repsDisplay = reps || (repSeed !== null ? repSeed.toString() : '');

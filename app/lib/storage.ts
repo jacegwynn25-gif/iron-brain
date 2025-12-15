@@ -196,15 +196,12 @@ export function suggestWeight(
         .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
       let referenceWeight: number | null = recentSetsSameExercise[0]?.actualWeight || null;
-      let weightSource = 'current_session';
-
       console.log('   🏋️ Reference weight from current session:', referenceWeight);
 
       // Option 2: If no current session data for this exercise, try history
       if (!referenceWeight) {
         const lastWorkout = getLastWorkoutForExercise(exerciseId);
         referenceWeight = lastWorkout?.bestSet.actualWeight || null;
-        weightSource = 'previous_workout';
         console.log('   📚 Reference weight from history:', referenceWeight);
       }
 
@@ -217,7 +214,6 @@ export function suggestWeight(
         if (anyRecentSet) {
           // Use 80% of recent weight as starting point for new exercise
           referenceWeight = Math.round(anyRecentSet.actualWeight! * 0.8);
-          weightSource = 'estimated_from_session';
           console.log('   🎯 Estimated reference weight:', referenceWeight);
         }
       }
@@ -226,18 +222,21 @@ export function suggestWeight(
         const adjustedWeight = calculateAdjustedWeight(referenceWeight, fatigueAlert);
         const fatigueScores = calculateMuscleFatigue(completedSets, fatigueAlert.affectedMuscles);
 
-        // Build detailed explanation
+        // Build detailed explanation - plain text, no markdown
         const topFatigue = fatigueScores[0];
         const topContributors = topFatigue?.contributingSets.slice(0, 3) || [];
 
-        let detailedExplanation = `**Fatigue Analysis:**\n\n${fatigueAlert.reasoning}\n\n`;
+        let detailedExplanation = fatigueAlert.reasoning;
+
         if (topContributors.length > 0) {
-          detailedExplanation += `**Primary contributors:**\n`;
-          for (const contributor of topContributors) {
-            detailedExplanation += `• ${contributor.exerciseName} Set ${contributor.setIndex}: +${contributor.rpeOvershoot.toFixed(1)} RPE overshoot (${(contributor.interferenceWeight * 100).toFixed(0)}% muscle interference)\n`;
-          }
+          const contributorList = topContributors
+            .map(c => `${c.exerciseName} Set ${c.setIndex} (+${c.rpeOvershoot.toFixed(1)} RPE)`)
+            .join(', ');
+          detailedExplanation += ` Contributing sets: ${contributorList}.`;
         }
-        detailedExplanation += `\n**Recommendation:** Reduce load by ${(fatigueAlert.suggestedReduction * 100).toFixed(0)}% from ${referenceWeight}lbs (${weightSource.replace('_', ' ')}) for optimal performance and recovery.\n`;
+
+        const reductionPercent = Math.round(fatigueAlert.suggestedReduction * 100);
+        detailedExplanation += ` Recommended: reduce by ${reductionPercent}% to ${adjustedWeight}lbs.`;
 
         console.log('   ✅ Returning fatigue-based suggestion:', adjustedWeight, 'lbs');
 

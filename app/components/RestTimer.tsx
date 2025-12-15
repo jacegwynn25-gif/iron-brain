@@ -41,6 +41,7 @@ interface RestTimerProps {
   fatigueAlert?: FatigueAlert | null;
   weightRecommendation?: WeightRecommendation | null;
   onApplyWeightSuggestion?: (weight: number) => void;
+  onIgnoreSuggestion?: () => void;
 }
 
 export default function RestTimer({
@@ -52,6 +53,7 @@ export default function RestTimer({
   fatigueAlert,
   weightRecommendation,
   onApplyWeightSuggestion,
+  onIgnoreSuggestion,
 }: RestTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
@@ -188,6 +190,7 @@ export default function RestTimer({
 
   const dismissAlert = (alertType: string) => {
     setDismissedAlerts(prev => new Set(prev).add(alertType));
+    onIgnoreSuggestion?.();
   };
 
   if (!isActive) return null;
