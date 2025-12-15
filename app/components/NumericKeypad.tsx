@@ -55,12 +55,17 @@ export default function NumericKeypad({
       onChange(value ? `${value}.` : '0.');
       return;
     }
-    onChange(value === '0' ? key : `${value}${key}`);
+    const base = value === '0' ? '' : value;
+    onChange(`${base}${key}`);
   };
 
   const handleBackspace = () => {
-    if (!value) return;
-    onChange(value.slice(0, -1));
+    if (!value) {
+      onChange('');
+      return;
+    }
+    const next = value.slice(0, -1);
+    onChange(next);
   };
 
   const keypad = (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NumericKeypad from './NumericKeypad';
 
 type HoldConfig = {
@@ -115,7 +115,7 @@ export default function HardyStepper({
 }: HardyStepperProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showKeypad, setShowKeypad] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editingValue, setEditingValue] = useState(value);
 
   const holdConfig: HoldConfig = accelerate
     ? { startInterval: 160, minInterval: 55, accelFactor: 0.92, accelerate: true }
@@ -125,17 +125,13 @@ export default function HardyStepper({
   const decHold = useHoldRepeat(onDecrement, holdConfig);
 
   useEffect(() => {
-    if (isEditing) {
-      setShowKeypad(true);
-      const timer = setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 10);
-      return () => clearTimeout(timer);
+    if (!isEditing) {
+      setEditingValue(value);
     }
-  }, [isEditing]);
+  }, [value, isEditing]);
 
   const enterEditMode = () => {
+    setEditingValue(value);
     setIsEditing(true);
     setShowKeypad(true);
   };
@@ -144,13 +140,7 @@ export default function HardyStepper({
     setIsEditing(false);
     setShowKeypad(false);
     onSanitize?.();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      inputRef.current?.blur();
-    }
+    onChange(editingValue);
   };
 
   const handleDecClick = () => {
@@ -170,6 +160,7 @@ export default function HardyStepper({
   };
 
   const displayValue = value || '0';
+  const editingDisplay = editingValue || '0';
   const allowDecimal = inputMode !== 'numeric';
 
   return (
@@ -207,24 +198,9 @@ export default function HardyStepper({
           >
             {isEditing ? (
               <div className="flex w-full items-baseline justify-center gap-1 px-1">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  inputMode="none"
-                  readOnly
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => {
-                    setIsEditing(true);
-                    setShowKeypad(true);
-                  }}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  className="w-full min-w-0 bg-transparent text-center text-lg font-black tabular-nums text-zinc-900 caret-purple-500 outline-none dark:text-zinc-50 sm:text-xl"
-                />
+                <span className="w-full min-w-0 bg-transparent text-center text-lg font-black tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-xl">
+                  {editingDisplay}
+                </span>
                 {displayUnit && (
                   <span className="flex-shrink-0 text-xs font-semibold text-zinc-500 dark:text-zinc-400 sm:text-sm">
                     {displayUnit}
@@ -268,8 +244,8 @@ export default function HardyStepper({
       </div>
       {showKeypad && (
         <NumericKeypad
-          value={value}
-          onChange={onChange}
+          value={editingValue}
+          onChange={setEditingValue}
           onClose={exitEditMode}
           allowDecimal={allowDecimal}
         />
