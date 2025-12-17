@@ -1270,14 +1270,15 @@ export default function Home() {
                       {/* Exercise Details - Appears right below the selected day */}
                       {selectedDayIndex === idx && (
                       <div
-                        className={`origin-top overflow-hidden transform-gpu transition-[transform,opacity,max-height,margin] duration-300 ease-in-out ${
+                        className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${
                           showExerciseDetails
-                            ? 'max-h-[4000px] scale-y-100 opacity-100 mt-5'
-                            : 'max-h-0 scale-y-95 opacity-0 mt-0 pointer-events-none'
+                            ? 'grid-rows-[1fr] opacity-100 mt-5'
+                            : 'grid-rows-[0fr] opacity-0 mt-0'
                         }`}
-                        style={{ transformOrigin: 'top' }}
+                        style={{ willChange: showExerciseDetails ? 'grid-template-rows, opacity' : 'auto' }}
                       >
-                        <div className="rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-6 sm:p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect origin-top">
+                        <div className="overflow-hidden">
+                          <div className="rounded-2xl bg-gradient-to-br from-white via-zinc-50/30 to-white p-6 sm:p-10 shadow-premium border-2 border-zinc-100 dark:from-zinc-900 dark:via-zinc-900/50 dark:to-zinc-900 dark:border-zinc-800 depth-effect origin-top">
                           <div className="mb-6 sm:mb-8 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="rounded-xl bg-purple-100 p-3 dark:bg-purple-900/30">
@@ -1399,6 +1400,7 @@ export default function Home() {
                             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-3 sm:p-4 text-xs sm:text-sm font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300 text-center">
                               To modify exercises or sets, edit this program in the builder.
                             </div>
+                          </div>
                           </div>
                         </div>
                       </div>
