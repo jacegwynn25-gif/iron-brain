@@ -16,10 +16,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Iron Brain - Smart Workout Planning",
   description: "Advanced workout tracking and periodization app",
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Iron Brain',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 
@@ -29,6 +33,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
+  themeColor: '#09090b',
 };
 
 export default function RootLayout({
@@ -37,8 +42,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" style={{ backgroundColor: '#09090b' }}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} style={{ backgroundColor: '#09090b' }}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
