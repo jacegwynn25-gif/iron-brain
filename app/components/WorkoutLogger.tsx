@@ -801,15 +801,18 @@ function SetLogger({
           />
         </div>
 
-        {/* RPE Slider - Full Width Row */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-              RPE {rpe || '8'}
+        {/* RPE Slider - Centered, Purple */}
+        <div className="mx-auto max-w-lg space-y-2">
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-sm font-black uppercase tracking-wide text-purple-600 dark:text-purple-400">
+              RPE
+            </span>
+            <span className="min-w-[2.5rem] rounded-lg bg-purple-100 px-2 py-1 text-center text-lg font-black tabular-nums text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+              {rpe || '8'}
             </span>
             {template.targetRIR != null && (
               <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                {template.targetRIR} RIR
+                ({template.targetRIR} RIR)
               </span>
             )}
           </div>
@@ -820,8 +823,30 @@ function SetLogger({
             step="0.5"
             value={rpe || '8'}
             onChange={(e) => setRpe(e.target.value)}
-            className="w-full h-2 appearance-none rounded-full bg-zinc-200 accent-purple-500 dark:bg-zinc-700"
+            className="h-3 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-purple-400 via-purple-500 to-fuchsia-500 shadow-inner
+              [&::-webkit-slider-thumb]:h-6
+              [&::-webkit-slider-thumb]:w-6
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:rounded-full
+              [&::-webkit-slider-thumb]:bg-white
+              [&::-webkit-slider-thumb]:shadow-lg
+              [&::-webkit-slider-thumb]:border-2
+              [&::-webkit-slider-thumb]:border-purple-500
+              [&::-webkit-slider-thumb]:transition-transform
+              [&::-webkit-slider-thumb]:hover:scale-110
+              [&::-moz-range-thumb]:h-6
+              [&::-moz-range-thumb]:w-6
+              [&::-moz-range-thumb]:appearance-none
+              [&::-moz-range-thumb]:rounded-full
+              [&::-moz-range-thumb]:bg-white
+              [&::-moz-range-thumb]:shadow-lg
+              [&::-moz-range-thumb]:border-2
+              [&::-moz-range-thumb]:border-purple-500"
           />
+          <div className="flex justify-between px-1 text-[10px] font-semibold text-purple-400 dark:text-purple-500">
+            <span>Easy</span>
+            <span>Max</span>
+          </div>
         </div>
 
         {/* Notes */}
