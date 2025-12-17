@@ -1557,7 +1557,6 @@ export default function Home() {
                 userPrograms={userPrograms}
                 selectedProgram={selectedProgram}
                 onSelectProgram={handleSelectProgram}
-                onCreateNew={handleCreateNewFromBuilder}
                 onDeleteProgram={handleDeleteProgram}
               />
             </div>

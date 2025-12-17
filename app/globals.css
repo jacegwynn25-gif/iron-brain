@@ -41,6 +41,16 @@
   }
 }
 
+html {
+  /* Ensure background extends to notch/status bar area on iOS */
+  background: var(--background);
+  /* Prevent overscroll/rubber-band effect */
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -53,6 +63,19 @@ body {
   /* Prevent horizontal scroll on mobile */
   overflow-x: hidden;
   letter-spacing: -0.011em;
+  /* Safe area insets for iOS notch/Dynamic Island */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  /* Prevent overscroll/rubber-band effect on iOS */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  /* Fixed height to prevent overscroll */
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
 }
 
 /* Smooth transitions for all interactive elements */
@@ -177,26 +200,17 @@ body {
   box-shadow: 0 15px 25px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Scroll bar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Hide all scrollbars globally for native app feel */
+* {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Hide scrollbar for mobile horizontal scroll */
+/* Legacy scrollbar-hide utility (kept for backwards compatibility) */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -469,4 +483,42 @@ input[type="number"] {
     opacity: 0.7;
     transform: scale(0.97);
   }
+}
+
+/* iOS Safe Area Utilities */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-bottom-with-min {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-y {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-all {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }

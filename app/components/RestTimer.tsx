@@ -213,7 +213,7 @@ export default function RestTimer({
     !hasFatigueAlert; // Use hasFatigueAlert instead of showFatigueAlert
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 safe-top">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2 text-zinc-400">
@@ -463,7 +463,7 @@ export default function RestTimer({
       </div>
 
       {/* Bottom Action Button - Fixed */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-900 via-zinc-900 to-transparent px-4 pb-6 pt-4 sm:px-6">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-900 via-zinc-900 to-transparent px-4 pt-4 sm:px-6 safe-bottom-with-min">
         <div className="mx-auto max-w-md">
           {isComplete ? (
             <button

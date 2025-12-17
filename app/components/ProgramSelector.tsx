@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Library, User, Plus } from 'lucide-react';
+import { Library, User } from 'lucide-react';
 import { ProgramTemplate } from '../lib/types';
 
 interface ProgramSelectorProps {
@@ -9,7 +9,6 @@ interface ProgramSelectorProps {
   userPrograms: ProgramTemplate[];
   selectedProgram: ProgramTemplate | null;
   onSelectProgram: (program: ProgramTemplate) => void;
-  onCreateNew: () => void;
   onDeleteProgram: (programId: string) => void;
 }
 
@@ -18,7 +17,6 @@ export default function ProgramSelector({
   userPrograms,
   selectedProgram,
   onSelectProgram,
-  onCreateNew,
   onDeleteProgram,
 }: ProgramSelectorProps) {
   const initialTab: 'builtin' | 'mine' = userPrograms.length > 0 ? 'mine' : 'builtin';
@@ -45,51 +43,42 @@ export default function ProgramSelector({
   return (
     <div className="space-y-4">
       {/* Header with Tabs */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setActiveTab('builtin')}
-            className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
-              activeTab === 'builtin'
-                ? 'gradient-purple text-white shadow-glow-purple'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-            }`}
-          >
-            <Library className="h-5 w-5" />
-            <span>Built-in</span>
-            <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
-              activeTab === 'builtin'
-                ? 'bg-white/20 text-white'
-                : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-            }`}>
-              {builtInPrograms.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab('mine')}
-            className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
-              activeTab === 'mine'
-                ? 'gradient-purple text-white shadow-glow-purple'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-            }`}
-          >
-            <User className="h-5 w-5" />
-            <span>My Programs</span>
-            <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
-              activeTab === 'mine'
-                ? 'bg-white/20 text-white'
-                : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-            }`}>
-              {userPrograms.length}
-            </span>
-          </button>
-        </div>
+      <div className="flex flex-wrap gap-3">
         <button
-          onClick={onCreateNew}
-          className="gradient-green flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold text-white shadow-glow-green transition-all hover:scale-105 hover:shadow-xl sm:self-auto"
+          onClick={() => setActiveTab('builtin')}
+          className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
+            activeTab === 'builtin'
+              ? 'gradient-purple text-white shadow-glow-purple'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+          }`}
         >
-          <Plus className="h-5 w-5" />
-          Create New
+          <Library className="h-5 w-5" />
+          <span>Built-in</span>
+          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+            activeTab === 'builtin'
+              ? 'bg-white/20 text-white'
+              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+          }`}>
+            {builtInPrograms.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('mine')}
+          className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
+            activeTab === 'mine'
+              ? 'gradient-purple text-white shadow-glow-purple'
+              : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+          }`}
+        >
+          <User className="h-5 w-5" />
+          <span>My Programs</span>
+          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+            activeTab === 'mine'
+              ? 'bg-white/20 text-white'
+              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+          }`}>
+            {userPrograms.length}
+          </span>
         </button>
       </div>
 
