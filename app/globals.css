@@ -50,9 +50,6 @@ html {
   /* Ensure background extends to notch/status bar area on iOS */
   background-color: #09090b;
   background: #09090b;
-  /* Prevent overscroll/rubber-band effect */
-  overflow: hidden;
-  position: fixed;
 }
 
 body {
@@ -70,15 +67,10 @@ body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   /* Better mobile text rendering */
   -webkit-text-size-adjust: 100%;
-  /* Prevent horizontal scroll on mobile */
-  overflow-x: hidden;
   letter-spacing: -0.011em;
   /* Prevent overscroll/rubber-band effect on iOS */
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  /* Fixed positioning to prevent overscroll */
-  position: fixed;
-  overflow: hidden;
 }
 
 /* Smooth transitions for all interactive elements */

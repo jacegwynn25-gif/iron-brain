@@ -658,7 +658,7 @@ export default function Home() {
 
   // Main app view
   return (
-      <div className="h-full w-full bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/20 dark:to-zinc-900 mesh-gradient overflow-y-auto safe-all">
+      <div className="fixed inset-0 bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/20 dark:to-zinc-900 mesh-gradient overflow-y-auto safe-all">
         <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6 min-h-full">
         {/* Header */}
         <div className="mb-8 relative">
