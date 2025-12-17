@@ -170,7 +170,40 @@ export default function HardyStepper({
         {label}
       </span>
       <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-        <div className="grid grid-cols-[40px_1fr_40px] divide-x divide-zinc-200 dark:divide-zinc-700">
+        {/* Value Display - Top */}
+        <div
+          onClick={!isEditing ? enterEditMode : undefined}
+          className={`flex min-w-0 h-12 items-center justify-center bg-white cursor-text dark:bg-zinc-950 ${
+            isEditing ? 'ring-2 ring-inset ring-purple-500/60' : ''
+          }`}
+        >
+          {isEditing ? (
+            <div className="flex w-full items-baseline justify-center gap-1 px-2">
+              <span className="w-full min-w-0 bg-transparent text-center text-xl font-black tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-2xl">
+                {editingDisplay}
+              </span>
+              {displayUnit && (
+                <span className="flex-shrink-0 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                  {displayUnit}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-baseline justify-center gap-1 px-2 overflow-hidden">
+              <span className="text-xl font-black tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-2xl">
+                {displayValue}
+              </span>
+              {displayUnit && (
+                <span className="flex-shrink-0 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                  {displayUnit}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Buttons - Bottom */}
+        <div className="grid grid-cols-2 divide-x divide-zinc-200 border-t border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
           <button
             type="button"
             onPointerDown={decHold.handlePointerDown}
@@ -178,7 +211,7 @@ export default function HardyStepper({
             onPointerCancel={decHold.handlePointerCancel}
             onClick={handleDecClick}
             onContextMenu={(e) => e.preventDefault()}
-            className="flex h-11 items-center justify-center bg-zinc-50 text-xl font-black text-zinc-700 transition-colors active:bg-zinc-200 select-none dark:bg-zinc-900 dark:text-zinc-200 dark:active:bg-zinc-700"
+            className="flex h-10 items-center justify-center bg-zinc-50 text-xl font-black text-zinc-700 transition-colors active:bg-zinc-200 select-none dark:bg-zinc-900 dark:text-zinc-200 dark:active:bg-zinc-700"
             aria-label={`Decrease ${label}`}
             style={{
               WebkitTapHighlightColor: 'transparent',
@@ -191,37 +224,6 @@ export default function HardyStepper({
             <span className="pointer-events-none">−</span>
           </button>
 
-          <div
-            onClick={!isEditing ? enterEditMode : undefined}
-            className={`flex min-w-0 h-11 items-center justify-center bg-white cursor-text dark:bg-zinc-950 ${
-              isEditing ? 'ring-2 ring-purple-500/60' : ''
-            }`}
-          >
-            {isEditing ? (
-              <div className="flex w-full items-baseline justify-center gap-1 px-1">
-                <span className="w-full min-w-0 bg-transparent text-center text-lg font-black tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-xl">
-                  {editingDisplay}
-                </span>
-                {displayUnit && (
-                  <span className="flex-shrink-0 text-xs font-semibold text-zinc-500 dark:text-zinc-400 sm:text-sm">
-                    {displayUnit}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-baseline justify-center gap-1 px-1 overflow-hidden">
-                <span className="text-lg font-black tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-xl">
-                  {displayValue}
-                </span>
-                {displayUnit && (
-                  <span className="flex-shrink-0 text-xs font-semibold text-zinc-500 dark:text-zinc-400 sm:text-sm">
-                    {displayUnit}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
           <button
             type="button"
             onPointerDown={incHold.handlePointerDown}
@@ -229,7 +231,7 @@ export default function HardyStepper({
             onPointerCancel={incHold.handlePointerCancel}
             onClick={handleIncClick}
             onContextMenu={(e) => e.preventDefault()}
-            className="flex h-11 items-center justify-center bg-zinc-50 text-xl font-black text-zinc-700 transition-colors active:bg-zinc-200 select-none dark:bg-zinc-900 dark:text-zinc-200 dark:active:bg-zinc-700"
+            className="flex h-10 items-center justify-center bg-zinc-50 text-xl font-black text-zinc-700 transition-colors active:bg-zinc-200 select-none dark:bg-zinc-900 dark:text-zinc-200 dark:active:bg-zinc-700"
             aria-label={`Increase ${label}`}
             style={{
               WebkitTapHighlightColor: 'transparent',

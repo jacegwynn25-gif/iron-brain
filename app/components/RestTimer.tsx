@@ -202,12 +202,15 @@ export default function RestTimer({
   const isAlmostDone = timeRemaining <= 10;
   const isComplete = timeRemaining === 0;
 
-  // Determine which alert to show (fatigue takes priority)
+  // Determine which alert to show
+  // If fatigue alert EXISTS at all, never show the separate weight recommendation
+  // (the fatigue alert already includes the Apply button for the weight change)
+  const hasFatigueAlert = Boolean(fatigueAlert);
   const showFatigueAlert = fatigueAlert && !dismissedAlerts.has('fatigue');
   const showWeightRec = weightRecommendation && 
     weightRecommendation.type !== 'maintain' && 
     !dismissedAlerts.has('weight') &&
-    !showFatigueAlert;
+    !hasFatigueAlert; // Use hasFatigueAlert instead of showFatigueAlert
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950">
