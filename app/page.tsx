@@ -163,35 +163,61 @@ export default function Home() {
     }
   }, [profile, userProgramsKey]);
 
-  // Resume active logging session if present
+  // Resume active logging session if present (with staleness detection)
   useEffect(() => {
     if (isLogging) return;
     if (typeof window === 'undefined') return;
-    const raw = localStorage.getItem(activeSessionKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as {
-        session: WorkoutSession;
-        weekNumber: number;
-        dayIndex: number;
-        programId: string;
-      };
-      const program =
-        userPrograms.find(p => p.id === parsed.programId) || allPrograms.find(p => p.id === parsed.programId) || null;
-      if (!program) {
-        localStorage.removeItem(activeSessionKey);
-        return;
-      }
+    if (!profile) return;
+
+    const result = storage.getActiveSession(profile.id);
+    if (!result) return;
+
+    const { payload, ageHours, isStale } = result;
+
+    // Find the program
+    const program =
+      userPrograms.find(p => p.id === payload.programId) ||
+      allPrograms.find(p => p.id === payload.programId) ||
+      null;
+
+    if (!program) {
+      console.warn('⚠️ Program not found for active session, clearing...');
+      storage.clearActiveSession(profile.id);
+      return;
+    }
+
+    // Auto-resume recent sessions (< 1 hour old)
+    if (ageHours < 1) {
+      console.log('✅ Auto-resuming recent session');
       setSelectedProgram(program);
       setOriginalProgram(program);
-      setSelectedWeek(parsed.weekNumber);
-      setSelectedDayIndex(parsed.dayIndex);
-      setActiveSessionPayload(parsed);
+      setSelectedWeek(payload.weekNumber);
+      setSelectedDayIndex(payload.dayIndex);
+      setActiveSessionPayload(payload);
       setIsLogging(true);
-    } catch {
-      localStorage.removeItem(activeSessionKey);
+      return;
     }
-  }, [activeSessionKey, isLogging, userPrograms]);
+
+    // For older sessions, show a prompt (could enhance with modal later)
+    if (ageHours < 24) {
+      console.log(`⏰ Found session from ${ageHours.toFixed(1)}h ago - auto-resuming`);
+      setSelectedProgram(program);
+      setOriginalProgram(program);
+      setSelectedWeek(payload.weekNumber);
+      setSelectedDayIndex(payload.dayIndex);
+      setActiveSessionPayload(payload);
+      setIsLogging(true);
+    } else if (isStale) {
+      console.warn(`⚠️ Stale session found (${ageHours.toFixed(1)}h old) - consider discarding`);
+      // Still resume, but user should be aware it's old
+      setSelectedProgram(program);
+      setOriginalProgram(program);
+      setSelectedWeek(payload.weekNumber);
+      setSelectedDayIndex(payload.dayIndex);
+      setActiveSessionPayload(payload);
+      setIsLogging(true);
+    }
+  }, [activeSessionKey, isLogging, userPrograms, profile]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -208,6 +234,66 @@ export default function Home() {
       if (isBuilding) setIsBuilding(false);
     }},
   ], !isLogging && !isBuilding); // Disable when in logging or building mode
+
+  // ============================================================
+  // ANTI-DATA LOSS: Page Visibility & Lifecycle Handlers
+  // ============================================================
+
+  // Layer 1: Page Visibility API - Save when app goes to background (PRIMARY FIX)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isLogging && activeSessionPayload && profile) {
+        // App is going to background (user switched apps, locked phone, etc.)
+        // Save session immediately to prevent data loss
+        const success = storage.saveActiveSession(activeSessionPayload, profile.id);
+        if (success) {
+          console.log('💾 Session saved on visibility hidden');
+        } else {
+          console.error('❌ Failed to save session on visibility change');
+        }
+      } else if (document.visibilityState === 'visible' && isLogging) {
+        console.log('👁️ App became visible again - session preserved');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isLogging, activeSessionPayload, profile]);
+
+  // Layer 2: beforeunload - Save when browser/tab is closing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLogging && activeSessionPayload && profile) {
+        // Save session before page unloads
+        storage.saveActiveSession(activeSessionPayload, profile.id);
+        console.log('💾 Session saved on beforeunload');
+
+        // Warn user they have unsaved work
+        e.preventDefault();
+        e.returnValue = ''; // Modern browsers require this for the warning dialog
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLogging, activeSessionPayload, profile]);
+
+  // Layer 3: pagehide - iOS Safari safety net (more reliable than beforeunload on mobile)
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (isLogging && activeSessionPayload && profile) {
+        storage.saveActiveSession(activeSessionPayload, profile.id);
+        console.log('💾 Session saved on pagehide');
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [isLogging, activeSessionPayload, profile]);
+
+  // ============================================================
+  // PROGRAM SELECTION & DAY SUGGESTION
+  // ============================================================
 
   const getSuggestedWeekAndDay = useCallback((program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
     const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -399,7 +485,10 @@ export default function Home() {
     setWorkoutHistory(prev => [...prev, session]);
     setSummarySession(session);
     setShowCelebration(true);
-    localStorage.removeItem(activeSessionKey);
+    // Clear active session using robust storage function
+    if (profile) {
+      storage.clearActiveSession(profile.id);
+    }
     setActiveSessionPayload(null);
     setIsLogging(false);
   };
@@ -407,13 +496,24 @@ export default function Home() {
   const persistActiveSession = useCallback(
     (payload: { session: WorkoutSession; weekNumber: number; dayIndex: number; programId: string }) => {
       setActiveSessionPayload(payload);
-      localStorage.setItem(activeSessionKey, JSON.stringify(payload));
+      // Use robust storage function with error handling
+      if (profile) {
+        storage.saveActiveSession(payload, profile.id);
+      } else {
+        // Fallback to old method for guest users
+        localStorage.setItem(activeSessionKey, JSON.stringify(payload));
+      }
     },
-    [activeSessionKey]
+    [activeSessionKey, profile]
   );
 
   const handleCancelLogging = () => {
-    localStorage.removeItem(activeSessionKey);
+    // Clear active session using robust storage function
+    if (profile) {
+      storage.clearActiveSession(profile.id);
+    } else {
+      localStorage.removeItem(activeSessionKey);
+    }
     setActiveSessionPayload(null);
     setIsLogging(false);
   };

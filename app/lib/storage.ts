@@ -5,6 +5,9 @@ const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
   USER_SETTINGS: 'iron_brain_user_settings',
   CURRENT_CYCLE: 'iron_brain_current_cycle',
+  ACTIVE_SESSION: 'iron_brain_active_session',
+  SESSION_TIMESTAMP: 'iron_brain_session_timestamp',
+  SESSION_VERSION: 'iron_brain_session_version',
 } as const;
 
 let activeUserNamespace = 'default';
@@ -14,6 +17,183 @@ export function setUserNamespace(userId: string | null) {
 }
 
 const getKey = (base: string) => `${base}__${activeUserNamespace}`;
+
+// ============================================================
+// ACTIVE SESSION MANAGEMENT (Anti-Data Loss)
+// ============================================================
+
+export interface ActiveSessionPayload {
+  session: WorkoutSession;
+  weekNumber: number;
+  dayIndex: number;
+  programId: string;
+  savedAt: string; // ISO timestamp
+  version: number; // For future schema migrations
+}
+
+/**
+ * Save active workout session with comprehensive error handling
+ * This is called whenever session state changes to prevent data loss
+ */
+export function saveActiveSession(
+  payload: Omit<ActiveSessionPayload, 'savedAt' | 'version'>,
+  userNamespace?: string
+): boolean {
+  try {
+    const namespace = userNamespace || activeUserNamespace;
+
+    const fullPayload: ActiveSessionPayload = {
+      ...payload,
+      savedAt: new Date().toISOString(),
+      version: 1,
+    };
+
+    const key = `${STORAGE_KEYS.ACTIVE_SESSION}__${namespace}`;
+    localStorage.setItem(key, JSON.stringify(fullPayload));
+
+    // Save timestamp separately for quick staleness checks
+    localStorage.setItem(
+      `${STORAGE_KEYS.SESSION_TIMESTAMP}__${namespace}`,
+      fullPayload.savedAt
+    );
+
+    console.log('💾 Active session saved:', {
+      sets: fullPayload.session.sets.length,
+      completed: fullPayload.session.sets.filter(s => s.completed).length,
+      savedAt: fullPayload.savedAt,
+    });
+
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to save active session:', error);
+
+    // If localStorage is full, try to clear old sessions
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
+      console.warn('⚠️ Storage quota exceeded, attempting cleanup...');
+      clearStaleActiveSessions();
+      // Retry once after cleanup
+      try {
+        const namespace = userNamespace || activeUserNamespace;
+        const key = `${STORAGE_KEYS.ACTIVE_SESSION}__${namespace}`;
+        const fullPayload: ActiveSessionPayload = {
+          ...payload,
+          savedAt: new Date().toISOString(),
+          version: 1,
+        };
+        localStorage.setItem(key, JSON.stringify(fullPayload));
+        console.log('✅ Session saved after cleanup');
+        return true;
+      } catch {
+        console.error('❌ Failed even after cleanup - storage critically full');
+        return false;
+      }
+    }
+
+    return false;
+  }
+}
+
+/**
+ * Get active session with automatic staleness check
+ * Returns null if no session exists or if it's corrupted
+ */
+export function getActiveSession(
+  userNamespace?: string,
+  maxAgeHours: number = 24
+): { payload: ActiveSessionPayload; ageHours: number; isStale: boolean } | null {
+  try {
+    const namespace = userNamespace || activeUserNamespace;
+    const key = `${STORAGE_KEYS.ACTIVE_SESSION}__${namespace}`;
+    const raw = localStorage.getItem(key);
+
+    if (!raw) return null;
+
+    const payload = JSON.parse(raw) as ActiveSessionPayload;
+
+    // Validate payload structure
+    if (!payload.session || !payload.programId || !payload.savedAt) {
+      console.warn('⚠️ Invalid session payload detected, clearing...');
+      clearActiveSession(namespace);
+      return null;
+    }
+
+    // Check session age
+    const savedAt = new Date(payload.savedAt);
+    const now = new Date();
+    const ageHours = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60);
+    const isStale = ageHours > maxAgeHours;
+
+    if (isStale) {
+      console.warn(`⚠️ Active session is ${ageHours.toFixed(1)}h old - marked as stale`);
+    } else {
+      console.log(`✅ Active session found: ${ageHours.toFixed(1)}h old`);
+    }
+
+    return { payload, ageHours, isStale };
+  } catch (error) {
+    console.error('❌ Failed to load active session:', error);
+    // Clear corrupted session
+    if (userNamespace) {
+      clearActiveSession(userNamespace);
+    }
+    return null;
+  }
+}
+
+/**
+ * Clear active session for a specific user
+ */
+export function clearActiveSession(userNamespace?: string): void {
+  try {
+    const namespace = userNamespace || activeUserNamespace;
+    const key = `${STORAGE_KEYS.ACTIVE_SESSION}__${namespace}`;
+    const tsKey = `${STORAGE_KEYS.SESSION_TIMESTAMP}__${namespace}`;
+
+    localStorage.removeItem(key);
+    localStorage.removeItem(tsKey);
+
+    console.log('🗑️ Active session cleared for:', namespace);
+  } catch (error) {
+    console.error('❌ Failed to clear active session:', error);
+  }
+}
+
+/**
+ * Clean up stale active sessions from all users (maintenance)
+ * Called automatically when storage quota is exceeded
+ */
+function clearStaleActiveSessions(): void {
+  try {
+    const keysToRemove: string[] = [];
+    const staleThresholdHours = 48;
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(STORAGE_KEYS.SESSION_TIMESTAMP)) continue;
+
+      const timestamp = localStorage.getItem(key);
+      if (!timestamp) continue;
+
+      const savedAt = new Date(timestamp);
+      const ageHours = (Date.now() - savedAt.getTime()) / (1000 * 60 * 60);
+
+      // Remove sessions older than 48 hours
+      if (ageHours > staleThresholdHours) {
+        const namespace = key.split('__')[1];
+        keysToRemove.push(`${STORAGE_KEYS.ACTIVE_SESSION}__${namespace}`);
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    if (keysToRemove.length > 0) {
+      console.log(`🧹 Cleaned up ${keysToRemove.length / 2} stale sessions`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to clean stale sessions:', error);
+  }
+}
 
 // ============================================================
 // WORKOUT HISTORY STORAGE
@@ -503,17 +683,27 @@ export function incrementCycle(programId: string): void {
 // ============================================================
 
 export const storage = {
+  // Active session management (anti-data loss)
+  saveActiveSession,
+  getActiveSession,
+  clearActiveSession,
+
+  // Workout history
   saveWorkout,
   getWorkoutHistory,
   setWorkoutHistory,
   getWorkoutById,
   deleteWorkout,
   deleteWorkoutSession: deleteWorkout, // Alias for clarity
+
+  // Exercise history & analytics
   getExerciseHistory,
   getLastWorkoutForExercise,
   getPersonalRecords,
   suggestWeight,
   analyzeProgressionReadiness,
+
+  // Cycle management
   getCurrentCycle,
   incrementCycle,
 };
