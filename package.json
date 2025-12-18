@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify-supabase": "tsx scripts/verify-supabase.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "date-fns": "^4.1.0",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.556.0",
@@ -29,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
