@@ -763,18 +763,18 @@ export default function Home() {
   // Avoid hydration mismatch while profile initializes
   if (!hydrated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900" />
+      <div className="min-h-screen safe-top bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900" />
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0b1021] via-[#1b1f3a] to-[#28114a] relative overflow-hidden">
+      <div className="min-h-screen safe-top bg-gradient-to-br from-[#0b1021] via-[#1b1f3a] to-[#28114a] relative overflow-hidden">
         <div className="absolute inset-0 opacity-40 blur-3xl">
           <div className="absolute -left-10 top-10 h-64 w-64 rounded-full bg-purple-500/40" />
           <div className="absolute right-0 bottom-0 h-80 w-80 rounded-full bg-pink-500/40" />
         </div>
-        <div className="relative z-10 flex min-h-screen items-center justify-center p-6">
+        <div className="relative z-10 flex min-h-screen safe-top items-center justify-center p-6">
           <div className="w-full max-w-xl rounded-3xl bg-white/95 p-8 shadow-[0_25px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl ring-1 ring-white/40 dark:bg-zinc-900/90 dark:ring-white/10 border border-white/40 dark:border-white/5">
             <div className="mb-8 text-center space-y-2">
               <div className="inline-flex items-center gap-3 rounded-full bg-purple-100 px-4 py-2 text-sm font-bold text-purple-800 dark:bg-purple-900/40 dark:text-purple-100">

@@ -234,7 +234,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel, user
   }, {} as Record<string, SetTemplate[]>);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900">
+    <div className="min-h-screen safe-top bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 space-y-6">
         {/* Header */}
         <div className="rounded-3xl bg-gradient-to-br from-zinc-900 via-purple-900 to-purple-700 p-6 sm:p-8 shadow-2xl border border-white/10 dark:border-purple-900/30">

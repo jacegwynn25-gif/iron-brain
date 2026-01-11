@@ -335,7 +335,7 @@ export default function WorkoutLogger({
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-purple-50/40 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/25 dark:to-zinc-900">
+    <div className="min-h-screen safe-top bg-gradient-to-b from-zinc-50 via-purple-50/40 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/25 dark:to-zinc-900">
       <div className="w-full max-w-none px-2 py-4 sm:mx-auto sm:max-w-4xl sm:px-4 sm:py-8">
         {/* Compact Header */}
         <div className="mb-4 rounded-2xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 p-1 shadow-xl">

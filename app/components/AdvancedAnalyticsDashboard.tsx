@@ -1,6 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  BarChart3,
+  Zap,
+  Battery,
+  Target,
+  Lightbulb,
+  User,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  TrendingUp,
+  Activity
+} from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
@@ -220,8 +234,27 @@ export default function AdvancedAnalyticsDashboard() {
 
       console.log('📚 Total workouts loaded:', allWorkouts.length);
 
-      const completedWorkouts = allWorkouts.filter(w => w.endTime);
-      console.log('✅ Completed workouts:', completedWorkouts.length);
+      // DATA VALIDATION: Deduplicate workouts by ID
+      const uniqueWorkouts = Array.from(
+        new Map(allWorkouts.map(w => [w.id, w])).values()
+      );
+      console.log(`🔍 Deduplication: ${allWorkouts.length} -> ${uniqueWorkouts.length} workouts`);
+
+      // Filter completed workouts with valid data
+      const completedWorkouts = uniqueWorkouts.filter(w => {
+        if (!w.endTime) return false;
+
+        // Validate sets have proper data
+        const hasValidSets = w.sets.some(set => {
+          const weight = set.actualWeight || 0;
+          const reps = set.actualReps || 0;
+          return weight > 0 && reps > 0 && !isNaN(weight) && !isNaN(reps);
+        });
+
+        return hasValidSets;
+      });
+
+      console.log('✅ Completed workouts with valid data:', completedWorkouts.length);
 
       if (completedWorkouts.length < 3) {
         console.warn(`⚠️ Not enough workouts for analytics (have ${completedWorkouts.length}, need 3)`);
@@ -247,20 +280,31 @@ export default function AdvancedAnalyticsDashboard() {
         }
       }
 
-      // Calculate ACWR
+      // Calculate ACWR with validated volume calculation
       console.log('📈 Calculating ACWR...');
-      const workoutsWithLoad = completedWorkouts.map(w => ({
-        date: new Date(w.endTime!),
-        load: w.totalVolumeLoad || w.sets.reduce((sum, set) => {
-          if (set.actualWeight && set.actualReps) {
-            return sum + (set.actualWeight * set.actualReps);
+      const workoutsWithLoad = completedWorkouts.map(w => {
+        // Calculate volume: weight * reps, with proper validation
+        const calculatedLoad = w.sets.reduce((sum, set) => {
+          const weight = set.actualWeight || 0;
+          const reps = set.actualReps || 0;
+
+          // Validate: positive numbers, not NaN, reasonable bounds
+          if (weight > 0 && reps > 0 && !isNaN(weight) && !isNaN(reps) && weight < 2000 && reps < 200) {
+            return sum + (weight * reps);
           }
           return sum;
-        }, 0)
-      }));
+        }, 0);
+
+        return {
+          date: new Date(w.endTime!),
+          load: w.totalVolumeLoad && w.totalVolumeLoad > 0 ? w.totalVolumeLoad : calculatedLoad
+        };
+      });
 
       const acwrMetrics = calculateACWR(workoutsWithLoad);
       console.log('✅ ACWR calculated:', acwrMetrics.acwr);
+      console.log('  Acute (7d):', acwrMetrics.acuteLoad);
+      console.log('  Chronic (28d avg/week):', acwrMetrics.chronicLoad / 4);
 
       // Build hierarchical model with caching if available
       let hierarchicalModel: HierarchicalFatigueModel | undefined;
@@ -370,18 +414,31 @@ export default function AdvancedAnalyticsDashboard() {
       // Store workouts for causal insights
       setAllWorkouts(completedWorkouts);
 
+      // CLAMPING: Apply sanity checks to display values
+      const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
       setAnalytics({
         acwr: {
-          ratio: acwrMetrics.acwr,
+          ratio: clamp(acwrMetrics.acwr, 0, 5.0), // ACWR should never exceed 5.0
           status: acwrMetrics.status,
-          acuteLoad: acwrMetrics.acuteLoad,
-          chronicLoad: acwrMetrics.chronicLoad,
-          monotony: acwrMetrics.trainingMonotony,
-          strain: acwrMetrics.trainingStrain
+          acuteLoad: clamp(acwrMetrics.acuteLoad, 0, 1000000),
+          chronicLoad: clamp(acwrMetrics.chronicLoad, 0, 1000000),
+          monotony: clamp(acwrMetrics.trainingMonotony, 0, 10),
+          strain: clamp(acwrMetrics.trainingStrain, 0, 10000000)
         },
-        fitnessFatigue: fitnessFatigue || undefined,
+        fitnessFatigue: fitnessFatigue ? {
+          currentFitness: clamp(fitnessFatigue.currentFitness, 0, 200),
+          currentFatigue: clamp(fitnessFatigue.currentFatigue, 0, 150),
+          performance: clamp(fitnessFatigue.performance, -100, 200),
+          readiness: fitnessFatigue.readiness
+        } : undefined,
         hierarchicalModel,
-        personalStats,
+        personalStats: {
+          fatigueResistance: clamp(personalStats.fatigueResistance, 0, 100),
+          recoveryRate: clamp(personalStats.recoveryRate, 0, 3),
+          totalWorkouts: personalStats.totalWorkouts,
+          totalSets: personalStats.totalSets
+        },
         exerciseRates,
         recoveryProfiles,
         sfrInsights
@@ -397,9 +454,11 @@ export default function AdvancedAnalyticsDashboard() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
-        <div className="animate-pulse space-y-4 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-pink-500 opacity-50"></div>
-          <div className="text-white text-lg">Loading your insights...</div>
+        <div className="space-y-4 text-center">
+          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center animate-pulse">
+            <Activity className="h-8 w-8 text-white" />
+          </div>
+          <div className="text-white text-lg font-semibold">Loading your insights...</div>
           <div className="text-gray-400 text-sm">Analyzing workouts and calculating metrics</div>
         </div>
       </div>
@@ -410,7 +469,9 @@ export default function AdvancedAnalyticsDashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 max-w-md text-center">
-          <div className="text-5xl sm:text-6xl mb-4">📊</div>
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <BarChart3 className="h-10 w-10 text-white" />
+          </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Start Your Journey</h2>
           <p className="text-gray-300 text-sm sm:text-base mb-6">
             Complete at least 3 workouts to unlock your personalized analytics dashboard.
@@ -537,53 +598,62 @@ export default function AdvancedAnalyticsDashboard() {
         {/* Smart Insights Banner */}
         {smartInsights.length > 0 && selectedView === 'overview' && (
           <div className="mb-4 sm:mb-6 space-y-2">
-            {smartInsights.map((insight, idx) => (
-              <div
-                key={idx}
-                className={`rounded-xl p-3 sm:p-4 border ${
-                  insight.type === 'good' ? 'bg-green-500/10 border-green-500/30' :
-                  insight.type === 'danger' ? 'bg-red-500/10 border-red-500/30' :
-                  insight.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
-                  'bg-blue-500/10 border-blue-500/30'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="text-lg sm:text-xl">
-                    {insight.type === 'good' ? '✅' :
-                     insight.type === 'danger' ? '🚨' :
-                     insight.type === 'warning' ? '⚠️' : '💡'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm sm:text-base font-medium mb-1 ${
-                      insight.type === 'good' ? 'text-green-300' :
-                      insight.type === 'danger' ? 'text-red-300' :
-                      insight.type === 'warning' ? 'text-yellow-300' :
-                      'text-blue-300'
+            {smartInsights.map((insight, idx) => {
+              const Icon = insight.type === 'good' ? CheckCircle :
+                          insight.type === 'danger' ? AlertCircle :
+                          insight.type === 'warning' ? AlertTriangle : Info;
+
+              return (
+                <div
+                  key={idx}
+                  className={`rounded-xl p-3 sm:p-4 border ${
+                    insight.type === 'good' ? 'bg-green-500/10 border-green-500/30' :
+                    insight.type === 'danger' ? 'bg-red-500/10 border-red-500/30' :
+                    insight.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                    'bg-blue-500/10 border-blue-500/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 ${
+                      insight.type === 'good' ? 'text-green-400' :
+                      insight.type === 'danger' ? 'text-red-400' :
+                      insight.type === 'warning' ? 'text-yellow-400' :
+                      'text-blue-400'
                     }`}>
-                      {insight.message}
-                    </p>
-                    {insight.action && (
-                      <p className="text-xs sm:text-sm text-gray-400">
-                        → {insight.action}
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm sm:text-base font-medium mb-1 ${
+                        insight.type === 'good' ? 'text-green-300' :
+                        insight.type === 'danger' ? 'text-red-300' :
+                        insight.type === 'warning' ? 'text-yellow-300' :
+                        'text-blue-300'
+                      }`}>
+                        {insight.message}
                       </p>
-                    )}
+                      {insight.action && (
+                        <p className="text-xs sm:text-sm text-gray-400">
+                          → {insight.action}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* Navigation Tabs - Mobile Optimized */}
         <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
           {([
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'training-load', label: 'Load', icon: '⚡' },
-            { id: 'recovery', label: 'Recovery', icon: '🔋' },
-            { id: 'efficiency', label: 'Efficiency', icon: '🎯' },
-            { id: 'causal', label: 'Insights', icon: '🔬' },
-            { id: 'personal', label: 'Profile', icon: '👤' }
-          ] as Array<{ id: ViewType; label: string; icon: string }>).map(({ id, label, icon }) => (
+            { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
+            { id: 'training-load' as ViewType, label: 'Load', Icon: Zap },
+            { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
+            { id: 'efficiency' as ViewType, label: 'Efficiency', Icon: Target },
+            { id: 'causal' as ViewType, label: 'Insights', Icon: Lightbulb },
+            { id: 'personal' as ViewType, label: 'Profile', Icon: User }
+          ]).map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => setSelectedView(id)}
@@ -593,7 +663,7 @@ export default function AdvancedAnalyticsDashboard() {
                   : 'bg-white/10 text-gray-300 hover:bg-white/20'
               }`}
             >
-              <span className="text-base sm:text-lg">{icon}</span>
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden xs:inline">{label}</span>
             </button>
           ))}
@@ -714,10 +784,14 @@ export default function AdvancedAnalyticsDashboard() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs sm:text-sm text-gray-400">Recovery Speed</span>
-                    <span className="text-xs sm:text-sm font-semibold text-white">
-                      {analytics.personalStats.recoveryRate > 1.1 ? '⚡ Fast' :
-                       analytics.personalStats.recoveryRate > 0.9 ? '✓ Normal' :
-                       '🐌 Slow'}
+                    <span className={`text-xs sm:text-sm font-semibold ${
+                      analytics.personalStats.recoveryRate > 1.1 ? 'text-green-400' :
+                      analytics.personalStats.recoveryRate > 0.9 ? 'text-blue-400' :
+                      'text-yellow-400'
+                    }`}>
+                      {analytics.personalStats.recoveryRate > 1.1 ? 'Fast' :
+                       analytics.personalStats.recoveryRate > 0.9 ? 'Normal' :
+                       'Slow'}
                     </span>
                   </div>
                 </div>
@@ -860,38 +934,38 @@ export default function AdvancedAnalyticsDashboard() {
                   <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">What This Means</h3>
                   <div className="text-xs sm:text-sm text-gray-300 space-y-3">
                     {analytics.acwr.ratio < 0.5 && (
-                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                        <p className="font-medium text-yellow-400 mb-1">⚠️ Detraining Zone</p>
+                      <div className="bg-yellow-500/10 border-l-4 border-yellow-500 rounded-lg p-3">
+                        <p className="font-semibold text-yellow-400 mb-1">Detraining Zone</p>
                         <p className="text-gray-400">Load too low to maintain fitness. Gradually increase volume.</p>
                       </div>
                     )}
                     {analytics.acwr.ratio >= 0.5 && analytics.acwr.ratio < 0.8 && (
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                        <p className="font-medium text-blue-400 mb-1">📊 Maintenance Mode</p>
+                      <div className="bg-blue-500/10 border-l-4 border-blue-500 rounded-lg p-3">
+                        <p className="font-semibold text-blue-400 mb-1">Maintenance Mode</p>
                         <p className="text-gray-400">Preserving fitness but not building. Consider progressive overload.</p>
                       </div>
                     )}
                     {analytics.acwr.ratio >= 0.8 && analytics.acwr.ratio <= 1.3 && (
-                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                        <p className="font-medium text-green-400 mb-1">✅ Optimal Zone</p>
+                      <div className="bg-green-500/10 border-l-4 border-green-500 rounded-lg p-3">
+                        <p className="font-semibold text-green-400 mb-1">Optimal Zone</p>
                         <p className="text-gray-400">Perfect balance for gains with minimal injury risk. Keep it up!</p>
                       </div>
                     )}
                     {analytics.acwr.ratio > 1.3 && analytics.acwr.ratio <= 1.5 && (
-                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
-                        <p className="font-medium text-orange-400 mb-1">⚡ Building Phase</p>
+                      <div className="bg-orange-500/10 border-l-4 border-orange-500 rounded-lg p-3">
+                        <p className="font-semibold text-orange-400 mb-1">Building Phase</p>
                         <p className="text-gray-400">Progressive overload territory. Monitor fatigue closely.</p>
                       </div>
                     )}
                     {analytics.acwr.ratio > 1.5 && analytics.acwr.ratio <= 2.0 && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                        <p className="font-medium text-red-400 mb-1">🚨 Overreaching</p>
+                      <div className="bg-red-500/10 border-l-4 border-red-500 rounded-lg p-3">
+                        <p className="font-semibold text-red-400 mb-1">Overreaching</p>
                         <p className="text-gray-400">High load spike. Plan recovery within 1-2 weeks.</p>
                       </div>
                     )}
                     {analytics.acwr.ratio > 2.0 && (
-                      <div className="bg-red-600/20 border border-red-600/40 rounded-lg p-3">
-                        <p className="font-medium text-red-500 mb-1">🛑 DANGER ZONE</p>
+                      <div className="bg-red-600/20 border-l-4 border-red-600 rounded-lg p-3">
+                        <p className="font-semibold text-red-500 mb-1">DANGER ZONE</p>
                         <p className="text-gray-400">2-4× injury risk! Immediate deload recommended.</p>
                       </div>
                     )}
@@ -1016,12 +1090,18 @@ export default function AdvancedAnalyticsDashboard() {
                   <div className="text-4xl sm:text-5xl font-bold text-white mb-2">
                     {analytics.personalStats?.fatigueResistance.toFixed(0)}/100
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-400 mb-3">
-                    {analytics.personalStats && analytics.personalStats.fatigueResistance > 70
-                      ? '⚡ Above Average - Handles volume well'
+                  <div className={`text-xs sm:text-sm mb-3 font-medium ${
+                    analytics.personalStats && analytics.personalStats.fatigueResistance > 70
+                      ? 'text-green-400'
                       : analytics.personalStats && analytics.personalStats.fatigueResistance > 50
-                      ? '✓ Average - Normal tolerance'
-                      : '⚠️ Below Average - Fatigue-sensitive'}
+                      ? 'text-blue-400'
+                      : 'text-yellow-400'
+                  }`}>
+                    {analytics.personalStats && analytics.personalStats.fatigueResistance > 70
+                      ? 'Above Average - Handles volume well'
+                      : analytics.personalStats && analytics.personalStats.fatigueResistance > 50
+                      ? 'Average - Normal tolerance'
+                      : 'Below Average - Fatigue-sensitive'}
                   </div>
                   <div className="h-2 sm:h-3 bg-gray-700 rounded-full overflow-hidden">
                     <div
@@ -1036,12 +1116,18 @@ export default function AdvancedAnalyticsDashboard() {
                   <div className="text-4xl sm:text-5xl font-bold text-white mb-2">
                     {analytics.personalStats?.recoveryRate.toFixed(2)}×
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-400 mb-3">
-                    {analytics.personalStats && analytics.personalStats.recoveryRate > 1.1
-                      ? '⚡ Fast - Train more frequently'
+                  <div className={`text-xs sm:text-sm mb-3 font-medium ${
+                    analytics.personalStats && analytics.personalStats.recoveryRate > 1.1
+                      ? 'text-green-400'
                       : analytics.personalStats && analytics.personalStats.recoveryRate > 0.9
-                      ? '✓ Normal - Standard rest needed'
-                      : '🐌 Slow - Extra rest helps'}
+                      ? 'text-blue-400'
+                      : 'text-yellow-400'
+                  }`}>
+                    {analytics.personalStats && analytics.personalStats.recoveryRate > 1.1
+                      ? 'Fast - Train more frequently'
+                      : analytics.personalStats && analytics.personalStats.recoveryRate > 0.9
+                      ? 'Normal - Standard rest needed'
+                      : 'Slow - Extra rest helps'}
                   </div>
                   <div className="h-2 sm:h-3 bg-gray-700 rounded-full overflow-hidden">
                     <div
