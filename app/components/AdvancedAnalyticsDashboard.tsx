@@ -644,8 +644,8 @@ export default function AdvancedAnalyticsDashboard() {
           </div>
         )}
 
-        {/* Navigation Tabs - Mobile Optimized */}
-        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
+        {/* Navigation Tabs - Always show labels for clarity */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
           {([
             { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
             { id: 'training-load' as ViewType, label: 'Load', Icon: Zap },
@@ -657,52 +657,57 @@ export default function AdvancedAnalyticsDashboard() {
             <button
               key={id}
               onClick={() => setSelectedView(id)}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold whitespace-nowrap transition-all text-sm sm:text-base touch-manipulation active:scale-95 ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all text-sm touch-manipulation ${
                 selectedView === id
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/15 hover:text-white'
               }`}
             >
-              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="hidden xs:inline">{label}</span>
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
 
         {/* Overview */}
         {selectedView === 'overview' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* ACWR Card */}
             {analytics.acwr && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-300">Injury Risk</h3>
-                  <div className={`text-xs sm:text-sm font-bold px-2 py-0.5 rounded ${
-                    analytics.acwr.status === 'optimal' ? 'bg-green-500/20 text-green-400' :
-                    analytics.acwr.status === 'building' ? 'bg-blue-500/20 text-blue-400' :
-                    analytics.acwr.status === 'danger' ? 'bg-red-500/20 text-red-400' :
-                    'bg-yellow-500/20 text-yellow-400'
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-5 w-5 text-orange-400" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Injury Risk</h3>
+                  </div>
+                  <div className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                    analytics.acwr.status === 'optimal' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                    analytics.acwr.status === 'building' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                    analytics.acwr.status === 'danger' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                    'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
                   }`}>
                     {analytics.acwr.status}
                   </div>
                 </div>
-                <div className="text-4xl sm:text-5xl font-bold text-white mb-1">
+                <div className="text-5xl font-black text-white mb-2 bg-gradient-to-br from-white to-gray-300 bg-clip-text text-transparent">
                   {analytics.acwr.ratio.toFixed(2)}
                 </div>
-                <div className="text-xs sm:text-sm text-gray-400 mb-3">
+                <div className="text-sm text-gray-300 mb-4 font-medium">
                   {analytics.acwr.ratio < 0.8 ? 'Too low - increase training' :
                    analytics.acwr.ratio <= 1.3 ? 'Perfect zone for gains' :
                    analytics.acwr.ratio <= 1.5 ? 'High but manageable' :
                    'Danger zone - rest needed!'}
                 </div>
-                <div className="space-y-1.5 text-xs sm:text-sm text-gray-400">
-                  <div className="flex justify-between">
-                    <span>7-day load</span>
-                    <span className="text-white font-medium">{analytics.acwr.acuteLoad.toFixed(0)}</span>
+                <div className="space-y-2.5 pt-4 border-t border-white/10">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-400">7-day load</span>
+                    <span className="text-base text-white font-bold">{analytics.acwr.acuteLoad.toFixed(0)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>28-day avg</span>
-                    <span className="text-white font-medium">{analytics.acwr.chronicLoad.toFixed(0)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-400">28-day avg</span>
+                    <span className="text-base text-white font-bold">{analytics.acwr.chronicLoad.toFixed(0)}</span>
                   </div>
                 </div>
               </div>
@@ -710,45 +715,50 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Fitness-Fatigue Card */}
             {analytics.fitnessFatigue && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-300">Readiness</h3>
-                  <div className={`text-xs sm:text-sm font-bold px-2 py-0.5 rounded ${
-                    analytics.fitnessFatigue.readiness === 'excellent' ? 'bg-green-500/20 text-green-400' :
-                    analytics.fitnessFatigue.readiness === 'good' ? 'bg-blue-500/20 text-blue-400' :
-                    analytics.fitnessFatigue.readiness === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                      <Activity className="h-5 w-5 text-purple-400" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Readiness</h3>
+                  </div>
+                  <div className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                    analytics.fitnessFatigue.readiness === 'excellent' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                    analytics.fitnessFatigue.readiness === 'good' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                    analytics.fitnessFatigue.readiness === 'moderate' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                    'bg-red-500/20 text-red-300 border border-red-500/30'
                   }`}>
                     {analytics.fitnessFatigue.readiness}
                   </div>
                 </div>
-                <div className="text-4xl sm:text-5xl font-bold text-white mb-1">
+                <div className="text-5xl font-black text-white mb-2 bg-gradient-to-br from-white to-gray-300 bg-clip-text text-transparent">
                   {analytics.fitnessFatigue.performance.toFixed(0)}
                 </div>
-                <div className="text-xs sm:text-sm text-gray-400 mb-4">
+                <div className="text-sm text-gray-300 mb-4 font-medium">
                   Performance score
                 </div>
-                <div className="space-y-2.5">
+                <div className="space-y-3 pt-4 border-t border-white/10">
                   <div>
-                    <div className="flex justify-between text-xs sm:text-sm mb-1">
-                      <span className="text-gray-400">Fitness</span>
-                      <span className="text-green-400 font-medium text-xs">{analytics.fitnessFatigue.currentFitness.toFixed(0)}</span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-400">Fitness</span>
+                      <span className="text-sm text-green-400 font-bold">{analytics.fitnessFatigue.currentFitness.toFixed(0)}</span>
                     </div>
-                    <div className="h-1.5 sm:h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-700/50 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-green-500 transition-all"
+                        className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all shadow-lg shadow-green-500/50"
                         style={{ width: `${Math.min(100, analytics.fitnessFatigue.currentFitness)}%` }}
                       />
                     </div>
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs sm:text-sm mb-1">
-                      <span className="text-gray-400">Fatigue</span>
-                      <span className="text-red-400 font-medium text-xs">{analytics.fitnessFatigue.currentFatigue.toFixed(0)}</span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-400">Fatigue</span>
+                      <span className="text-sm text-red-400 font-bold">{analytics.fitnessFatigue.currentFatigue.toFixed(0)}</span>
                     </div>
-                    <div className="h-1.5 sm:h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-700/50 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-red-500 transition-all"
+                        className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all shadow-lg shadow-red-500/50"
                         style={{ width: `${Math.min(100, analytics.fitnessFatigue.currentFatigue)}%` }}
                       />
                     </div>
@@ -759,32 +769,37 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Personal Stats Card */}
             {analytics.personalStats && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
-                <h3 className="text-sm sm:text-base font-semibold text-gray-300 mb-4">Your Stats</h3>
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                    <User className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Your Stats</h3>
+                </div>
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Workouts</div>
-                    <div className="text-2xl sm:text-3xl font-bold text-white">
+                  <div className="bg-white/5 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1 font-medium">Workouts</div>
+                    <div className="text-3xl font-black text-white">
                       {analytics.personalStats.totalWorkouts}
                     </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Total Sets</div>
-                    <div className="text-2xl sm:text-3xl font-bold text-white">
+                  <div className="bg-white/5 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1 font-medium">Total Sets</div>
+                    <div className="text-3xl font-black text-white">
                       {analytics.personalStats.totalSets}
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2.5 pt-3 border-t border-white/10">
+                <div className="space-y-3 pt-4 border-t border-white/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs sm:text-sm text-gray-400">Fatigue Resistance</span>
-                    <span className="text-xs sm:text-sm font-semibold text-white">
+                    <span className="text-sm text-gray-400">Fatigue Resistance</span>
+                    <span className="text-sm font-bold text-white">
                       {analytics.personalStats.fatigueResistance.toFixed(0)}/100
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs sm:text-sm text-gray-400">Recovery Speed</span>
-                    <span className={`text-xs sm:text-sm font-semibold ${
+                    <span className="text-sm text-gray-400">Recovery Speed</span>
+                    <span className={`text-sm font-bold ${
                       analytics.personalStats.recoveryRate > 1.1 ? 'text-green-400' :
                       analytics.personalStats.recoveryRate > 0.9 ? 'text-blue-400' :
                       'text-yellow-400'
@@ -800,19 +815,24 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Quick Recovery Status */}
             {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
-                <h3 className="text-sm sm:text-base font-semibold text-gray-300 mb-3 sm:mb-4">Muscle Recovery</h3>
-                <div className="space-y-2">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                    <Battery className="h-5 w-5 text-green-400" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Muscle Recovery</h3>
+                </div>
+                <div className="space-y-3">
                   {analytics.recoveryProfiles.slice(0, 3).map(profile => (
-                    <div key={profile.muscleGroup} className="flex justify-between items-center">
-                      <span className="text-xs sm:text-sm text-gray-300 capitalize">{profile.muscleGroup}</span>
+                    <div key={profile.muscleGroup} className="flex justify-between items-center bg-white/5 rounded-lg p-3">
+                      <span className="text-sm text-gray-200 capitalize font-medium">{profile.muscleGroup}</span>
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          profile.readinessScore >= 8 ? 'bg-green-400' :
-                          profile.readinessScore >= 6 ? 'bg-yellow-400' :
-                          'bg-orange-400'
+                        <div className={`w-2.5 h-2.5 rounded-full shadow-lg ${
+                          profile.readinessScore >= 8 ? 'bg-green-400 shadow-green-500/50' :
+                          profile.readinessScore >= 6 ? 'bg-yellow-400 shadow-yellow-500/50' :
+                          'bg-orange-400 shadow-orange-500/50'
                         }`}></div>
-                        <span className={`text-xs sm:text-sm font-semibold ${
+                        <span className={`text-sm font-bold ${
                           profile.readinessScore >= 8 ? 'text-green-400' :
                           profile.readinessScore >= 6 ? 'text-yellow-400' :
                           'text-orange-400'
@@ -825,7 +845,7 @@ export default function AdvancedAnalyticsDashboard() {
                 </div>
                 <button
                   onClick={() => setSelectedView('recovery')}
-                  className="mt-3 sm:mt-4 w-full text-xs sm:text-sm text-purple-400 hover:text-purple-300 transition-colors font-medium"
+                  className="mt-4 w-full text-sm text-purple-400 hover:text-purple-300 transition-colors font-bold hover:bg-white/5 rounded-lg py-2"
                 >
                   View All Muscles →
                 </button>
@@ -834,27 +854,30 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Quick Efficiency Status */}
             {analytics.sfrInsights && analytics.sfrInsights.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
-                <h3 className="text-sm sm:text-base font-semibold text-gray-300 mb-3 sm:mb-4">Best Exercises</h3>
-                <div className="space-y-2">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+                    <Target className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Best Exercises</h3>
+                </div>
+                <div className="space-y-3">
                   {analytics.sfrInsights.slice(0, 3).map(insight => (
-                    <div key={insight.exerciseId} className="flex justify-between items-center gap-2">
-                      <span className="text-xs sm:text-sm text-gray-300 truncate">{insight.exerciseName}</span>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                          insight.interpretation === 'excellent' ? 'bg-green-500/20 text-green-400' :
-                          insight.interpretation === 'good' ? 'bg-blue-500/20 text-blue-400' :
-                          'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {insight.interpretation}
-                        </span>
-                      </div>
+                    <div key={insight.exerciseId} className="flex justify-between items-center gap-3 bg-white/5 rounded-lg p-3">
+                      <span className="text-sm text-gray-200 truncate font-medium">{insight.exerciseName}</span>
+                      <span className={`text-xs px-2.5 py-1 rounded-lg font-bold flex-shrink-0 ${
+                        insight.interpretation === 'excellent' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                        insight.interpretation === 'good' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                        'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                      }`}>
+                        {insight.interpretation}
+                      </span>
                     </div>
                   ))}
                 </div>
                 <button
                   onClick={() => setSelectedView('efficiency')}
-                  className="mt-3 sm:mt-4 w-full text-xs sm:text-sm text-purple-400 hover:text-purple-300 transition-colors font-medium"
+                  className="mt-4 w-full text-sm text-purple-400 hover:text-purple-300 transition-colors font-bold hover:bg-white/5 rounded-lg py-2"
                 >
                   View All Exercises →
                 </button>
