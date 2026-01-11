@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix localStorage Namespace</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    h1 {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card {
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    button {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin: 10px 10px 10px 0;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    pre {
+      background: #1a1a1a;
+      border: 1px solid #3a3a3a;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+    .success { color: #10b981; }
+    .warning { color: #f59e0b; }
+    .error { color: #ef4444; }
+    .info {
+      background: #1e40af20;
+      border-left: 4px solid #3b82f6;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    input {
+      background: #1a1a1a;
+      border: 1px solid #3a3a3a;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      width: 100%;
+      font-family: monospace;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Fix localStorage Namespace</h1>
+
+  <div class="card">
+    <h3>Problem:</h3>
+    <p>Your 27 workouts exist but are stored under the wrong localStorage key. After logging in with Supabase, the app looks for workouts under your user ID, but they're stored under a different namespace.</p>
+  </div>
+
+  <div class="card">
+    <h3>Step 1: Find Your Workouts</h3>
+    <button onclick="scanWorkouts()">Scan localStorage</button>
+    <div id="scanResults"></div>
+  </div>
+
+  <div class="card" id="step2" style="display:none;">
+    <h3>Step 2: Enter Your Current User ID</h3>
+    <p>Look at the top-right corner of Iron Brain. If you're logged in, you'll see your profile. What's your Supabase user ID?</p>
+    <input type="text" id="userIdInput" placeholder="c0cd17a6-3abd-4aaa-be47-5dffffacbe1b" />
+    <button onclick="migrateNamespace()">Fix Namespace</button>
+    <div id="migrateResults"></div>
+  </div>
+
+  <script>
+    let workoutData = {};
+
+    function scanWorkouts() {
+      const results = document.getElementById('scanResults');
+      results.innerHTML = '<p>🔍 Scanning...</p>';
+
+      workoutData = {};
+      let totalFound = 0;
+
+      // Find all workout history keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('iron_brain_workout_history')) {
+          const data = localStorage.getItem(key);
+          try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const namespace = key.split('__')[1] || 'default';
+              workoutData[namespace] = {
+                key: key,
+                workouts: parsed,
+                count: parsed.length
+              };
+              totalFound += parsed.length;
+            }
+          } catch (e) {
+            console.error('Failed to parse:', key, e);
+          }
+        }
+      }
+
+      // Display results
+      let html = '<div style="margin-top: 20px;">';
+
+      if (totalFound === 0) {
+        html += '<p class="error">❌ No workouts found in localStorage</p>';
+        html += '<p>Are you in the same browser where you logged your workouts?</p>';
+      } else {
+        html += `<p class="success">✅ Found ${totalFound} total workouts</p>`;
+        html += '<h4>Storage Keys:</h4><ul>';
+
+        for (const [namespace, info] of Object.entries(workoutData)) {
+          html += `<li><strong>${info.count} workouts</strong> in namespace: <code>${namespace}</code></li>`;
+        }
+        html += '</ul>';
+
+        if (Object.keys(workoutData).length > 1) {
+          html += '<div class="warning" style="margin-top: 15px;">';
+          html += '<strong>⚠️ Multiple namespaces detected!</strong><br>';
+          html += 'Your workouts are split across different storage keys. This is why analytics can\'t see them all.';
+          html += '</div>';
+        }
+
+        // Show step 2
+        document.getElementById('step2').style.display = 'block';
+      }
+
+      html += '</div>';
+      results.innerHTML = html;
+    }
+
+    function migrateNamespace() {
+      const userId = document.getElementById('userIdInput').value.trim();
+      const results = document.getElementById('migrateResults');
+
+      if (!userId) {
+        results.innerHTML = '<p class="error">❌ Please enter your user ID</p>';
+        return;
+      }
+
+      results.innerHTML = '<p>🔄 Migrating workouts...</p>';
+
+      try {
+        // Collect all workouts from all namespaces
+        let allWorkouts = [];
+        for (const [namespace, info] of Object.entries(workoutData)) {
+          allWorkouts.push(...info.workouts);
+        }
+
+        // Remove duplicates (by id)
+        const seen = new Set();
+        const uniqueWorkouts = allWorkouts.filter(w => {
+          if (seen.has(w.id)) return false;
+          seen.add(w.id);
+          return true;
+        });
+
+        // Sort by date
+        uniqueWorkouts.sort((a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        );
+
+        // Save to new namespace
+        const newKey = `iron_brain_workout_history__${userId}`;
+        localStorage.setItem(newKey, JSON.stringify(uniqueWorkouts));
+
+        // Verify
+        const verification = localStorage.getItem(newKey);
+        const parsed = JSON.parse(verification);
+
+        let html = '<div style="margin-top: 20px;">';
+        html += '<p class="success">✅ Namespace fixed!</p>';
+        html += `<p>Migrated <strong>${uniqueWorkouts.length} workouts</strong> to:<br><code>${newKey}</code></p>`;
+
+        html += '<div class="info">';
+        html += '<strong>Next Steps:</strong><br>';
+        html += '1. Close this tab<br>';
+        html += '2. Refresh Iron Brain (hard refresh: Cmd+Shift+R)<br>';
+        html += '3. Open Analytics (press A key)<br>';
+        html += '4. You should now see all ' + uniqueWorkouts.length + ' workouts!';
+        html += '</div>';
+
+        html += '<h4>Technical Details:</h4>';
+        html += '<p><strong>Old keys:</strong></p><ul>';
+        for (const [namespace, info] of Object.entries(workoutData)) {
+          html += `<li><code>${info.key}</code> (kept as backup)</li>`;
+        }
+        html += '</ul>';
+        html += `<p><strong>New key:</strong> <code>${newKey}</code></p>`;
+        html += '<p><em>Your original data is still preserved in the old keys.</em></p>';
+
+        html += '</div>';
+        results.innerHTML = html;
+
+      } catch (err) {
+        results.innerHTML = `<p class="error">❌ Failed: ${err.message}</p>`;
+        console.error(err);
+      }
+    }
+
+    // Auto-run scan on load
+    window.addEventListener('load', scanWorkouts);
+  </script>
+</body>
+</html>

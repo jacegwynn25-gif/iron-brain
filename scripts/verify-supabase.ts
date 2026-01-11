@@ -4,9 +4,25 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Load .env.local file
+const envPath = join(process.cwd(), '.env.local');
+const envFile = readFileSync(envPath, 'utf-8');
+const envVars: Record<string, string> = {};
+
+envFile.split('\n').forEach(line => {
+  const match = line.match(/^([^#=]+)=(.*)$/);
+  if (match) {
+    const key = match[1].trim();
+    const value = match[2].trim();
+    envVars[key] = value;
+  }
+});
+
+const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 console.log('\n🔍 Verifying Supabase Setup...\n');
 

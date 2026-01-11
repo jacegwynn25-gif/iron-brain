@@ -1,6 +1,7 @@
 'use client';
 
-import { Settings as SettingsIcon, LogOut, Trash2, Clock, Shield } from 'lucide-react';
+import { Settings as SettingsIcon, LogOut, Trash2, Clock, Shield, Cloud } from 'lucide-react';
+import { CloudSyncButton } from './CloudSyncButton';
 
 interface SettingsProps {
   name: string;
@@ -29,7 +30,18 @@ export default function Settings({ name, email, onLogout, onClearData, onExtendS
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-blue-100 dark:bg-zinc-900 dark:border-blue-900/40">
+          <div className="mb-3 flex items-center gap-2 text-blue-700 dark:text-blue-200">
+            <Cloud className="h-5 w-5" />
+            <p className="text-sm font-bold uppercase tracking-wide">Cloud Sync</p>
+          </div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+            Back up your data to the cloud and sync across devices.
+          </p>
+          <CloudSyncButton />
+        </div>
+
         <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-purple-100 dark:bg-zinc-900 dark:border-purple-900/40">
           <div className="mb-3 flex items-center gap-2 text-purple-700 dark:text-purple-200">
             <Clock className="h-5 w-5" />

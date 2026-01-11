@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check localStorage</title>
+</head>
+<body>
+  <h1>Iron Brain - localStorage Inspector</h1>
+  <button onclick="findWorkouts()">Find All Workouts</button>
+  <pre id="output"></pre>
+
+  <script>
+    function findWorkouts() {
+      const output = document.getElementById('output');
+      let results = 'Searching for workout data in localStorage...\n\n';
+
+      // Check all localStorage keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+
+        if (key && key.includes('iron_brain_workout_history')) {
+          const data = localStorage.getItem(key);
+          try {
+            const parsed = JSON.parse(data);
+            results += `KEY: ${key}\n`;
+            results += `WORKOUTS: ${Array.isArray(parsed) ? parsed.length : 'invalid'}\n`;
+            results += `FIRST WORKOUT: ${parsed[0] ? new Date(parsed[0].startTime).toLocaleDateString() : 'none'}\n`;
+            results += `LAST WORKOUT: ${parsed[parsed.length - 1] ? new Date(parsed[parsed.length - 1].startTime).toLocaleDateString() : 'none'}\n`;
+            results += '\n';
+          } catch (e) {
+            results += `KEY: ${key} (invalid JSON)\n\n`;
+          }
+        }
+      }
+
+      output.textContent = results;
+    }
+
+    // Auto-run on load
+    findWorkouts();
+  </script>
+</body>
+</html>

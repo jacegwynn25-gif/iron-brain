@@ -1,19 +1,23 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ProgramTemplate, WeekTemplate, SetTemplate, Exercise } from '../lib/types';
+import { ProgramTemplate, WeekTemplate, SetTemplate, Exercise, CustomExercise } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
+import ExercisePicker from './program-builder/ExercisePicker';
+import ExerciseCard from './program-builder/ExerciseCard';
+import MaxesManager from './program-builder/MaxesManager';
 
 interface ProgramBuilderProps {
   existingProgram?: ProgramTemplate;
   onSave: (program: ProgramTemplate) => void;
   onCancel: () => void;
+  userId: string | null;
 }
 
 type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS_OF_WEEK: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function ProgramBuilder({ existingProgram, onSave, onCancel }: ProgramBuilderProps) {
+export default function ProgramBuilder({ existingProgram, onSave, onCancel, userId }: ProgramBuilderProps) {
   // Program metadata
   const [programName, setProgramName] = useState(existingProgram?.name || '');
   const [description, setDescription] = useState(existingProgram?.description || '');
@@ -38,12 +42,8 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
   // UI state
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
-  const [showExerciseLibrary, setShowExerciseLibrary] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState('');
-  const [selectedMuscleFilter, setSelectedMuscleFilter] = useState<string | null>(null);
-  const [selectedExerciseType, setSelectedExerciseType] = useState<Exercise['type'] | null>(null);
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddSearch, setQuickAddSearch] = useState('');
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [showMaxesManager, setShowMaxesManager] = useState(false);
 
   // Get current week
   const currentWeek = weeks.find(w => w.weekNumber === selectedWeek);
@@ -122,20 +122,20 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
     );
   }, [selectedWeek]);
 
-  // Add exercise to selected day
-  const addExercise = useCallback((exercise: Exercise, numSets: number = 3) => {
+  // Add exercise to selected day (starts with 1 set instead of 3!)
+  const addExercise = useCallback((exercise: Exercise | CustomExercise) => {
     if (selectedDayIndex === null) return;
 
-    const newSets: SetTemplate[] = [];
-    for (let i = 1; i <= numSets; i++) {
-      newSets.push({
-        exerciseId: exercise.id,
-        setIndex: i,
-        prescribedReps: '8-10',
-        targetRPE: 7,
-        restSeconds: exercise.defaultRestSeconds || 90,
-      });
-    }
+    // Create initial set with default prescription method (rpe)
+    const newSet: SetTemplate = {
+      exerciseId: exercise.id,
+      setIndex: 0, // Will be renumbered when grouped
+      prescribedReps: '8',
+      prescriptionMethod: 'rpe',
+      targetRPE: 8,
+      restSeconds: ('defaultRestSeconds' in exercise ? exercise.defaultRestSeconds : exercise.defaultRestSeconds) || 90,
+      setType: 'straight',
+    };
 
     setWeeks(prev =>
       prev.map(w =>
@@ -146,7 +146,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                 idx === selectedDayIndex
                   ? {
                       ...d,
-                      sets: [...d.sets, ...newSets],
+                      sets: [...d.sets, newSet],
                     }
                   : d
               ),
@@ -155,17 +155,10 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
       )
     );
 
-    setShowExerciseLibrary(false);
+    setShowExercisePicker(false);
   }, [selectedWeek, selectedDayIndex]);
 
-  // Quick add exercise handler
-  const quickAddExercise = useCallback((exercise: Exercise) => {
-    addExercise(exercise);
-    setShowQuickAdd(false);
-    setQuickAddSearch('');
-  }, [addExercise]);
-
-  // Remove exercise (all sets)
+  // Remove exercise (all sets for that exercise)
   const removeExercise = useCallback((exerciseId: string) => {
     if (selectedDayIndex === null) return;
 
@@ -188,8 +181,8 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
     );
   }, [selectedWeek, selectedDayIndex]);
 
-  // Update set
-  const updateSet = useCallback((setIndex: number, updates: Partial<SetTemplate>) => {
+  // Update sets for an exercise
+  const updateExerciseSets = useCallback((exerciseId: string, newSets: SetTemplate[]) => {
     if (selectedDayIndex === null) return;
 
     setWeeks(prev =>
@@ -201,7 +194,10 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                 idx === selectedDayIndex
                   ? {
                       ...d,
-                      sets: d.sets.map(s => (s.setIndex === setIndex ? { ...s, ...updates } : s)),
+                      sets: [
+                        ...d.sets.filter(s => s.exerciseId !== exerciseId),
+                        ...newSets,
+                      ],
                     }
                   : d
               ),
@@ -227,24 +223,6 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
 
     onSave(program);
   }, [programName, description, goal, experienceLevel, intensityMethod, weeks, existingProgram, onSave]);
-
-  // Filter exercises
-  const filteredExercises = defaultExercises.filter(ex => {
-    const matchesSearch = ex.name.toLowerCase().includes(exerciseSearch.toLowerCase());
-    const matchesMuscle = !selectedMuscleFilter || ex.muscleGroups.includes(selectedMuscleFilter);
-    const matchesType = !selectedExerciseType || ex.type === selectedExerciseType;
-    return matchesSearch && matchesMuscle && matchesType;
-  });
-
-  // Quick add filtered exercises (top 5 matches)
-  const quickAddExercises = defaultExercises
-    .filter(ex => ex.name.toLowerCase().includes(quickAddSearch.toLowerCase()))
-    .slice(0, 5);
-
-  // Get all unique muscle groups
-  const allMuscleGroups = Array.from(
-    new Set(defaultExercises.flatMap(ex => ex.muscleGroups))
-  ).sort();
 
   // Group sets by exercise
   const groupedSets = selectedDay?.sets.reduce((acc, set) => {
@@ -527,87 +505,22 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                       </h3>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setShowQuickAdd(!showQuickAdd)}
-                          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
-                            showQuickAdd
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50'
-                          }`}
+                          onClick={() => setShowMaxesManager(true)}
+                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-all"
                         >
-                          ⚡ Quick Add
+                          Manage 1RMs
                         </button>
                         <button
-                          onClick={() => setShowExerciseLibrary(true)}
-                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-all"
+                          onClick={() => setShowExercisePicker(true)}
+                          className="rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white hover:shadow-lg transition-all"
                         >
-                          + Browse All
+                          + Add Exercise
                         </button>
                       </div>
                     </div>
-
-                    {/* Quick Add Search Interface */}
-                    {showQuickAdd && (
-                      <div className="mb-4 animate-slideDown">
-                        <div className="rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 p-4 border-2 border-purple-200 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800">
-                          <div className="mb-3">
-                            <input
-                              type="text"
-                              value={quickAddSearch}
-                              onChange={e => setQuickAddSearch(e.target.value)}
-                              placeholder="🔍 Type exercise name (e.g., 'bench', 'squat')..."
-                              autoFocus
-                              className="w-full rounded-lg border-2 border-purple-300 bg-white px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-purple-700 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:focus:border-purple-500"
-                            />
-                          </div>
-
-                          {quickAddSearch.length > 0 && (
-                            <div className="space-y-2">
-                              {quickAddExercises.length > 0 ? (
-                                <>
-                                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-2">
-                                    Top matches - click to add:
-                                  </p>
-                                  {quickAddExercises.map(exercise => (
-                                    <button
-                                      key={exercise.id}
-                                      onClick={() => quickAddExercise(exercise)}
-                                      className="w-full rounded-lg bg-white border border-purple-200 p-3 text-left transition-all hover:bg-purple-50 hover:border-purple-400 hover:scale-[1.02] active:scale-[0.98] dark:bg-zinc-800 dark:border-purple-800 dark:hover:bg-purple-900/30 group"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <p className="font-semibold text-zinc-900 dark:text-zinc-50 group-hover:text-purple-700 dark:group-hover:text-purple-300">
-                                            {exercise.name}
-                                          </p>
-                                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-                                            {exercise.muscleGroups.join(', ')} • {exercise.type}
-                                          </p>
-                                        </div>
-                                        <div className="text-purple-600 dark:text-purple-400 text-xl group-hover:scale-110 transition-transform">
-                                          +
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </>
-                              ) : (
-                                <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center py-3">
-                                  No exercises found. Try a different search or browse all exercises.
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {quickAddSearch.length === 0 && (
-                            <p className="text-xs text-purple-600 dark:text-purple-400 text-center">
-                              Start typing to search for exercises...
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Exercise List */}
+                  {/* Exercise List with ExerciseCard */}
                   {Object.keys(groupedSets || {}).length === 0 ? (
                     <div className="rounded-lg bg-zinc-100 p-8 text-center dark:bg-zinc-800">
                       <p className="text-zinc-600 dark:text-zinc-400">
@@ -621,106 +534,14 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
                         if (!exercise) return null;
 
                         return (
-                          <div
+                          <ExerciseCard
                             key={exerciseId}
-                            className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800"
-                          >
-                            <div className="mb-3 flex items-center justify-between">
-                              <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                                {exercise.name}
-                              </h4>
-                              <button
-                                onClick={() => removeExercise(exerciseId)}
-                                className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
-                                title="Remove exercise"
-                              >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
-
-                            {/* Set Editor - This is where the magic happens */}
-                            <div className="space-y-2">
-                              {sets.map(set => (
-                                <div
-                                  key={set.setIndex}
-                                  className="grid grid-cols-5 gap-2 rounded-md bg-white p-2 dark:bg-zinc-900"
-                                >
-                                  <div className="flex items-center justify-center">
-                                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
-                                      Set {set.setIndex}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
-                                      Reps
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={set.prescribedReps}
-                                      onChange={e =>
-                                        updateSet(set.setIndex, { prescribedReps: e.target.value })
-                                      }
-                                      placeholder="8-10"
-                                      className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
-                                      RPE
-                                    </label>
-                                    <input
-                                      type="number"
-                                      value={set.targetRPE ?? ''}
-                                      onChange={e =>
-                                        updateSet(set.setIndex, {
-                                          targetRPE: e.target.value ? parseFloat(e.target.value) : null,
-                                        })
-                                      }
-                                      placeholder="7"
-                                      min="0"
-                                      max="10"
-                                      step="0.5"
-                                      className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
-                                      Rest (s)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      value={set.restSeconds ?? ''}
-                                      onChange={e =>
-                                        updateSet(set.setIndex, {
-                                          restSeconds: e.target.value ? parseInt(e.target.value) : undefined,
-                                        })
-                                      }
-                                      placeholder="90"
-                                      className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
-                                      Notes
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={set.notes ?? ''}
-                                      onChange={e =>
-                                        updateSet(set.setIndex, {
-                                          notes: e.target.value || undefined,
-                                        })
-                                      }
-                                      placeholder="paused"
-                                      className="w-full rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                            exercise={exercise}
+                            sets={sets}
+                            onSetsChange={(newSets) => updateExerciseSets(exerciseId, newSets)}
+                            onRemoveExercise={() => removeExercise(exerciseId)}
+                            userId={userId}
+                          />
                         );
                       })}
                     </div>
@@ -739,115 +560,33 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel }: Pr
           </div>
         )}
 
-        {/* Exercise Library Modal */}
-        {showExerciseLibrary && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white dark:bg-zinc-900">
-              <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-700">
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  Exercise Library
+        {/* Exercise Picker Modal */}
+        <ExercisePicker
+          isOpen={showExercisePicker}
+          onClose={() => setShowExercisePicker(false)}
+          onSelect={addExercise}
+          userId={userId}
+        />
+
+        {/* Maxes Manager Modal */}
+        {showMaxesManager && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="max-w-4xl w-full max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+              <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-800">
+                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                  1RM Management
                 </h2>
                 <button
-                  onClick={() => setShowExerciseLibrary(false)}
-                  className="rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  onClick={() => setShowMaxesManager(false)}
+                  className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-
-              <div className="p-6">
-                {/* Filters */}
-                <div className="mb-4 space-y-3">
-                  <input
-                    type="text"
-                    value={exerciseSearch}
-                    onChange={e => setExerciseSearch(e.target.value)}
-                    placeholder="Search exercises..."
-                    className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-                  />
-
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    <button
-                      onClick={() => setSelectedExerciseType(null)}
-                      className={`flex-shrink-0 rounded-lg px-3 py-1 text-xs font-medium ${
-                        !selectedExerciseType
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                          : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-                      }`}
-                    >
-                      All Types
-                    </button>
-                    {(['compound', 'accessory', 'isolation'] as Exercise['type'][]).map(type => (
-                      <button
-                        key={type}
-                        onClick={() => setSelectedExerciseType(type)}
-                        className={`flex-shrink-0 rounded-lg px-3 py-1 text-xs font-medium capitalize ${
-                          selectedExerciseType === type
-                            ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                            : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setSelectedMuscleFilter(null)}
-                      className={`rounded-lg px-3 py-1 text-xs font-medium ${
-                        !selectedMuscleFilter
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                          : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-                      }`}
-                    >
-                      All Muscles
-                    </button>
-                    {allMuscleGroups.slice(0, 10).map(muscle => (
-                      <button
-                        key={muscle}
-                        onClick={() => setSelectedMuscleFilter(muscle)}
-                        className={`rounded-lg px-3 py-1 text-xs font-medium capitalize ${
-                          selectedMuscleFilter === muscle
-                            ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900'
-                            : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        {muscle}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Exercise List */}
-                <div className="max-h-96 space-y-2 overflow-y-auto">
-                  {filteredExercises.map(exercise => (
-                    <button
-                      key={exercise.id}
-                      onClick={() => addExercise(exercise)}
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-left transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-                    >
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-                        {exercise.name}
-                      </p>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs capitalize dark:bg-zinc-700">
-                          {exercise.type}
-                        </span>
-                        {exercise.muscleGroups.slice(0, 3).map(mg => (
-                          <span
-                            key={mg}
-                            className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs capitalize dark:bg-zinc-700"
-                          >
-                            {mg}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="overflow-y-auto p-6">
+                <MaxesManager userId={userId} />
               </div>
             </div>
           </div>

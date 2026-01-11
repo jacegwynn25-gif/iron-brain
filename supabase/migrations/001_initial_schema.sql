@@ -336,9 +336,7 @@ CREATE TABLE personal_records (
 
   is_current BOOLEAN DEFAULT true,
 
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-
-  UNIQUE(user_id, exercise_id, record_type, is_current) WHERE is_current = true
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE exercise_stats (
@@ -379,6 +377,11 @@ CREATE INDEX idx_set_logs_exercise ON set_logs(exercise_id);
 CREATE INDEX idx_user_programs_user ON user_programs(user_id);
 CREATE INDEX idx_exercises_system ON exercises(is_system) WHERE is_system = true;
 CREATE INDEX idx_program_templates_public ON program_templates(is_public) WHERE is_public = true;
+
+-- Partial unique index: Only one current record per user/exercise/type
+CREATE UNIQUE INDEX idx_personal_records_current
+  ON personal_records(user_id, exercise_id, record_type)
+  WHERE is_current = true;
 
 -- ============================================================
 -- 8. TRIGGERS FOR UPDATED_AT

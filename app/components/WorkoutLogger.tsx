@@ -7,6 +7,8 @@ import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
+import { useAuth } from '../lib/supabase/auth-context';
+import { getWorkoutIntelligence } from '../lib/intelligence/workout-intelligence-service';
 import { Dumbbell } from 'lucide-react';
 import HardyStepper from './HardyStepper';
 
@@ -29,6 +31,7 @@ export default function WorkoutLogger({
   initialSession,
   onSessionUpdate,
 }: WorkoutLoggerProps) {
+  const { user } = useAuth();
   const week = program.weeks.find(w => w.weekNumber === weekNumber);
   const day = week?.days[dayIndex];
 
@@ -65,6 +68,9 @@ export default function WorkoutLogger({
       date: sessionStart.toISOString().split('T')[0],
       startTime: sessionStart.toISOString(),
       sets: [],
+      metadata: {
+        dayIndex, // Capture for program_set_id mapping
+      },
       createdAt: sessionStart.toISOString(),
       updatedAt: sessionStart.toISOString(),
     }
@@ -77,6 +83,15 @@ export default function WorkoutLogger({
   const [showUpcomingSets, setShowUpcomingSets] = useState(false);
   const [appliedRestTimerWeight, setAppliedRestTimerWeight] = useState<number | null>(null);
   const [ignoredSuggestion, setIgnoredSuggestion] = useState(false);
+  const [repReduction, setRepReduction] = useState(0); // Reps to reduce from prescribed
+  const [extraRestTime, setExtraRestTime] = useState(0); // Extra seconds to add to rest
+
+  // Memoize session.sets to prevent unnecessary re-renders
+  // Only changes when set count changes or last set is modified
+  const sessionSets = useMemo(() => session.sets, [
+    session.sets.length,
+    session.sets[session.sets.length - 1]?.timestamp
+  ]);
 
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000);
@@ -111,18 +126,31 @@ export default function WorkoutLogger({
   const nextSetTemplate = setTemplates[currentSetIndex];
   const nextExercise = nextSetTemplate ? (defaultExercises.find(ex => ex.id === nextSetTemplate.exerciseId) || null) : null;
 
-  // Get weight suggestion for the next set
-  const nextSetSuggestion = nextSetTemplate
-    ? storage.suggestWeight(
-        nextSetTemplate.exerciseId,
-        parseInt(String(nextSetTemplate.prescribedReps)) || 5,
-        nextSetTemplate.targetRPE,
-        session.sets
-      )
-    : null;
+  // Track completed set count for stable memoization
+  const completedSetsCount = sessionSets.filter(s => s.completed).length;
+
+  // Get weight suggestion for the next set (async state)
+  const [nextSetSuggestion, setNextSetSuggestion] = useState<Awaited<ReturnType<typeof storage.suggestWeight>> | null>(null);
+
+  useEffect(() => {
+    if (!nextSetTemplate) {
+      setNextSetSuggestion(null);
+      return;
+    }
+
+    storage.suggestWeight(
+      nextSetTemplate.exerciseId,
+      parseInt(String(nextSetTemplate.prescribedReps)) || 5,
+      nextSetTemplate.targetRPE,
+      sessionSets
+    ).then(setNextSetSuggestion);
+  }, [nextSetTemplate?.exerciseId, nextSetTemplate?.prescribedReps, nextSetTemplate?.targetRPE, completedSetsCount, sessionSets]);
+  // Note: completedSetsCount tracks when to recalculate, sessionSets provides the data
 
   const nextSetInfo = nextSetTemplate && nextExercise ? {
     exerciseName: nextExercise.name,
+    exerciseId: nextExercise.id,
+    muscleGroups: nextExercise.muscleGroups,
     setNumber: nextSetTemplate.setIndex,
     totalSets: setTemplates.filter(st => st.exerciseId === nextSetTemplate.exerciseId).length,
     prescribedReps: nextSetTemplate.prescribedReps,
@@ -130,8 +158,8 @@ export default function WorkoutLogger({
     targetRIR: nextSetTemplate.targetRIR ?? undefined,
     suggestedWeight: nextSetSuggestion?.suggestedWeight ?? undefined,
     weightReasoning: nextSetSuggestion?.reasoning ?? undefined,
-    lastWeight: session.sets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight).slice(-1)[0]?.actualWeight ?? undefined,
-    lastReps: session.sets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps).slice(-1)[0]?.actualReps ?? undefined,
+    lastWeight: sessionSets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualWeight).slice(-1)[0]?.actualWeight ?? undefined,
+    lastReps: sessionSets.filter(s => s.exerciseId === nextSetTemplate.exerciseId && s.actualReps).slice(-1)[0]?.actualReps ?? undefined,
   } : undefined;
 
   // Rest timer handlers
@@ -167,7 +195,7 @@ export default function WorkoutLogger({
     };
   }, [session]);
 
-  const logSet = useCallback((setLog: Partial<SetLog>) => {
+  const logSet = useCallback(async (setLog: Partial<SetLog>) => {
     const completeSetLog: SetLog = {
       exerciseId: currentTemplate.exerciseId,
       setIndex: currentTemplate.setIndex,
@@ -208,6 +236,18 @@ export default function WorkoutLogger({
 
     if (!willMoveToNext) {
       const finalSession = buildFinalSession(updatedSets);
+
+      // Update intelligence models with workout completion
+      if (user?.id) {
+        try {
+          const intelligence = getWorkoutIntelligence(user.id);
+          await intelligence.recordWorkoutCompletion(finalSession);
+          console.log('✅ Intelligence models updated');
+        } catch (error) {
+          console.error('Failed to update intelligence models:', error);
+        }
+      }
+
       setIsResting(false);
       setRestTimerSeconds(null);
       onComplete(finalSession);
@@ -226,7 +266,7 @@ export default function WorkoutLogger({
       setRestTimerSeconds(restTime || 90);
       setIsResting(true);
     }
-  }, [currentTemplate, currentExercise, currentSetIndex, setTemplates, session, buildFinalSession, onComplete]);
+  }, [currentTemplate, currentExercise, currentSetIndex, setTemplates, session, buildFinalSession, onComplete, user]);
 
   const skipSet = useCallback(() => {
     const skippedSetLog: SetLog = {
@@ -249,10 +289,26 @@ export default function WorkoutLogger({
     }
   }, [currentTemplate, currentSetIndex, setTemplates.length]);
 
-  const finishWorkout = useCallback(() => {
+  const finishWorkout = useCallback(async () => {
+    console.log('🏁 finishWorkout called');
     const finalSession = buildFinalSession();
+    console.log('📝 Built final session:', finalSession);
+
+    // Update intelligence models with workout completion
+    if (user?.id) {
+      try {
+        const intelligence = getWorkoutIntelligence(user.id);
+        await intelligence.recordWorkoutCompletion(finalSession);
+        console.log('✅ Intelligence models updated');
+      } catch (error) {
+        console.error('Failed to update intelligence models:', error);
+      }
+    }
+
+    console.log('🔄 Calling onComplete...');
     onComplete(finalSession);
-  }, [buildFinalSession, onComplete]);
+    console.log('✅ onComplete called successfully');
+  }, [buildFinalSession, onComplete, user]);
 
   if (!day || !currentTemplate) {
     return (
@@ -320,12 +376,13 @@ export default function WorkoutLogger({
           onSkip={skipSet}
           isLastSet={isLastSet}
           onFinish={finishWorkout}
-          currentSessionSets={session.sets}
+          currentSessionSets={sessionSets}
           nextExerciseInSuperset={nextExerciseInSuperset}
           setPositionForExercise={positionForExercise}
           totalSetsForExercise={totalSetsForExercise}
           initialWeight={appliedRestTimerWeight}
           ignoredSuggestion={ignoredSuggestion}
+          repReduction={repReduction}
         />
 
         {/* Upcoming Sets Preview - Collapsible */}
@@ -376,62 +433,25 @@ export default function WorkoutLogger({
       {/* Rest Timer - Full Screen Overlay */}
       <RestTimer
         isActive={isResting}
-        duration={restTimerSeconds || 0}
+        duration={(restTimerSeconds || 0) + extraRestTime}
         onComplete={handleRestComplete}
         onSkip={handleSkipRest}
         nextSetInfo={nextSetInfo}
-        fatigueAlert={nextSetSuggestion?.fatigueAlert ? {
-          severity: nextSetSuggestion.fatigueAlert.severity,
-          affectedMuscles: nextSetSuggestion.fatigueAlert.affectedMuscles,
-          reasoning: nextSetSuggestion.fatigueAlert.detailedExplanation || nextSetSuggestion.reasoning,
-          scientificBasis: nextSetSuggestion.fatigueAlert.scientificBasis,
-        } : null}
-        weightRecommendation={(() => {
-          if (!nextSetSuggestion) return null;
-          
-          // Get the last weight used for this exercise in the CURRENT session
-          const lastSessionWeight = session.sets
-            .filter(s => s.exerciseId === nextSetTemplate?.exerciseId && s.actualWeight)
-            .slice(-1)[0]?.actualWeight;
-          
-          // Get historical weight from previous workouts
-          const historicalData = storage.getLastWorkoutForExercise(nextSetTemplate?.exerciseId || '');
-          const lastHistoricalWeight = historicalData?.bestSet?.actualWeight;
-          
-          // Determine the reference weight (prefer current session, fall back to history)
-          const referenceWeight = lastSessionWeight ?? lastHistoricalWeight;
-          
-          // Determine recommendation type
-          let recType: 'increase' | 'decrease' | 'maintain' = 'maintain';
-          
-          if (nextSetSuggestion.basedOn === 'rpe_adjustment' && nextSetSuggestion.fatigueAlert) {
-            // Fatigue-based decrease
-            recType = 'decrease';
-          } else if (referenceWeight && nextSetSuggestion.suggestedWeight > referenceWeight) {
-            // Only show "increase" if we have a valid reference AND suggestion is higher
-            recType = 'increase';
-          } else if (referenceWeight && nextSetSuggestion.suggestedWeight < referenceWeight * 0.95) {
-            // Show "decrease" if suggestion is more than 5% lower than reference
-            recType = 'decrease';
-          }
-          // Otherwise stays 'maintain' - no alert shown
-          
-          return {
-            type: recType,
-            suggestedWeight: nextSetSuggestion.suggestedWeight,
-            currentWeight: referenceWeight ?? undefined,
-            reasoning: nextSetSuggestion.reasoning,
-            confidence: nextSetSuggestion.confidence === 'high' ? 0.9 : nextSetSuggestion.confidence === 'medium' ? 0.7 : 0.5,
-            scientificBasis: nextSetSuggestion.fatigueAlert?.scientificBasis || 'Based on your recent performance data',
-          };
-        })()}
+        currentSessionSets={session.sets}
         onApplyWeightSuggestion={(weight) => {
           setAppliedRestTimerWeight(weight);
           setIgnoredSuggestion(false);
         }}
-        onIgnoreSuggestion={() => {
-          setIgnoredSuggestion(true);
-          setAppliedRestTimerWeight(null);
+        onReduceReps={(amount) => {
+          setRepReduction(amount);
+          setIgnoredSuggestion(false);
+        }}
+        onIncreaseRest={(seconds) => {
+          setExtraRestTime(seconds);
+        }}
+        onSkipExercise={() => {
+          // Skip the rest of this exercise and move to next exercise
+          handleSkipRest();
         }}
       />
     </div>
@@ -455,6 +475,7 @@ interface SetLoggerProps {
   totalSetsForExercise: number;
   initialWeight?: number | null;
   ignoredSuggestion?: boolean;
+  repReduction?: number;
 }
 
 const getPrecision = (step: number) => {
@@ -482,7 +503,9 @@ function SetLogger({
   totalSetsForExercise,
   initialWeight,
   ignoredSuggestion,
+  repReduction = 0,
 }: SetLoggerProps) {
+  const { user } = useAuth();
   const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
   const isDropSet = setType === 'drop';
@@ -903,75 +926,32 @@ function SetLogger({
     );
   };
 
-  // Get weight suggestion - memoize to recalculate when currentSessionSets changes
-  const suggestion = useMemo(() => {
-    // Enhanced debug logging
-    console.log('\n=== FATIGUE CHECK START ===');
-    console.log('🎯 Target Exercise:', exercise?.name, `(ID: ${template.exerciseId})`);
-    console.log('📊 Total session sets:', currentSessionSets.length);
+  // Track only the count of completed sets to avoid re-computation on every render
+  const completedSetCount = currentSessionSets.filter(s => s.completed).length;
 
-    const completedWithRPE = currentSessionSets.filter(
-      s => s.completed &&
-           s.prescribedRPE !== null && s.prescribedRPE !== undefined &&
-           s.actualRPE !== null && s.actualRPE !== undefined
-    );
+  // Get weight suggestion (async state)
+  const [suggestion, setSuggestion] = useState<Awaited<ReturnType<typeof storage.suggestWeight>> | null>(null);
 
-    console.log('✅ Completed sets with RPE:', completedWithRPE.length);
-
-    if (completedWithRPE.length > 0) {
-      console.log('📋 Detailed RPE breakdown:');
-      completedWithRPE.forEach((s, idx) => {
-        const overshoot = (s.actualRPE || 0) - (s.prescribedRPE || 0);
-        const exerciseName = defaultExercises.find(ex => ex.id === s.exerciseId)?.name || s.exerciseId;
-        console.log(`  ${idx + 1}. ${exerciseName} Set ${s.setIndex}:`);
-        console.log(`     Prescribed RPE: ${s.prescribedRPE}`);
-        console.log(`     Actual RPE: ${s.actualRPE}`);
-        console.log(`     Overshoot: ${overshoot > 0 ? '+' : ''}${overshoot.toFixed(1)}`);
-        console.log(`     Reps: ${s.actualReps || 'N/A'}, Weight: ${s.actualWeight || 'N/A'}lbs`);
-      });
-    } else {
-      console.log('⚠️ No completed sets with RPE data yet - fatigue system inactive');
-    }
-
-    const sug = storage.suggestWeight(
+  useEffect(() => {
+    storage.suggestWeight(
       template.exerciseId,
       parseInt(template.prescribedReps) || 5,
       template.targetRPE,
       currentSessionSets
-    );
-
-    if (sug) {
-      console.log('💡 SUGGESTION GENERATED:');
-      console.log('   Weight:', sug.suggestedWeight, 'lbs');
-      console.log('   Reasoning:', sug.reasoning);
-      console.log('   Based on:', sug.basedOn);
-      console.log('   Confidence:', sug.confidence);
-      if (sug.fatigueAlert) {
-        console.log('🚨 FATIGUE ALERT TRIGGERED:');
-        console.log('   Severity:', sug.fatigueAlert.severity);
-        console.log('   Affected muscles:', sug.fatigueAlert.affectedMuscles.join(', '));
-        console.log('   Scientific basis:', sug.fatigueAlert.scientificBasis);
-      } else {
-        console.log('ℹ️ Suggestion without fatigue alert (normal progression)');
-      }
-    } else {
-      console.log('❌ NO SUGGESTION - Likely no previous workout history for this exercise');
-    }
-
-    console.log('=== FATIGUE CHECK END ===\n');
-
-    return sug;
-  }, [template.exerciseId, template.prescribedReps, template.targetRPE, currentSessionSets, exercise?.name]);
+    ).then(setSuggestion);
+  }, [template.exerciseId, template.prescribedReps, template.targetRPE, completedSetCount, currentSessionSets]);
 
   // Get last performance
   const lastWorkout = storage.getLastWorkoutForExercise(template.exerciseId);
 
   // Workout Intelligence - Smart recommendations
   const intelligence = useWorkoutIntelligence(
+    user?.id || null,
     currentSessionSets,
-    exercise,
-    lastWorkout?.bestSet,
-    template.targetRPE ?? null
+    template.exerciseId,
+    parseInt(template.prescribedReps) || 5,
+    template.targetRPE ?? null,
+    lastWorkout?.bestSet.actualWeight || null
   );
 
   const weightSeed = useMemo(() => {
@@ -985,26 +965,29 @@ function SetLogger({
       if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
       return null;
     }
-    
-    // Normal flow: use intelligent suggestions
-    if (intelligence.weightRecommendation?.suggestedWeight) return intelligence.weightRecommendation.suggestedWeight;
+
+    // Normal flow: use non-fatigue suggestions and historical data
+    // DO NOT auto-apply intelligence.weightRecommendation - user must explicitly accept it via rest timer
     if (suggestion?.suggestedWeight) return suggestion.suggestedWeight;
     if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
     return null;
-  }, [intelligence.weightRecommendation, suggestion?.suggestedWeight, lastWorkout?.bestSet.actualWeight, initialWeight, ignoredSuggestion]);
+  }, [suggestion?.suggestedWeight, lastWorkout?.bestSet.actualWeight, initialWeight, ignoredSuggestion]);
 
   const repSeed = useMemo(() => {
     // If user ignored suggestion, don't reduce reps
     if (ignoredSuggestion) {
       return basePrescribedReps;
     }
-    
+
     let base = basePrescribedReps;
-    if (intelligence.fatigueAlert || intelligence.weightRecommendation?.type === 'decrease') {
-      base = base !== null ? Math.max(1, base - 1) : base;
+
+    // Apply explicit rep reduction from rest timer recommendation
+    if (repReduction > 0 && base !== null) {
+      base = Math.max(1, base - repReduction);
     }
+
     return base;
-  }, [basePrescribedReps, intelligence.fatigueAlert, intelligence.weightRecommendation, ignoredSuggestion]);
+  }, [basePrescribedReps, ignoredSuggestion, repReduction]);
 
   const weightDisplay = weight || (weightSeed !== null ? weightSeed.toString() : '');
   const repsDisplay = reps || (repSeed !== null ? repSeed.toString() : '');

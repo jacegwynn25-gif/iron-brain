@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Iron Brain - localStorage Extractor</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    h1 {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card {
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    button {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 10px 10px 10px 0;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    pre {
+      background: #1a1a1a;
+      border: 1px solid #3a3a3a;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      max-height: 400px;
+    }
+    .success {
+      color: #10b981;
+      font-weight: 600;
+    }
+    .warning {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+    .error {
+      color: #ef4444;
+      font-weight: 600;
+    }
+    .info {
+      background: #1e40af20;
+      border-left: 4px solid #3b82f6;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .step {
+      background: #8b5cf620;
+      border-left: 4px solid #8b5cf6;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #8b5cf620, #ec489920);
+      border: 1px solid #8b5cf640;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label {
+      color: #9ca3af;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Iron Brain - localStorage Data Extractor</h1>
+
+  <div class="card">
+    <h2>📦 Export Your Workout Data</h2>
+    <p>This tool helps you extract workout data from your browser's localStorage so it can be migrated to Supabase.</p>
+
+    <div class="info">
+      <strong>🔒 Privacy Note:</strong> All data stays in your browser. Nothing is sent to any server.
+    </div>
+
+    <button onclick="scanLocalStorage()">1. Scan localStorage</button>
+    <button onclick="exportData()" id="exportBtn" disabled>2. Download Export File</button>
+    <button onclick="copyToClipboard()" id="copyBtn" disabled>3. Copy to Clipboard</button>
+  </div>
+
+  <div id="resultsContainer"></div>
+
+  <script>
+    let exportData_global = null;
+
+    function scanLocalStorage() {
+      const results = document.getElementById('resultsContainer');
+      results.innerHTML = '<div class="card"><h3>🔍 Scanning localStorage...</h3></div>';
+
+      // Find all Iron Brain keys
+      const ironBrainData = [];
+      let totalWorkouts = 0;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+
+        if (key && key.includes('iron_brain')) {
+          const value = localStorage.getItem(key);
+          ironBrainData.push({ key, data: value });
+
+          // Count workouts
+          if (key.includes('workout_history')) {
+            try {
+              const parsed = JSON.parse(value);
+              if (Array.isArray(parsed)) {
+                totalWorkouts += parsed.length;
+              }
+            } catch (e) {
+              // Invalid JSON
+            }
+          }
+        }
+      }
+
+      // Generate stats
+      const workoutKeys = ironBrainData.filter(d => d.key.includes('workout_history'));
+      const namespaces = new Set(workoutKeys.map(d => {
+        const parts = d.key.split('__');
+        return parts[1] || 'default';
+      }));
+
+      // Build results HTML
+      let html = '<div class="card">';
+      html += '<h3 class="success">✅ Scan Complete</h3>';
+
+      html += '<div class="stats">';
+      html += `<div class="stat-card">
+        <div class="stat-value">${totalWorkouts}</div>
+        <div class="stat-label">Total Workouts</div>
+      </div>`;
+      html += `<div class="stat-card">
+        <div class="stat-value">${workoutKeys.length}</div>
+        <div class="stat-label">Storage Keys</div>
+      </div>`;
+      html += `<div class="stat-card">
+        <div class="stat-value">${namespaces.size}</div>
+        <div class="stat-label">User Namespaces</div>
+      </div>`;
+      html += '</div>';
+
+      // Show keys
+      html += '<h4>Found Keys:</h4><ul>';
+      workoutKeys.forEach(item => {
+        const namespace = item.key.split('__')[1] || 'default';
+        let count = 0;
+        try {
+          const parsed = JSON.parse(item.data);
+          count = Array.isArray(parsed) ? parsed.length : 0;
+        } catch (e) {}
+
+        html += `<li><code>${item.key}</code> → <strong>${count} workouts</strong> (namespace: <em>${namespace}</em>)</li>`;
+      });
+      html += '</ul>';
+
+      if (totalWorkouts > 0) {
+        html += '<div class="step">';
+        html += '<strong>✅ Ready to export!</strong><br>';
+        html += 'Click "Download Export File" or "Copy to Clipboard" above.';
+        html += '</div>';
+
+        // Enable export buttons
+        document.getElementById('exportBtn').disabled = false;
+        document.getElementById('copyBtn').disabled = false;
+        exportData_global = ironBrainData;
+      } else {
+        html += '<div class="warning">⚠️ No workout data found in localStorage.</div>';
+      }
+
+      html += '</div>';
+      results.innerHTML = html;
+    }
+
+    function exportData() {
+      if (!exportData_global) {
+        alert('Please scan localStorage first');
+        return;
+      }
+
+      // Create downloadable file
+      const dataStr = JSON.stringify(exportData_global, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'localStorage-export.json';
+      link.click();
+
+      URL.revokeObjectURL(url);
+
+      // Show success message
+      const results = document.getElementById('resultsContainer');
+      results.innerHTML += `
+        <div class="card">
+          <h3 class="success">✅ File Downloaded!</h3>
+          <p>Saved as: <code>localStorage-export.json</code></p>
+
+          <div class="step">
+            <strong>Next Steps:</strong>
+            <ol>
+              <li>Move the file to your Iron Brain project root directory</li>
+              <li>Run the migration script:
+                <pre>TARGET_USER_ID=your-user-id npx tsx scripts/migrate-localStorage-to-supabase.ts</pre>
+              </li>
+            </ol>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyToClipboard() {
+      if (!exportData_global) {
+        alert('Please scan localStorage first');
+        return;
+      }
+
+      const dataStr = JSON.stringify(exportData_global, null, 2);
+      navigator.clipboard.writeText(dataStr).then(() => {
+        const results = document.getElementById('resultsContainer');
+        results.innerHTML += `
+          <div class="card">
+            <h3 class="success">✅ Copied to Clipboard!</h3>
+            <p>Create a file named <code>localStorage-export.json</code> in your project root and paste the content.</p>
+          </div>
+        `;
+      }).catch(err => {
+        alert('Failed to copy: ' + err);
+      });
+    }
+
+    // Auto-run scan on load
+    window.addEventListener('load', () => {
+      scanLocalStorage();
+    });
+  </script>
+</body>
+</html>

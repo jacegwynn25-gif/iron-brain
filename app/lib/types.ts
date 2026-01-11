@@ -15,19 +15,73 @@ export interface Exercise {
   defaultRestSeconds?: number;    // Suggested rest time
 }
 
+// Custom exercises created by users
+export interface CustomExercise {
+  id: string;
+  userId: string;
+  name: string;
+  slug: string;
+
+  // Equipment
+  equipment: 'barbell' | 'dumbbell' | 'cable' | 'machine' | 'bodyweight' | 'kettlebell' | 'band' | 'other';
+
+  // Type
+  exerciseType: 'compound' | 'isolation';
+
+  // Muscles
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+
+  // Movement pattern
+  movementPattern?: 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'rotation' | 'other';
+
+  // Tracking
+  trackWeight: boolean;
+  trackReps: boolean;
+  trackTime: boolean;
+
+  // Defaults
+  defaultRestSeconds: number;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================================
 // PROGRAM TEMPLATE TYPES (What the program prescribes)
 // ============================================================
 
-export type SetType = 'straight' | 'superset' | 'giant' | 'drop' | 'rest-pause' | 'cluster' | 'warmup' | 'amrap';
+export type SetType = 'straight' | 'superset' | 'giant' | 'drop' | 'rest-pause' | 'cluster' | 'warmup' | 'amrap' | 'backoff';
+
+// Prescription method options
+export type PrescriptionMethod =
+  | 'rpe'
+  | 'rir'
+  | 'percentage_1rm'
+  | 'percentage_tm'
+  | 'fixed_weight'
+  | 'amrap'
+  | 'time_based';
 
 export interface SetTemplate {
   exerciseId: string;
   setIndex: number;
+
+  // Reps (can be range or fixed)
   prescribedReps: string;        // '5', '4-6', '8-10', 'AMRAP'
-  targetRPE?: number | null;     // RPE 0-10
-  targetRIR?: number | null;     // RIR (reps in reserve)
-  targetPercentage?: number | null;  // % of 1RM
+  minReps?: number;              // For ranges
+  maxReps?: number;              // For ranges
+
+  // Prescription method (NEW!)
+  prescriptionMethod?: PrescriptionMethod; // Defaults to 'rpe' if not set
+
+  // Target values (use based on prescriptionMethod)
+  targetRPE?: number | null;     // For 'rpe' - RPE 0-10
+  targetRIR?: number | null;     // For 'rir' - RIR (reps in reserve)
+  targetPercentage?: number | null;  // For 'percentage_1rm' or 'percentage_tm'
+  fixedWeight?: number | null;   // For 'fixed_weight'
+  targetSeconds?: number | null; // For 'time_based'
+
   tempo?: string;                // '3-0-1-0' (eccentric-pause-concentric-pause)
   restSeconds?: number;          // Override default rest for this set
   notes?: string;                // 'paused', 'deficits', 'close grip', etc.
@@ -180,6 +234,10 @@ export interface WorkoutSession {
   notes?: string;                   // Free-form workout notes
 
   // Metadata
+  metadata?: {
+    dayIndex?: number;              // Index of day within week (for program_set_id mapping)
+    [key: string]: any;             // Extensible for future metadata
+  };
   createdAt: string;                // ISO
   updatedAt: string;                // ISO
 }
@@ -220,6 +278,24 @@ export interface UserSettings {
   ouraRingConnected?: boolean;
   appleHealthConnected?: boolean;
   appleWatchConnected?: boolean;
+}
+
+// ============================================================
+// USER MAX (1RM) TYPES
+// ============================================================
+
+export interface UserMax {
+  id: string;
+  userId: string;
+  exerciseId: string;
+  exerciseName: string;
+  weight: number;
+  unit: 'lbs' | 'kg';
+  testedAt: string; // ISO date
+  estimatedOrTested: 'tested' | 'estimated';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================

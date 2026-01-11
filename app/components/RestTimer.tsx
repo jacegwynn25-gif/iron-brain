@@ -1,26 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, ArrowUpCircle, ArrowDownCircle, Clock, ChevronRight, Pause, Play, X } from 'lucide-react';
-
-interface FatigueAlert {
-  severity: 'mild' | 'moderate' | 'high' | 'critical';
-  affectedMuscles: string[];
-  reasoning: string;
-  scientificBasis: string;
-}
-
-interface WeightRecommendation {
-  type: 'increase' | 'decrease' | 'maintain';
-  suggestedWeight: number;
-  currentWeight?: number;
-  reasoning: string;
-  confidence: number;
-  scientificBasis: string;
-}
+import { AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Pause, Play, X } from 'lucide-react';
+import { getPriorityAlert, PriorityAlert } from '../lib/storage';
+import type { WorkoutSession } from '../lib/types';
 
 interface NextSetInfo {
   exerciseName: string;
+  exerciseId: string;
+  muscleGroups: string[];
   setNumber: number;
   totalSets: number;
   prescribedReps: string | number;
@@ -28,7 +16,7 @@ interface NextSetInfo {
   targetRIR?: number;
   suggestedWeight?: number;
   weightReasoning?: string;
-  lastWeight?: number;
+  lastWeight?: number | null;
   lastReps?: number;
 }
 
@@ -38,10 +26,11 @@ interface RestTimerProps {
   onComplete?: () => void;
   onSkip?: () => void;
   nextSetInfo?: NextSetInfo;
-  fatigueAlert?: FatigueAlert | null;
-  weightRecommendation?: WeightRecommendation | null;
+  currentSessionSets?: WorkoutSession['sets'];
   onApplyWeightSuggestion?: (weight: number) => void;
-  onIgnoreSuggestion?: () => void;
+  onReduceReps?: (amount: number) => void;
+  onIncreaseRest?: (seconds: number) => void;
+  onSkipExercise?: () => void;
 }
 
 export default function RestTimer({
@@ -50,14 +39,18 @@ export default function RestTimer({
   onComplete,
   onSkip,
   nextSetInfo,
-  fatigueAlert,
-  weightRecommendation,
+  currentSessionSets = [],
   onApplyWeightSuggestion,
-  onIgnoreSuggestion,
+  onReduceReps,
+  onIncreaseRest,
+  onSkipExercise,
 }: RestTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
-  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [priorityAlert, setPriorityAlert] = useState<PriorityAlert | null>(null);
+  const [isLoadingAlert, setIsLoadingAlert] = useState(false);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+
   const endTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const completedRef = useRef(false);
@@ -65,6 +58,7 @@ export default function RestTimer({
   const pausedRef = useRef<boolean>(false);
   const onCompleteRef = useRef(onComplete);
   const onSkipRef = useRef(onSkip);
+  const alertFetchedRef = useRef(false);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -82,13 +76,42 @@ export default function RestTimer({
     pausedRef.current = isPaused;
   }, [isPaused]);
 
-  // Reset dismissed alerts when rest timer becomes active
+  // Reset when rest timer becomes active
   useEffect(() => {
     if (isActive) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDismissedAlerts(new Set());
+      setAlertDismissed(false);
+      alertFetchedRef.current = false;
     }
   }, [isActive]);
+
+  // Fetch priority alert ONCE when rest starts
+  useEffect(() => {
+    async function fetchAlert() {
+      if (!isActive || !nextSetInfo || alertFetchedRef.current) return;
+
+      try {
+        setIsLoadingAlert(true);
+        alertFetchedRef.current = true;
+
+        const alert = await getPriorityAlert(
+          nextSetInfo.exerciseId,
+          currentSessionSets,
+          nextSetInfo.lastWeight
+        );
+
+        // Only show if not "none"
+        if (alert.type !== 'none') {
+          setPriorityAlert(alert);
+        }
+      } catch (error) {
+        console.error('Failed to fetch priority alert:', error);
+      } finally {
+        setIsLoadingAlert(false);
+      }
+    }
+
+    fetchAlert();
+  }, [isActive, nextSetInfo, currentSessionSets]);
 
   const playCompletionSound = () => {
     try {
@@ -123,7 +146,6 @@ export default function RestTimer({
   useEffect(() => {
     if (!isActive) {
       clearTimer();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeRemaining(duration);
       setIsPaused(false);
       return;
@@ -183,14 +205,27 @@ export default function RestTimer({
     });
   };
 
-  const handleApplyWeight = (weight: number) => {
-    onApplyWeightSuggestion?.(weight);
-    setDismissedAlerts(prev => new Set(prev).add('weight'));
-  };
-
-  const dismissAlert = (alertType: string) => {
-    setDismissedAlerts(prev => new Set(prev).add(alertType));
-    onIgnoreSuggestion?.();
+  const handleAlertAction = (action: PriorityAlert['actions'][0]) => {
+    switch (action.action) {
+      case 'reduce_reps':
+        onReduceReps?.(action.value || 2);
+        break;
+      case 'increase_rest':
+        onIncreaseRest?.(action.value || 60);
+        break;
+      case 'reduce_weight':
+      case 'apply_weight':
+        if (action.value) {
+          onApplyWeightSuggestion?.(action.value);
+        }
+        break;
+      case 'skip_exercise':
+        onSkipExercise?.();
+        break;
+      case 'dismiss':
+        break;
+    }
+    setAlertDismissed(true);
   };
 
   if (!isActive) return null;
@@ -202,15 +237,58 @@ export default function RestTimer({
   const isAlmostDone = timeRemaining <= 10;
   const isComplete = timeRemaining === 0;
 
-  // Determine which alert to show
-  // If fatigue alert EXISTS at all, never show the separate weight recommendation
-  // (the fatigue alert already includes the Apply button for the weight change)
-  const hasFatigueAlert = Boolean(fatigueAlert);
-  const showFatigueAlert = fatigueAlert && !dismissedAlerts.has('fatigue');
-  const showWeightRec = weightRecommendation && 
-    weightRecommendation.type !== 'maintain' && 
-    !dismissedAlerts.has('weight') &&
-    !hasFatigueAlert; // Use hasFatigueAlert instead of showFatigueAlert
+  const showAlert = priorityAlert && !alertDismissed && priorityAlert.type !== 'none';
+
+  const getAlertColors = () => {
+    if (!priorityAlert) return { border: '', bg: '', iconBg: '', iconColor: '' };
+
+    switch (priorityAlert.severity) {
+      case 'critical':
+        return {
+          border: 'border-red-500/30',
+          bg: 'bg-red-500/5',
+          iconBg: 'bg-red-500/10',
+          iconColor: 'text-red-400',
+        };
+      case 'warning':
+        return {
+          border: 'border-amber-500/30',
+          bg: 'bg-amber-500/5',
+          iconBg: 'bg-amber-500/10',
+          iconColor: 'text-amber-400',
+        };
+      case 'info':
+        return {
+          border: 'border-blue-500/30',
+          bg: 'bg-blue-500/5',
+          iconBg: 'bg-blue-500/10',
+          iconColor: 'text-blue-400',
+        };
+      default:
+        return {
+          border: 'border-gray-700/30',
+          bg: 'bg-gray-800/50',
+          iconBg: 'bg-gray-700/30',
+          iconColor: 'text-gray-400',
+        };
+    }
+  };
+
+  const getAlertIcon = () => {
+    if (!priorityAlert) return null;
+    switch (priorityAlert.severity) {
+      case 'critical':
+        return <AlertTriangle className="h-5 w-5" />;
+      case 'warning':
+        return <Activity className="h-5 w-5" />;
+      case 'info':
+        return <TrendingUp className="h-5 w-5" />;
+      default:
+        return null;
+    }
+  };
+
+  const colors = getAlertColors();
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 safe-top">
@@ -290,123 +368,75 @@ export default function RestTimer({
           )}
         </div>
 
-        {/* Smart Alert - Fatigue Warning */}
-        {showFatigueAlert && (
-          <div className="mx-auto mb-4 max-w-md animate-fadeIn">
-            <div className="rounded-2xl border-2 border-red-500/50 bg-gradient-to-br from-red-900/40 to-red-950/60 p-4 shadow-lg">
-              <div className="mb-3 flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
-                    <AlertTriangle className="h-5 w-5 text-red-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-red-300">Fatigue Detected</h3>
-                    <p className="text-xs text-red-400/80">
-                      {fatigueAlert.affectedMuscles.join(', ')}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => dismissAlert('fatigue')}
-                  className="rounded-lg p-1 text-red-400/60 hover:bg-red-500/20 hover:text-red-300"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <p className="mb-3 text-sm text-red-200/90">{fatigueAlert.reasoning}</p>
-              {weightRecommendation && weightRecommendation.type === 'decrease' && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleApplyWeight(weightRecommendation.suggestedWeight)}
-                    className="flex-1 rounded-xl bg-red-500 py-2.5 text-center text-sm font-bold text-white shadow-md transition-all hover:bg-red-400 active:scale-[0.98]"
-                  >
-                    Apply {weightRecommendation.suggestedWeight} lbs
-                  </button>
-                  <button
-                    onClick={() => dismissAlert('fatigue')}
-                    className="rounded-xl bg-red-500/20 px-4 py-2.5 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/30"
-                  >
-                    Ignore
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Smart Alert - Weight Recommendation (non-fatigue) */}
-        {showWeightRec && (
+        {/* Priority Alert */}
+        {showAlert && (
           <div className="mx-auto mb-4 max-w-md animate-fadeIn">
             <div
-              className={`rounded-2xl border-2 p-4 shadow-lg ${
-                weightRecommendation.type === 'increase'
-                  ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-900/40 to-emerald-950/60'
-                  : 'border-amber-500/50 bg-gradient-to-br from-amber-900/40 to-amber-950/60'
-              }`}
+              className={`rounded-2xl border ${colors.border} ${colors.bg} backdrop-blur-sm p-5 shadow-xl`}
             >
+              {/* Header */}
               <div className="mb-3 flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                      weightRecommendation.type === 'increase'
-                        ? 'bg-emerald-500/20'
-                        : 'bg-amber-500/20'
-                    }`}
-                  >
-                    {weightRecommendation.type === 'increase' ? (
-                      <ArrowUpCircle className="h-5 w-5 text-emerald-400" />
-                    ) : (
-                      <ArrowDownCircle className="h-5 w-5 text-amber-400" />
-                    )}
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${colors.iconBg}`}>
+                    <div className={colors.iconColor}>{getAlertIcon()}</div>
                   </div>
-                  <h3
-                    className={`font-bold ${
-                      weightRecommendation.type === 'increase' ? 'text-emerald-300' : 'text-amber-300'
-                    }`}
-                  >
-                    {weightRecommendation.type === 'increase' ? 'Ready to Progress!' : 'Adjust Load'}
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-bold text-white">{priorityAlert.title}</h3>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="text-xs text-gray-400">
+                        {Math.round(priorityAlert.confidence * 100)}% confidence
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <button
-                  onClick={() => dismissAlert('weight')}
-                  className={`rounded-lg p-1 ${
-                    weightRecommendation.type === 'increase'
-                      ? 'text-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-300'
-                      : 'text-amber-400/60 hover:bg-amber-500/20 hover:text-amber-300'
-                  }`}
+                  onClick={() => setAlertDismissed(true)}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition-colors"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-              <p
-                className={`mb-3 text-sm ${
-                  weightRecommendation.type === 'increase' ? 'text-emerald-200/90' : 'text-amber-200/90'
-                }`}
-              >
-                {weightRecommendation.reasoning}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleApplyWeight(weightRecommendation.suggestedWeight)}
-                  className={`flex-1 rounded-xl py-2.5 text-center text-sm font-bold text-white shadow-md transition-all active:scale-[0.98] ${
-                    weightRecommendation.type === 'increase'
-                      ? 'bg-emerald-500 hover:bg-emerald-400'
-                      : 'bg-amber-500 hover:bg-amber-400'
-                  }`}
-                >
-                  Apply {weightRecommendation.suggestedWeight} lbs
-                </button>
-                <button
-                  onClick={() => dismissAlert('weight')}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-                    weightRecommendation.type === 'increase'
-                      ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                      : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                  }`}
-                >
-                  Ignore
-                </button>
-              </div>
+
+              {/* Message */}
+              <p className="mb-4 text-sm text-gray-300 leading-relaxed">{priorityAlert.message}</p>
+
+              {/* Actions */}
+              {priorityAlert.actions.length > 0 && (
+                <div className="space-y-2">
+                  {priorityAlert.actions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleAlertAction(action)}
+                      className={`w-full rounded-xl px-4 py-3 text-left transition-all ${
+                        action.type === 'primary'
+                          ? priorityAlert.severity === 'critical'
+                            ? 'bg-red-500 hover:bg-red-600 text-white font-medium shadow-md active:scale-[0.98]'
+                            : priorityAlert.severity === 'warning'
+                              ? 'bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-md active:scale-[0.98]'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md active:scale-[0.98]'
+                          : 'bg-gray-700/50 hover:bg-gray-700 text-gray-200 text-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{action.label}</span>
+                        {action.type === 'primary' && (
+                          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Recommended</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Scientific Basis */}
+              {priorityAlert.scientificBasis && (
+                <div className="mt-4 rounded-lg bg-gray-900/30 border border-gray-700/30 p-3">
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    <span className="font-semibold text-gray-300">Research:</span>{' '}
+                    {priorityAlert.scientificBasis}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

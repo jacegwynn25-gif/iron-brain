@@ -17,6 +17,37 @@ interface SmartAlertProps {
   onDismiss?: () => void;
   onApply?: () => void;
   compact?: boolean;
+  metadata?: {
+    usingHierarchicalModel?: boolean;
+    personalizedAssessment?: {
+      userFatigueResistance: number;
+      exerciseSpecificRate: number;
+      nextSetPrediction: {
+        expectedFatigue: number;
+        lower: number;
+        upper: number;
+      };
+      criticalMoment?: {
+        detected: boolean;
+        setNumber: number;
+        interpretation: string;
+      };
+      shouldStopNow: boolean;
+      reasonsToStop: string[];
+    };
+    powerAnalysis?: {
+      currentPower: number;
+      setsNeededForHighPower: number;
+      recommendation: string;
+    };
+    dataQuality?: {
+      originalSets: number;
+      cleanedSets: number;
+      outliersRemoved: number;
+      quality: 'excellent' | 'good' | 'fair' | 'poor';
+    };
+    [key: string]: any;
+  };
 }
 
 /**
@@ -37,6 +68,7 @@ export default function SmartAlert({
   onDismiss,
   onApply,
   compact = false,
+  metadata,
 }: SmartAlertProps) {
   const iconMap = {
     fatigue: AlertTriangle,
@@ -221,6 +253,174 @@ export default function SmartAlert({
                 {scientificBasis}
               </p>
             </details>
+          )}
+
+          {/* Personalized Assessment (Hierarchical Model Insights) */}
+          {metadata?.usingHierarchicalModel && metadata?.personalizedAssessment && (
+            <div className={`mb-3 p-3 rounded-lg bg-white/30 dark:bg-black/10 border ${colors.border}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                  🎓 Personalized Analysis
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  (Hierarchical Bayesian Model)
+                </span>
+              </div>
+
+              {/* Next Set Prediction */}
+              <div className="space-y-2">
+                <div>
+                  <div className="text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                    Next Set Fatigue Prediction:
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${colors.text}`}>
+                      {metadata.personalizedAssessment.nextSetPrediction.expectedFatigue.toFixed(0)}%
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      95% CI: [{metadata.personalizedAssessment.nextSetPrediction.lower.toFixed(0)}%,
+                      {metadata.personalizedAssessment.nextSetPrediction.upper.toFixed(0)}%]
+                    </span>
+                  </div>
+                </div>
+
+                {/* Personal Stats */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Your Fatigue Resistance:</span>
+                    <div className={`font-bold ${colors.text}`}>
+                      {metadata.personalizedAssessment.userFatigueResistance.toFixed(0)}/100
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Exercise Rate:</span>
+                    <div className={`font-bold ${colors.text}`}>
+                      {(metadata.personalizedAssessment.exerciseSpecificRate * 100).toFixed(1)}%/set
+                    </div>
+                  </div>
+                </div>
+
+                {/* Critical Moment Warning */}
+                {metadata.personalizedAssessment.criticalMoment?.detected && (
+                  <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/20 rounded border border-red-400 dark:border-red-600">
+                    <div className="text-xs font-bold text-red-700 dark:text-red-300 mb-1">
+                      ⚠️ Critical Moment Detected
+                    </div>
+                    <div className="text-[11px] text-red-600 dark:text-red-400">
+                      {metadata.personalizedAssessment.criticalMoment.interpretation}
+                    </div>
+                  </div>
+                )}
+
+                {/* Stop Recommendations */}
+                {metadata.personalizedAssessment.shouldStopNow &&
+                 metadata.personalizedAssessment.reasonsToStop.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {metadata.personalizedAssessment.reasonsToStop.map((reason, i) => (
+                      <div key={i} className="text-[11px] text-red-600 dark:text-red-400 flex items-start gap-1">
+                        <span>•</span>
+                        <span>{reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Power Analysis */}
+          {metadata?.powerAnalysis && (
+            <div className={`mb-3 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-400/40 dark:border-blue-600/40`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                  Statistical Power Analysis
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {/* Power Level Indicator */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-700 dark:text-gray-300">Current Power:</span>
+                    <span className={`text-sm font-bold ${
+                      metadata.powerAnalysis.currentPower >= 0.8
+                        ? 'text-green-700 dark:text-green-300'
+                        : metadata.powerAnalysis.currentPower >= 0.6
+                        ? 'text-yellow-700 dark:text-yellow-300'
+                        : 'text-orange-700 dark:text-orange-300'
+                    }`}>
+                      {(metadata.powerAnalysis.currentPower * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        metadata.powerAnalysis.currentPower >= 0.8
+                          ? 'bg-green-500'
+                          : metadata.powerAnalysis.currentPower >= 0.6
+                          ? 'bg-yellow-500'
+                          : 'bg-orange-500'
+                      }`}
+                      style={{ width: `${metadata.powerAnalysis.currentPower * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Recommendation */}
+                <div className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  {metadata.powerAnalysis.recommendation}
+                </div>
+
+                {/* Sets Needed */}
+                {metadata.powerAnalysis.setsNeededForHighPower > 0 && (
+                  <div className="text-[11px] text-blue-600 dark:text-blue-400 font-mono">
+                    +{metadata.powerAnalysis.setsNeededForHighPower} sets needed for 80% power
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Data Quality Indicators */}
+          {metadata?.dataQuality && metadata.dataQuality.outliersRemoved > 0 && (
+            <div className={`mb-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-400/40 dark:border-amber-600/40`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                  Data Quality Check
+                </span>
+                <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                  metadata.dataQuality.quality === 'excellent'
+                    ? 'bg-green-200 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                    : metadata.dataQuality.quality === 'good'
+                    ? 'bg-blue-200 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                    : metadata.dataQuality.quality === 'fair'
+                    ? 'bg-yellow-200 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                    : 'bg-red-200 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                }`}>
+                  {metadata.dataQuality.quality.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                <div className="flex items-center justify-between">
+                  <span>Original sets:</span>
+                  <span className="font-mono">{metadata.dataQuality.originalSets}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>After cleaning:</span>
+                  <span className="font-mono">{metadata.dataQuality.cleanedSets}</span>
+                </div>
+                <div className="flex items-center justify-between font-semibold text-amber-700 dark:text-amber-300">
+                  <span>Outliers removed:</span>
+                  <span className="font-mono">{metadata.dataQuality.outliersRemoved}</span>
+                </div>
+              </div>
+
+              <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+                Outlier detection used Modified Z-Score method (Iglewicz & Hoaglin, 1993).
+                Analysis based on cleaned data for reliability.
+              </div>
+            </div>
           )}
 
           {/* Actions */}

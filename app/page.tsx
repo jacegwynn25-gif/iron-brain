@@ -3,21 +3,25 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
-import { Dumbbell, History, BarChart3, Wrench, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
+import { Dumbbell, History, BarChart3, Activity, Wrench, ChevronUp, Sparkles, X, Settings as SettingsIcon, Database } from 'lucide-react';
 import { allPrograms, defaultExercises } from './lib/programs';
 import { Exercise, SetTemplate, ProgramTemplate, WorkoutSession, WeekTemplate, DayTemplate } from './lib/types';
 import WorkoutLogger from './components/WorkoutLogger';
 import WorkoutHistory from './components/WorkoutHistory';
-import ProgressCharts from './components/ProgressCharts';
 import ProgramBuilder from './components/ProgramBuilder';
 import ProgramSelector from './components/ProgramSelector';
 import Utilities from './components/Utilities';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import Settings from './components/Settings';
 import DataManagement from './components/DataManagement';
+import AdvancedAnalyticsDashboard from './components/AdvancedAnalyticsDashboard';
+import PreWorkoutReadiness from './components/PreWorkoutReadiness';
 import { storage, setUserNamespace } from './lib/storage';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useAuth } from './lib/supabase/auth-context';
+import { supabase } from './lib/supabase/client';
+import { calculateMuscleFatigue, FatigueScore } from './lib/fatigueModel';
+import { calculateWorkoutSFR } from './lib/fatigue/sfr';
 
 type UserProfile = {
   id: string;
@@ -27,8 +31,12 @@ type UserProfile = {
 };
 
 export default function Home() {
-  const { data: session, status } = useSession();
   const [hydrated, setHydrated] = useState(false);
+  const { user } = useAuth(); // Supabase auth
+
+  // Ref to prevent auto-resume after workout completion
+  const justCompletedWorkout = React.useRef(false);
+
   // Auth / profile
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     // If we already have a NextAuth session, map it to our profile shape
@@ -70,6 +78,7 @@ export default function Home() {
 
   // Workflow states
   const [isLogging, setIsLogging] = useState(false);
+  const [showPreWorkoutReadiness, setShowPreWorkoutReadiness] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
   const [editingProgramForBuilder, setEditingProgramForBuilder] = useState<ProgramTemplate | undefined>(undefined);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
@@ -116,6 +125,28 @@ export default function Home() {
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+
+  // Calculate fatigue and SFR for completed workout summary
+  const summaryFatigue = useMemo(() => {
+    if (!summarySession || !summarySession.sets.length) return [];
+
+    // Extract unique muscle groups from exercises in the session
+    const muscleGroupsSet = new Set<string>();
+    summarySession.sets.forEach(set => {
+      const exercise = defaultExercises.find(ex => ex.id === set.exerciseId);
+      if (exercise) {
+        exercise.muscleGroups.forEach(mg => muscleGroupsSet.add(mg.toLowerCase()));
+      }
+    });
+    const targetMuscles = Array.from(muscleGroupsSet);
+
+    return calculateMuscleFatigue(summarySession.sets, targetMuscles);
+  }, [summarySession]);
+
+  const summarySFR = useMemo(() => {
+    if (!summarySession || !summarySession.sets.length) return null;
+    return calculateWorkoutSFR(summarySession.sets, summaryFatigue);
+  }, [summarySession, summaryFatigue]);
   const [activeSessionPayload, setActiveSessionPayload] = useState<{
     session: WorkoutSession;
     weekNumber: number;
@@ -163,11 +194,112 @@ export default function Home() {
     }
   }, [profile, userProgramsKey]);
 
+  // Load workouts from Supabase when user is logged in
+  useEffect(() => {
+    if (!user) return;
+
+    const loadFromSupabase = async () => {
+      try {
+        const { data: sessions, error } = await supabase
+          .from('workout_sessions')
+          .select(`
+            *,
+            set_logs (*)
+          `)
+          .eq('user_id', user.id)
+          .order('date', { ascending: false });
+
+        if (error) {
+          console.error('Failed to load workouts from Supabase:', error);
+          return;
+        }
+
+        console.log('📥 Loaded', sessions?.length || 0, 'workouts from Supabase');
+
+        // Debug: Log first session to see structure
+        if (sessions && sessions.length > 0) {
+          console.log('First session raw data:', sessions[0]);
+          console.log('First session set_logs:', (sessions[0] as any).set_logs);
+        }
+
+        // Transform Supabase data to WorkoutSession format
+        const transformedWorkouts: WorkoutSession[] = (sessions || []).map((s: any) => {
+          // Extract program metadata from JSONB column
+          const metadata = s.metadata || {};
+
+          return {
+            id: s.id,
+            name: s.name || 'Workout',
+            date: s.date,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            durationMinutes: s.duration_minutes,
+            bodyweight: s.bodyweight,
+            notes: s.notes,
+            // Program metadata from JSONB column
+            programId: metadata.programId,
+            programName: metadata.programName,
+            cycleNumber: metadata.cycleNumber,
+            weekNumber: metadata.weekNumber,
+            dayOfWeek: metadata.dayOfWeek,
+            dayName: metadata.dayName,
+            createdAt: s.created_at || new Date().toISOString(),
+            updatedAt: s.updated_at || new Date().toISOString(),
+            sets: (s.set_logs || []).map((set: any) => ({
+              id: set.id,
+              exerciseId: set.exercise_slug || set.exercise_id, // Use slug for app exercises, UUID for DB exercises
+              setIndex: set.set_index,
+              // Prescribed values
+              prescribedReps: set.prescribed_reps || '0',
+              prescribedRPE: set.prescribed_rpe,
+              prescribedRIR: set.prescribed_rir,
+              prescribedPercentage: set.prescribed_percentage,
+              // Actual values
+              actualWeight: set.actual_weight,
+              actualReps: set.actual_reps,
+              actualRPE: set.actual_rpe,
+              actualRIR: set.actual_rir,
+              // Performance metrics
+              e1rm: set.e1rm,
+              volumeLoad: set.volume_load,
+              // Timing
+              restTakenSeconds: set.rest_seconds,
+              setDurationSeconds: set.actual_seconds,
+              // Metadata
+              notes: set.notes,
+              completed: set.completed !== false,
+            })),
+          };
+        });
+
+        // Debug: Log first transformed workout
+        if (transformedWorkouts.length > 0) {
+          console.log('First transformed workout:', transformedWorkouts[0]);
+          console.log('First workout sets:', transformedWorkouts[0].sets);
+        }
+
+        // Update workout history with Supabase data
+        setWorkoutHistory(transformedWorkouts);
+        console.log('✅ Synced', transformedWorkouts.length, 'workouts to UI');
+      } catch (err) {
+        console.error('Error loading from Supabase:', err);
+      }
+    };
+
+    loadFromSupabase();
+  }, [user]);
+
   // Resume active logging session if present (with staleness detection)
   useEffect(() => {
     if (isLogging) return;
     if (typeof window === 'undefined') return;
     if (!profile) return;
+
+    // Don't auto-resume if we just completed a workout
+    if (justCompletedWorkout.current) {
+      console.log('⏸️ Skipping auto-resume - just completed workout');
+      return;
+    }
 
     const result = storage.getActiveSession(profile.id);
     if (!result) return;
@@ -481,16 +613,31 @@ export default function Home() {
   };
 
   const handleWorkoutComplete = (session: WorkoutSession) => {
-    storage.saveWorkout(session);
-    setWorkoutHistory(prev => [...prev, session]);
-    setSummarySession(session);
-    setShowCelebration(true);
-    // Clear active session using robust storage function
+    console.log('🎯 handleWorkoutComplete CALLED');
+
+    // Set flag to prevent auto-resume
+    justCompletedWorkout.current = true;
+
+    // CRITICAL: Clear session IMMEDIATELY to prevent auto-resume
     if (profile) {
       storage.clearActiveSession(profile.id);
     }
     setActiveSessionPayload(null);
     setIsLogging(false);
+    console.log('🛑 Session cleared and logging stopped');
+
+    // Reset flag after a short delay (after React re-renders)
+    setTimeout(() => {
+      justCompletedWorkout.current = false;
+    }, 1000);
+
+    // Update UI
+    setWorkoutHistory(prev => [...prev, session]);
+    setSummarySession(session);
+    setShowCelebration(true);
+
+    // Start save in background
+    storage.saveWorkout(session).catch(err => console.error('Failed to save workout:', err));
   };
 
   const persistActiveSession = useCallback(
@@ -563,23 +710,7 @@ export default function Home() {
   const handleLogout = () => {
     localStorage.removeItem('iron_brain_profile');
     setProfile(null);
-    signOut({ redirect: false });
   };
-
-  // Map next-auth session to profile state on the fly
-  useEffect(() => {
-    if (session?.user) {
-      const expiresAt = rememberProfile ? new Date().getTime() + 30 * 24 * 60 * 60 * 1000 : null;
-      const mapped: UserProfile = {
-        id: session.user.email || createId('user'),
-        name: session.user.name || 'User',
-        email: session.user.email || 'unknown@example.com',
-        rememberUntil: expiresAt,
-      };
-      localStorage.setItem('iron_brain_profile', JSON.stringify(mapped));
-      setProfile(mapped);
-    }
-  }, [session, rememberProfile, createId]);
 
   const getExercise = (exerciseId: string): Exercise | undefined => {
     return defaultExercises.find(ex => ex.id === exerciseId);
@@ -629,8 +760,8 @@ export default function Home() {
     setUserPinnedDay(false);
   }, [selectedProgram?.id, todayKey]);
 
-  // Avoid hydration mismatch while auth/session/profile initializes
-  if (!hydrated || status === 'loading') {
+  // Avoid hydration mismatch while profile initializes
+  if (!hydrated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-purple-50/30 to-zinc-100 dark:from-zinc-950 dark:via-purple-950/10 dark:to-zinc-900" />
     );
@@ -707,16 +838,7 @@ export default function Home() {
               <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
             </div>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => signIn('google')}
-                className="flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-zinc-800 shadow-lg ring-1 ring-zinc-200 transition-all hover:shadow-xl hover:-translate-y-0.5 dark:bg-zinc-800 dark:text-zinc-100 dark:ring-zinc-700"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4285F4] text-white text-sm font-black">G</span>
-                Continue with Google
-              </button>
-            </div>
+            {/* Google sign-in removed - use Settings > Cloud Sync to enable cloud backup */}
 
             <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs font-semibold text-zinc-500 dark:text-zinc-400">
               <div className="rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-800">Stay Signed In</div>
@@ -738,6 +860,7 @@ export default function Home() {
           setIsBuilding(false);
           setEditingProgramForBuilder(undefined);
         }}
+        userId={user?.id || null}
       />
     );
   }
@@ -906,7 +1029,7 @@ export default function Home() {
               onClick={() => setViewMode('analytics')}
               className={`group flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3.5 font-semibold transition-all whitespace-nowrap active:scale-95 touch-manipulation ${
                 viewMode === 'analytics'
-                  ? 'gradient-purple text-white shadow-glow-purple'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                   : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
               }`}
             >
@@ -970,7 +1093,7 @@ export default function Home() {
         </div>
 
         {/* Analytics View */}
-        {viewMode === 'analytics' && <ProgressCharts />}
+        {viewMode === 'analytics' && <AdvancedAnalyticsDashboard />}
 
         {/* Utilities View */}
         {viewMode === 'utilities' && <Utilities />}
@@ -1045,7 +1168,7 @@ export default function Home() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setIsLogging(true)}
+                      onClick={() => setShowPreWorkoutReadiness(true)}
                       className="w-full sm:w-auto rounded-xl sm:rounded-2xl bg-white px-6 py-4 sm:px-10 sm:py-5 font-black text-purple-600 text-base sm:text-lg shadow-2xl transition-all hover:scale-105 active:scale-95 hover:shadow-[0_20px_60px_rgba(255,255,255,0.5)] relative overflow-hidden group animate-bounceSubtle"
                     >
                       <span className="relative z-10 flex items-center justify-center gap-3">
@@ -1517,7 +1640,7 @@ export default function Home() {
       {summarySession && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setSummarySession(null); setShowCelebration(false); }} />
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 shadow-2xl ring-4 ring-white/40">
+          <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-fuchsia-600 to-amber-500 shadow-2xl ring-4 ring-white/40">
             <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.2),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.15),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(255,255,255,0.25),transparent_45%)]" />
             {showCelebration && (
               <div className="pointer-events-none absolute inset-0">
@@ -1537,7 +1660,7 @@ export default function Home() {
                 ))}
               </div>
             )}
-            <div className="relative p-6 sm:p-8 text-white space-y-4">
+            <div className="relative flex-1 overflow-y-auto p-6 sm:p-8 text-white space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Workout Complete</p>
@@ -1577,6 +1700,75 @@ export default function Home() {
                   {summarySession.averageRPE !== undefined && <li>• Average RPE: {summarySession.averageRPE.toFixed(1)}</li>}
                 </ul>
               </div>
+
+              {/* Fatigue Impact */}
+              {summaryFatigue.length > 0 && (
+                <div className="rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur">
+                  <p className="text-sm font-semibold text-white/80 mb-3">Fatigue Impact</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {summaryFatigue.slice(0, 6).map((fa: FatigueScore) => {
+                      const severity = fa.fatigueLevel >= 80 ? 'critical' :
+                                       fa.fatigueLevel >= 60 ? 'high' :
+                                       fa.fatigueLevel >= 30 ? 'moderate' : 'mild';
+                      const recoveryHours = severity === 'critical' ? 72 :
+                                           severity === 'high' ? 60 :
+                                           severity === 'moderate' ? 48 : 36;
+                      return (
+                        <div key={fa.muscleGroup} className="rounded-xl bg-white/10 p-2">
+                          <p className="text-xs text-white/60 capitalize">{fa.muscleGroup}</p>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${
+                              severity === 'critical' ? 'text-red-300' :
+                              severity === 'high' ? 'text-orange-300' :
+                              severity === 'moderate' ? 'text-yellow-300' :
+                              'text-green-300'
+                            }`}>
+                              {Math.round(fa.fatigueLevel)}/100
+                            </span>
+                            <span className="text-xs text-white/50">
+                              ~{recoveryHours}h
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Training Efficiency (SFR) */}
+              {summarySFR && summarySFR.exerciseAnalyses.length > 0 && (
+                <div className="rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur">
+                  <p className="text-sm font-semibold text-white/80 mb-3">Training Efficiency</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {summarySFR.exerciseAnalyses.map((analysis, idx) => (
+                      <div key={idx} className="rounded-xl bg-white/10 p-2 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-white/90 truncate flex-1">
+                          {analysis.exerciseName}
+                        </span>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg ml-2 ${
+                          analysis.interpretation === 'excellent' ? 'bg-green-500/30 text-green-200' :
+                          analysis.interpretation === 'good' ? 'bg-blue-500/30 text-blue-200' :
+                          analysis.interpretation === 'moderate' ? 'bg-yellow-500/30 text-yellow-200' :
+                          analysis.interpretation === 'poor' ? 'bg-orange-500/30 text-orange-200' :
+                          'bg-red-500/30 text-red-200'
+                        }`}>
+                          {analysis.interpretation === 'excellent' ? '⭐ Excellent' :
+                           analysis.interpretation === 'good' ? '✓ Good' :
+                           analysis.interpretation === 'moderate' ? '~ OK' :
+                           analysis.interpretation === 'poor' ? '⚠ Poor' :
+                           '✕ Excessive'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {summarySFR.insights.length > 0 && (
+                    <p className="text-xs text-white/70 mt-2">
+                      {summarySFR.insights[0]}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="text-sm text-white/80">
@@ -1664,6 +1856,24 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pre-Workout Readiness Modal */}
+      {showPreWorkoutReadiness && selectedProgram && selectedDayIndex !== null && (
+        <PreWorkoutReadiness
+          userId={user?.id || null}
+          plannedExerciseIds={(() => {
+            const week = selectedProgram.weeks.find(w => w.weekNumber === selectedWeek);
+            const day = week?.days[selectedDayIndex];
+            if (!day) return undefined;
+            return Array.from(new Set(day.sets.map(s => s.exerciseId)));
+          })()}
+          onContinue={() => {
+            setShowPreWorkoutReadiness(false);
+            setIsLogging(true);
+          }}
+          onCancel={() => setShowPreWorkoutReadiness(false)}
+        />
       )}
 
       {/* Keyboard Shortcuts Modal */}

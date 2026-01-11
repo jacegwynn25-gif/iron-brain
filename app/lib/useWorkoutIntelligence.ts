@@ -1,8 +1,14 @@
-import { useMemo } from 'react';
+/**
+ * Workout Intelligence Hook
+ *
+ * React hook that connects the WorkoutIntelligenceService to React components.
+ * Provides real-time workout intelligence using PhD-level analytics models.
+ */
+
+import { useState, useEffect, useMemo } from 'react';
 import { SetLog, Exercise } from './types';
-import { storage } from './storage';
-import { shouldTriggerAutoReduction, calculateAdjustedWeight, FatigueAlert } from './fatigueModel';
-import { getE1RMProgression } from './analytics';
+import { getWorkoutIntelligence } from './intelligence/workout-intelligence-service';
+import type { SetRecommendation, SessionFatigueAssessment } from './intelligence/workout-intelligence-service';
 
 export interface WeightRecommendation {
   type: 'increase' | 'decrease' | 'maintain';
@@ -22,196 +28,183 @@ export interface PROpportunity {
 }
 
 export interface WorkoutIntelligence {
-  // Fatigue detection
-  fatigueAlert: FatigueAlert | null;
+  // Real-time set recommendation
+  setRecommendation: SetRecommendation | null;
 
-  // Weight recommendations
+  // Session fatigue assessment
+  fatigueAssessment: SessionFatigueAssessment | null;
+
+  // Legacy compatibility (mapped from new service)
   weightRecommendation: WeightRecommendation | null;
 
-  // PR opportunities
+  // PR opportunities (not yet implemented in new service)
   prOpportunity: PROpportunity | null;
 
   // Should show any alert
   hasRecommendation: boolean;
+
+  // Loading state
+  loading: boolean;
 }
 
 /**
  * Real-time workout intelligence hook
  *
  * Analyzes completed sets and provides science-backed recommendations:
- * - Fatigue-based weight reductions
- * - Progressive overload suggestions
- * - PR opportunity detection
+ * - Fatigue-based weight reductions (using hierarchical models, ACWR, recovery data)
+ * - Progressive overload suggestions (using personal data and exercise-specific rates)
+ * - Session fatigue monitoring (cumulative tracking with smart alerts)
  */
 export function useWorkoutIntelligence(
+  userId: string | null,
   completedSets: SetLog[],
-  upcomingExercise: Exercise | null,
-  lastWorkoutBestSet?: { actualWeight?: number | null; actualReps?: number | null; actualRPE?: number | null },
-  targetRPE?: number | null
+  upcomingExerciseId: string | null,
+  targetReps: number,
+  targetRPE: number | null,
+  lastWeight?: number | null
 ): WorkoutIntelligence {
-  const intelligence = useMemo(() => {
-    if (!upcomingExercise) {
-      return {
-        fatigueAlert: null,
-        weightRecommendation: null,
-        prOpportunity: null,
-        hasRecommendation: false,
-      };
+  const [setRecommendation, setSetRecommendation] = useState<SetRecommendation | null>(null);
+  const [fatigueAssessment, setFatigueAssessment] = useState<SessionFatigueAssessment | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Get intelligence service instance
+  const intelligence = useMemo(() => getWorkoutIntelligence(userId), [userId]);
+
+  // Get set recommendation when exercise changes or new set completed
+  useEffect(() => {
+    if (!upcomingExerciseId) {
+      setSetRecommendation(null);
+      return;
     }
 
-    // 1. CHECK FOR FATIGUE (priority: safety first)
-    const fatigueAlert = shouldTriggerAutoReduction(completedSets, upcomingExercise.id);
+    let cancelled = false;
+    setLoading(true);
 
-    // 2. CHECK FOR PROGRESSION OPPORTUNITY (if no fatigue)
-    let weightRecommendation: WeightRecommendation | null = null;
+    intelligence.getSetRecommendation(
+      upcomingExerciseId,
+      completedSets.filter(s => s.exerciseId === upcomingExerciseId).length + 1,
+      targetReps,
+      targetRPE,
+      completedSets
+    ).then(rec => {
+      if (!cancelled) {
+        setSetRecommendation(rec);
+        setLoading(false);
+      }
+    }).catch(err => {
+      console.error('Error getting set recommendation:', err);
+      if (!cancelled) {
+        setSetRecommendation(null);
+        setLoading(false);
+      }
+    });
 
-    if (!fatigueAlert.shouldAlert && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight && lastWorkoutBestSet.actualReps) {
-      const lastWeight = lastWorkoutBestSet.actualWeight;
-      const lastReps = lastWorkoutBestSet.actualReps;
-      const lastRPE = lastWorkoutBestSet.actualRPE;
-      const targetRpeValue = targetRPE ?? null;
+    return () => { cancelled = true; };
+  }, [intelligence, upcomingExerciseId, completedSets.length, targetReps, targetRPE]);
 
-      // Get progression history for this exercise
-      const progression = getE1RMProgression(upcomingExercise.id);
-      const recentSessions = progression.slice(-5); // Last 5 sessions
+  // Assess session fatigue when sets change
+  useEffect(() => {
+    if (completedSets.length === 0) {
+      setFatigueAssessment(null);
+      return;
+    }
 
-      // Progressive overload logic
-      // Based on Zourdos et al. (2016) - 2-5% increases when RPE < 8.5
-      if (lastRPE !== null && lastRPE !== undefined) {
-        const overshotTarget = targetRpeValue !== null && lastRPE > targetRpeValue + 0.25;
+    let cancelled = false;
 
-        if (overshotTarget) {
-          weightRecommendation = {
-            type: 'maintain',
-            suggestedWeight: lastWeight,
-            currentWeight: lastWeight,
-            reasoning: `Overshot target RPE ${targetRpeValue} (actual ${lastRPE}). Hold load to stay on prescription.`,
-            confidence: 0.6,
-            scientificBasis: 'Autoregulated progression avoids load increases when target RPE is exceeded.',
-          };
-        } else {
-          // INCREASE: Consistently undershooting RPE
-          if (lastRPE < 7.5 && lastReps >= 8) {
-            const increase = Math.max(5, Math.round(lastWeight * 0.025)); // 2.5% or minimum 5lbs
-            weightRecommendation = {
-              type: 'increase',
-              suggestedWeight: lastWeight + increase,
-              currentWeight: lastWeight,
-              reasoning: `Last set felt easy (RPE ${lastRPE}). Ready for progressive overload.`,
-              confidence: 0.85,
-              scientificBasis: 'Zourdos et al. (2016): 2-5% load increases recommended when RPE consistently < 8.0 and technique is solid.',
-            };
-          }
-          // INCREASE: Hitting high reps with room to spare
-          else if (lastRPE <= 8.0 && lastReps >= 12) {
-            const increase = Math.max(5, Math.round(lastWeight * 0.03)); // 3% or minimum 5lbs
-            weightRecommendation = {
-              type: 'increase',
-              suggestedWeight: lastWeight + increase,
-              currentWeight: lastWeight,
-              reasoning: `High reps (${lastReps}) with moderate RPE (${lastRPE}). Time to increase load.`,
-              confidence: 0.80,
-              scientificBasis: 'Schoenfeld et al. (2017): Progressive overload is key for hypertrophy. When rep count exceeds 12 with RPE < 8, load should increase.',
-            };
-          }
-          // MAINTAIN: Good progression
-          else if (lastRPE >= 7.5 && lastRPE <= 9.0) {
-            weightRecommendation = {
-              type: 'maintain',
-              suggestedWeight: lastWeight,
-              currentWeight: lastWeight,
-              reasoning: `RPE ${lastRPE} is in the optimal hypertrophy range (7.5-9.0).`,
-              confidence: 0.90,
-              scientificBasis: 'Helms et al. (2018): RPE 7.5-9.0 provides optimal stimulus-to-fatigue ratio for muscle growth.',
-            };
-          }
+    intelligence.assessSessionFatigue(completedSets)
+      .then(assessment => {
+        if (!cancelled) {
+          setFatigueAssessment(assessment);
         }
-      }
-
-      // Check for stagnation (no E1RM improvement in 4+ sessions)
-      if (recentSessions.length >= 4 && !weightRecommendation) {
-        const recent4 = recentSessions.slice(-4);
-        const first2Avg = recent4.slice(0, 2).reduce((sum, s) => sum + s.e1rm, 0) / 2;
-        const last2Avg = recent4.slice(-2).reduce((sum, s) => sum + s.e1rm, 0) / 2;
-
-        // If E1RM hasn't improved by at least 2% in last 4 sessions
-        if (last2Avg < first2Avg * 1.02) {
-          const increase = Math.max(5, Math.round(lastWeight * 0.025));
-          weightRecommendation = {
-            type: 'increase',
-            suggestedWeight: lastWeight + increase,
-            currentWeight: lastWeight,
-            reasoning: `Plateau detected. E1RM hasn't improved in last 4 sessions.`,
-            confidence: 0.70,
-            scientificBasis: 'Progression principle: When adaptation stalls, a small load increase can provide new stimulus.',
-          };
+      })
+      .catch(err => {
+        console.error('Error assessing session fatigue:', err);
+        if (!cancelled) {
+          setFatigueAssessment(null);
         }
-      }
-    }
+      });
 
-    // If fatigue detected, override any increase recommendations
-    if (fatigueAlert.shouldAlert && weightRecommendation?.type === 'increase') {
-      weightRecommendation = null;
-    }
+    return () => { cancelled = true; };
+  }, [intelligence, completedSets.length]);
 
-    // Apply fatigue-based reduction if needed
-    if (fatigueAlert.shouldAlert && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight) {
-      const adjustedWeight = calculateAdjustedWeight(lastWorkoutBestSet.actualWeight, fatigueAlert);
-      weightRecommendation = {
-        type: 'decrease',
-        suggestedWeight: adjustedWeight,
-        currentWeight: lastWorkoutBestSet.actualWeight,
-        reasoning: fatigueAlert.reasoning,
-        confidence: fatigueAlert.confidence,
-        scientificBasis: fatigueAlert.scientificBasis,
-      };
-    }
+  // Map new service data to legacy interface for backward compatibility
+  const weightRecommendation = useMemo((): WeightRecommendation | null => {
+    if (!setRecommendation) return null;
 
-    // 3. CHECK FOR PR OPPORTUNITY
-    let prOpportunity: PROpportunity | null = null;
+    const baseline = lastWeight || setRecommendation.baseline.weight;
+    const suggested = setRecommendation.suggestedWeight;
 
-    const prs = storage.getPersonalRecords(upcomingExercise.id);
-    if (prs && lastWorkoutBestSet && lastWorkoutBestSet.actualWeight && lastWorkoutBestSet.actualReps) {
-      const maxWeight = prs.maxWeight.weight;
-      const maxE1RM = prs.maxE1RM.e1rm;
+    let type: 'increase' | 'decrease' | 'maintain' = 'maintain';
+    if (suggested > baseline * 1.02) type = 'increase';
+    else if (suggested < baseline * 0.98) type = 'decrease';
 
-      // Calculate current E1RM potential
-      const currentWeight = lastWorkoutBestSet.actualWeight;
-      const currentE1RM = currentWeight * (1 + lastWorkoutBestSet.actualReps / 30); // Epley formula
-
-      // PR opportunity if within 5% of max
-      if (currentWeight >= maxWeight * 0.95 && currentWeight < maxWeight) {
-        prOpportunity = {
-          isOpportunity: true,
-          currentPR: maxWeight,
-          targetWeight: maxWeight + 5, // Suggest 5lbs above current PR
-          gap: maxWeight - currentWeight,
-          type: 'max_weight',
-        };
-      } else if (currentE1RM >= maxE1RM * 0.95 && currentE1RM < maxE1RM) {
-        prOpportunity = {
-          isOpportunity: true,
-          currentPR: maxE1RM,
-          targetWeight: Math.round(maxE1RM * 0.90), // 90% of PR E1RM for 3-5 reps
-          gap: maxE1RM - currentE1RM,
-          type: 'max_e1rm',
-        };
-      }
-    }
-
-    const hasRecommendation = !!(
-      (fatigueAlert && fatigueAlert.shouldAlert) ||
-      (weightRecommendation && weightRecommendation.type !== 'maintain') ||
-      (prOpportunity && prOpportunity.isOpportunity)
-    );
+    const confidenceMap = {
+      'high': 0.85,
+      'medium': 0.65,
+      'low': 0.40
+    };
 
     return {
-      fatigueAlert: fatigueAlert.shouldAlert ? fatigueAlert : null,
-      weightRecommendation,
-      prOpportunity,
-      hasRecommendation,
+      type,
+      suggestedWeight: suggested,
+      currentWeight: baseline,
+      reasoning: setRecommendation.reasoning,
+      confidence: confidenceMap[setRecommendation.confidence],
+      scientificBasis: setRecommendation.fatigueAlert?.message || 'Based on hierarchical fatigue model, ACWR, and recovery data'
     };
-  }, [completedSets, upcomingExercise, lastWorkoutBestSet, targetRPE]);
+  }, [setRecommendation, lastWeight]);
 
-  return intelligence;
+  const hasRecommendation = !!(
+    (setRecommendation && setRecommendation.fatigueAlert) ||
+    (weightRecommendation && weightRecommendation.type !== 'maintain') ||
+    (fatigueAssessment && fatigueAssessment.shouldReduceWeight)
+  );
+
+  return {
+    setRecommendation,
+    fatigueAssessment,
+    weightRecommendation,
+    prOpportunity: null, // TODO: Implement in intelligence service
+    hasRecommendation,
+    loading
+  };
+}
+
+/**
+ * Hook for pre-workout readiness assessment
+ */
+export function usePreWorkoutReadiness(userId: string | null, plannedExercises?: string[]) {
+  const [readiness, setReadiness] = useState<Awaited<ReturnType<typeof import('./intelligence/workout-intelligence-service').WorkoutIntelligenceService.prototype.getPreWorkoutReadiness>> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const intelligence = useMemo(() => getWorkoutIntelligence(userId), [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    console.log('🔍 usePreWorkoutReadiness: Starting...', { userId, plannedExercises });
+    setLoading(true);
+
+    intelligence.getPreWorkoutReadiness(plannedExercises)
+      .then(result => {
+        console.log('✅ usePreWorkoutReadiness: Got result', result);
+        if (!cancelled) {
+          setReadiness(result);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.error('❌ usePreWorkoutReadiness: Error getting pre-workout readiness:', err);
+        if (!cancelled) {
+          setReadiness(null);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      console.log('🧹 usePreWorkoutReadiness: Cleanup');
+      cancelled = true;
+    };
+  }, [intelligence, plannedExercises?.join(',')]);
+
+  return { readiness, loading };
 }
