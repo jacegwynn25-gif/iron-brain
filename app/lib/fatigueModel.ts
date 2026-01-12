@@ -1,5 +1,6 @@
 import { SetLog } from './types';
 import { defaultExercises } from './programs';
+import { logger } from './logger';
 
 /**
  * Science-Backed Fatigue Model for Auto-Regulation
@@ -330,15 +331,15 @@ export function shouldTriggerAutoReduction(
   upcomingExerciseId: string
 ): FatigueAlert {
   // Reduced logging to prevent console spam
-  // console.log('🔬 FATIGUE MODEL: shouldTriggerAutoReduction called');
-  // console.log('   Completed sets to analyze:', completedSets.length);
-  // console.log('   Upcoming exercise ID:', upcomingExerciseId);
+  // logger.debug('🔬 FATIGUE MODEL: shouldTriggerAutoReduction called');
+  // logger.debug('   Completed sets to analyze:', completedSets.length);
+  // logger.debug('   Upcoming exercise ID:', upcomingExerciseId);
 
   const upcomingMuscles = getExerciseMuscleGroups(upcomingExerciseId);
-  // console.log('   Upcoming exercise muscles:', upcomingMuscles);
+  // logger.debug('   Upcoming exercise muscles:', upcomingMuscles);
 
   const fatigueScores = calculateMuscleFatigue(completedSets, upcomingMuscles);
-  // console.log('   Fatigue scores calculated:', fatigueScores.length, 'muscle groups');
+  // logger.debug('   Fatigue scores calculated:', fatigueScores.length, 'muscle groups');
 
   if (fatigueScores.length === 0) {
     return {
@@ -356,8 +357,8 @@ export function shouldTriggerAutoReduction(
   const maxFatigue = fatigueScores[0];
   const fatigueLevel = maxFatigue.fatigueLevel;
 
-  // console.log('   Max fatigue score:', fatigueLevel.toFixed(1), 'in', maxFatigue.muscleGroup);
-  // console.log('   All fatigue scores:', fatigueScores.map(fs => `${fs.muscleGroup}: ${fs.fatigueLevel.toFixed(1)}`).join(', '));
+  // logger.debug('   Max fatigue score:', fatigueLevel.toFixed(1), 'in', maxFatigue.muscleGroup);
+  // logger.debug('   All fatigue scores:', fatigueScores.map(fs => `${fs.muscleGroup}: ${fs.fatigueLevel.toFixed(1)}`).join(', '));
 
   // Calculate average RPE overshoot
   const overshootSets = completedSets.filter(
@@ -367,11 +368,11 @@ export function shouldTriggerAutoReduction(
     ? overshootSets.reduce((sum, s) => sum + (s.actualRPE! - s.prescribedRPE!), 0) / overshootSets.length
     : 0;
 
-  // console.log('   Overshoot sets:', overshootSets.length);
-  // console.log('   Average overshoot:', avgOvershoot.toFixed(2));
+  // logger.debug('   Overshoot sets:', overshootSets.length);
+  // logger.debug('   Average overshoot:', avgOvershoot.toFixed(2));
 
   // Threshold logic (research-based)
-  // console.log('   Checking thresholds...');
+  // logger.debug('   Checking thresholds...');
   let shouldAlert = false;
   let severity: FatigueAlert['severity'] = 'mild';
   let suggestedReduction = 0;
@@ -430,7 +431,7 @@ export function shouldTriggerAutoReduction(
 
   // Logging disabled - fatigue alerts work silently in the background
   // if (shouldAlert) {
-  //   console.log('🚨 FATIGUE ALERT:', severity.toUpperCase(), '-', affectedMuscles.join(', '), '-', (suggestedReduction * 100).toFixed(0) + '% reduction suggested');
+  //   logger.debug('🚨 FATIGUE ALERT:', severity.toUpperCase(), '-', affectedMuscles.join(', '), '-', (suggestedReduction * 100).toFixed(0) + '% reduction suggested');
   // }
 
   return {
@@ -604,7 +605,7 @@ export function detectTrueFatigue(
 
     // Log quality issues if any
     if (dataQualityReport.outliersRemoved > 0) {
-      console.log(`Data cleaning: Removed ${dataQualityReport.outliersRemoved} outlier sets`);
+      logger.debug(`Data cleaning: Removed ${dataQualityReport.outliersRemoved} outlier sets`);
     }
   } catch (err) {
     console.warn('Data cleaning unavailable, proceeding with raw data');

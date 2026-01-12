@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './client';
+import { logger } from '../logger';
 
 // In-memory cache for program template UUIDs
 // Key format: "app_program_id" → UUID
@@ -31,7 +32,7 @@ async function loadProgramTemplateCache(): Promise<void> {
     }
   });
 
-  console.log(`✅ Loaded ${programTemplateCache.size} program templates into cache`);
+  logger.debug(`✅ Loaded ${programTemplateCache.size} program templates into cache`);
 }
 
 /**

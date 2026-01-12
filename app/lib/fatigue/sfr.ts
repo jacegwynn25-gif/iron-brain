@@ -13,6 +13,7 @@
  * Low SFR (<50) = Junk volume (high fatigue cost, low benefit)
  */
 
+import { logger } from '../logger';
 import { SetLog } from '../types';
 import { FatigueScore } from '../fatigueModel';
 import { supabase } from '../supabase/client';
@@ -373,7 +374,7 @@ export async function saveSFRAnalysis(
       return;
     }
 
-    console.log(`✅ Saved SFR analysis: ${sfrSummary.exerciseAnalyses.length} exercises, overall SFR: ${sfrSummary.overallSFR.toFixed(0)}`);
+    logger.debug(`✅ Saved SFR analysis: ${sfrSummary.exerciseAnalyses.length} exercises, overall SFR: ${sfrSummary.overallSFR.toFixed(0)}`);
   } catch (err) {
     console.error('Error saving SFR analysis:', err);
   }

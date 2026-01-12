@@ -9,6 +9,7 @@ import type {
   ImportError,
   ImportWarning,
 } from '../types';
+import { logger } from '../../logger';
 
 const SECTION_HEADER_REGEX = /Week\s+(\d+)\s*[-–]\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i;
 
@@ -188,7 +189,7 @@ export class ExcelParser implements Parser {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
 
-          console.log('[ExcelParser] Found sheets:', workbook.SheetNames);
+          logger.debug('[ExcelParser] Found sheets:', workbook.SheetNames);
 
           if (workbook.SheetNames.length === 0) {
             return resolve({
@@ -212,15 +213,15 @@ export class ExcelParser implements Parser {
             return isWeekSheet || !isNonWorkout;
           });
 
-          console.log('[ExcelParser] Workout sheets to process:', workoutSheets);
+          logger.debug('[ExcelParser] Workout sheets to process:', workoutSheets);
 
           let allJsonData: any[][] = [];
 
           for (const sheetName of workoutSheets) {
-            console.log(`[ExcelParser] Reading sheet: ${sheetName}`);
+            logger.debug(`[ExcelParser] Reading sheet: ${sheetName}`);
             const worksheet = workbook.Sheets[sheetName];
             const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            console.log(`[ExcelParser] Sheet "${sheetName}" has ${sheetData.length} rows`);
+            logger.debug(`[ExcelParser] Sheet "${sheetName}" has ${sheetData.length} rows`);
 
             // Add all rows from this sheet
             allJsonData = allJsonData.concat(sheetData);
@@ -232,8 +233,8 @@ export class ExcelParser implements Parser {
           }
 
           const jsonData = allJsonData;
-          console.log('[ExcelParser] Total rows from all sheets:', jsonData.length);
-          console.log('[ExcelParser] First 10 rows:', jsonData.slice(0, 10));
+          logger.debug('[ExcelParser] Total rows from all sheets:', jsonData.length);
+          logger.debug('[ExcelParser] First 10 rows:', jsonData.slice(0, 10));
 
           const errors: ImportError[] = [];
           const warnings: ImportWarning[] = [];
@@ -246,12 +247,12 @@ export class ExcelParser implements Parser {
           let headerRowIndex = -1;
 
           // Find header row (first non-empty row that's not a section header and looks like headers)
-          console.log('[ExcelParser] Looking for header row...');
+          logger.debug('[ExcelParser] Looking for header row...');
           for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i];
             if (row && row.length > 0) {
               const sectionCheck = isSectionHeader(row);
-              console.log(`[ExcelParser] Row ${i}:`, {
+              logger.debug(`[ExcelParser] Row ${i}:`, {
                 isSectionHeader: sectionCheck.isHeader,
                 firstCell: row[0],
                 rowLength: row.length
@@ -260,21 +261,21 @@ export class ExcelParser implements Parser {
               if (!sectionCheck.isHeader) {
                 // Check if this looks like a header row (has multiple non-empty strings)
                 const nonEmptyCount = row.filter((cell: any) => cell && typeof cell === 'string' && cell.trim()).length;
-                console.log(`[ExcelParser] Row ${i} non-empty string count:`, nonEmptyCount);
+                logger.debug(`[ExcelParser] Row ${i} non-empty string count:`, nonEmptyCount);
 
                 if (nonEmptyCount >= 3) {
                   headers = row;
                   headerRowIndex = i;
                   fieldMapping = detectFieldMapping(headers);
-                  console.log(`[ExcelParser] Potential header row ${i}:`, headers);
-                  console.log(`[ExcelParser] Field mapping:`, fieldMapping);
+                  logger.debug(`[ExcelParser] Potential header row ${i}:`, headers);
+                  logger.debug(`[ExcelParser] Field mapping:`, fieldMapping);
 
                   // If we found exercise field, we have the right header row
                   if (fieldMapping.exerciseField) {
-                    console.log(`[ExcelParser] Found exercise field at index ${fieldMapping.exerciseField}!`);
+                    logger.debug(`[ExcelParser] Found exercise field at index ${fieldMapping.exerciseField}!`);
                     break;
                   } else {
-                    console.log(`[ExcelParser] Row ${i} has 3+ strings but no exercise field found`);
+                    logger.debug(`[ExcelParser] Row ${i} has 3+ strings but no exercise field found`);
                   }
                 }
               }

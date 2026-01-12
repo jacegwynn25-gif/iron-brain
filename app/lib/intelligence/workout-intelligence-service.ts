@@ -13,6 +13,7 @@
  */
 
 import { supabase } from '../supabase/client';
+import { logger } from '../logger';
 import type { WorkoutSession, SetLog } from '../types';
 import { getWorkoutHistory } from '../storage';
 import {
@@ -123,24 +124,24 @@ export class WorkoutIntelligenceService {
 
   async getPreWorkoutReadiness(plannedExercises?: string[]): Promise<PreWorkoutReadiness> {
     try {
-      console.log('🏋️ getPreWorkoutReadiness: Starting for userId:', this.userId);
+      logger.debug('🏋️ getPreWorkoutReadiness: Starting for userId:', this.userId);
 
       // Ensure models are loaded
-      console.log('📊 getPreWorkoutReadiness: Loading models...');
+      logger.debug('📊 getPreWorkoutReadiness: Loading models...');
       await this.loadModels();
-      console.log('✅ getPreWorkoutReadiness: Models loaded');
+      logger.debug('✅ getPreWorkoutReadiness: Models loaded');
 
       // 1. Get ACWR metrics
       const acwrData = this.acwrMetrics || { acwr: 1.0, status: 'unknown' };
-      console.log('📈 getPreWorkoutReadiness: ACWR data:', acwrData);
+      logger.debug('📈 getPreWorkoutReadiness: ACWR data:', acwrData);
 
       // 2. Get recovery profiles
       let recoveryData: RecoveryProfile[] = [];
       if (this.userId) {
         try {
-          console.log('💪 getPreWorkoutReadiness: Fetching recovery profiles...');
+          logger.debug('💪 getPreWorkoutReadiness: Fetching recovery profiles...');
           recoveryData = await getRecoveryProfiles(this.userId);
-          console.log('✅ getPreWorkoutReadiness: Got recovery profiles:', recoveryData.length);
+          logger.debug('✅ getPreWorkoutReadiness: Got recovery profiles:', recoveryData.length);
         } catch (err) {
           console.warn('Could not load recovery profiles:', err);
         }
@@ -412,7 +413,7 @@ export class WorkoutIntelligenceService {
   async recordWorkoutCompletion(session: WorkoutSession): Promise<void> {
     try {
       if (!this.userId) {
-        console.log('No user ID, skipping model update');
+        logger.debug('No user ID, skipping model update');
         return;
       }
 
@@ -421,7 +422,7 @@ export class WorkoutIntelligenceService {
 
       // 2. Trigger incremental model update
       await incrementalModelUpdate(this.userId, session);
-      console.log('✅ Incremental model update complete');
+      logger.debug('✅ Incremental model update complete');
 
       // 3. Invalidate local cache (force reload on next use)
       this.hierarchicalModel = null;
@@ -430,7 +431,7 @@ export class WorkoutIntelligenceService {
       this.acwrMetrics = null;
       this.lastUpdate = 0;
 
-      console.log('✅ Workout intelligence cache invalidated');
+      logger.debug('✅ Workout intelligence cache invalidated');
     } catch (err) {
       console.error('Error recording workout completion:', err);
       // Non-critical - models will rebuild next time
@@ -442,16 +443,16 @@ export class WorkoutIntelligenceService {
   // ============================================================
 
   private async loadWorkoutHistory(): Promise<WorkoutSession[]> {
-    console.log('📂 loadWorkoutHistory: Starting...');
+    logger.debug('📂 loadWorkoutHistory: Starting...');
 
     // Load from localStorage
     const localWorkouts = getWorkoutHistory();
-    console.log('💾 loadWorkoutHistory: Got local workouts:', localWorkouts.length);
+    logger.debug('💾 loadWorkoutHistory: Got local workouts:', localWorkouts.length);
 
     // If we have a userId, also load from Supabase
     if (this.userId) {
       try {
-        console.log('☁️ loadWorkoutHistory: Querying Supabase for userId:', this.userId);
+        logger.debug('☁️ loadWorkoutHistory: Querying Supabase for userId:', this.userId);
         const { data: sessions, error } = await supabase
           .from('workout_sessions')
           .select(`
@@ -461,7 +462,7 @@ export class WorkoutIntelligenceService {
           .eq('user_id', this.userId)
           .order('date', { ascending: false });
 
-        console.log('☁️ loadWorkoutHistory: Supabase query complete', {
+        logger.debug('☁️ loadWorkoutHistory: Supabase query complete', {
           sessions: sessions?.length || 0,
           error: error?.message
         });
@@ -513,7 +514,7 @@ export class WorkoutIntelligenceService {
           new Map(allWorkouts.map(w => [w.id, w])).values()
         );
 
-        console.log(`📊 Loaded ${uniqueWorkouts.length} total workouts (${localWorkouts.length} local + ${supabaseWorkouts.length} Supabase)`);
+        logger.debug(`📊 Loaded ${uniqueWorkouts.length} total workouts (${localWorkouts.length} local + ${supabaseWorkouts.length} Supabase)`);
         return uniqueWorkouts;
       } catch (err) {
         console.warn('Error loading from Supabase:', err);
@@ -526,30 +527,30 @@ export class WorkoutIntelligenceService {
 
   private async loadModels(): Promise<void> {
     const now = Date.now();
-    console.log('🔧 loadModels: Checking cache...', {
+    logger.debug('🔧 loadModels: Checking cache...', {
       cacheAge: now - this.lastUpdate,
       cacheDuration: this.cacheDuration,
       hasModel: !!this.hierarchicalModel
     });
 
     if (now - this.lastUpdate < this.cacheDuration && this.hierarchicalModel) {
-      console.log('✅ loadModels: Using cached models');
+      logger.debug('✅ loadModels: Using cached models');
       return;
     }
 
     try {
-      console.log('📚 loadModels: Loading workout history...');
+      logger.debug('📚 loadModels: Loading workout history...');
       // Load workout history from both localStorage and Supabase
       const workoutHistory = await this.loadWorkoutHistory();
       const completedWorkouts = workoutHistory.filter(w => w.endTime);
 
-      console.log('📊 loadModels: Got workouts:', {
+      logger.debug('📊 loadModels: Got workouts:', {
         total: workoutHistory.length,
         completed: completedWorkouts.length
       });
 
       if (completedWorkouts.length < 3) {
-        console.log('⚠️ loadModels: Not enough workout history for models (need 3, have ' + completedWorkouts.length + ')');
+        logger.debug('⚠️ loadModels: Not enough workout history for models (need 3, have ' + completedWorkouts.length + ')');
         return;
       }
 
@@ -645,7 +646,7 @@ export class WorkoutIntelligenceService {
       }
 
       this.lastUpdate = now;
-      console.log('✅ Workout intelligence models loaded');
+      logger.debug('✅ Workout intelligence models loaded');
     } catch (err) {
       console.error('Error loading models:', err);
     }

@@ -15,7 +15,9 @@
  * - Incremental update: ~5ms (only processes new data)
  */
 
+import { logger } from '../logger';
 import { supabase } from './client';
+import type { Database } from './database.types';
 import type { WorkoutSession, SetLog } from '../types';
 import {
   buildHierarchicalFatigueModel,
@@ -27,6 +29,10 @@ import {
   calculateTrainingLoad,
   type FitnessFatigueModel
 } from '../stats/adaptive-recovery';
+
+// Type helpers for database rows
+type UserFatigueModelRow = Database['public']['Tables']['user_fatigue_models']['Row'];
+type TrainingStateCacheRow = Database['public']['Tables']['training_state_cache']['Row'];
 
 // ============================================================
 // TYPES
@@ -105,11 +111,11 @@ export async function getOrBuildHierarchicalModel(
   try {
   
     // Try to load from cache
-    const { data: cached, error } = await (supabase as any)
+    const { data: cached, error } = await supabase
       .from('user_fatigue_models')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       console.warn('Error loading model cache:', error);
@@ -117,7 +123,7 @@ export async function getOrBuildHierarchicalModel(
 
     // Check if cache is fresh
     const cacheAge = cached
-      ? (Date.now() - new Date((cached as any).last_updated_at).getTime()) / 1000 / 60
+      ? (Date.now() - new Date((cached as UserFatigueModelRow).last_updated_at).getTime()) / 1000 / 60
       : Infinity;
 
     const isCacheFresh = cacheAge < 60; // 1 hour
@@ -126,16 +132,16 @@ export async function getOrBuildHierarchicalModel(
     // Note: We always build the model fresh because it has complex internal state
     // The cache is used for metadata tracking and will be used in future optimizations
     if (cached && isCacheFresh) {
-      console.log(`✅ Using cached metadata (${cacheAge.toFixed(1)}min old)`);
+      logger.debug(`✅ Using cached metadata (${cacheAge.toFixed(1)}min old)`);
     } else {
-      console.log('⚙️ Building hierarchical model...');
+      logger.debug('⚙️ Building hierarchical model...');
     }
 
     const startTime = performance.now();
     const model = buildHierarchicalFatigueModel(userId, workoutHistory);
     const computeTime = performance.now() - startTime;
 
-    console.log(`✅ Model built in ${computeTime.toFixed(1)}ms`);
+    logger.debug(`✅ Model built in ${computeTime.toFixed(1)}ms`);
 
     // Cache the model metadata (async, don't wait)
     if (!cached || !isCacheFresh) {
@@ -174,11 +180,18 @@ export async function getOrBuildHierarchicalModel(
 async function cacheHierarchicalModel(
   userId: string,
   model: HierarchicalFatigueModel,
-  workoutHistory: Array<any>
+  workoutHistory: Array<{
+    date: Date;
+    exercises: Array<{
+      exerciseId: string;
+      sets: SetLog[];
+    }>;
+  }>
 ): Promise<void> {
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('user_fatigue_models')
+    // @ts-expect-error - Supabase generated types issue
     .upsert({
       user_id: userId,
       fatigue_resistance: model.userFatigueResistance,
@@ -219,8 +232,9 @@ async function cacheExerciseProfiles(
   );
 
   if (profiles.length > 0) {
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('user_exercise_profiles')
+      // @ts-expect-error - Supabase generated types issue
       .upsert(profiles, {
         onConflict: 'user_id,exercise_id'
       });
@@ -245,11 +259,11 @@ export async function getOrComputeTrainingState(
   try {
   
     // Try to load from cache
-    const { data: cached, error } = await (supabase as any)
+    const { data: cached, error } = await supabase
       .from('training_state_cache')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       console.warn('Error loading training state cache:', error);
@@ -257,32 +271,32 @@ export async function getOrComputeTrainingState(
 
     // Check if cache is fresh (within 6 hours)
     const cacheAge = cached
-      ? (Date.now() - new Date((cached as any).updated_at).getTime()) / 1000 / 60 / 60
+      ? (Date.now() - new Date((cached as TrainingStateCacheRow).updated_at).getTime()) / 1000 / 60 / 60
       : Infinity;
 
     if (cached && cacheAge < 6) {
-      console.log(`✅ Loaded training state from cache (${cacheAge.toFixed(1)}h old)`);
-      const cachedData = cached as any;
+      logger.debug(`✅ Loaded training state from cache (${cacheAge.toFixed(1)}h old)`);
+      const cachedRow = cached as TrainingStateCacheRow;
       return {
-        acuteLoad: parseFloat(cachedData.acute_load),
-        chronicLoad: parseFloat(cachedData.chronic_load),
-        acwr: parseFloat(cachedData.acwr),
-        acwrStatus: cachedData.acwr_status,
-        trainingMonotony: parseFloat(cachedData.training_monotony || 0),
-        trainingStrain: parseFloat(cachedData.training_strain || 0),
-        currentFitness: parseFloat(cachedData.current_fitness),
-        currentFatigue: parseFloat(cachedData.current_fatigue),
-        netPerformance: parseFloat(cachedData.net_performance),
-        readiness: cachedData.readiness,
-        lastWorkoutDate: cachedData.last_workout_date
-          ? new Date(cachedData.last_workout_date)
+        acuteLoad: cachedRow.acute_load,
+        chronicLoad: cachedRow.chronic_load,
+        acwr: cachedRow.acwr,
+        acwrStatus: cachedRow.acwr_status,
+        trainingMonotony: cachedRow.training_monotony,
+        trainingStrain: cachedRow.training_strain,
+        currentFitness: cachedRow.current_fitness,
+        currentFatigue: cachedRow.current_fatigue,
+        netPerformance: cachedRow.net_performance,
+        readiness: cachedRow.readiness,
+        lastWorkoutDate: cachedRow.last_workout_date
+          ? new Date(cachedRow.last_workout_date)
           : null,
-        calculatedAt: new Date(cachedData.calculated_at)
+        calculatedAt: new Date(cachedRow.calculated_at)
       };
     }
 
     // Cache miss - compute
-    console.log('⚙️ Computing training state...');
+    logger.debug('⚙️ Computing training state...');
     const state = await computeTrainingState(userId, workoutHistory);
 
     // Cache it (async)
@@ -386,8 +400,9 @@ async function cacheTrainingState(
   state: CachedTrainingState
 ): Promise<void> {
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('training_state_cache')
+    // @ts-expect-error - Supabase generated types issue
     .upsert({
       user_id: userId,
       acute_load: state.acuteLoad,
@@ -425,8 +440,9 @@ export async function incrementalModelUpdate(
   try {
   
     // 1. Update user fatigue model (increment counters)
-    const { error: userModelError } = await (supabase as any).rpc(
+    const { error: userModelError } = await supabase.rpc(
       'increment_user_model_stats',
+      // @ts-ignore - Supabase RPC types inconsistency
       {
         p_user_id: userId,
         p_workout_sets: completedWorkout.sets.length
@@ -438,8 +454,9 @@ export async function incrementalModelUpdate(
     }
 
     // 2. Mark training state as stale (will be recomputed on next load)
-    const { error: stateError } = await (supabase as any)
+    const { error: stateError } = await supabase
       .from('training_state_cache')
+      // @ts-ignore - Supabase generated types issue
       .update({
         updated_at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString() // 7 hours ago
       })
@@ -449,7 +466,7 @@ export async function incrementalModelUpdate(
       console.warn('Failed to invalidate training state:', stateError);
     }
 
-    console.log('✅ Incremental model update completed');
+    logger.debug('✅ Incremental model update completed');
   } catch (err) {
     console.error('Error in incrementalModelUpdate:', err);
   }
@@ -472,8 +489,9 @@ export async function recordPrediction(
   usedHierarchicalModel: boolean
 ): Promise<void> {
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('fatigue_prediction_history')
+    // @ts-ignore - Supabase generated types issue
     .insert({
       user_id: userId,
       workout_session_id: workoutSessionId,
@@ -500,8 +518,9 @@ export async function updatePredictionWithActual(
   actualRPE: number
 ): Promise<void> {
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('fatigue_prediction_history')
+    // @ts-ignore - Supabase generated types issue
     .update({
       actual_fatigue: actualFatigue,
       actual_rpe: actualRPE,
@@ -516,13 +535,13 @@ export async function updatePredictionWithActual(
 }
 
 async function getPredictedFatigue(predictionId: string): Promise<number> {
-  const { data } = await (supabase as any)
+  const { data } = await supabase
     .from('fatigue_prediction_history')
     .select('predicted_fatigue')
     .eq('id', predictionId)
     .single();
 
-  return data?.predicted_fatigue || 0;
+  return (data as any)?.predicted_fatigue || 0;
 }
 
 /**
@@ -532,7 +551,8 @@ export async function getModelPerformanceMetrics(
   userId: string
 ): Promise<ModelPerformanceMetrics | null> {
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
+    // @ts-ignore - Supabase RPC types inconsistency
     .rpc('get_model_performance_metrics', {
       p_user_id: userId
     })
@@ -542,12 +562,13 @@ export async function getModelPerformanceMetrics(
     return null;
   }
 
+  const metrics = data as any;
   return {
-    totalPredictions: data.total_predictions,
-    avgAbsoluteError: parseFloat(data.avg_absolute_error),
-    predictionAccuracyPercentage: parseFloat(data.prediction_accuracy_percentage),
-    withinCIPercentage: parseFloat(data.within_ci_percentage),
-    last7DaysRMSE: parseFloat(data.last_7_days_rmse)
+    totalPredictions: metrics.total_predictions,
+    avgAbsoluteError: parseFloat(metrics.avg_absolute_error),
+    predictionAccuracyPercentage: parseFloat(metrics.prediction_accuracy_percentage),
+    withinCIPercentage: parseFloat(metrics.within_ci_percentage),
+    last7DaysRMSE: parseFloat(metrics.last_7_days_rmse)
   };
 }
 
@@ -561,27 +582,30 @@ export async function getModelPerformanceMetrics(
 export async function invalidateAllCaches(userId: string): Promise<void> {
 
   await Promise.all([
-    (supabase as any)
+    supabase
       .from('user_fatigue_models')
+      // @ts-ignore - Supabase generated types issue
       .update({
         last_updated_at: new Date(0).toISOString() // Unix epoch = very stale
       })
       .eq('user_id', userId),
 
-    (supabase as any)
+    supabase
       .from('training_state_cache')
+      // @ts-ignore - Supabase generated types issue
       .update({
         updated_at: new Date(0).toISOString()
       })
       .eq('user_id', userId),
 
-    (supabase as any)
+    supabase
       .from('causal_insights_cache')
+      // @ts-ignore - Supabase generated types issue
       .update({
         expires_at: new Date().toISOString()
       })
       .eq('user_id', userId)
   ]);
 
-  console.log('✅ All caches invalidated');
+  logger.debug('✅ All caches invalidated');
 }

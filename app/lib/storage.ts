@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { WorkoutSession, SetLog } from './types';
 import { shouldTriggerAutoReduction, calculateAdjustedWeight, calculateMuscleFatigue } from './fatigueModel';
 import { supabase } from './supabase/client';
@@ -41,9 +42,9 @@ export function setUserNamespace(userId: string | null) {
 
       // Only migrate if old has workouts and new is empty
       if (oldWorkouts.length > 0 && newWorkouts.length === 0) {
-        console.log(`🔄 Migrating ${oldWorkouts.length} workouts from ${activeUserNamespace} to ${newNamespace}`);
+        logger.debug(`🔄 Migrating ${oldWorkouts.length} workouts from ${activeUserNamespace} to ${newNamespace}`);
         localStorage.setItem(newKey, JSON.stringify(oldWorkouts));
-        console.log('✅ Workouts migrated successfully');
+        logger.debug('✅ Workouts migrated successfully');
       }
     } catch (err) {
       console.error('Failed to migrate workouts on namespace change:', err);
@@ -83,7 +84,7 @@ async function getExerciseIdBySlug(slug: string): Promise<string | null> {
         }
       });
 
-      console.log(`📚 Loaded ${exerciseSlugToIdCache.size} exercise mappings`);
+      logger.debug(`📚 Loaded ${exerciseSlugToIdCache.size} exercise mappings`);
     } catch (err) {
       console.error('Error loading exercise mappings:', err);
       return null;
@@ -132,7 +133,7 @@ export function saveActiveSession(
       fullPayload.savedAt
     );
 
-    console.log('💾 Active session saved:', {
+    logger.debug('💾 Active session saved:', {
       sets: fullPayload.session.sets.length,
       completed: fullPayload.session.sets.filter(s => s.completed).length,
       savedAt: fullPayload.savedAt,
@@ -156,7 +157,7 @@ export function saveActiveSession(
           version: 1,
         };
         localStorage.setItem(key, JSON.stringify(fullPayload));
-        console.log('✅ Session saved after cleanup');
+        logger.debug('✅ Session saved after cleanup');
         return true;
       } catch {
         console.error('❌ Failed even after cleanup - storage critically full');
@@ -201,7 +202,7 @@ export function getActiveSession(
     if (isStale) {
       console.warn(`⚠️ Active session is ${ageHours.toFixed(1)}h old - marked as stale`);
     } else {
-      console.log(`✅ Active session found: ${ageHours.toFixed(1)}h old`);
+      logger.debug(`✅ Active session found: ${ageHours.toFixed(1)}h old`);
     }
 
     return { payload, ageHours, isStale };
@@ -227,7 +228,7 @@ export function clearActiveSession(userNamespace?: string): void {
     localStorage.removeItem(key);
     localStorage.removeItem(tsKey);
 
-    console.log('🗑️ Active session cleared for:', namespace);
+    logger.debug('🗑️ Active session cleared for:', namespace);
   } catch (error) {
     console.error('❌ Failed to clear active session:', error);
   }
@@ -263,7 +264,7 @@ function clearStaleActiveSessions(): void {
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
     if (keysToRemove.length > 0) {
-      console.log(`🧹 Cleaned up ${keysToRemove.length / 2} stale sessions`);
+      logger.debug(`🧹 Cleaned up ${keysToRemove.length / 2} stale sessions`);
     }
   } catch (error) {
     console.error('❌ Failed to clean stale sessions:', error);
@@ -275,16 +276,16 @@ function clearStaleActiveSessions(): void {
 // ============================================================
 
 export async function saveWorkout(session: WorkoutSession): Promise<void> {
-  console.log('🔵 saveWorkout called');
+  logger.debug('🔵 saveWorkout called');
   try {
     // Always save to localStorage first (for offline support)
     const history = getWorkoutHistory();
     history.push(session);
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(history));
-    console.log('✅ Saved to localStorage');
+    logger.debug('✅ Saved to localStorage');
 
     // Also save to Supabase if user is logged in
-    console.log('🔍 Checking if user is logged in...');
+    logger.debug('🔍 Checking if user is logged in...');
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError) {
@@ -292,10 +293,10 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
       return;
     }
 
-    console.log('👤 User:', user ? user.id : 'NOT LOGGED IN');
+    logger.debug('👤 User:', user ? user.id : 'NOT LOGGED IN');
 
     if (user) {
-      console.log('💾 Syncing workout to Supabase...');
+      logger.debug('💾 Syncing workout to Supabase...');
 
       // Prepare program metadata for storage
       const metadata: any = {};
@@ -336,8 +337,8 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
       // Save each set
       if (session.sets && session.sets.length > 0 && supabaseSession) {
-        console.log(`💾 Saving ${session.sets.length} sets to Supabase...`);
-        console.log('First set data:', JSON.stringify(session.sets[0], null, 2));
+        logger.debug(`💾 Saving ${session.sets.length} sets to Supabase...`);
+        logger.debug('First set data:', JSON.stringify(session.sets[0], null, 2));
 
         for (let i = 0; i < session.sets.length; i++) {
           const set = session.sets[i];
@@ -360,7 +361,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
             console.debug('Could not resolve program_set_id:', err);
           }
 
-          console.log(`Set ${i + 1} raw data:`, {
+          logger.debug(`Set ${i + 1} raw data:`, {
             exerciseId: set.exerciseId,
             exerciseUuid: exerciseUuid,
             actualWeight: set.actualWeight,
@@ -414,7 +415,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
           }
         }
 
-        console.log(`✅ Saved ${session.sets.length} sets to Supabase`);
+        logger.debug(`✅ Saved ${session.sets.length} sets to Supabase`);
 
         // PHASE 2: Save fatigue snapshot for cross-session tracking
         try {
@@ -432,7 +433,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
               if (significantFatigue.length > 0) {
                 await saveFatigueSnapshot(user.id, supabaseSession!.id, significantFatigue);
-                console.log(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
+                logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
               }
 
               // PHASE 3: Calculate and save SFR analysis
@@ -455,7 +456,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
         console.warn('⚠️ No sets to save or session failed');
       }
 
-      console.log('✅ Workout synced to Supabase!');
+      logger.debug('✅ Workout synced to Supabase!');
     }
   } catch (error) {
     console.error('Failed to save workout:', error);
@@ -626,7 +627,7 @@ export async function suggestWeight(
   currentSessionSets?: WorkoutSession['sets']
 ): Promise<WeightSuggestion | null> {
   // Reduced logging to prevent console spam
-  // console.log('\n💡 SUGGEST WEIGHT called for:', exerciseId);
+  // logger.debug('\n💡 SUGGEST WEIGHT called for:', exerciseId);
 
   // PRIORITY 0: Check cross-session recovery state (chronic fatigue)
   try {
@@ -677,15 +678,15 @@ export async function suggestWeight(
 
   // PRIORITY 1: Check for acute session fatigue (works WITHOUT previous history)
   const completedSets = currentSessionSets?.filter(s => s.completed) || [];
-  // console.log('   Completed sets in session:', completedSets.length);
+  // logger.debug('   Completed sets in session:', completedSets.length);
 
   if (completedSets.length > 0) {
-    // console.log('   🔬 Running fatigue analysis...');
+    // logger.debug('   🔬 Running fatigue analysis...');
     const fatigueAlert = shouldTriggerAutoReduction(completedSets, exerciseId);
 
     if (fatigueAlert.shouldAlert) {
       // Reduced logging - main alert already logged by fatigue model
-      // console.log('   🚨 FATIGUE ALERT TRIGGERED:', fatigueAlert.severity);
+      // logger.debug('   🚨 FATIGUE ALERT TRIGGERED:', fatigueAlert.severity);
 
       // Find reference weight to base reduction on
       // Option 1: Most recent weight used for THIS exercise in current session
@@ -694,13 +695,13 @@ export async function suggestWeight(
         .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
       let referenceWeight: number | null = recentSetsSameExercise[0]?.actualWeight || null;
-      // console.log('   🏋️ Reference weight from current session:', referenceWeight);
+      // logger.debug('   🏋️ Reference weight from current session:', referenceWeight);
 
       // Option 2: If no current session data for this exercise, try history
       if (!referenceWeight) {
         const lastWorkout = getLastWorkoutForExercise(exerciseId);
         referenceWeight = lastWorkout?.bestSet.actualWeight || null;
-        // console.log('   📚 Reference weight from history:', referenceWeight);
+        // logger.debug('   📚 Reference weight from history:', referenceWeight);
       }
 
       // Option 3: If still no weight, use any recent weight from session (for new exercises)
@@ -712,7 +713,7 @@ export async function suggestWeight(
         if (anyRecentSet) {
           // Use 80% of recent weight as starting point for new exercise
           referenceWeight = Math.round(anyRecentSet.actualWeight! * 0.8);
-          // console.log('   🎯 Estimated reference weight:', referenceWeight);
+          // logger.debug('   🎯 Estimated reference weight:', referenceWeight);
         }
       }
 
@@ -736,7 +737,7 @@ export async function suggestWeight(
         const reductionPercent = Math.round(fatigueAlert.suggestedReduction * 100);
         detailedExplanation += ` Recommended: reduce by ${reductionPercent}% to ${adjustedWeight}lbs.`;
 
-        // console.log('   ✅ Returning fatigue-based suggestion:', adjustedWeight, 'lbs');
+        // logger.debug('   ✅ Returning fatigue-based suggestion:', adjustedWeight, 'lbs');
 
         return {
           suggestedWeight: adjustedWeight,
@@ -752,25 +753,25 @@ export async function suggestWeight(
           },
         };
       } else {
-        // console.log('   ⚠️ Fatigue detected but no reference weight available');
+        // logger.debug('   ⚠️ Fatigue detected but no reference weight available');
       }
     } else {
-      // console.log('   ✓ No fatigue alert triggered');
+      // logger.debug('   ✓ No fatigue alert triggered');
     }
   } else {
-    // console.log('   ℹ️ No completed sets yet - cannot assess fatigue');
+    // logger.debug('   ℹ️ No completed sets yet - cannot assess fatigue');
   }
 
   // PRIORITY 2: Try historical progression (only if no fatigue alert)
-  // console.log('   📖 Checking previous workout history...');
+  // logger.debug('   📖 Checking previous workout history...');
   const lastWorkout = getLastWorkoutForExercise(exerciseId);
 
   if (!lastWorkout) {
-    // console.log('   ❌ No previous workout history - returning null');
+    // logger.debug('   ❌ No previous workout history - returning null');
     return null; // No history and no fatigue alert
   }
 
-  // console.log('   ✓ Found previous workout history');
+  // logger.debug('   ✓ Found previous workout history');
   const { bestSet } = lastWorkout;
   const lastWeight = bestSet.actualWeight || 0;
   const lastReps = bestSet.actualReps || 0;

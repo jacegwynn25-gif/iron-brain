@@ -13,6 +13,7 @@ import type {
   ExerciseMatch,
 } from './types';
 import type { WorkoutSession } from '../types';
+import { logger } from '../logger';
 
 /**
  * Main WorkoutImporter class - orchestrates the import process
@@ -31,10 +32,10 @@ export class WorkoutImporter {
     file: File,
     config: Partial<ImportConfig> = {}
   ): Promise<ImportSession> {
-    console.log('[WorkoutImporter] Starting import for file:', file.name);
+    logger.debug('[WorkoutImporter] Starting import for file:', file.name);
     const sessionId = `import_${Date.now()}`;
     const format = detectFileFormat(file);
-    console.log('[WorkoutImporter] Detected format:', format);
+    logger.debug('[WorkoutImporter] Detected format:', format);
 
     // Create initial session
     const session: ImportSession = {
@@ -68,14 +69,14 @@ export class WorkoutImporter {
 
     // Parse file
     session.state = 'parsing';
-    console.log('[WorkoutImporter] Starting parsing...');
+    logger.debug('[WorkoutImporter] Starting parsing...');
 
     try {
       // Find the right parser (canParse is async, so we need to await)
       let parser: Parser | undefined;
       for (const p of this.parsers) {
         const canParse = await p.canParse(file);
-        console.log(`[WorkoutImporter] Testing parser ${p.constructor.name}:`, canParse);
+        logger.debug(`[WorkoutImporter] Testing parser ${p.constructor.name}:`, canParse);
         if (canParse && !parser) {
           parser = p;
         }
@@ -85,9 +86,9 @@ export class WorkoutImporter {
         throw new Error('No parser available for this file format');
       }
 
-      console.log('[WorkoutImporter] Selected parser:', parser.constructor.name);
+      logger.debug('[WorkoutImporter] Selected parser:', parser.constructor.name);
       const parsedResult = await parser.parse(file);
-      console.log('[WorkoutImporter] Parse result:', {
+      logger.debug('[WorkoutImporter] Parse result:', {
         sections: parsedResult.sections.length,
         errors: parsedResult.errors.length,
         warnings: parsedResult.warnings.length
@@ -106,7 +107,7 @@ export class WorkoutImporter {
 
       // Match exercises
       session.state = 'matching';
-      console.log('[WorkoutImporter] Starting exercise matching...');
+      logger.debug('[WorkoutImporter] Starting exercise matching...');
 
       // Extract unique exercise names from parsed data
       // Filter out common non-exercise names (headers, empty values)
@@ -125,9 +126,9 @@ export class WorkoutImporter {
         });
       });
 
-      console.log('[WorkoutImporter] Found unique exercises:', Array.from(exerciseNames));
+      logger.debug('[WorkoutImporter] Found unique exercises:', Array.from(exerciseNames));
       const matcherResult = matchExercises(Array.from(exerciseNames));
-      console.log('[WorkoutImporter] Exercise matching result:', {
+      logger.debug('[WorkoutImporter] Exercise matching result:', {
         totalMatches: matcherResult.matches.length,
         needsReview: matcherResult.needsReviewCount,
         unmatched: matcherResult.unmatchedCount
@@ -145,16 +146,16 @@ export class WorkoutImporter {
 
       // Determine next state
       if (matcherResult.needsReviewCount > 0) {
-        console.log('[WorkoutImporter] Moving to reviewing state - needs manual review');
+        logger.debug('[WorkoutImporter] Moving to reviewing state - needs manual review');
         session.state = 'reviewing'; // User needs to review matches
       } else {
-        console.log('[WorkoutImporter] All exercises matched - moving to reviewing state');
+        logger.debug('[WorkoutImporter] All exercises matched - moving to reviewing state');
         // Auto-proceed to transformation
         session.state = 'reviewing'; // Always go to review for now
         await this.transformSessions(session);
       }
 
-      console.log('[WorkoutImporter] Import session complete. Final state:', session.state);
+      logger.debug('[WorkoutImporter] Import session complete. Final state:', session.state);
       return session;
     } catch (error: any) {
       console.error('[WorkoutImporter] Import failed with exception:', error);

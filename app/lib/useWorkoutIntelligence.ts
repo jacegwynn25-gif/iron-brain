@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { SetLog, Exercise } from './types';
 import { getWorkoutIntelligence } from './intelligence/workout-intelligence-service';
 import type { SetRecommendation, SessionFatigueAssessment } from './intelligence/workout-intelligence-service';
+import { logger } from './logger';
 
 export interface WeightRecommendation {
   type: 'increase' | 'decrease' | 'maintain';
@@ -181,12 +182,12 @@ export function usePreWorkoutReadiness(userId: string | null, plannedExercises?:
 
   useEffect(() => {
     let cancelled = false;
-    console.log('🔍 usePreWorkoutReadiness: Starting...', { userId, plannedExercises });
+    logger.debug('🔍 usePreWorkoutReadiness: Starting...', { userId, plannedExercises });
     setLoading(true);
 
     intelligence.getPreWorkoutReadiness(plannedExercises)
       .then(result => {
-        console.log('✅ usePreWorkoutReadiness: Got result', result);
+        logger.debug('✅ usePreWorkoutReadiness: Got result', result);
         if (!cancelled) {
           setReadiness(result);
           setLoading(false);
@@ -201,7 +202,7 @@ export function usePreWorkoutReadiness(userId: string | null, plannedExercises?:
       });
 
     return () => {
-      console.log('🧹 usePreWorkoutReadiness: Cleanup');
+      logger.debug('🧹 usePreWorkoutReadiness: Cleanup');
       cancelled = true;
     };
   }, [intelligence, plannedExercises?.join(',')]);

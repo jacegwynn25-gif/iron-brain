@@ -39,7 +39,7 @@ export default function Home() {
 
   // Auth / profile
   const [profile, setProfile] = useState<UserProfile | null>(() => {
-    // If we already have a NextAuth session, map it to our profile shape
+    // Load saved profile from localStorage
     if (typeof window === 'undefined') return null;
     const saved = localStorage.getItem('iron_brain_profile');
     if (saved) {
@@ -166,8 +166,7 @@ export default function Home() {
       return;
     }
 
-    const history = storage.getWorkoutHistory();
-    setWorkoutHistory(history);
+    // Note: Workout history is loaded by loadWorkoutsFromBothSources (merges localStorage + Supabase)
 
     const savedPrograms = localStorage.getItem(userProgramsKey);
     if (savedPrograms) {
@@ -184,110 +183,116 @@ export default function Home() {
     }
 
     const hasSeenStartWorkoutHint = localStorage.getItem('iron_brain_seen_start_workout_hint');
-    if (!hasSeenStartWorkoutHint && history.length === 0) {
+    if (!hasSeenStartWorkoutHint && workoutHistory.length === 0) {
       setTimeout(() => setShowStartWorkoutHint(true), 4000);
     }
 
     const hasSeenProgramHint = localStorage.getItem('iron_brain_seen_program_hint');
-    if (!hasSeenProgramHint && history.length === 0) {
+    if (!hasSeenProgramHint && workoutHistory.length === 0) {
       setTimeout(() => setShowProgramCustomizationHint(true), 6000);
     }
-  }, [profile, userProgramsKey]);
+  }, [profile, userProgramsKey, workoutHistory.length]);
 
-  // Load workouts from Supabase when user is logged in
-  useEffect(() => {
-    if (!user) return;
+  // Reusable function to load and merge workouts from both sources
+  const loadWorkoutsFromBothSources = React.useCallback(async () => {
+    // Always get localStorage workouts (offline-first)
+    const localWorkouts = storage.getWorkoutHistory();
 
-    const loadFromSupabase = async () => {
-      try {
-        const { data: sessions, error } = await supabase
-          .from('workout_sessions')
-          .select(`
-            *,
-            set_logs (*)
-          `)
-          .eq('user_id', user.id)
-          .order('date', { ascending: false });
+    // If no user, just use localStorage
+    if (!user) {
+      setWorkoutHistory(localWorkouts);
+      return;
+    }
 
-        if (error) {
-          console.error('Failed to load workouts from Supabase:', error);
-          return;
-        }
+    // If user is logged in, fetch from Supabase and merge
+    try {
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
+        .select(`
+          *,
+          set_logs (*)
+        `)
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
 
-        console.log('📥 Loaded', sessions?.length || 0, 'workouts from Supabase');
-
-        // Debug: Log first session to see structure
-        if (sessions && sessions.length > 0) {
-          console.log('First session raw data:', sessions[0]);
-          console.log('First session set_logs:', (sessions[0] as any).set_logs);
-        }
-
-        // Transform Supabase data to WorkoutSession format
-        const transformedWorkouts: WorkoutSession[] = (sessions || []).map((s: any) => {
-          // Extract program metadata from JSONB column
-          const metadata = s.metadata || {};
-
-          return {
-            id: s.id,
-            name: s.name || 'Workout',
-            date: s.date,
-            startTime: s.start_time,
-            endTime: s.end_time,
-            durationMinutes: s.duration_minutes,
-            bodyweight: s.bodyweight,
-            notes: s.notes,
-            // Program metadata from JSONB column
-            programId: metadata.programId,
-            programName: metadata.programName,
-            cycleNumber: metadata.cycleNumber,
-            weekNumber: metadata.weekNumber,
-            dayOfWeek: metadata.dayOfWeek,
-            dayName: metadata.dayName,
-            createdAt: s.created_at || new Date().toISOString(),
-            updatedAt: s.updated_at || new Date().toISOString(),
-            sets: (s.set_logs || []).map((set: any) => ({
-              id: set.id,
-              exerciseId: set.exercise_slug || set.exercise_id, // Use slug for app exercises, UUID for DB exercises
-              setIndex: set.set_index,
-              // Prescribed values
-              prescribedReps: set.prescribed_reps || '0',
-              prescribedRPE: set.prescribed_rpe,
-              prescribedRIR: set.prescribed_rir,
-              prescribedPercentage: set.prescribed_percentage,
-              // Actual values
-              actualWeight: set.actual_weight,
-              actualReps: set.actual_reps,
-              actualRPE: set.actual_rpe,
-              actualRIR: set.actual_rir,
-              // Performance metrics
-              e1rm: set.e1rm,
-              volumeLoad: set.volume_load,
-              // Timing
-              restTakenSeconds: set.rest_seconds,
-              setDurationSeconds: set.actual_seconds,
-              // Metadata
-              notes: set.notes,
-              completed: set.completed !== false,
-            })),
-          };
-        });
-
-        // Debug: Log first transformed workout
-        if (transformedWorkouts.length > 0) {
-          console.log('First transformed workout:', transformedWorkouts[0]);
-          console.log('First workout sets:', transformedWorkouts[0].sets);
-        }
-
-        // Update workout history with Supabase data
-        setWorkoutHistory(transformedWorkouts);
-        console.log('✅ Synced', transformedWorkouts.length, 'workouts to UI');
-      } catch (err) {
-        console.error('Error loading from Supabase:', err);
+      if (error) {
+        console.error('Failed to load workouts from Supabase:', error);
+        // Fallback to localStorage on error
+        setWorkoutHistory(localWorkouts);
+        return;
       }
-    };
 
-    loadFromSupabase();
+      // Transform Supabase data to WorkoutSession format
+      const supabaseWorkouts: WorkoutSession[] = (sessions || []).map((s: any) => {
+        // Extract program metadata from JSONB column
+        const metadata = s.metadata || {};
+
+        return {
+          id: s.id,
+          name: s.name || 'Workout',
+          date: s.date,
+          startTime: s.start_time,
+          endTime: s.end_time,
+          durationMinutes: s.duration_minutes,
+          bodyweight: s.bodyweight,
+          notes: s.notes,
+          // Program metadata from JSONB column
+          programId: metadata.programId,
+          programName: metadata.programName,
+          cycleNumber: metadata.cycleNumber,
+          weekNumber: metadata.weekNumber,
+          dayOfWeek: metadata.dayOfWeek,
+          dayName: metadata.dayName,
+          createdAt: s.created_at || new Date().toISOString(),
+          updatedAt: s.updated_at || new Date().toISOString(),
+          sets: (s.set_logs || []).map((set: any) => ({
+            id: set.id,
+            exerciseId: set.exercise_slug || set.exercise_id,
+            setIndex: set.set_index,
+            prescribedReps: set.prescribed_reps || '0',
+            prescribedRPE: set.prescribed_rpe,
+            prescribedRIR: set.prescribed_rir,
+            prescribedPercentage: set.prescribed_percentage,
+            actualWeight: set.actual_weight,
+            actualReps: set.actual_reps,
+            actualRPE: set.actual_rpe,
+            actualRIR: set.actual_rir,
+            e1rm: set.e1rm,
+            volumeLoad: set.volume_load,
+            restTakenSeconds: set.rest_seconds,
+            setDurationSeconds: set.actual_seconds,
+            notes: set.notes,
+            completed: set.completed !== false,
+          })),
+        };
+      });
+
+      // Merge: Prefer Supabase for workouts with matching IDs, keep localStorage-only workouts
+      const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
+      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(w.id));
+
+      // Combine and sort by date (most recent first)
+      const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+
+      setWorkoutHistory(mergedWorkouts);
+      console.log('✅ Merged workouts:', {
+        supabase: supabaseWorkouts.length,
+        localOnly: localOnlyWorkouts.length,
+        total: mergedWorkouts.length
+      });
+    } catch (err) {
+      console.error('Error loading from Supabase:', err);
+      // Fallback to localStorage on error
+      setWorkoutHistory(localWorkouts);
+    }
   }, [user]);
+
+  // Load workouts on mount and when user changes
+  useEffect(() => {
+    loadWorkoutsFromBothSources();
+  }, [loadWorkoutsFromBothSources]);
 
   // Resume active logging session if present (with staleness detection)
   useEffect(() => {
@@ -1135,8 +1140,8 @@ export default function Home() {
           <WorkoutHistory
             workoutHistory={workoutHistory}
             onHistoryUpdate={() => {
-              const updatedHistory = storage.getWorkoutHistory();
-              setWorkoutHistory(updatedHistory);
+              // Reload from both localStorage and Supabase
+              loadWorkoutsFromBothSources();
             }}
           />
         )}
