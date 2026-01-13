@@ -91,33 +91,46 @@ function markWorkoutAsSynced(workoutId: string) {
  */
 async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<boolean> {
   try {
+    // Prepare workout data
+    const workoutData = {
+      id: workout.id,
+      user_id: userId,
+      name: (workout as any).name || `${workout.programName} - ${workout.dayName}`,
+      date: workout.date,
+      start_time: workout.startTime,
+      end_time: workout.endTime,
+      duration_minutes: workout.durationMinutes,
+      bodyweight: workout.bodyweight,
+      notes: workout.notes,
+      status: 'completed',
+      metadata: {
+        programId: workout.programId,
+        programName: workout.programName,
+        cycleNumber: workout.cycleNumber,
+        weekNumber: workout.weekNumber,
+        dayOfWeek: workout.dayOfWeek,
+        dayName: workout.dayName,
+      }
+    };
+
+    console.log('Uploading workout data:', workoutData);
+
     // Insert workout session
     const { data: session, error: sessionError } = await (supabase
       .from('workout_sessions') as any)
-      .upsert({
-        id: workout.id,
-        user_id: userId,
-        name: (workout as any).name || `${workout.programName} - ${workout.dayName}`,
-        date: workout.date,
-        start_time: workout.startTime,
-        end_time: workout.endTime,
-        duration_minutes: workout.durationMinutes,
-        bodyweight: workout.bodyweight,
-        notes: workout.notes,
-        status: 'completed',
-        metadata: {
-          programId: workout.programId,
-          programName: workout.programName,
-          cycleNumber: workout.cycleNumber,
-          weekNumber: workout.weekNumber,
-          dayOfWeek: workout.dayOfWeek,
-          dayName: workout.dayName,
-        }
-      })
+      .upsert(workoutData)
       .select()
       .single();
 
     if (sessionError) {
+      console.error(`Failed to sync workout ${workout.id}:`, {
+        error: sessionError,
+        workout: workoutData,
+        message: sessionError.message,
+        details: sessionError.details,
+        hint: sessionError.hint,
+        code: sessionError.code
+      });
       logger.debug(`Failed to sync workout ${workout.id}:`, sessionError);
       return false;
     }
@@ -164,6 +177,7 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         .insert(setLogs);
 
       if (setsError) {
+        console.error(`Failed to sync sets for workout ${workout.id}:`, setsError);
         logger.debug(`Failed to sync sets for workout ${workout.id}:`, setsError);
         return false;
       }
@@ -212,11 +226,19 @@ export async function syncPendingWorkouts(userId: string): Promise<void> {
   const errors: string[] = [];
 
   for (const workout of pendingWorkouts) {
-    const success = await uploadWorkout(workout, userId);
-    if (success) {
-      successCount++;
-    } else {
-      errors.push(`Failed to sync workout from ${workout.date}`);
+    try {
+      const success = await uploadWorkout(workout, userId);
+      if (success) {
+        successCount++;
+      } else {
+        const errorMsg = `Failed to sync workout from ${workout.date} (${workout.programName})`;
+        errors.push(errorMsg);
+        console.error(errorMsg);
+      }
+    } catch (err: any) {
+      const errorMsg = `Error syncing workout from ${workout.date}: ${err.message}`;
+      errors.push(errorMsg);
+      console.error(errorMsg, err);
     }
 
     // Update progress
