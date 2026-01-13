@@ -107,10 +107,13 @@ export function updateFitnessFatigueModel(
   const newFitness = params.currentFitness * fitnessDecay + params.fitnessGainCoefficient * newTrainingLoad;
   const newFatigue = params.currentFatigue * fatigueDecay + params.fatigueGainCoefficient * newTrainingLoad;
 
-  // Clamp netPerformance to realistic range (-100 to 200)
-  // Negative values indicate overtraining, positive indicates readiness
+  // Calculate raw performance (fitness - fatigue)
   const rawPerformance = newFitness - newFatigue;
-  const netPerformance = Math.max(-100, Math.min(200, rawPerformance));
+
+  // Normalize to 0-100 scale for easier interpretation
+  // Formula: map [-100, 200] → [0, 100]
+  // 0 = extremely overtrained, 50 = neutral, 100 = peak readiness
+  const netPerformance = Math.max(0, Math.min(100, ((rawPerformance + 100) / 300) * 100));
 
   return {
     userId: previousModel?.userId || '',

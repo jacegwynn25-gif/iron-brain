@@ -180,10 +180,37 @@ export function calculateExerciseSFR(
 }
 
 /**
+ * Calculate exercise-specific fatigue cost
+ * Based on the exercise's own sets, not cumulative workout fatigue
+ */
+function calculateExerciseFatigueCost(sets: SetLog[]): number {
+  let totalFatigue = 0;
+
+  sets.forEach(set => {
+    // Skip incomplete sets
+    if (!set.completed || !set.actualWeight || !set.actualReps) return;
+
+    // Base fatigue from volume and intensity
+    const volumeFatigue = (set.actualWeight * set.actualReps) / 100; // Normalize volume
+    const rpe = set.actualRPE || 7; // Default to RPE 7 if not specified
+    const intensityMultiplier = rpe / 10; // RPE 7 = 0.7x, RPE 10 = 1.0x
+
+    // Proximity to failure increases fatigue exponentially
+    const proximityFatigue = rpe >= 8 ? Math.pow((rpe - 7), 2) : 1;
+
+    const setFatigue = volumeFatigue * intensityMultiplier * proximityFatigue;
+    totalFatigue += setFatigue;
+  });
+
+  // Ensure minimum fatigue of 1 to avoid division by zero
+  return Math.max(1, totalFatigue);
+}
+
+/**
  * Calculate SFR for entire workout
  *
  * @param sets - All sets from workout
- * @param fatigueScores - Fatigue scores by muscle group
+ * @param fatigueScores - Fatigue scores by muscle group (UNUSED - replaced with per-exercise calculation)
  */
 export function calculateWorkoutSFR(
   sets: SetLog[],
@@ -203,24 +230,21 @@ export function calculateWorkoutSFR(
   const exerciseAnalyses: SFRAnalysis[] = [];
 
   setsByExercise.forEach((exerciseSets, exerciseId) => {
-    // Find relevant fatigue scores for this exercise's muscle groups
-    // For simplicity, use the highest fatigue score
-    const relevantFatigue = fatigueScores
-      .filter(fs => fs.contributingSets.some(s => s.exerciseId === exerciseId))
-      .reduce((max, fs) => Math.max(max, fs.fatigueLevel), 0);
+    // Calculate fatigue based on THIS exercise's sets only
+    // This fixes the temporal attribution error where exercises inherited
+    // fatigue from exercises that happened after them
+    const exerciseFatigue = calculateExerciseFatigueCost(exerciseSets);
 
-    if (relevantFatigue > 0) {
-      // Look up exercise name
-      const exercise = defaultExercises.find(ex => ex.id === exerciseId);
-      const exerciseName = exercise?.name || exerciseId;
+    // Look up exercise name
+    const exercise = defaultExercises.find(ex => ex.id === exerciseId);
+    const exerciseName = exercise?.name || exerciseId;
 
-      const analysis = calculateExerciseSFR(
-        exerciseSets,
-        relevantFatigue,
-        exerciseName
-      );
-      exerciseAnalyses.push(analysis);
-    }
+    const analysis = calculateExerciseSFR(
+      exerciseSets,
+      exerciseFatigue,
+      exerciseName
+    );
+    exerciseAnalyses.push(analysis);
   });
 
   // Calculate overall workout SFR

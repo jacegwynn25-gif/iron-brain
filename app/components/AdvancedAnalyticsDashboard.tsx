@@ -361,13 +361,13 @@ export default function AdvancedAnalyticsDashboard() {
         lastWorkoutDate = workoutDate;
       }
 
-      // Calculate readiness from performance
+      // Calculate readiness from performance (0-100 scale)
       let readiness: 'excellent' | 'good' | 'moderate' | 'poor' = 'moderate';
       if (fitnessFatigueModel) {
         const perf = fitnessFatigueModel.netPerformance;
-        if (perf > 70) readiness = 'excellent';
-        else if (perf > 50) readiness = 'good';
-        else if (perf > 30) readiness = 'moderate';
+        if (perf >= 70) readiness = 'excellent';
+        else if (perf >= 60) readiness = 'good';
+        else if (perf >= 40) readiness = 'moderate';
         else readiness = 'poor';
       }
 
@@ -427,7 +427,7 @@ export default function AdvancedAnalyticsDashboard() {
         fitnessFatigue: fitnessFatigue ? {
           currentFitness: clamp(fitnessFatigue.currentFitness, 0, 200),
           currentFatigue: clamp(fitnessFatigue.currentFatigue, 0, 150),
-          performance: clamp(fitnessFatigue.performance, -100, 200),
+          performance: clamp(fitnessFatigue.performance, 0, 100),
           readiness: fitnessFatigue.readiness
         } : undefined,
         hierarchicalModel,
