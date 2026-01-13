@@ -16,6 +16,7 @@ import Settings from './components/Settings';
 import DataManagement from './components/DataManagement';
 import AdvancedAnalyticsDashboard from './components/AdvancedAnalyticsDashboard';
 import PreWorkoutReadiness from './components/PreWorkoutReadiness';
+import { SyncStatusIndicator } from './components/SyncStatusIndicator';
 import { storage, setUserNamespace } from './lib/storage';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './lib/supabase/auth-context';
@@ -899,6 +900,12 @@ export default function Home() {
                 Science-backed strength training with auto-regulation
               </p>
             </div>
+            {/* Sync Status Indicator */}
+            {user && (
+              <div className="hidden sm:block">
+                <SyncStatusIndicator />
+              </div>
+            )}
             {/* Keyboard Shortcuts Button (hide on mobile) */}
             <button
               onClick={() => setShowShortcutsModal(true)}

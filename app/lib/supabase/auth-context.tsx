@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from './client';
+import { syncPendingWorkouts } from './auto-sync';
 
 interface AuthContextType {
   user: User | null;
@@ -27,6 +28,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Sync pending workouts if already logged in
+      if (session?.user) {
+        setTimeout(() => {
+          syncPendingWorkouts(session.user.id).catch(err => {
+            console.error('Failed to sync pending workouts on load:', err);
+          });
+        }, 1000);
+      }
     });
 
     // Listen for auth changes
@@ -41,6 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Create user profile if this is a new signup
         if (event === 'SIGNED_IN' && session?.user) {
           await ensureUserProfile(session.user.id);
+
+          // Automatically sync any pending workouts from localStorage
+          setTimeout(() => {
+            syncPendingWorkouts(session.user.id).catch(err => {
+              console.error('Failed to sync pending workouts:', err);
+            });
+          }, 1000); // Small delay to let UI settle
         }
       }
     );
