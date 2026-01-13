@@ -1,14 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Database, Download, Upload, BarChart3, HardDrive } from 'lucide-react';
+import { Database, Download, Upload, BarChart3, HardDrive, Trash2 } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { WorkoutSession } from '../lib/types';
+import { getTrashCount } from '../lib/trash';
 import ImportWizard from './ImportWizard/ImportWizard';
+import RecentlyDeleted from './RecentlyDeleted';
 
 export default function DataManagement() {
   const [importing, setImporting] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashCount, setTrashCount] = useState(getTrashCount());
 
   // Export to JSON
   const exportToJSON = () => {
@@ -293,6 +297,38 @@ export default function DataManagement() {
         </details>
       </div>
 
+      {/* Recently Deleted Section */}
+      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.3s'}}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="rounded-lg bg-red-100 p-2 dark:bg-red-900/30">
+            <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+              Recently Deleted
+            </h3>
+            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              Recover workouts deleted by mistake
+              {trashCount > 0 && ` • ${trashCount} item${trashCount === 1 ? '' : 's'}`}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowTrash(!showTrash)}
+            className="rounded-xl bg-gradient-to-r from-red-500 to-pink-600 px-6 py-3 font-bold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95"
+          >
+            {showTrash ? 'Close' : 'View Trash'}
+          </button>
+        </div>
+
+        {showTrash && (
+          <div className="mt-6">
+            <RecentlyDeleted onRestore={() => {
+              setTrashCount(getTrashCount());
+            }} />
+          </div>
+        )}
+      </div>
+
       {/* Info Section */}
       <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
         <h4 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
@@ -302,6 +338,7 @@ export default function DataManagement() {
           <li>• <strong>Multi-Format Import</strong> supports CSV, Excel, and JSON with smart exercise matching</li>
           <li>• <strong>JSON format</strong> preserves all data and can be re-imported</li>
           <li>• <strong>CSV format</strong> is ideal for spreadsheet analysis (Excel, Google Sheets)</li>
+          <li>• <strong>Deleted workouts</strong> are kept in trash for 30 days before permanent removal</li>
           <li>• Regular backups recommended before major updates</li>
           <li>• Import wizard detects exercise names automatically and lets you review matches</li>
         </ul>

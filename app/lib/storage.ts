@@ -488,33 +488,16 @@ export function getWorkoutById(id: string): WorkoutSession | null {
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
+  // Import trash functions dynamically to avoid circular dependencies
+  const { moveToTrash } = await import('./trash');
+
   try {
-    // Delete from localStorage
-    const history = getWorkoutHistory();
-    const filtered = history.filter(w => w.id !== id);
-    localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(filtered));
-
-    // Also delete from Supabase if user is logged in
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Delete set logs first (foreign key constraint)
-      await supabase
-        .from('set_logs')
-        .delete()
-        .eq('workout_session_id', id);
-
-      // Then delete the workout session
-      await supabase
-        .from('workout_sessions')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      logger.debug(`✅ Deleted workout ${id} from both localStorage and Supabase`);
-    }
+    // Move to trash instead of permanent delete
+    await moveToTrash(id);
+    logger.debug(`✅ Moved workout ${id} to trash`);
   } catch (error) {
-    console.error('Failed to delete workout:', error);
-    // Don't throw - localStorage delete already succeeded
+    console.error('Failed to move workout to trash:', error);
+    throw error;
   }
 }
 

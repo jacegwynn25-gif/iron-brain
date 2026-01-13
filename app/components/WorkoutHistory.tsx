@@ -95,7 +95,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
   };
 
   const deleteSession = async (sessionId: string) => {
-    if (!confirm('Delete this workout? This will remove it from both your device and cloud. This cannot be undone.')) return;
+    if (!confirm('Move this workout to trash? You can restore it from Data > Recently Deleted within 30 days.')) return;
     await storage.deleteWorkoutSession(sessionId);
     onHistoryUpdate();
   };
