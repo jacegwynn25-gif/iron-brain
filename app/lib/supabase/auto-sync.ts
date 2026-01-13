@@ -150,31 +150,27 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
     if (workout.sets && workout.sets.length > 0) {
       const setLogs = workout.sets.map((set, index) => ({
         workout_session_id: workoutUuid,
-        exercise_id: set.exerciseId,
+        exercise_id: null, // Will be NULL - we use exercise_slug instead
         exercise_slug: set.exerciseId,
+        order_index: index, // Position in workout (required NOT NULL field)
         set_index: set.setIndex ?? index,
         prescribed_reps: set.prescribedReps,
         prescribed_rpe: set.prescribedRPE,
         prescribed_rir: set.prescribedRIR,
         prescribed_percentage: set.prescribedPercentage,
-        prescribed_weight: set.prescribedWeight,
         actual_weight: set.actualWeight,
-        weight_unit: set.weightUnit || 'lbs',
-        load_type: set.loadType || 'absolute',
         actual_reps: set.actualReps,
         actual_rpe: set.actualRPE,
         actual_rir: set.actualRIR,
         tempo: set.tempo,
         completed: set.completed !== false,
-        reached_failure: set.reachedFailure,
-        form_breakdown: set.formBreakdown,
+        skipped: set.completed === false,
         e1rm: set.e1rm,
         volume_load: set.volumeLoad,
         rest_seconds: set.restTakenSeconds,
         actual_seconds: set.setDurationSeconds,
         notes: set.notes,
-        equipment_used: set.equipmentUsed,
-        set_type: set.setType,
+        set_type: set.setType || 'straight',
       }));
 
       const { error: setsError } = await (supabase

@@ -65,16 +65,17 @@ export function SyncDebugPanel() {
         };
       }
 
-      // 4. Check for mismatches
-      const localIds = new Set(localWorkouts.map(w => w.id));
+      // 4. Check for mismatches (strip "session_" prefix for comparison)
+      const stripPrefix = (id: string) => id.startsWith('session_') ? id.substring(8) : id;
+      const localIds = new Set(localWorkouts.map(w => stripPrefix(w.id)));
       const supabaseIds = new Set(((sessions as any[]) || []).filter((s: any) => !s.deleted_at).map((s: any) => s.id));
 
       info.analysis = {
-        localOnly: localWorkouts.filter(w => !supabaseIds.has(w.id)).map(w => w.id),
+        localOnly: localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id))).map(w => w.id),
         supabaseOnly: ((sessions as any[]) || [])
           .filter((s: any) => !s.deleted_at && !localIds.has(s.id))
           .map((s: any) => s.id),
-        inBoth: localWorkouts.filter(w => supabaseIds.has(w.id)).map(w => w.id)
+        inBoth: localWorkouts.filter(w => supabaseIds.has(stripPrefix(w.id))).map(w => w.id)
       };
 
       setDebugInfo(info);
