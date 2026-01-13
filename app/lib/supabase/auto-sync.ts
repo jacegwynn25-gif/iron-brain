@@ -91,9 +91,14 @@ function markWorkoutAsSynced(workoutId: string) {
  */
 async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<boolean> {
   try {
+    // Extract UUID from app ID (remove "session_" prefix if present)
+    const workoutUuid = workout.id.startsWith('session_')
+      ? workout.id.substring(8) // Remove "session_" prefix
+      : workout.id;
+
     // Prepare workout data
     const workoutData = {
-      id: workout.id,
+      id: workoutUuid, // Use UUID without prefix for Postgres
       user_id: userId,
       name: (workout as any).name || `${workout.programName} - ${workout.dayName}`,
       date: workout.date,
@@ -139,12 +144,12 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
     await (supabase
       .from('set_logs') as any)
       .delete()
-      .eq('workout_session_id', workout.id);
+      .eq('workout_session_id', workoutUuid);
 
     // Insert set logs
     if (workout.sets && workout.sets.length > 0) {
       const setLogs = workout.sets.map((set, index) => ({
-        workout_session_id: workout.id,
+        workout_session_id: workoutUuid,
         exercise_id: set.exerciseId,
         exercise_slug: set.exerciseId,
         set_index: set.setIndex ?? index,

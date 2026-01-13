@@ -298,6 +298,11 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
     if (user) {
       logger.debug('💾 Syncing workout to Supabase...');
 
+      // Extract UUID from app ID (remove "session_" prefix if present)
+      const workoutUuid = session.id.startsWith('session_')
+        ? session.id.substring(8)
+        : session.id;
+
       // Prepare program metadata for storage
       const metadata: any = {};
       if (session.programId) metadata.programId = session.programId;
@@ -308,9 +313,10 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
       if (session.dayName) metadata.dayName = session.dayName;
 
       // Create workout session in Supabase
-      const { data: supabaseSession, error: sessionError } = await (supabase
+      const { data: supabaseSession, error: sessionError} = await (supabase
         .from('workout_sessions') as any)
         .insert({
+          id: workoutUuid,
           user_id: user.id,
           name: session.programName || 'Workout',
           date: session.date,
@@ -372,7 +378,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
           });
 
           const { error: setError } = await (supabase.from('set_logs') as any).insert({
-            workout_session_id: supabaseSession.id,
+            workout_session_id: workoutUuid,
             exercise_id: exerciseUuid, // UUID from exercises table
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
             program_set_id: programSetUuid, // Populated when available (hybrid architecture)
