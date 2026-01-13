@@ -1,7 +1,8 @@
 'use client';
 
-import { Settings as SettingsIcon, LogOut, Trash2, Clock, Shield, Cloud } from 'lucide-react';
+import { Settings as SettingsIcon, LogOut, Trash2, Clock, Shield, Cloud, Bug } from 'lucide-react';
 import { CloudSyncButton } from './CloudSyncButton';
+import { SyncDebugPanel } from './SyncDebugPanel';
 
 interface SettingsProps {
   name: string;
@@ -92,6 +93,24 @@ export default function Settings({ name, email, onLogout, onClearData, onExtendS
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Debug Panel */}
+      <div className="rounded-2xl bg-white p-6 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
+            <Bug className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+              Sync Debugger
+            </h3>
+            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              Diagnose and fix sync issues
+            </p>
+          </div>
+        </div>
+        <SyncDebugPanel />
       </div>
     </div>
   );
