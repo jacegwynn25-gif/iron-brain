@@ -269,8 +269,10 @@ export default function Home() {
       });
 
       // Merge: Prefer Supabase for workouts with matching IDs, keep localStorage-only workouts
+      // Strip "session_" prefix for comparison since localStorage has it but Supabase doesn't
+      const stripPrefix = (id: string) => id.startsWith('session_') ? id.substring(8) : id;
       const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
-      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(w.id));
+      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id)));
 
       // Combine and sort by date (most recent first)
       const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
