@@ -94,9 +94,9 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
     return { totalVolume, avgRPE };
   };
 
-  const deleteSession = (sessionId: string) => {
-    if (!confirm('Delete this workout? This cannot be undone.')) return;
-    storage.deleteWorkoutSession(sessionId);
+  const deleteSession = async (sessionId: string) => {
+    if (!confirm('Delete this workout? This will remove it from both your device and cloud. This cannot be undone.')) return;
+    await storage.deleteWorkoutSession(sessionId);
     onHistoryUpdate();
   };
 

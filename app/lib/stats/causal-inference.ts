@@ -69,6 +69,18 @@ export function testGrangerCausality(
   // F-statistic
   const numerator = (restrictedSSE - unrestrictedSSE) / lag;
   const denominator = unrestrictedSSE / (n - 2 * lag - 1);
+
+  // Guard against division by zero or negative values
+  if (denominator <= 0 || !isFinite(numerator) || !isFinite(denominator)) {
+    return {
+      xCausesY: false,
+      fStatistic: 0,
+      pValue: 1.0,
+      interpretation: 'Insufficient data for causal analysis',
+      confidence: 0
+    };
+  }
+
   const fStatistic = numerator / denominator;
 
   // Approximate p-value (F-distribution with lag, n-2*lag-1 df)
@@ -76,7 +88,8 @@ export function testGrangerCausality(
   const pValue = fStatistic > 4 ? 0.01 : fStatistic > 2.5 ? 0.05 : 0.2;
   const xCausesY = fStatistic > 2.5; // p < 0.05 threshold
 
-  const confidence = Math.min(0.95, fStatistic / 5);
+  // Clamp confidence to valid range [0, 0.95]
+  const confidence = Math.max(0, Math.min(0.95, fStatistic / 5));
 
   const interpretation = xCausesY
     ? `Past ${lag}-set fatigue significantly predicts future performance (F=${fStatistic.toFixed(2)}, p<0.05). Causal relationship likely.`
@@ -382,18 +395,22 @@ export function analyzeMediationEffect(
   const indirectEffect = pathA * pathB;
   const directEffect = totalEffect - indirectEffect;
 
+  // Guard against division by very small numbers
   const proportionMediated =
-    totalEffect !== 0 ? Math.abs(indirectEffect / totalEffect) : 0;
+    Math.abs(totalEffect) > 0.01 ? Math.abs(indirectEffect / totalEffect) : 0;
+
+  // Clamp to [0, 1] range
+  const clampedProportion = Math.max(0, Math.min(1, proportionMediated));
 
   // Test significance of indirect effect (Sobel test approximation)
   const sobelZ = Math.abs(indirectEffect) / 0.1; // Simplified SE
-  const significant = sobelZ > 1.96 && proportionMediated > 0.1;
+  const significant = sobelZ > 1.96 && clampedProportion > 0.1;
 
   let interpretation = '';
-  if (significant && proportionMediated > 0.5) {
-    interpretation = `Strong mediation: ${(proportionMediated * 100).toFixed(0)}% of volume's effect on performance operates THROUGH fatigue. Fatigue is the primary mechanism.`;
-  } else if (significant && proportionMediated > 0.2) {
-    interpretation = `Partial mediation: ${(proportionMediated * 100).toFixed(0)}% mediated through fatigue. Both direct and indirect effects present.`;
+  if (significant && clampedProportion > 0.5) {
+    interpretation = `Strong mediation: ${(clampedProportion * 100).toFixed(0)}% of volume's effect on performance operates THROUGH fatigue. Fatigue is the primary mechanism.`;
+  } else if (significant && clampedProportion > 0.2) {
+    interpretation = `Partial mediation: ${(clampedProportion * 100).toFixed(0)}% mediated through fatigue. Both direct and indirect effects present.`;
   } else {
     interpretation = `No significant mediation detected. Volume affects performance directly, not through fatigue accumulation.`;
   }
@@ -402,7 +419,7 @@ export function analyzeMediationEffect(
     totalEffect,
     directEffect,
     indirectEffect,
-    proportionMediated,
+    proportionMediated: clampedProportion,
     significant,
     interpretation
   };
@@ -414,12 +431,23 @@ export function analyzeMediationEffect(
  */
 function simpleRegression(x: number[], y: number[]): number {
   const n = x.length;
+  if (n === 0) return 0;
+
   const sumX = x.reduce((a, b) => a + b, 0);
   const sumY = y.reduce((a, b) => a + b, 0);
   const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
   const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const denominator = n * sumXX - sumX * sumX;
+
+  // Check for division by zero (all X values are the same)
+  if (Math.abs(denominator) < 1e-10) return 0;
+
+  const slope = (n * sumXY - sumX * sumY) / denominator;
+
+  // Guard against NaN/Infinity
+  if (!isFinite(slope)) return 0;
+
   return slope;
 }
 

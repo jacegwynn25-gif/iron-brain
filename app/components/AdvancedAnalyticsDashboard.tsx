@@ -8,10 +8,8 @@ import {
   Target,
   Lightbulb,
   User,
-  CheckCircle,
   AlertTriangle,
   AlertCircle,
-  Info,
   TrendingUp,
   Activity
 } from 'lucide-react';
@@ -595,54 +593,50 @@ export default function AdvancedAnalyticsDashboard() {
           <p className="text-gray-400 text-xs sm:text-sm">Science-backed insights for smarter training</p>
         </div>
 
-        {/* Smart Insights Banner */}
-        {smartInsights.length > 0 && selectedView === 'overview' && (
-          <div className="mb-4 sm:mb-6 space-y-2">
-            {smartInsights.map((insight, idx) => {
-              const Icon = insight.type === 'good' ? CheckCircle :
-                          insight.type === 'danger' ? AlertCircle :
-                          insight.type === 'warning' ? AlertTriangle : Info;
+        {/* Smart Insights Banner - Only show most critical alert */}
+        {smartInsights.length > 0 && selectedView === 'overview' && (() => {
+          // Show only the most critical insight (danger > warning > info > good)
+          const priorityOrder = { danger: 1, warning: 2, info: 3, good: 4 };
+          const mostCritical = smartInsights.reduce((prev, current) =>
+            priorityOrder[prev.type] < priorityOrder[current.type] ? prev : current
+          );
 
-              return (
-                <div
-                  key={idx}
-                  className={`rounded-xl p-3 sm:p-4 border ${
-                    insight.type === 'good' ? 'bg-green-500/10 border-green-500/30' :
-                    insight.type === 'danger' ? 'bg-red-500/10 border-red-500/30' :
-                    insight.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
-                    'bg-blue-500/10 border-blue-500/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 ${
-                      insight.type === 'good' ? 'text-green-400' :
-                      insight.type === 'danger' ? 'text-red-400' :
-                      insight.type === 'warning' ? 'text-yellow-400' :
-                      'text-blue-400'
+          // Only show if it's danger or warning
+          if (mostCritical.type !== 'danger' && mostCritical.type !== 'warning') return null;
+
+          const Icon = mostCritical.type === 'danger' ? AlertCircle : AlertTriangle;
+
+          return (
+            <div className="mb-4 sm:mb-6">
+              <div
+                className={`rounded-xl p-3 sm:p-4 border ${
+                  mostCritical.type === 'danger' ? 'bg-red-500/10 border-red-500/30' :
+                  'bg-yellow-500/10 border-yellow-500/30'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`flex-shrink-0 ${
+                    mostCritical.type === 'danger' ? 'text-red-400' : 'text-yellow-400'
+                  }`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm sm:text-base font-medium mb-1 ${
+                      mostCritical.type === 'danger' ? 'text-red-300' : 'text-yellow-300'
                     }`}>
-                      <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm sm:text-base font-medium mb-1 ${
-                        insight.type === 'good' ? 'text-green-300' :
-                        insight.type === 'danger' ? 'text-red-300' :
-                        insight.type === 'warning' ? 'text-yellow-300' :
-                        'text-blue-300'
-                      }`}>
-                        {insight.message}
+                      {mostCritical.message}
+                    </p>
+                    {mostCritical.action && (
+                      <p className="text-xs sm:text-sm text-gray-400">
+                        → {mostCritical.action}
                       </p>
-                      {insight.action && (
-                        <p className="text-xs sm:text-sm text-gray-400">
-                          → {insight.action}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Navigation Tabs - Always show labels for clarity */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
