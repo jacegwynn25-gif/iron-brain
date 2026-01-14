@@ -349,9 +349,6 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
         for (let i = 0; i < session.sets.length; i++) {
           const set = session.sets[i];
 
-          // Look up exercise UUID by slug
-          const exerciseUuid = await getExerciseIdBySlug(set.exerciseId);
-
           // Try to resolve program_set_id (optional, non-blocking)
           let programSetUuid: string | null = null;
           try {
@@ -369,7 +366,6 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
           logger.debug(`Set ${i + 1} raw data:`, {
             exerciseId: set.exerciseId,
-            exerciseUuid: exerciseUuid,
             actualWeight: set.actualWeight,
             actualReps: set.actualReps,
             actualRPE: set.actualRPE,
@@ -379,7 +375,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
           const { error: setError } = await (supabase.from('set_logs') as any).insert({
             workout_session_id: workoutUuid,
-            exercise_id: exerciseUuid, // UUID from exercises table
+            exercise_id: null, // Set to NULL - we use exercise_slug instead
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
             program_set_id: programSetUuid, // Populated when available (hybrid architecture)
             order_index: i,
@@ -398,11 +394,13 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
             e1rm: set.e1rm,
             volume_load: set.actualWeight && set.actualReps ? set.actualWeight * set.actualReps : null,
             // Set metadata
-            set_type: 'straight',
+            set_type: set.setType || 'straight',
+            tempo: set.tempo,
             rest_seconds: set.restTakenSeconds,
             actual_seconds: set.setDurationSeconds,
             notes: set.notes,
             completed: set.completed !== false,
+            skipped: set.completed === false,
           });
 
           if (setError) {
