@@ -144,7 +144,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
       </div>
 
       <div className="space-y-4">
-        {workoutHistory.slice().reverse().map((session, sessionIdx) => {
+        {workoutHistory.map((session, sessionIdx) => {
           const isExpanded = expandedSessions.has(session.id);
           const stats = calculateSessionStats(session);
           const groupedSets = groupSetsByExercise(session.sets);
