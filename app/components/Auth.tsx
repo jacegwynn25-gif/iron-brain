@@ -45,36 +45,36 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-2xl p-8 max-w-md w-full border border-zinc-800">
-        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 sm:p-8 max-w-md w-full border border-white/10">
+        <h2 className="text-2xl font-bold mb-6 text-white">
           {mode === 'signin' ? 'Sign In' : 'Create Account'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               placeholder="you@example.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               placeholder="••••••••"
               required
               minLength={6}
@@ -82,10 +82,10 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
           </div>
 
           {error && (
-            <div className={`text-sm p-3 rounded-lg ${
+            <div className={`text-sm p-3 rounded-lg border ${
               error.includes('verification')
-                ? 'bg-purple-500/20 text-purple-300'
-                : 'bg-red-500/20 text-red-300'
+                ? 'bg-purple-500/10 text-purple-300 border-purple-500/20'
+                : 'bg-red-500/10 text-red-300 border-red-500/20'
             }`}>
               {error}
             </div>
@@ -94,7 +94,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg px-6 py-3 font-semibold hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
           </button>
@@ -106,7 +106,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
               setMode(mode === 'signin' ? 'signup' : 'signin');
               setError('');
             }}
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
+            className="text-sm text-gray-400 hover:text-white transition-colors"
           >
             {mode === 'signin'
               ? "Don't have an account? Sign up"
@@ -117,7 +117,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+            className="absolute top-4 right-4 text-gray-400 hover:text-white"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -135,10 +135,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-zinc-400">Loading...</p>
+          <p className="text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -147,17 +147,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!user) {
     if (!showAuth) {
       return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 flex items-center justify-center p-4">
           <div className="text-center max-w-md">
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-4 text-white">
               Iron Brain
             </h1>
-            <p className="text-zinc-400 mb-8">
+            <p className="text-gray-300 mb-8">
               Smart workout tracking with science-backed fatigue detection
             </p>
             <button
               onClick={() => setShowAuth(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg px-8 py-4 font-semibold hover:from-purple-600 hover:to-pink-600 transition-all"
+              className="bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white rounded-xl px-8 py-4 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
             >
               Get Started
             </button>

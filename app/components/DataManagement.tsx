@@ -116,19 +116,19 @@ export default function DataManagement() {
           const merged = [...existing, ...newSessions];
           storage.setWorkoutHistory(merged);
 
-          alert(`✅ Successfully imported ${newSessions.length} new sessions!\n${existingIds.size} duplicate sessions were skipped.`);
+          alert(`Successfully imported ${newSessions.length} new sessions.\n${existingIds.size} duplicate sessions were skipped.`);
         } else {
           // Replace: Overwrite all data
-          if (confirm('⚠️ This will DELETE all existing workout data. Are you sure?')) {
+          if (confirm('This will DELETE all existing workout data. Are you sure?')) {
             storage.setWorkoutHistory(sessions);
-            alert(`✅ Successfully replaced all data with ${sessions.length} sessions!`);
+            alert(`Successfully replaced all data with ${sessions.length} sessions.`);
           }
         }
 
         // Reload page to refresh data
         window.location.reload();
       } catch (error) {
-        alert(`❌ Import failed: ${error instanceof Error ? error.message : 'Invalid file format'}`);
+        alert(`Import failed: ${error instanceof Error ? error.message : 'Invalid file format'}`);
       } finally {
         setImporting(false);
         // Reset file input
@@ -137,7 +137,7 @@ export default function DataManagement() {
     };
 
     reader.onerror = () => {
-      alert('❌ Failed to read file');
+      alert('Failed to read file');
       setImporting(false);
     };
 
@@ -327,21 +327,6 @@ export default function DataManagement() {
             }} />
           </div>
         )}
-      </div>
-
-      {/* Info Section */}
-      <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
-        <h4 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-50">
-          💡 Tips
-        </h4>
-        <ul className="space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-          <li>• <strong>Multi-Format Import</strong> supports CSV, Excel, and JSON with smart exercise matching</li>
-          <li>• <strong>JSON format</strong> preserves all data and can be re-imported</li>
-          <li>• <strong>CSV format</strong> is ideal for spreadsheet analysis (Excel, Google Sheets)</li>
-          <li>• <strong>Deleted workouts</strong> are kept in trash for 30 days before permanent removal</li>
-          <li>• Regular backups recommended before major updates</li>
-          <li>• Import wizard detects exercise names automatically and lets you review matches</li>
-        </ul>
       </div>
 
       {/* Import Wizard Modal */}

@@ -36,7 +36,7 @@ const BACKUP_DIR = path.join(process.cwd(), 'backups');
 interface LocalStorageData {
   namespace: string;
   key: string;
-  data: any;
+  data: unknown;
   workoutCount?: number;
 }
 
@@ -208,7 +208,8 @@ async function main() {
   const exerciseNameToId = new Map<string, string>();
   const exerciseSlugToId = new Map<string, string>();
 
-  exercises?.forEach((ex: any) => {
+  const exerciseRows = (exercises ?? []) as Array<{ id: string; name: string; slug?: string | null }>;
+  exerciseRows.forEach((ex) => {
     exerciseNameToId.set(ex.name.toLowerCase(), ex.id);
     if (ex.slug) {
       exerciseSlugToId.set(ex.slug, ex.id);

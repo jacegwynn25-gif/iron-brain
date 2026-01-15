@@ -16,6 +16,7 @@
 
 import { SetLog } from '../types';
 import { calculateDescriptiveStats, detectTrend } from './statistical-utils';
+import { robustRegressionVelocity } from './advanced-methods';
 
 // ============================================================
 // INTERFACES
@@ -108,7 +109,6 @@ export function calculateVelocityProfile(set: SetLog): VelocityProfile | null {
   // Use robust regression if available for outlier-resistant trend detection
   let trendAnalysis;
   try {
-    const { robustRegressionVelocity } = require('./advanced-methods');
     const robustResult = robustRegressionVelocity(workingReps);
     trendAnalysis = {
       slope: robustResult.slope,
@@ -116,7 +116,7 @@ export function calculateVelocityProfile(set: SetLog): VelocityProfile | null {
       rSquared: robustResult.rSquared,
       trend: robustResult.slope > 0.05 ? 'increasing' : robustResult.slope < -0.05 ? 'decreasing' : 'stable'
     };
-  } catch (err) {
+  } catch {
     // Fallback to standard linear regression
     trendAnalysis = detectTrend(workingReps);
   }

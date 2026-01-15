@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Pause, Play, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Activity,
+  TrendingUp,
+  Clock,
+  ChevronRight,
+  Pause,
+  Play,
+  X,
+  Plus,
+} from 'lucide-react';
 import { getPriorityAlert, PriorityAlert } from '../lib/storage';
 import type { WorkoutSession } from '../lib/types';
 
@@ -23,14 +33,16 @@ interface NextSetInfo {
 interface RestTimerProps {
   isActive: boolean;
   duration: number;
-  onComplete?: () => void;
-  onSkip?: () => void;
+  onComplete: (addExtraSet: boolean) => void;
+  onSkip: (addExtraSet: boolean) => void;
   nextSetInfo?: NextSetInfo;
   currentSessionSets?: WorkoutSession['sets'];
   onApplyWeightSuggestion?: (weight: number) => void;
   onReduceReps?: (amount: number) => void;
   onIncreaseRest?: (seconds: number) => void;
   onSkipExercise?: () => void;
+  isLastSetOfExercise: boolean;
+  exerciseName: string;
 }
 
 export default function RestTimer({
@@ -44,12 +56,14 @@ export default function RestTimer({
   onReduceReps,
   onIncreaseRest,
   onSkipExercise,
+  isLastSetOfExercise,
+  exerciseName,
 }: RestTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const [priorityAlert, setPriorityAlert] = useState<PriorityAlert | null>(null);
-  const [isLoadingAlert, setIsLoadingAlert] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [addExtraSet, setAddExtraSet] = useState(false);
 
   const endTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,6 +73,7 @@ export default function RestTimer({
   const onCompleteRef = useRef(onComplete);
   const onSkipRef = useRef(onSkip);
   const alertFetchedRef = useRef(false);
+  const addExtraSetRef = useRef(addExtraSet);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -67,6 +82,10 @@ export default function RestTimer({
   useEffect(() => {
     onSkipRef.current = onSkip;
   }, [onSkip]);
+
+  useEffect(() => {
+    addExtraSetRef.current = addExtraSet;
+  }, [addExtraSet]);
 
   useEffect(() => {
     remainingRef.current = timeRemaining;
@@ -81,6 +100,7 @@ export default function RestTimer({
     if (isActive) {
       setAlertDismissed(false);
       alertFetchedRef.current = false;
+      setAddExtraSet(false);
     }
   }, [isActive]);
 
@@ -90,7 +110,6 @@ export default function RestTimer({
       if (!isActive || !nextSetInfo || alertFetchedRef.current) return;
 
       try {
-        setIsLoadingAlert(true);
         alertFetchedRef.current = true;
 
         const alert = await getPriorityAlert(
@@ -106,7 +125,7 @@ export default function RestTimer({
       } catch (error) {
         console.error('Failed to fetch priority alert:', error);
       } finally {
-        setIsLoadingAlert(false);
+        // No-op
       }
     }
 
@@ -165,7 +184,7 @@ export default function RestTimer({
       if (secLeft === 0 && !completedRef.current) {
         completedRef.current = true;
         clearTimer();
-        onCompleteRef.current?.();
+        onCompleteRef.current?.(addExtraSetRef.current);
         playCompletionSound();
       }
     };
@@ -179,7 +198,7 @@ export default function RestTimer({
   const handleSkip = () => {
     clearTimer();
     setTimeRemaining(0);
-    onSkipRef.current?.();
+    onSkipRef.current?.(addExtraSetRef.current);
   };
 
   const handleAddTime = (seconds: number) => {
@@ -266,9 +285,9 @@ export default function RestTimer({
         };
       default:
         return {
-          border: 'border-gray-700/30',
-          bg: 'bg-gray-800/50',
-          iconBg: 'bg-gray-700/30',
+          border: 'border-white/10',
+          bg: 'bg-white/5',
+          iconBg: 'bg-white/10',
           iconColor: 'text-gray-400',
         };
     }
@@ -291,16 +310,16 @@ export default function RestTimer({
   const colors = getAlertColors();
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 safe-top">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2 text-zinc-400">
+        <div className="flex items-center gap-2 text-gray-400">
           <Clock className="h-5 w-5" />
           <span className="text-sm font-medium">Rest Period</span>
         </div>
         <button
           onClick={handleSkip}
-          className="flex items-center gap-1 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+          className="flex items-center gap-1 rounded-xl bg-white/10 border border-white/10 px-3 py-1.5 text-sm font-medium text-white transition-all active:scale-[0.98]"
         >
           Skip
           <ChevronRight className="h-4 w-4" />
@@ -324,7 +343,7 @@ export default function RestTimer({
           </div>
 
           {/* Progress Bar */}
-          <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+          <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full transition-all duration-300 ${
                 isComplete
@@ -342,25 +361,25 @@ export default function RestTimer({
             <div className="mt-6 flex items-center justify-center gap-3">
               <button
                 onClick={() => handleAddTime(-15)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 border border-white/10 text-gray-200 transition-all active:scale-[0.98]"
               >
                 <span className="text-sm font-bold">-15</span>
               </button>
               <button
                 onClick={togglePause}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-700 text-white transition-colors hover:bg-zinc-600"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 border border-white/10 text-white transition-all active:scale-[0.98]"
               >
                 {isPaused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
               </button>
               <button
                 onClick={() => handleAddTime(15)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 border border-white/10 text-gray-200 transition-all active:scale-[0.98]"
               >
                 <span className="text-sm font-bold">+15</span>
               </button>
               <button
                 onClick={() => handleAddTime(30)}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 border border-white/10 text-gray-200 transition-all active:scale-[0.98]"
               >
                 <span className="text-sm font-bold">+30</span>
               </button>
@@ -372,7 +391,7 @@ export default function RestTimer({
         {showAlert && (
           <div className="mx-auto mb-4 max-w-md animate-fadeIn">
             <div
-              className={`rounded-2xl border ${colors.border} ${colors.bg} backdrop-blur-sm p-5 shadow-xl`}
+              className={`rounded-2xl border ${colors.border} ${colors.bg} backdrop-blur-xl p-4 sm:p-5 shadow-xl`}
             >
               {/* Header */}
               <div className="mb-3 flex items-start justify-between">
@@ -391,7 +410,7 @@ export default function RestTimer({
                 </div>
                 <button
                   onClick={() => setAlertDismissed(true)}
-                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition-colors"
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -414,7 +433,7 @@ export default function RestTimer({
                             : priorityAlert.severity === 'warning'
                               ? 'bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-md active:scale-[0.98]'
                               : 'bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md active:scale-[0.98]'
-                          : 'bg-gray-700/50 hover:bg-gray-700 text-gray-200 text-sm'
+                          : 'bg-white/10 border border-white/10 text-gray-200 text-sm'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -430,7 +449,7 @@ export default function RestTimer({
 
               {/* Scientific Basis */}
               {priorityAlert.scientificBasis && (
-                <div className="mt-4 rounded-lg bg-gray-900/30 border border-gray-700/30 p-3">
+                <div className="mt-4 rounded-lg bg-white/5 border border-white/10 p-3">
                   <p className="text-xs text-gray-400 leading-relaxed">
                     <span className="font-semibold text-gray-300">Research:</span>{' '}
                     {priorityAlert.scientificBasis}
@@ -441,15 +460,42 @@ export default function RestTimer({
           </div>
         )}
 
+        {/* Last Set Summary */}
+        {isLastSetOfExercise && (
+          <div className="mx-auto w-full max-w-md px-6 mt-4 animate-fadeIn">
+            <div className="bg-white/5 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-emerald-400 text-lg">✓</span>
+                <h3 className="text-xl font-bold text-white">{exerciseName} Complete</h3>
+              </div>
+              <p className="text-gray-400 text-sm mb-6">
+                Great work! Move to next exercise or add volume?
+              </p>
+
+              <button
+                onClick={() => setAddExtraSet(!addExtraSet)}
+                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${
+                  addExtraSet
+                    ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/20'
+                    : 'bg-transparent border-white/20 text-gray-300 hover:border-white/40'
+                }`}
+              >
+                <Plus className="w-5 h-5" />
+                {addExtraSet ? 'Extra Set Added!' : 'Add Extra Set'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Next Set Info */}
-        {nextSetInfo && (
+        {(!isLastSetOfExercise || addExtraSet) && nextSetInfo && (
           <div className="mx-auto max-w-md">
-            <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/50 p-4 shadow-lg backdrop-blur">
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 sm:p-5 shadow-lg">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Up Next
                 </span>
-                <span className="text-xs font-medium text-zinc-500">
+                <span className="text-xs font-medium text-gray-500">
                   Set {nextSetInfo.setNumber} of {nextSetInfo.totalSets}
                 </span>
               </div>
@@ -472,18 +518,18 @@ export default function RestTimer({
                   )}
                 </div>
               ) : (
-                <div className="mb-4 rounded-xl border-2 border-dashed border-zinc-600 bg-zinc-800/80 p-4 text-center">
-                  <div className="text-lg font-bold text-zinc-300">
+                <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-4 text-center">
+                  <div className="text-lg font-semibold text-gray-300">
                     {nextSetInfo.prescribedReps} reps
                     {nextSetInfo.targetRPE && ` @ RPE ${nextSetInfo.targetRPE}`}
                   </div>
-                  <div className="mt-1 text-xs text-zinc-500">No weight suggestion available</div>
+                  <div className="mt-1 text-xs text-gray-500">No weight suggestion available</div>
                 </div>
               )}
 
               {/* Previous Performance */}
               {nextSetInfo.lastWeight != null && nextSetInfo.lastReps != null && (
-                <div className="rounded-lg bg-zinc-900/50 px-3 py-2 text-center text-sm text-zinc-400">
+                <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-center text-sm text-gray-400">
                   Previous: {nextSetInfo.lastWeight} lbs × {nextSetInfo.lastReps} reps
                 </div>
               )}
@@ -493,23 +539,22 @@ export default function RestTimer({
       </div>
 
       {/* Bottom Action Button - Fixed */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-900 via-zinc-900 to-transparent px-4 pt-4 sm:px-6 safe-bottom-with-min">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent px-4 pt-4 sm:px-6 safe-bottom-with-min">
         <div className="mx-auto max-w-md">
-          {isComplete ? (
-            <button
-              onClick={handleSkip}
-              className="w-full rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 py-4 text-lg font-black text-white shadow-xl transition-all hover:from-green-400 hover:to-emerald-400 active:scale-[0.98]"
-            >
-              Continue to Next Set →
-            </button>
-          ) : (
-            <button
-              onClick={handleSkip}
-              className="w-full rounded-2xl bg-gradient-to-r from-purple-600 to-fuchsia-600 py-4 text-lg font-black text-white shadow-xl transition-all hover:from-purple-500 hover:to-fuchsia-500 active:scale-[0.98]"
-            >
-              Skip Rest & Continue →
-            </button>
-          )}
+          <button
+            onClick={handleSkip}
+            className={`w-full rounded-xl py-4 text-lg font-semibold text-white shadow-xl transition-all active:scale-[0.98] ${
+              isComplete
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                : 'bg-gradient-to-r from-purple-600 to-fuchsia-500'
+            }`}
+          >
+            {isLastSetOfExercise && !addExtraSet
+              ? 'Finish Exercise'
+              : isComplete
+                ? 'Continue to Next Set'
+                : 'Skip Rest & Continue'}
+          </button>
         </div>
       </div>
     </div>

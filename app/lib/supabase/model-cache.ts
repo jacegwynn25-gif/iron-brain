@@ -122,12 +122,15 @@ export async function getOrBuildHierarchicalModel(
     }
 
     // Check if cache is fresh
-    const cacheAge = cached
-      ? (Date.now() - new Date((cached as UserFatigueModelRow).last_updated_at).getTime()) / 1000 / 60
+    const cachedRow = cached as UserFatigueModelRow | null;
+    const lastUpdatedAt = cachedRow?.last_updated_at
+      ? new Date(cachedRow.last_updated_at).getTime()
+      : null;
+    const cacheAge = lastUpdatedAt
+      ? (Date.now() - lastUpdatedAt) / 1000 / 60
       : Infinity;
 
     const isCacheFresh = cacheAge < 60; // 1 hour
-    const hasEnoughData = workoutHistory.length >= 3;
 
     // Note: We always build the model fresh because it has complex internal state
     // The cache is used for metadata tracking and will be used in future optimizations
@@ -191,7 +194,6 @@ async function cacheHierarchicalModel(
 
   const { error } = await supabase
     .from('user_fatigue_models')
-    // @ts-expect-error - Supabase generated types issue
     .upsert({
       user_id: userId,
       fatigue_resistance: model.userFatigueResistance,
@@ -234,7 +236,6 @@ async function cacheExerciseProfiles(
   if (profiles.length > 0) {
     const { error } = await supabase
       .from('user_exercise_profiles')
-      // @ts-expect-error - Supabase generated types issue
       .upsert(profiles, {
         onConflict: 'user_id,exercise_id'
       });
@@ -270,28 +271,49 @@ export async function getOrComputeTrainingState(
     }
 
     // Check if cache is fresh (within 6 hours)
-    const cacheAge = cached
-      ? (Date.now() - new Date((cached as TrainingStateCacheRow).updated_at).getTime()) / 1000 / 60 / 60
+    const cachedRow = cached as TrainingStateCacheRow | null;
+    const updatedAt = cachedRow?.updated_at
+      ? new Date(cachedRow.updated_at).getTime()
+      : null;
+    const cacheAge = updatedAt
+      ? (Date.now() - updatedAt) / 1000 / 60 / 60
       : Infinity;
 
-    if (cached && cacheAge < 6) {
+    if (cachedRow && cacheAge < 6) {
       logger.debug(`✅ Loaded training state from cache (${cacheAge.toFixed(1)}h old)`);
-      const cachedRow = cached as TrainingStateCacheRow;
+      const acwrStatus =
+        cachedRow.acwr_status === 'undertraining' ||
+        cachedRow.acwr_status === 'optimal' ||
+        cachedRow.acwr_status === 'high_risk' ||
+        cachedRow.acwr_status === 'danger'
+          ? cachedRow.acwr_status
+          : 'optimal';
+
+      const readiness =
+        cachedRow.readiness === 'excellent' ||
+        cachedRow.readiness === 'good' ||
+        cachedRow.readiness === 'moderate' ||
+        cachedRow.readiness === 'poor'
+          ? cachedRow.readiness
+          : 'moderate';
+
+      const calculatedAtSource = cachedRow.calculated_at || cachedRow.updated_at || new Date().toISOString();
+
       return {
         acuteLoad: cachedRow.acute_load,
         chronicLoad: cachedRow.chronic_load,
         acwr: cachedRow.acwr,
-        acwrStatus: cachedRow.acwr_status,
-        trainingMonotony: cachedRow.training_monotony,
-        trainingStrain: cachedRow.training_strain,
+        acwrStatus,
+        trainingMonotony: cachedRow.training_monotony ?? 0,
+        trainingStrain: cachedRow.training_strain ?? 0,
         currentFitness: cachedRow.current_fitness,
         currentFatigue: cachedRow.current_fatigue,
         netPerformance: cachedRow.net_performance,
-        readiness: cachedRow.readiness,
+        readiness,
         lastWorkoutDate: cachedRow.last_workout_date
           ? new Date(cachedRow.last_workout_date)
           : null,
-        calculatedAt: new Date(cachedRow.calculated_at)
+        calculatedAt: new Date(calculatedAtSource)
       };
     }
 
@@ -402,7 +424,6 @@ async function cacheTrainingState(
 
   const { error } = await supabase
     .from('training_state_cache')
-    // @ts-expect-error - Supabase generated types issue
     .upsert({
       user_id: userId,
       acute_load: state.acuteLoad,
@@ -442,7 +463,6 @@ export async function incrementalModelUpdate(
     // 1. Update user fatigue model (increment counters)
     const { error: userModelError } = await supabase.rpc(
       'increment_user_model_stats',
-      // @ts-ignore - Supabase RPC types inconsistency
       {
         p_user_id: userId,
         p_workout_sets: completedWorkout.sets.length
@@ -456,7 +476,6 @@ export async function incrementalModelUpdate(
     // 2. Mark training state as stale (will be recomputed on next load)
     const { error: stateError } = await supabase
       .from('training_state_cache')
-      // @ts-ignore - Supabase generated types issue
       .update({
         updated_at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString() // 7 hours ago
       })
@@ -491,7 +510,6 @@ export async function recordPrediction(
 
   const { error } = await supabase
     .from('fatigue_prediction_history')
-    // @ts-ignore - Supabase generated types issue
     .insert({
       user_id: userId,
       workout_session_id: workoutSessionId,
@@ -520,7 +538,6 @@ export async function updatePredictionWithActual(
 
   const { error } = await supabase
     .from('fatigue_prediction_history')
-    // @ts-ignore - Supabase generated types issue
     .update({
       actual_fatigue: actualFatigue,
       actual_rpe: actualRPE,
@@ -541,7 +558,8 @@ async function getPredictedFatigue(predictionId: string): Promise<number> {
     .eq('id', predictionId)
     .single();
 
-  return (data as any)?.predicted_fatigue || 0;
+  const row = data as { predicted_fatigue: number | null } | null;
+  return row?.predicted_fatigue ?? 0;
 }
 
 /**
@@ -552,7 +570,6 @@ export async function getModelPerformanceMetrics(
 ): Promise<ModelPerformanceMetrics | null> {
 
   const { data, error } = await supabase
-    // @ts-ignore - Supabase RPC types inconsistency
     .rpc('get_model_performance_metrics', {
       p_user_id: userId
     })
@@ -562,13 +579,19 @@ export async function getModelPerformanceMetrics(
     return null;
   }
 
-  const metrics = data as any;
+  const metrics = data as {
+    total_predictions: number;
+    avg_absolute_error: string | number;
+    prediction_accuracy_percentage: string | number;
+    within_ci_percentage: string | number;
+    last_7_days_rmse: string | number;
+  };
   return {
     totalPredictions: metrics.total_predictions,
-    avgAbsoluteError: parseFloat(metrics.avg_absolute_error),
-    predictionAccuracyPercentage: parseFloat(metrics.prediction_accuracy_percentage),
-    withinCIPercentage: parseFloat(metrics.within_ci_percentage),
-    last7DaysRMSE: parseFloat(metrics.last_7_days_rmse)
+    avgAbsoluteError: Number(metrics.avg_absolute_error),
+    predictionAccuracyPercentage: Number(metrics.prediction_accuracy_percentage),
+    withinCIPercentage: Number(metrics.within_ci_percentage),
+    last7DaysRMSE: Number(metrics.last_7_days_rmse)
   };
 }
 
@@ -584,7 +607,6 @@ export async function invalidateAllCaches(userId: string): Promise<void> {
   await Promise.all([
     supabase
       .from('user_fatigue_models')
-      // @ts-ignore - Supabase generated types issue
       .update({
         last_updated_at: new Date(0).toISOString() // Unix epoch = very stale
       })
@@ -592,7 +614,6 @@ export async function invalidateAllCaches(userId: string): Promise<void> {
 
     supabase
       .from('training_state_cache')
-      // @ts-ignore - Supabase generated types issue
       .update({
         updated_at: new Date(0).toISOString()
       })
@@ -600,7 +621,6 @@ export async function invalidateAllCaches(userId: string): Promise<void> {
 
     supabase
       .from('causal_insights_cache')
-      // @ts-ignore - Supabase generated types issue
       .update({
         expires_at: new Date().toISOString()
       })

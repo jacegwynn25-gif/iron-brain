@@ -21,8 +21,7 @@ import {
   calculateDescriptiveStats,
   bayesianWeightEstimate,
   confidenceInterval,
-  detectOutliersModifiedZ,
-  ConfidenceInterval
+  detectOutliersModifiedZ
 } from './statistical-utils';
 
 // ============================================================
@@ -156,7 +155,7 @@ export function analyzeBayesianRPE(
 
   // If no historical data, use current session only
   if (!historicalProfile) {
-    return analyzeCurrentSessionOnly(currentBias, currentDeviations, validSets[0].exerciseId);
+    return analyzeCurrentSessionOnly(currentBias, currentDeviations);
   }
 
   // Bayesian update: Combine historical prior with current evidence
@@ -224,8 +223,7 @@ export function analyzeBayesianRPE(
  */
 function analyzeCurrentSessionOnly(
   currentBias: number,
-  deviations: number[],
-  exerciseId: string
+  deviations: number[]
 ): BayesianRPEAnalysis {
   const stats = calculateDescriptiveStats(deviations);
 

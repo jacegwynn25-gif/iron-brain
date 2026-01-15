@@ -5,10 +5,18 @@ import { supabase } from '../lib/supabase/client';
 import { storage } from '../lib/storage';
 import { syncPendingWorkouts, getSyncStatus, forceSyncAllWorkouts } from '../lib/supabase/auto-sync';
 import { useAuth } from '../lib/supabase/auth-context';
+import type { Database } from '../lib/supabase/database.types';
+
+type DebugInfo = Record<string, unknown>;
+
+type SupabaseSessionRow = Pick<
+  Database['public']['Tables']['workout_sessions']['Row'],
+  'id' | 'date' | 'name' | 'deleted_at' | 'created_at'
+>;
 
 export function SyncDebugPanel() {
   const { user } = useAuth();
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
   const runDiagnostics = async () => {
@@ -18,7 +26,7 @@ export function SyncDebugPanel() {
     }
 
     setLoading(true);
-    const info: any = {};
+    const info: DebugInfo = {};
 
     try {
       // 1. Check localStorage
@@ -38,8 +46,8 @@ export function SyncDebugPanel() {
       info.syncStatus = getSyncStatus();
 
       // 3. Check Supabase
-      const { data: sessions, error } = await (supabase
-        .from('workout_sessions') as any)
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
         .select('id, date, name, deleted_at, created_at')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
@@ -47,14 +55,15 @@ export function SyncDebugPanel() {
       if (error) {
         info.supabase = { error: error.message };
       } else {
-        const active = (sessions as any[])?.filter((s: any) => !s.deleted_at) || [];
-        const deleted = (sessions as any[])?.filter((s: any) => s.deleted_at) || [];
+        const sessionRows: SupabaseSessionRow[] = sessions ?? [];
+        const active = sessionRows.filter((s) => !s.deleted_at);
+        const deleted = sessionRows.filter((s) => s.deleted_at);
 
         info.supabase = {
-          total: sessions?.length || 0,
+          total: sessionRows.length || 0,
           active: active.length,
           deleted: deleted.length,
-          workouts: sessions?.map((s: any) => ({
+          workouts: sessionRows.map((s) => ({
             id: s.id,
             date: s.date,
             name: s.name,
@@ -68,19 +77,21 @@ export function SyncDebugPanel() {
       // 4. Check for mismatches (strip "session_" prefix for comparison)
       const stripPrefix = (id: string) => id.startsWith('session_') ? id.substring(8) : id;
       const localIds = new Set(localWorkouts.map(w => stripPrefix(w.id)));
-      const supabaseIds = new Set(((sessions as any[]) || []).filter((s: any) => !s.deleted_at).map((s: any) => s.id));
+      const sessionRows: SupabaseSessionRow[] = sessions ?? [];
+      const supabaseIds = new Set(sessionRows.filter((s) => !s.deleted_at).map((s) => s.id));
 
       info.analysis = {
         localOnly: localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id))).map(w => w.id),
-        supabaseOnly: ((sessions as any[]) || [])
-          .filter((s: any) => !s.deleted_at && !localIds.has(s.id))
-          .map((s: any) => s.id),
+        supabaseOnly: sessionRows
+          .filter((s) => !s.deleted_at && !localIds.has(s.id))
+          .map((s) => s.id),
         inBoth: localWorkouts.filter(w => supabaseIds.has(stripPrefix(w.id))).map(w => w.id)
       };
 
       setDebugInfo(info);
-    } catch (err: any) {
-      setDebugInfo({ error: err.message });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setDebugInfo({ error: message });
     } finally {
       setLoading(false);
     }
@@ -94,8 +105,9 @@ export function SyncDebugPanel() {
       await syncPendingWorkouts(user.id);
       alert('Sync triggered! Check the results.');
       runDiagnostics();
-    } catch (err: any) {
-      alert('Sync failed: ' + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Sync failed: ' + message);
     } finally {
       setLoading(false);
     }
@@ -110,8 +122,9 @@ export function SyncDebugPanel() {
       await forceSyncAllWorkouts(user.id);
       alert('Force sync complete!');
       runDiagnostics();
-    } catch (err: any) {
-      alert('Force sync failed: ' + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert('Force sync failed: ' + message);
     } finally {
       setLoading(false);
     }

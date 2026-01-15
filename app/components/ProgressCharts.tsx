@@ -13,7 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Activity, Zap, Trophy, Heart, Calendar, BarChart3 } from 'lucide-react';
+import { TrendingUp, Activity, Zap, Trophy, Heart, Calendar, BarChart3, Moon, Droplets, TrendingDown, RotateCw } from 'lucide-react';
 import { defaultExercises } from '../lib/programs';
 import { analytics, CalendarDay } from '../lib/analytics';
 import { storage } from '../lib/storage';
@@ -910,43 +910,51 @@ export default function ProgressCharts() {
           </div>
 
           {/* Recovery Tips */}
-          <div className="rounded-xl bg-white p-6 dark:bg-zinc-900">
-            <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          <div className="rounded-2xl bg-white/5 backdrop-blur-xl p-4 sm:p-5 border border-white/10">
+            <h3 className="mb-4 text-lg font-semibold text-white">
               Recovery Optimization Tips
             </h3>
-            <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
+            <div className="space-y-3 text-sm text-gray-300">
               <div className="flex items-start gap-3">
-                <span className="text-lg">💤</span>
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+                  <Moon className="h-4 w-4 text-purple-300" />
+                </div>
                 <div>
                   <p className="font-semibold">Prioritize Sleep</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">
+                  <p className="text-gray-400">
                     Aim for 7-9 hours of quality sleep. Track sleep quality in workout notes.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-lg">🍗</span>
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+                  <Droplets className="h-4 w-4 text-blue-300" />
+                </div>
                 <div>
                   <p className="font-semibold">Nutrition & Hydration</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">
+                  <p className="text-gray-400">
                     Adequate protein (0.8-1g/lb bodyweight) and hydration support recovery.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-lg">📉</span>
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+                  <TrendingDown className="h-4 w-4 text-amber-300" />
+                </div>
                 <div>
                   <p className="font-semibold">Deload Weeks</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">
+                  <p className="text-gray-400">
                     Every 4-6 weeks, reduce volume/intensity by 40-50% for recovery.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-lg">🔄</span>
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+                  <RotateCw className="h-4 w-4 text-emerald-300" />
+                </div>
                 <div>
                   <p className="font-semibold">Active Recovery</p>
-                  <p className="text-zinc-600 dark:text-zinc-400">
+                  <p className="text-gray-400">
                     Light cardio, stretching, or mobility work on rest days.
                   </p>
                 </div>

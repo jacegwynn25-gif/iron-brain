@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Library, User } from 'lucide-react';
+import { CheckCircle2, FileText, Library, Trash2, User } from 'lucide-react';
 import { ProgramTemplate } from '../lib/types';
 
 interface ProgramSelectorProps {
@@ -46,36 +46,36 @@ export default function ProgramSelector({
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => setActiveTab('builtin')}
-          className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold transition-all active:scale-[0.98] ${
             activeTab === 'builtin'
-              ? 'gradient-purple text-white shadow-glow-purple'
-              : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+              ? 'bg-white/10 text-white border border-white/10'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
           }`}
         >
           <Library className="h-5 w-5" />
           <span>Built-in</span>
-          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold ${
             activeTab === 'builtin'
-              ? 'bg-white/20 text-white'
-              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+              ? 'bg-purple-500/20 text-purple-200'
+              : 'bg-white/10 text-gray-300'
           }`}>
             {builtInPrograms.length}
           </span>
         </button>
         <button
           onClick={() => setActiveTab('mine')}
-          className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all hover:scale-105 ${
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-semibold transition-all active:scale-[0.98] ${
             activeTab === 'mine'
-              ? 'gradient-purple text-white shadow-glow-purple'
-              : 'bg-white text-zinc-700 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+              ? 'bg-white/10 text-white border border-white/10'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
           }`}
         >
           <User className="h-5 w-5" />
           <span>My Programs</span>
-          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-bold ${
+          <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold ${
             activeTab === 'mine'
-              ? 'bg-white/20 text-white'
-              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+              ? 'bg-purple-500/20 text-purple-200'
+              : 'bg-white/10 text-gray-300'
           }`}>
             {userPrograms.length}
           </span>
@@ -92,10 +92,10 @@ export default function ProgramSelector({
           return (
             <div
               key={program.id}
-              className={`group relative rounded-xl border-2 p-5 transition-all hover:shadow-lg ${
+              className={`group relative rounded-2xl border p-4 sm:p-5 backdrop-blur-xl transition-all ${
                 isSelected
-                  ? 'border-zinc-900 bg-zinc-50 shadow-md dark:border-zinc-50 dark:bg-zinc-800'
-                  : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500'
+                  ? 'border-purple-500/40 bg-white/10 shadow-lg shadow-purple-500/20'
+                  : 'border-white/10 bg-white/5 hover:bg-white/10'
               }`}
             >
               {/* Delete Button (User Programs Only) */}
@@ -105,19 +105,17 @@ export default function ProgramSelector({
                     e.stopPropagation();
                     setShowDeleteConfirm(program.id);
                   }}
-                  className="absolute right-3 top-3 rounded-lg bg-red-600 p-2 text-white opacity-0 transition-opacity hover:bg-red-700 group-hover:opacity-100"
+                  className="absolute right-3 top-3 rounded-lg bg-red-500/20 p-2 text-red-200 opacity-0 transition-all hover:bg-red-500/30 group-hover:opacity-100 active:scale-[0.98]"
                   title="Delete program"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
 
               {/* Delete Confirmation Overlay */}
               {showDeleteConfirm === program.id && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-red-600 p-4 text-white">
-                  <p className="mb-3 text-center text-sm font-semibold">Delete this program?</p>
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-zinc-950/90 p-4 text-white backdrop-blur">
+                  <p className="mb-3 text-center text-sm font-semibold text-gray-200">Delete this program?</p>
                   <div className="flex gap-2">
                     <button
                       onClick={(e) => {
@@ -125,16 +123,16 @@ export default function ProgramSelector({
                         onDeleteProgram(program.id);
                         setShowDeleteConfirm(null);
                       }}
-                      className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                      className="rounded-xl bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/30 active:scale-[0.98]"
                     >
-                      Yes, Delete
+                      Yes, delete
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowDeleteConfirm(null);
                       }}
-                      className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800"
+                      className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 active:scale-[0.98]"
                     >
                       Cancel
                     </button>
@@ -149,22 +147,20 @@ export default function ProgramSelector({
               >
                 {/* Selected Indicator */}
                 {isSelected && (
-                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-50">
-                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    SELECTED
+                  <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-purple-200">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Selected
                   </div>
                 )}
 
                 {/* Program Name */}
-                <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                <h3 className="mb-2 text-lg font-semibold text-white">
                   {program.name}
                 </h3>
 
                 {/* Program Description */}
                 {program.description && (
-                  <p className="mb-4 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <p className="mb-4 line-clamp-2 text-sm text-gray-400">
                     {program.description}
                   </p>
                 )}
@@ -172,45 +168,45 @@ export default function ProgramSelector({
                 {/* Program Metadata */}
                 <div className="mb-4 flex flex-wrap gap-2">
                   {program.goal && (
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                    <span className="rounded-full bg-purple-500/20 px-2.5 py-1 text-xs font-medium text-purple-200">
                       {program.goal}
                     </span>
                   )}
                   {program.experienceLevel && (
-                    <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                    <span className="rounded-full bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-200">
                       {program.experienceLevel}
                     </span>
                   )}
                   {program.intensityMethod && (
-                    <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-200">
                       {program.intensityMethod.toUpperCase()}
                     </span>
                   )}
                 </div>
 
                 {/* Program Stats */}
-                <div className="grid grid-cols-2 gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <div className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Duration</p>
-                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                    <p className="text-xs font-medium text-gray-500">Duration</p>
+                    <p className="text-lg font-semibold text-white">
                       {stats.weeks} {stats.weeks === 1 ? 'Week' : 'Weeks'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Days/Week</p>
-                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                    <p className="text-xs font-medium text-gray-500">Days/Week</p>
+                    <p className="text-lg font-semibold text-white">
                       {stats.avgDaysPerWeek}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Total Days</p>
-                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                    <p className="text-xs font-medium text-gray-500">Total Days</p>
+                    <p className="text-lg font-semibold text-white">
                       {stats.totalDays}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Exercises</p>
-                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                    <p className="text-xs font-medium text-gray-500">Exercises</p>
+                    <p className="text-lg font-semibold text-white">
                       {stats.totalExercises}
                     </p>
                   </div>
@@ -222,19 +218,14 @@ export default function ProgramSelector({
 
         {/* Empty State */}
         {displayPrograms.length === 0 && (
-          <div className="col-span-full rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-800">
-            <svg
-              className="mx-auto mb-4 h-12 w-12 text-zinc-400 dark:text-zinc-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="mb-2 text-lg font-semibold text-zinc-700 dark:text-zinc-300">
+          <div className="col-span-full rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
+              <FileText className="h-6 w-6 text-gray-300" />
+            </div>
+            <p className="mb-2 text-lg font-semibold text-white">
               No programs here yet
             </p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm text-gray-400">
               {activeTab === 'mine'
                 ? 'Create a new program or clone a built-in one to get started'
                 : 'Built-in programs will appear here'}

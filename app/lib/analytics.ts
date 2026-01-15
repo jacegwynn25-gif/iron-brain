@@ -756,34 +756,34 @@ export function analyzeDeloadNeed(): DeloadRecommendation {
   if (fatigueScore >= 60) {
     severity = 'critical';
     shouldDeload = true;
-    recommendations.push('🚨 IMMEDIATE DELOAD RECOMMENDED');
+    recommendations.push('Immediate deload recommended');
     recommendations.push('Reduce volume by 50% this week');
     recommendations.push('Reduce intensity by 15-20%');
     recommendations.push('Focus on technique and movement quality');
   } else if (fatigueScore >= 40) {
     severity = 'high';
     shouldDeload = true;
-    recommendations.push('⚠️ Deload recommended within next week');
+    recommendations.push('Deload recommended within next week');
     recommendations.push('Reduce volume by 40%');
     recommendations.push('Reduce intensity by 10-15%');
     recommendations.push('Maintain frequency but cut sets per exercise');
   } else if (fatigueScore >= 25) {
     severity = 'moderate';
     shouldDeload = false;
-    recommendations.push('💡 Consider planning a deload soon');
+    recommendations.push('Consider planning a deload soon');
     recommendations.push('Monitor RPE closely next few sessions');
     recommendations.push('Avoid pushing to failure');
     recommendations.push('Ensure adequate sleep and nutrition');
   } else if (fatigueScore >= 10) {
     severity = 'mild';
     shouldDeload = false;
-    recommendations.push('✓ Training stress manageable');
+    recommendations.push('Training stress manageable');
     recommendations.push('Continue current program');
     recommendations.push('Plan deload after 1-2 more weeks');
   } else {
     severity = 'none';
     shouldDeload = false;
-    recommendations.push('✓ No deload needed');
+    recommendations.push('No deload needed');
     recommendations.push('Recovery appears adequate');
     recommendations.push('Continue progressive overload');
   }

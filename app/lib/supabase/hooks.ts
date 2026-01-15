@@ -2,10 +2,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from './client';
 import { useAuth } from './auth-context';
 
+type WorkoutSessionRow = Record<string, unknown>;
+type ExerciseRow = Record<string, unknown>;
+type UserProgramRow = Record<string, unknown>;
+type PersonalRecordRow = Record<string, unknown>;
+type ExerciseStatRow = Record<string, unknown>;
+
 // Hook to fetch user's workout sessions
 export function useWorkoutSessions() {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -45,7 +51,7 @@ export function useWorkoutSessions() {
 // Hook to fetch exercises
 export function useExercises() {
   const { user } = useAuth();
-  const [exercises, setExercises] = useState<any[]>([]);
+  const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -84,7 +90,7 @@ export function useExercises() {
 // Hook to fetch user's active program
 export function useActiveProgram() {
   const { user } = useAuth();
-  const [program, setProgram] = useState<any | null>(null);
+  const [program, setProgram] = useState<UserProgramRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -137,7 +143,7 @@ export function useActiveProgram() {
 // Hook to fetch personal records
 export function usePersonalRecords(exerciseId?: string) {
   const { user } = useAuth();
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<PersonalRecordRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -180,7 +186,7 @@ export function usePersonalRecords(exerciseId?: string) {
 // Hook to fetch exercise stats
 export function useExerciseStats() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any[]>([]);
+  const [stats, setStats] = useState<ExerciseStatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 

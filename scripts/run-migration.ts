@@ -27,7 +27,7 @@ console.log(`🔄 Running migration: ${migrationFile}`);
 let sql: string;
 try {
   sql = readFileSync(migrationPath, 'utf-8');
-} catch (error) {
+} catch {
   console.error(`❌ Could not read migration file: ${migrationPath}`);
   process.exit(1);
 }
@@ -42,7 +42,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // Run migration
 async function runMigration() {
   try {
-    const { data, error } = await supabase.rpc('exec_sql', { sql_string: sql });
+    const { error } = await supabase.rpc('exec_sql', { sql_string: sql });
 
     if (error) {
       console.error('❌ Migration failed:', error);
@@ -61,7 +61,11 @@ async function runMigration() {
       console.warn('⚠️ Could not verify templates:', queryError.message);
     } else {
       console.log(`\n📊 Found ${templates?.length || 0} program templates:`);
-      templates?.forEach((t: any) => {
+      const templateRows = (templates ?? []) as Array<{
+        name: string;
+        app_metadata?: { app_program_id?: string } | null;
+      }>;
+      templateRows.forEach((t) => {
         const appId = t.app_metadata?.app_program_id || 'unknown';
         console.log(`  - ${t.name} (${appId})`);
       });

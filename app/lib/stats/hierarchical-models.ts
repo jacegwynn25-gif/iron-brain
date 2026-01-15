@@ -155,7 +155,7 @@ export function buildHierarchicalFatigueModel(
 
   // Model diagnostics
   const convergence = totalSamples >= 30; // Enough data for reliable estimates
-  const goodnessOfFit = calculateModelFit(allSets, userFatigueResistance);
+  const goodnessOfFit = calculateModelFit(allSets);
 
   return {
     userFatigueResistance,
@@ -327,7 +327,7 @@ function calculateFatigueAccumulationRate(sets: SetLog[]): number {
 /**
  * Calculate model fit (pseudo R-squared)
  */
-function calculateModelFit(sets: SetLog[], predictedFatigueResistance: number): number {
+function calculateModelFit(sets: SetLog[]): number {
   // Simplified goodness of fit
   // In full implementation, would compare predicted vs actual RPE values
 
@@ -373,8 +373,7 @@ export interface FatiguePrediction {
 export function predictFatigueNextSet(
   model: HierarchicalFatigueModel,
   exerciseId: string,
-  setsCompletedToday: number,
-  currentRPE?: number
+  setsCompletedToday: number
 ): FatiguePrediction {
   // Get exercise-specific factors
   const exerciseFactors = model.exerciseSpecificFactors.get(exerciseId);

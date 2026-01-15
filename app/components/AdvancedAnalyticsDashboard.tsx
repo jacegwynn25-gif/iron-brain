@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BarChart3,
   Zap,
@@ -10,13 +10,12 @@ import {
   User,
   AlertTriangle,
   AlertCircle,
-  TrendingUp,
   Activity
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
-import type { WorkoutSession } from '../lib/types';
+import type { SetType, WorkoutSession } from '../lib/types';
 import {
   calculateACWR,
   updateFitnessFatigueModel,
@@ -32,6 +31,57 @@ import { getExerciseEfficiencyLeaderboard } from '../lib/fatigue/sfr';
 import RecoveryOverview from './RecoveryOverview';
 import SFRInsightsTable from './SFRInsightsTable';
 import CausalInsightsDashboard from './CausalInsightsDashboard';
+import type { Database } from '../lib/supabase/database.types';
+
+type SupabaseExerciseRow = Pick<
+  Database['public']['Tables']['exercises']['Row'],
+  'id' | 'name' | 'slug'
+>;
+
+type SupabaseSetLogRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  'id' | 'exercise_id' | 'exercise_slug' | 'actual_weight' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
+>;
+
+const normalizeSetType = (value?: string | null): SetType => {
+  const allowed: SetType[] = [
+    'straight',
+    'superset',
+    'giant',
+    'drop',
+    'rest-pause',
+    'cluster',
+    'warmup',
+    'amrap',
+    'backoff'
+  ];
+  return allowed.includes(value as SetType) ? (value as SetType) : 'straight';
+};
+
+const interpretSfr = (avgSFR: number): SfrInsight['interpretation'] => {
+  if (avgSFR > 200) return 'excellent';
+  if (avgSFR > 150) return 'good';
+  if (avgSFR > 100) return 'moderate';
+  if (avgSFR > 50) return 'poor';
+  return 'excessive';
+};
+
+type SupabaseWorkoutRow = Pick<
+  Database['public']['Tables']['workout_sessions']['Row'],
+  'id' | 'start_time' | 'end_time' | 'total_volume_load' | 'notes' | 'date' | 'duration_minutes'
+> & {
+  set_logs?: SupabaseSetLogRow[] | null;
+};
+
+type SfrInsight = {
+  exerciseId: string;
+  exerciseName: string;
+  avgSFR: number;
+  timesPerformed: number;
+  bestSFR: number;
+  worstSFR: number;
+  interpretation: 'excellent' | 'good' | 'moderate' | 'poor' | 'excessive';
+};
 
 interface AnalyticsData {
   // ACWR Metrics
@@ -96,11 +146,7 @@ export default function AdvancedAnalyticsDashboard() {
   const [selectedView, setSelectedView] = useState<ViewType>('overview');
   const [allWorkouts, setAllWorkouts] = useState<WorkoutSession[]>([]);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [user]);
-
-  async function loadAnalytics() {
+  const loadAnalytics = useCallback(async () => {
     try {
       // Set namespace based on auth state
       setUserNamespace(user?.id || null);
@@ -162,8 +208,8 @@ export default function AdvancedAnalyticsDashboard() {
               console.error('❌ Exercise mapping error:', exerciseError);
             }
 
-            const exerciseMap = new Map();
-            exercises?.forEach((ex: any) => {
+            const exerciseMap = new Map<string, string>();
+            (exercises as SupabaseExerciseRow[] | null | undefined)?.forEach((ex) => {
               exerciseMap.set(ex.id, ex.name);
               if (ex.slug) exerciseMap.set(ex.slug, ex.name);
             });
@@ -171,36 +217,34 @@ export default function AdvancedAnalyticsDashboard() {
             console.log('✅ Loaded', exerciseMap.size, 'exercise names');
 
             // Convert Supabase format to WorkoutSession format
-            const converted: WorkoutSession[] = supabaseWorkouts.map((sw: any) => ({
+            const supabaseRows: SupabaseWorkoutRow[] = supabaseWorkouts ?? [];
+            const converted: WorkoutSession[] = supabaseRows.map((sw) => ({
               id: sw.id,
-              startTime: sw.start_time,
-              endTime: sw.end_time,
-              totalVolumeLoad: sw.total_volume_load,
-              notes: sw.notes,
+              startTime: sw.start_time ?? undefined,
+              endTime: sw.end_time ?? undefined,
+              totalVolumeLoad: sw.total_volume_load ?? undefined,
+              notes: sw.notes ?? undefined,
               programId: '',
               programName: '',
               cycleNumber: 0,
               weekNumber: 0,
-              dayIndex: 0,
               dayName: '',
               dayOfWeek: '',
-              date: sw.date || sw.start_time.split('T')[0],
-              createdAt: sw.start_time,
-              updatedAt: sw.end_time || sw.start_time,
-              sets: (sw.set_logs || []).map((sl: any) => ({
-                id: sl.id,
+              date: sw.date ?? (sw.start_time ? sw.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
+              createdAt: sw.start_time ?? new Date().toISOString(),
+              updatedAt: sw.end_time ?? sw.start_time ?? new Date().toISOString(),
+              sets: (sw.set_logs || []).map((sl, idx) => ({
+                id: sl.id ?? undefined,
                 exerciseId: sl.exercise_id || '',
-                exerciseName: exerciseMap.get(sl.exercise_id) || exerciseMap.get(sl.exercise_slug) || 'Unknown Exercise',
-                weight: sl.actual_weight,
-                reps: sl.actual_reps,
-                rpe: sl.actual_rpe,
-                completed: sl.completed,
-                setType: sl.set_type || 'normal',
-                actualWeight: sl.actual_weight,
-                actualReps: sl.actual_reps,
-                prescribed: {},
-                predictedFatigue: 0,
-                timestamp: sw.start_time
+                exerciseName: exerciseMap.get(sl.exercise_id || '') || exerciseMap.get(sl.exercise_slug || '') || 'Unknown Exercise',
+                setIndex: idx + 1,
+                prescribedReps: '0',
+                actualWeight: sl.actual_weight ?? undefined,
+                actualReps: sl.actual_reps ?? undefined,
+                actualRPE: sl.actual_rpe ?? undefined,
+                completed: sl.completed !== false,
+                setType: normalizeSetType(sl.set_type),
+                timestamp: sw.start_time ?? undefined
               }))
             }));
 
@@ -263,7 +307,7 @@ export default function AdvancedAnalyticsDashboard() {
 
       // Load recovery profiles and SFR insights if user is logged in
       let recoveryProfiles: RecoveryProfile[] = [];
-      let sfrInsights: any[] = [];
+      let sfrInsights: SfrInsight[] = [];
 
       if (user) {
         try {
@@ -272,7 +316,10 @@ export default function AdvancedAnalyticsDashboard() {
             getExerciseEfficiencyLeaderboard(user.id, 20)
           ]);
           recoveryProfiles = profiles;
-          sfrInsights = leaderboard;
+          sfrInsights = leaderboard.map((entry) => ({
+            ...entry,
+            interpretation: interpretSfr(entry.avgSFR)
+          }));
         } catch (err) {
           console.error('Error loading recovery/SFR data:', err);
         }
@@ -397,7 +444,7 @@ export default function AdvancedAnalyticsDashboard() {
               .flatMap(w => w.sets)
               .find(s => s.exerciseId === id);
 
-            const exerciseName = (set as any)?.exerciseName || id;
+            const exerciseName = set?.exerciseName || id;
 
             return {
               exerciseId: id,
@@ -447,13 +494,17 @@ export default function AdvancedAnalyticsDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [user]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 p-4">
         <div className="space-y-4 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center animate-pulse">
+          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-500 flex items-center justify-center animate-pulse">
             <Activity className="h-8 w-8 text-white" />
           </div>
           <div className="text-white text-lg font-semibold">Loading your insights...</div>
@@ -465,16 +516,16 @@ export default function AdvancedAnalyticsDashboard() {
 
   if (!analytics.acwr && !analytics.hierarchicalModel) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-4">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 max-w-md text-center">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 p-4">
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 max-w-md text-center border border-white/10">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
             <BarChart3 className="h-10 w-10 text-white" />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Start Your Journey</h2>
           <p className="text-gray-300 text-sm sm:text-base mb-6">
             Complete at least 3 workouts to unlock your personalized analytics dashboard.
           </p>
-          <div className="bg-white/5 rounded-lg p-4 text-left space-y-2 text-sm text-gray-400">
+          <div className="bg-white/5 rounded-xl p-4 text-left space-y-2 text-sm text-gray-400 border border-white/10">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
               <span>ACWR injury risk monitoring</span>
@@ -585,12 +636,12 @@ export default function AdvancedAnalyticsDashboard() {
   const smartInsights = getSmartInsights();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 p-3 sm:p-4 pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 px-4 py-6 sm:px-6 sm:py-8 pb-24 safe-top">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">Analytics</h1>
-          <p className="text-gray-400 text-xs sm:text-sm">Science-backed insights for smarter training</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">Analytics</h1>
+          <p className="text-gray-300 text-sm">Science-backed insights for smarter training</p>
         </div>
 
         {/* Smart Insights Banner - Only show most critical alert */}
@@ -607,28 +658,28 @@ export default function AdvancedAnalyticsDashboard() {
           const Icon = mostCritical.type === 'danger' ? AlertCircle : AlertTriangle;
 
           return (
-            <div className="mb-4 sm:mb-6">
+            <div className="mb-6 sm:mb-8">
               <div
-                className={`rounded-xl p-3 sm:p-4 border ${
+                className={`rounded-2xl p-4 sm:p-5 border backdrop-blur-xl ${
                   mostCritical.type === 'danger' ? 'bg-red-500/10 border-red-500/30' :
-                  'bg-yellow-500/10 border-yellow-500/30'
+                  'bg-amber-500/10 border-amber-500/30'
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`flex-shrink-0 ${
-                    mostCritical.type === 'danger' ? 'text-red-400' : 'text-yellow-400'
+                    mostCritical.type === 'danger' ? 'text-red-400' : 'text-amber-400'
                   }`}>
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm sm:text-base font-medium mb-1 ${
-                      mostCritical.type === 'danger' ? 'text-red-300' : 'text-yellow-300'
+                      mostCritical.type === 'danger' ? 'text-red-300' : 'text-amber-300'
                     }`}>
                       {mostCritical.message}
                     </p>
                     {mostCritical.action && (
                       <p className="text-xs sm:text-sm text-gray-400">
-                        → {mostCritical.action}
+                        Action: {mostCritical.action}
                       </p>
                     )}
                   </div>
@@ -639,7 +690,7 @@ export default function AdvancedAnalyticsDashboard() {
         })()}
 
         {/* Navigation Tabs - Always show labels for clarity */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
+        <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide">
           {([
             { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
             { id: 'training-load' as ViewType, label: 'Load', Icon: Zap },
@@ -651,9 +702,9 @@ export default function AdvancedAnalyticsDashboard() {
             <button
               key={id}
               onClick={() => setSelectedView(id)}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all text-sm touch-manipulation ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all text-sm touch-manipulation active:scale-[0.98] ${
                 selectedView === id
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
+                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
                   : 'bg-white/10 text-gray-300 hover:bg-white/15 hover:text-white'
               }`}
             >
@@ -668,7 +719,7 @@ export default function AdvancedAnalyticsDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* ACWR Card */}
             {analytics.acwr && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
@@ -709,7 +760,7 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Fitness-Fatigue Card */}
             {analytics.fitnessFatigue && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
@@ -763,7 +814,7 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Personal Stats Card */}
             {analytics.personalStats && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-400" />
@@ -809,7 +860,7 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Quick Recovery Status */}
             {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
                     <Battery className="h-5 w-5 text-green-400" />
@@ -848,7 +899,7 @@ export default function AdvancedAnalyticsDashboard() {
 
             {/* Quick Efficiency Status */}
             {analytics.sfrInsights && analytics.sfrInsights.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
                     <Target className="h-5 w-5 text-yellow-400" />
@@ -883,7 +934,7 @@ export default function AdvancedAnalyticsDashboard() {
         {/* Training Load Detail View */}
         {selectedView === 'training-load' && analytics.acwr && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Training Load (ACWR)</h2>
               <div className="mb-6 sm:mb-8">
                 <div className="flex items-baseline gap-3 mb-2">
@@ -1074,7 +1125,7 @@ export default function AdvancedAnalyticsDashboard() {
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
                     <p className="font-medium text-purple-400 mb-1">How to Use</p>
-                    <p className="text-gray-400">Keep exercises with "excellent" SFR. Replace or reduce volume on "poor" SFR exercises.</p>
+                    <p className="text-gray-400">Keep exercises with &quot;excellent&quot; SFR. Replace or reduce volume on &quot;poor&quot; SFR exercises.</p>
                   </div>
                 </div>
               </div>
@@ -1089,7 +1140,7 @@ export default function AdvancedAnalyticsDashboard() {
           </div>
         )}
         {selectedView === 'causal' && allWorkouts.length === 0 && (
-          <div className="bg-gray-800/50 rounded-lg p-8 text-center border border-gray-700/50">
+          <div className="bg-white/5 rounded-2xl p-6 text-center border border-white/10 backdrop-blur-xl">
             <p className="text-gray-400">Loading workouts...</p>
           </div>
         )}
@@ -1097,7 +1148,7 @@ export default function AdvancedAnalyticsDashboard() {
         {/* Personal Profile View */}
         {selectedView === 'personal' && analytics.hierarchicalModel && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Your Profile</h2>
 
               {/* Core Traits */}
@@ -1196,7 +1247,7 @@ export default function AdvancedAnalyticsDashboard() {
                       .sort((a, b) => b.fatigueRate - a.fatigueRate)
                       .slice(0, 10)
                       .map((exercise) => (
-                        <div key={exercise.exerciseId} className="bg-gray-800/50 rounded-lg p-3">
+                        <div key={exercise.exerciseId} className="bg-white/5 rounded-xl p-3 border border-white/10">
                           <div className="flex justify-between items-start gap-2 mb-1.5">
                             <span className="text-xs sm:text-sm text-white font-medium flex-1 min-w-0 truncate">
                               {exercise.exerciseName || exercise.exerciseId}

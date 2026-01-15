@@ -15,8 +15,8 @@
 
 import { logger } from '../logger';
 import { SetLog } from '../types';
-import { FatigueScore } from '../fatigueModel';
 import { supabase } from '../supabase/client';
+import type { Database } from '../supabase/database.types';
 import { defaultExercises } from '../programs';
 
 // ============================================================
@@ -45,6 +45,15 @@ export interface WorkoutSFRSummary {
   overallSFR: number;
   overallInterpretation: 'excellent' | 'good' | 'moderate' | 'poor' | 'excessive';
   insights: string[];
+}
+
+type SupabaseWorkoutSfrSummaryRow = Database['public']['Tables']['workout_sfr_summaries']['Row'];
+type SupabaseEfficiencyRow = Database['public']['Views']['exercise_efficiency_leaderboard']['Row'];
+
+const SFR_INTERPRETATION_VALUES = ['excellent', 'good', 'moderate', 'poor', 'excessive'] as const;
+
+function isSfrInterpretation(value: string): value is SFRAnalysis['interpretation'] {
+  return (SFR_INTERPRETATION_VALUES as readonly string[]).includes(value);
 }
 
 // ============================================================
@@ -210,11 +219,9 @@ function calculateExerciseFatigueCost(sets: SetLog[]): number {
  * Calculate SFR for entire workout
  *
  * @param sets - All sets from workout
- * @param fatigueScores - Fatigue scores by muscle group (UNUSED - replaced with per-exercise calculation)
  */
 export function calculateWorkoutSFR(
-  sets: SetLog[],
-  fatigueScores: FatigueScore[]
+  sets: SetLog[]
 ): WorkoutSFRSummary {
   // Group sets by exercise
   const setsByExercise = new Map<string, SetLog[]>();
@@ -359,8 +366,8 @@ export async function saveSFRAnalysis(
       recommendation: analysis.recommendation,
     }));
 
-    const { error: analysisError } = await (supabase
-      .from('sfr_analyses') as any)
+    const { error: analysisError } = await supabase
+      .from('sfr_analyses')
       .insert(exerciseRecords);
 
     if (analysisError) {
@@ -377,8 +384,8 @@ export async function saveSFRAnalysis(
       { excellent: 0, good: 0, moderate: 0, poor: 0, excessive: 0 } as Record<string, number>
     );
 
-    const { error: summaryError } = await (supabase
-      .from('workout_sfr_summaries') as any)
+    const { error: summaryError } = await supabase
+      .from('workout_sfr_summaries')
       .insert({
         user_id: userId,
         workout_session_id: workoutSessionId,
@@ -425,18 +432,21 @@ export async function getExerciseSFRHistory(
     return [];
   }
 
-  return (data as any[]).map((record: any) => ({
+  const rows = data ?? [];
+  return rows.map((record) => ({
     exerciseId: record.exercise_id,
     exerciseName: record.exercise_name,
     totalSets: record.total_sets,
     effectiveVolume: record.effective_volume,
     totalFatigue: record.total_fatigue,
     sfr: record.sfr,
-    interpretation: record.interpretation,
-    recommendation: record.recommendation,
-    avgRPE: record.avg_rpe,
+    interpretation: isSfrInterpretation(record.interpretation)
+      ? record.interpretation
+      : 'moderate',
+    recommendation: record.recommendation ?? '',
+    avgRPE: record.avg_rpe ?? 0,
     totalVolumeLoad: record.total_volume_load,
-    fatiguePerSet: record.fatigue_per_set,
+    fatiguePerSet: record.fatigue_per_set ?? 0,
   }));
 }
 
@@ -446,7 +456,7 @@ export async function getExerciseSFRHistory(
 export async function getWorkoutSFRHistory(
   userId: string,
   limit: number = 10
-): Promise<any[]> {
+): Promise<SupabaseWorkoutSfrSummaryRow[]> {
   const { data, error } = await supabase
     .from('workout_sfr_summaries')
     .select('*')
@@ -459,7 +469,7 @@ export async function getWorkoutSFRHistory(
     return [];
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 /**
@@ -484,7 +494,8 @@ export async function getExerciseAvgSFR(
     return 0;
   }
 
-  const avgSFR = (data as any[]).reduce((sum, record) => sum + record.sfr, 0) / data.length;
+  const rows = data ?? [];
+  const avgSFR = rows.reduce((sum, record) => sum + record.sfr, 0) / rows.length;
   return avgSFR;
 }
 
@@ -501,7 +512,7 @@ export async function identifyJunkVolumeExercises(
   sessionCount: number;
   recommendation: string;
 }>> {
-  const { data, error } = await (supabase.rpc as any)('identify_junk_volume_exercises', {
+  const { data, error } = await supabase.rpc('identify_junk_volume_exercises', {
     p_user_id: userId,
     p_min_sessions: minSessions,
   });
@@ -511,7 +522,14 @@ export async function identifyJunkVolumeExercises(
     return [];
   }
 
-  return data || [];
+  const rows = data ?? [];
+  return rows.map(row => ({
+    exerciseId: row.exercise_id,
+    exerciseName: row.exercise_name,
+    avgSFR: row.avg_sfr,
+    sessionCount: row.session_count,
+    recommendation: row.recommendation,
+  }));
 }
 
 /**
@@ -540,12 +558,17 @@ export async function getExerciseEfficiencyLeaderboard(
     return [];
   }
 
-  return (data as any[]).map((record: any) => ({
+  const rows = (data ?? []).filter(
+    (record): record is SupabaseEfficiencyRow & { exercise_id: string; exercise_name: string } =>
+      Boolean(record.exercise_id) && Boolean(record.exercise_name)
+  );
+
+  return rows.map((record) => ({
     exerciseId: record.exercise_id,
     exerciseName: record.exercise_name,
-    avgSFR: record.avg_sfr,
-    timesPerformed: record.times_performed,
-    bestSFR: record.best_sfr,
-    worstSFR: record.worst_sfr,
+    avgSFR: record.avg_sfr ?? 0,
+    timesPerformed: record.times_performed ?? 0,
+    bestSFR: record.best_sfr ?? 0,
+    worstSFR: record.worst_sfr ?? 0,
   }));
 }

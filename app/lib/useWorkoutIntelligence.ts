@@ -5,10 +5,10 @@
  * Provides real-time workout intelligence using PhD-level analytics models.
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { SetLog, Exercise } from './types';
-import { getWorkoutIntelligence } from './intelligence/workout-intelligence-service';
-import type { SetRecommendation, SessionFatigueAssessment } from './intelligence/workout-intelligence-service';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { SetLog } from './types';
+import { getWorkoutIntelligence } from './intelligence/workout-intelligence';
+import type { PreWorkoutReadiness, SetRecommendation, SessionFatigueAssessment } from './intelligence/workout-intelligence';
 import { logger } from './logger';
 
 export interface WeightRecommendation {
@@ -47,6 +47,58 @@ export interface WorkoutIntelligence {
   // Loading state
   loading: boolean;
 }
+
+const buildFallbackReadiness = (): PreWorkoutReadiness => ({
+  overallScore: 6.5,
+  overallStatus: 'moderate',
+  acwr: 1.0,
+  acwrStatus: 'unknown',
+  fitnessScore: 50,
+  fatigueScore: 25,
+  performanceScore: 25,
+  muscleReadiness: [],
+  warnings: ['Readiness data is taking longer than expected. Proceed with caution.'],
+  recommendations: ['Start lighter and adjust based on how you feel.'],
+  confidence: 0.2
+});
+
+const READINESS_CACHE_TTL_MS = 5 * 60 * 1000;
+const READINESS_CACHE_PREFIX = 'iron_brain_readiness_cache_';
+
+type ReadinessCacheEntry = {
+  timestamp: number;
+  readiness: PreWorkoutReadiness;
+  source?: 'fallback' | 'real';
+};
+
+const readReadinessCache = (cacheKey: string): ReadinessCacheEntry | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return null;
+    return JSON.parse(raw) as ReadinessCacheEntry;
+  } catch {
+    return null;
+  }
+};
+
+const writeReadinessCache = (
+  cacheKey: string,
+  readiness: PreWorkoutReadiness,
+  source: ReadinessCacheEntry['source'] = 'real'
+) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload: ReadinessCacheEntry = {
+      timestamp: Date.now(),
+      readiness,
+      source,
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(payload));
+  } catch {
+    // Ignore cache write failures
+  }
+};
 
 /**
  * Real-time workout intelligence hook
@@ -101,7 +153,7 @@ export function useWorkoutIntelligence(
     });
 
     return () => { cancelled = true; };
-  }, [intelligence, upcomingExerciseId, completedSets.length, targetReps, targetRPE]);
+  }, [intelligence, upcomingExerciseId, completedSets, targetReps, targetRPE]);
 
   // Assess session fatigue when sets change
   useEffect(() => {
@@ -126,7 +178,7 @@ export function useWorkoutIntelligence(
       });
 
     return () => { cancelled = true; };
-  }, [intelligence, completedSets.length]);
+  }, [intelligence, completedSets]);
 
   // Map new service data to legacy interface for backward compatibility
   const weightRecommendation = useMemo((): WeightRecommendation | null => {
@@ -175,37 +227,97 @@ export function useWorkoutIntelligence(
  * Hook for pre-workout readiness assessment
  */
 export function usePreWorkoutReadiness(userId: string | null, plannedExercises?: string[]) {
-  const [readiness, setReadiness] = useState<Awaited<ReturnType<typeof import('./intelligence/workout-intelligence-service').WorkoutIntelligenceService.prototype.getPreWorkoutReadiness>> | null>(null);
+  const initialPlanKey = plannedExercises && plannedExercises.length > 0
+    ? Array.from(new Set(plannedExercises)).sort().join(',')
+    : '';
+  const initialCacheKey = `${READINESS_CACHE_PREFIX}${userId || 'guest'}_${initialPlanKey || 'all'}`;
+  const [readiness, setReadiness] = useState<PreWorkoutReadiness | null>(() => {
+    const cached = readReadinessCache(initialCacheKey);
+    return cached?.readiness ?? buildFallbackReadiness();
+  });
   const [loading, setLoading] = useState(false);
 
   const intelligence = useMemo(() => getWorkoutIntelligence(userId), [userId]);
+  const requestIdRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const plannedKey = initialPlanKey;
+  const cacheKey = `${READINESS_CACHE_PREFIX}${userId || 'guest'}_${plannedKey || 'all'}`;
 
   useEffect(() => {
     let cancelled = false;
-    logger.debug('🔍 usePreWorkoutReadiness: Starting...', { userId, plannedExercises });
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
+    const plannedExercisesForRequest = plannedKey ? plannedKey.split(',') : undefined;
+    const cached = readReadinessCache(cacheKey);
+    const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+    const hasFreshCache = cached && cached.source !== 'fallback' && cacheAge < READINESS_CACHE_TTL_MS;
+    logger.debug('🔍 usePreWorkoutReadiness: Starting...', { userId, plannedExercises: plannedExercisesForRequest });
+    if (cached) {
+      setReadiness(cached.readiness);
+    }
+
+    if (hasFreshCache) {
+      setLoading(false);
+      return () => {
+        logger.debug('🧹 usePreWorkoutReadiness: Cleanup (cache hit)');
+        cancelled = true;
+      };
+    }
+
+    if (!cached) {
+      const fallback = buildFallbackReadiness();
+      setReadiness(fallback);
+      writeReadinessCache(cacheKey, fallback, 'fallback');
+    }
+
     setLoading(true);
 
-    intelligence.getPreWorkoutReadiness(plannedExercises)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      if (cancelled || requestIdRef.current !== requestId) return;
+      logger.warn('⏱️ usePreWorkoutReadiness: Timeout');
+      const fallback = buildFallbackReadiness();
+      setReadiness((prev) => prev ?? fallback);
+      writeReadinessCache(cacheKey, fallback, 'fallback');
+      setLoading(false);
+    }, 2500);
+
+    intelligence.getPreWorkoutReadiness(plannedExercisesForRequest)
       .then(result => {
         logger.debug('✅ usePreWorkoutReadiness: Got result', result);
-        if (!cancelled) {
+        if (!cancelled && requestIdRef.current === requestId) {
           setReadiness(result);
+          writeReadinessCache(cacheKey, result);
           setLoading(false);
         }
       })
       .catch(err => {
         console.error('❌ usePreWorkoutReadiness: Error getting pre-workout readiness:', err);
-        if (!cancelled) {
-          setReadiness(null);
+        if (!cancelled && requestIdRef.current === requestId) {
+          setReadiness(buildFallbackReadiness());
           setLoading(false);
+        }
+      })
+      .finally(() => {
+        if (requestIdRef.current === requestId && timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
         }
       });
 
     return () => {
       logger.debug('🧹 usePreWorkoutReadiness: Cleanup');
       cancelled = true;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
-  }, [intelligence, plannedExercises?.join(',')]);
+  }, [cacheKey, intelligence, plannedKey, userId]);
 
   return { readiness, loading };
 }

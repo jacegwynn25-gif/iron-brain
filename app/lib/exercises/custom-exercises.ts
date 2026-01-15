@@ -1,7 +1,50 @@
 import { supabase } from '../supabase/client';
 import type { CustomExercise } from '../types';
+import type { Database } from '../supabase/database.types';
 
 const LOCAL_STORAGE_KEY = 'iron_brain_custom_exercises';
+
+type SupabaseCustomExerciseUpdate = Database['public']['Tables']['custom_exercises']['Update'];
+
+const EQUIPMENT_VALUES: CustomExercise['equipment'][] = [
+  'barbell',
+  'dumbbell',
+  'cable',
+  'machine',
+  'bodyweight',
+  'kettlebell',
+  'band',
+  'other',
+];
+
+const EXERCISE_TYPE_VALUES: CustomExercise['exerciseType'][] = ['compound', 'isolation'];
+
+const MOVEMENT_PATTERN_VALUES: NonNullable<CustomExercise['movementPattern']>[] = [
+  'push',
+  'pull',
+  'squat',
+  'hinge',
+  'carry',
+  'rotation',
+  'other',
+];
+
+function normalizeEquipment(value: string): CustomExercise['equipment'] {
+  return EQUIPMENT_VALUES.includes(value as CustomExercise['equipment']) ? (value as CustomExercise['equipment']) : 'other';
+}
+
+function normalizeExerciseType(value: string): CustomExercise['exerciseType'] {
+  return EXERCISE_TYPE_VALUES.includes(value as CustomExercise['exerciseType'])
+    ? (value as CustomExercise['exerciseType'])
+    : 'compound';
+}
+
+function normalizeMovementPattern(value: string | null): CustomExercise['movementPattern'] {
+  if (!value) return undefined;
+  return MOVEMENT_PATTERN_VALUES.includes(value as NonNullable<CustomExercise['movementPattern']>)
+    ? (value as NonNullable<CustomExercise['movementPattern']>)
+    : 'other';
+}
 
 /**
  * Get all custom exercises for user
@@ -11,7 +54,7 @@ export async function getCustomExercises(userId: string | null): Promise<CustomE
   // Try Supabase first if logged in
   if (userId) {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('custom_exercises')
         .select('*')
         .eq('user_id', userId)
@@ -19,16 +62,17 @@ export async function getCustomExercises(userId: string | null): Promise<CustomE
 
       if (!error && data) {
         // Transform from snake_case database to camelCase TypeScript
-        return data.map((d: any) => ({
+        const rows = data ?? [];
+        return rows.map((d) => ({
           id: d.id,
           userId: d.user_id,
           name: d.name,
           slug: d.slug,
-          equipment: d.equipment,
-          exerciseType: d.exercise_type,
+          equipment: normalizeEquipment(d.equipment),
+          exerciseType: normalizeExerciseType(d.exercise_type),
           primaryMuscles: d.primary_muscles || [],
           secondaryMuscles: d.secondary_muscles || [],
-          movementPattern: d.movement_pattern,
+          movementPattern: normalizeMovementPattern(d.movement_pattern),
           trackWeight: d.track_weight ?? true,
           trackReps: d.track_reps ?? true,
           trackTime: d.track_time ?? false,
@@ -75,7 +119,7 @@ export async function createCustomExercise(
   // Save to Supabase if logged in
   if (userId) {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('custom_exercises')
         .insert({
           id,
@@ -122,9 +166,7 @@ export async function updateCustomExercise(
 
   if (userId) {
     try {
-      const updateData: any = {
-        updated_at: now,
-      };
+      const updateData: SupabaseCustomExerciseUpdate = { updated_at: now };
 
       if (updates.name) {
         updateData.name = updates.name;
@@ -138,9 +180,11 @@ export async function updateCustomExercise(
       if (updates.trackWeight !== undefined) updateData.track_weight = updates.trackWeight;
       if (updates.trackReps !== undefined) updateData.track_reps = updates.trackReps;
       if (updates.trackTime !== undefined) updateData.track_time = updates.trackTime;
-      if (updates.defaultRestSeconds) updateData.default_rest_seconds = updates.defaultRestSeconds;
+      if (updates.defaultRestSeconds !== undefined) {
+        updateData.default_rest_seconds = updates.defaultRestSeconds;
+      }
 
-      await (supabase as any)
+      await supabase
         .from('custom_exercises')
         .update(updateData)
         .eq('id', exerciseId);
@@ -168,7 +212,7 @@ export async function updateCustomExercise(
 export async function deleteCustomExercise(userId: string | null, exerciseId: string): Promise<void> {
   if (userId) {
     try {
-      await (supabase as any).from('custom_exercises').delete().eq('id', exerciseId);
+      await supabase.from('custom_exercises').delete().eq('id', exerciseId);
     } catch (err) {
       console.error('Failed to delete from Supabase:', err);
     }

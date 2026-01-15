@@ -2,10 +2,12 @@ import { logger } from './logger';
 import { WorkoutSession, SetLog } from './types';
 import { shouldTriggerAutoReduction, calculateAdjustedWeight, calculateMuscleFatigue } from './fatigueModel';
 import { supabase } from './supabase/client';
-import { getProgramSetId } from './supabase/program-sync';
 import { saveFatigueSnapshot, getRecoveryProfiles } from './fatigue/cross-session';
 import { calculateWorkoutSFR, saveSFRAnalysis } from './fatigue/sfr';
 import { defaultExercises } from './programs';
+import { createUuid, isValidUuid } from './uuid';
+import { queueOperation, isOnline } from './sync/offline-queue';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -17,6 +19,15 @@ const STORAGE_KEYS = {
 } as const;
 
 let activeUserNamespace = 'default';
+
+type WorkoutMetadata = {
+  programId?: string;
+  programName?: string;
+  cycleNumber?: number;
+  weekNumber?: number;
+  dayOfWeek?: string;
+  dayName?: string;
+};
 
 /**
  * Set user namespace and migrate any orphaned workouts
@@ -56,43 +67,7 @@ export function setUserNamespace(userId: string | null) {
 
 const getKey = (base: string) => `${base}__${activeUserNamespace}`;
 
-// Cache for exercise slug -> UUID mapping
-let exerciseSlugToIdCache: Map<string, string> | null = null;
-
-/**
- * Load exercise slug to UUID mapping from Supabase
- * Caches the result to avoid repeated queries
- */
-async function getExerciseIdBySlug(slug: string): Promise<string | null> {
-  // Load cache if not already loaded
-  if (!exerciseSlugToIdCache) {
-    try {
-      const { data: exercises, error } = await supabase
-        .from('exercises')
-        .select('id, slug')
-        .not('slug', 'is', null);
-
-      if (error) {
-        console.error('Failed to load exercise mappings:', error);
-        return null;
-      }
-
-      exerciseSlugToIdCache = new Map();
-      (exercises as any[])?.forEach((ex: any) => {
-        if (ex.slug) {
-          exerciseSlugToIdCache!.set(ex.slug, ex.id);
-        }
-      });
-
-      logger.debug(`📚 Loaded ${exerciseSlugToIdCache.size} exercise mappings`);
-    } catch (err) {
-      console.error('Error loading exercise mappings:', err);
-      return null;
-    }
-  }
-
-  return exerciseSlugToIdCache.get(slug) || null;
-}
+// Reserved for future exercise slug -> UUID mapping if needed.
 
 // ============================================================
 // ACTIVE SESSION MANAGEMENT (Anti-Data Loss)
@@ -103,6 +78,13 @@ export interface ActiveSessionPayload {
   weekNumber: number;
   dayIndex: number;
   programId: string;
+  currentSetIndex?: number;
+  currentExerciseId?: string;
+  view?: 'selection' | 'logging' | 'rest';
+  isResting?: boolean;
+  restTimerSeconds?: number | null;
+  restTimerStartedAt?: string | null;
+  lastUpdated?: string;
   savedAt: string; // ISO timestamp
   version: number; // For future schema migrations
 }
@@ -121,6 +103,7 @@ export function saveActiveSession(
     const fullPayload: ActiveSessionPayload = {
       ...payload,
       savedAt: new Date().toISOString(),
+      lastUpdated: payload.lastUpdated ?? new Date().toISOString(),
       version: 1,
     };
 
@@ -277,12 +260,42 @@ function clearStaleActiveSessions(): void {
 
 export async function saveWorkout(session: WorkoutSession): Promise<void> {
   logger.debug('🔵 saveWorkout called');
+  let sessionToQueue = session;
   try {
+    // Normalize session ID to always include a valid UUID
+    let workoutUuid = session.id.startsWith('session_')
+      ? session.id.substring(8)
+      : session.id;
+    let sessionToSave = session;
+
+    if (!isValidUuid(workoutUuid)) {
+      workoutUuid = createUuid();
+      sessionToSave = {
+        ...session,
+        id: `session_${workoutUuid}`,
+      };
+      console.warn('⚠️ Invalid workout session ID detected; regenerated UUID.', {
+        previousId: session.id,
+        regeneratedId: sessionToSave.id,
+      });
+    }
+    sessionToQueue = sessionToSave;
+
     // Always save to localStorage first (for offline support)
     const history = getWorkoutHistory();
-    history.push(session);
+    history.push(sessionToSave);
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(history));
     logger.debug('✅ Saved to localStorage');
+
+    const queueWorkout = () => {
+      queueOperation('create', 'workout_sessions', sessionToSave);
+    };
+
+    if (!isOnline()) {
+      logger.debug('📥 Offline - queued workout for sync');
+      queueWorkout();
+      return;
+    }
 
     // Also save to Supabase if user is logged in
     logger.debug('🔍 Checking if user is logged in...');
@@ -290,6 +303,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
     if (userError) {
       console.error('❌ Error getting user:', userError);
+      queueWorkout();
       return;
     }
 
@@ -298,71 +312,66 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
     if (user) {
       logger.debug('💾 Syncing workout to Supabase...');
 
-      // Extract UUID from app ID (remove "session_" prefix if present)
-      const workoutUuid = session.id.startsWith('session_')
-        ? session.id.substring(8)
-        : session.id;
-
       // Prepare program metadata for storage
-      const metadata: any = {};
-      if (session.programId) metadata.programId = session.programId;
-      if (session.programName) metadata.programName = session.programName;
-      if (session.cycleNumber) metadata.cycleNumber = session.cycleNumber;
-      if (session.weekNumber) metadata.weekNumber = session.weekNumber;
-      if (session.dayOfWeek) metadata.dayOfWeek = session.dayOfWeek;
-      if (session.dayName) metadata.dayName = session.dayName;
+      const metadata: WorkoutMetadata = {};
+      if (sessionToSave.programId) metadata.programId = sessionToSave.programId;
+      if (sessionToSave.programName) metadata.programName = sessionToSave.programName;
+      if (sessionToSave.cycleNumber) metadata.cycleNumber = sessionToSave.cycleNumber;
+      if (sessionToSave.weekNumber) metadata.weekNumber = sessionToSave.weekNumber;
+      if (sessionToSave.dayOfWeek) metadata.dayOfWeek = sessionToSave.dayOfWeek;
+      if (sessionToSave.dayName) metadata.dayName = sessionToSave.dayName;
 
       // Create workout session in Supabase
-      const { data: supabaseSession, error: sessionError} = await (supabase
-        .from('workout_sessions') as any)
-        .insert({
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .upsert({
           id: workoutUuid,
           user_id: user.id,
-          name: session.programName || 'Workout',
-          date: session.date,
-          start_time: session.startTime,
-          end_time: session.endTime,
-          duration_minutes: session.durationMinutes,
-          bodyweight: session.bodyweight,
-          notes: session.notes,
+          name: sessionToSave.dayName || sessionToSave.programName || 'Workout',
+          date: sessionToSave.date,
+          start_time: sessionToSave.startTime,
+          end_time: sessionToSave.endTime,
+          duration_minutes: sessionToSave.durationMinutes,
+          bodyweight: sessionToSave.bodyweight,
+          notes: sessionToSave.notes,
           metadata: metadata,
           status: 'completed',
-          total_sets: session.sets?.length || 0,
-          total_reps: session.sets?.reduce((sum, s) => sum + (s.actualReps || 0), 0) || 0,
-          total_volume_load: session.sets?.reduce((sum, s) => sum + ((s.actualWeight || 0) * (s.actualReps || 0)), 0) || 0,
-          average_rpe: session.sets?.length ? session.sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / session.sets.length : null,
+          total_sets: sessionToSave.sets?.length || 0,
+          total_reps: sessionToSave.sets?.reduce((sum, s) => sum + (s.actualReps || 0), 0) || 0,
+          total_volume_load: sessionToSave.sets?.reduce((sum, s) => sum + ((s.actualWeight || 0) * (s.actualReps || 0)), 0) || 0,
+          average_rpe: sessionToSave.sets?.length ? sessionToSave.sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / sessionToSave.sets.length : null,
         })
         .select()
         .single();
 
       if (sessionError) {
-        console.error('Failed to save workout session to Supabase:', sessionError);
-        console.error('Error details:', JSON.stringify(sessionError, null, 2));
+        const errorPayload: Pick<PostgrestError, 'message' | 'details' | 'hint' | 'code'> = {
+          message: sessionError.message,
+          details: sessionError.details,
+          hint: sessionError.hint,
+          code: sessionError.code,
+        };
+        console.error('Failed to save workout session to Supabase:', errorPayload);
+        console.error('Workout session payload:', {
+          id: workoutUuid,
+          user_id: user.id,
+          date: sessionToSave.date,
+        });
+        queueWorkout();
         return; // Don't try to save sets if session failed
       }
 
+      const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
+
       // Save each set
-      if (session.sets && session.sets.length > 0 && supabaseSession) {
-        logger.debug(`💾 Saving ${session.sets.length} sets to Supabase...`);
-        logger.debug('First set data:', JSON.stringify(session.sets[0], null, 2));
+      if (sessionToSave.sets && sessionToSave.sets.length > 0) {
+        logger.debug(`💾 Saving ${sessionToSave.sets.length} sets to Supabase...`);
+        logger.debug('First set data:', JSON.stringify(sessionToSave.sets[0], null, 2));
 
-        for (let i = 0; i < session.sets.length; i++) {
-          const set = session.sets[i];
+        let setSyncFailed = false;
 
-          // Try to resolve program_set_id (optional, non-blocking)
-          let programSetUuid: string | null = null;
-          try {
-            programSetUuid = await getProgramSetId(
-              session.programId,
-              session.weekNumber,
-              session.metadata?.dayIndex ?? 0,
-              set.setIndex || i + 1,
-              set.exerciseId
-            );
-          } catch (err) {
-            // Non-critical - continue without program_set_id
-            console.debug('Could not resolve program_set_id:', err);
-          }
+        for (let i = 0; i < sessionToSave.sets.length; i++) {
+          const set = sessionToSave.sets[i];
 
           logger.debug(`Set ${i + 1} raw data:`, {
             exerciseId: set.exerciseId,
@@ -373,11 +382,11 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
             e1rm: set.e1rm,
           });
 
-          const { error: setError } = await (supabase.from('set_logs') as any).insert({
+          const { error: setError } = await supabase.from('set_logs').insert({
             workout_session_id: workoutUuid,
             exercise_id: null, // Set to NULL - we use exercise_slug instead
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
-            program_set_id: programSetUuid, // Populated when available (hybrid architecture)
+            program_set_id: null,
             order_index: i,
             set_index: set.setIndex || i + 1,
             // Prescribed values (what the program said to do)
@@ -407,7 +416,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
             console.error(`Failed to save set ${i + 1}:`, setError);
             console.error(`Set ${i + 1} error details:`, JSON.stringify(setError, null, 2));
             console.error(`Set ${i + 1} data being sent:`, {
-              workout_session_id: supabaseSession.id,
+              workout_session_id: sessionId,
               exercise_id: set.exerciseId,
               order_index: i,
               set_index: set.setIndex || i + 1,
@@ -416,17 +425,23 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
               actual_rpe: set.actualRPE,
               actual_rir: set.actualRIR,
             });
+            setSyncFailed = true;
           }
         }
 
-        logger.debug(`✅ Saved ${session.sets.length} sets to Supabase`);
+        logger.debug(`✅ Saved ${sessionToSave.sets.length} sets to Supabase`);
+
+        if (setSyncFailed) {
+          logger.debug('⚠️ Set sync failed - queued workout for retry');
+          queueWorkout();
+        }
 
         // PHASE 2: Save fatigue snapshot for cross-session tracking
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (user && session.sets.length > 0) {
+          if (user && sessionToSave.sets.length > 0) {
             // Calculate fatigue for all trained muscles
-            const completedSets = session.sets.filter(s => s.completed);
+            const completedSets = sessionToSave.sets.filter(s => s.completed);
             if (completedSets.length > 0) {
               // Track fatigue for all major muscle groups
               const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
@@ -436,15 +451,15 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
               const significantFatigue = fatigueScores.filter(f => f.fatigueLevel > 5);
 
               if (significantFatigue.length > 0) {
-                await saveFatigueSnapshot(user.id, supabaseSession!.id, significantFatigue);
+                await saveFatigueSnapshot(user.id, sessionId, significantFatigue);
                 logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
               }
 
               // PHASE 3: Calculate and save SFR analysis
               try {
-                const sfrSummary = calculateWorkoutSFR(completedSets, fatigueScores);
+                const sfrSummary = calculateWorkoutSFR(completedSets);
                 if (sfrSummary.exerciseAnalyses.length > 0) {
-                  await saveSFRAnalysis(user.id, supabaseSession!.id, sfrSummary);
+                  await saveSFRAnalysis(user.id, sessionId, sfrSummary);
                 }
               } catch (sfrError) {
                 console.warn('Could not save SFR analysis:', sfrError);
@@ -461,10 +476,13 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
       }
 
       logger.debug('✅ Workout synced to Supabase!');
+    } else {
+      queueWorkout();
     }
   } catch (error) {
     console.error('Failed to save workout:', error);
     // Don't throw - we want localStorage save to succeed even if Supabase fails
+    queueOperation('create', 'workout_sessions', sessionToQueue);
   }
 }
 
@@ -502,6 +520,68 @@ export async function deleteWorkout(id: string): Promise<void> {
   } catch (error) {
     console.error('Failed to move workout to trash:', error);
     throw error;
+  }
+}
+
+export async function updateWorkoutDetails(
+  id: string,
+  updates: Partial<Pick<WorkoutSession, 'date' | 'startTime' | 'endTime' | 'durationMinutes'>>
+): Promise<WorkoutSession | null> {
+  try {
+    const normalizeId = (value: string) => (value.startsWith('session_') ? value.substring(8) : value);
+    const matches = (a: string, b: string) => normalizeId(a) === normalizeId(b);
+
+    const history = getWorkoutHistory();
+    const index = history.findIndex(session => matches(session.id, id));
+    if (index === -1) {
+      logger.debug('Workout not found for update:', id);
+      return null;
+    }
+
+    const updatedSession: WorkoutSession = {
+      ...history[index],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    history[index] = updatedSession;
+    setWorkoutHistory(history);
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('❌ Error getting user for workout update:', userError);
+      return updatedSession;
+    }
+
+    if (user) {
+      const payload: Partial<{
+        date: string;
+        start_time: string | null;
+        end_time: string | null;
+        duration_minutes: number | null;
+      }> = {};
+      if (updates.date !== undefined) payload.date = updates.date;
+      if (updates.startTime !== undefined) payload.start_time = updates.startTime;
+      if (updates.endTime !== undefined) payload.end_time = updates.endTime;
+      if (updates.durationMinutes !== undefined) payload.duration_minutes = updates.durationMinutes;
+
+      if (Object.keys(payload).length > 0) {
+        const normalizedId = normalizeId(id);
+        const { error } = await supabase
+          .from('workout_sessions')
+          .update(payload)
+          .eq('id', normalizedId)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Failed to update workout in Supabase:', error);
+        }
+      }
+    }
+
+    return updatedSession;
+  } catch (error) {
+    console.error('Failed to update workout details:', error);
+    return null;
   }
 }
 
@@ -1021,6 +1101,7 @@ export const storage = {
   getWorkoutHistory,
   setWorkoutHistory,
   getWorkoutById,
+  updateWorkoutDetails,
   deleteWorkout,
   deleteWorkoutSession: deleteWorkout, // Alias for clarity
 

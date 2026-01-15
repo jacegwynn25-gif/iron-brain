@@ -1,92 +1,239 @@
-/**
- * Program template sync utilities for hybrid architecture
- * Maps app program IDs to database UUIDs for program_set_id population
- */
+'use client';
 
 import { supabase } from './client';
 import { logger } from '../logger';
-
-// In-memory cache for program template UUIDs
-// Key format: "app_program_id" → UUID
-let programTemplateCache: Map<string, string> | null = null;
+import type { ProgramTemplate } from '../types';
+import { queueOperation, isOnline } from '../sync/offline-queue';
+import type { PostgrestError } from '@supabase/supabase-js';
+import type { Json } from './database.types';
 
 /**
- * Load all program templates from database and cache their UUIDs
+ * Program Cloud Sync
+ *
+ * Automatically syncs custom programs to Supabase for cross-device access
+ * - Auto-saves while building programs
+ * - Loads programs from cloud on login
+ * - Merges local and cloud (cloud wins for conflicts)
  */
-async function loadProgramTemplateCache(): Promise<void> {
-  const { data: templates, error } = await supabase
-    .from('program_templates')
-    .select('id, app_program_id')
-    .eq('is_system', true);
 
-  if (error) {
-    console.warn('Could not load program templates:', error.message);
-    programTemplateCache = new Map();
-    return;
+/**
+ * Save a program to Supabase
+ */
+export async function saveProgramToCloud(program: ProgramTemplate, userId: string): Promise<boolean> {
+  try {
+    if (!isOnline()) {
+      queueOperation('update', 'custom_programs', { program });
+      logger.debug('📥 Offline - queued program for sync');
+      return true;
+    }
+
+    const programData: Json = JSON.parse(JSON.stringify(program));
+
+    const { error } = await supabase
+      .from('custom_programs')
+      .upsert({
+        id: program.id,
+        user_id: userId,
+        program_data: programData,
+        name: program.name,
+        is_custom: program.isCustom ?? true,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      const errorPayload: Pick<PostgrestError, 'message' | 'details' | 'hint' | 'code'> = {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      };
+      console.error('Failed to save program to cloud:', errorPayload);
+      logger.debug('Program sync error:', errorPayload);
+      queueOperation('update', 'custom_programs', { program });
+      return false;
+    }
+
+    logger.debug(`✅ Synced program "${program.name}" to cloud`);
+    return true;
+  } catch (err) {
+    console.error('Error syncing program:', err);
+    return false;
+  }
+}
+
+/**
+ * Load all programs from Supabase
+ */
+export async function loadProgramsFromCloud(userId: string): Promise<ProgramTemplate[]> {
+  try {
+    const { data, error } = await supabase
+      .from('custom_programs')
+      .select('program_data, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to load programs from cloud:', error);
+      return [];
+    }
+
+    const parseWeeks = (value: Json): ProgramTemplate['weeks'] | null => {
+      if (!Array.isArray(value)) {
+        return null;
+      }
+
+      return JSON.parse(JSON.stringify(value)) as ProgramTemplate['weeks'];
+    };
+
+    const parseProgramTemplate = (value: Json): ProgramTemplate | null => {
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return null;
+      }
+
+      const record = value as Record<string, Json>;
+      if (typeof record.id !== 'string' || typeof record.name !== 'string') {
+        return null;
+      }
+
+      const weeks = parseWeeks(record.weeks);
+      if (!weeks) {
+        return null;
+      }
+
+      return {
+        id: record.id,
+        name: record.name,
+        description: typeof record.description === 'string' ? record.description : undefined,
+        author: typeof record.author === 'string' ? record.author : undefined,
+        goal: typeof record.goal === 'string' ? (record.goal as ProgramTemplate['goal']) : undefined,
+        experienceLevel: typeof record.experienceLevel === 'string'
+          ? (record.experienceLevel as ProgramTemplate['experienceLevel'])
+          : undefined,
+        daysPerWeek: typeof record.daysPerWeek === 'number' ? record.daysPerWeek : undefined,
+        weekCount: typeof record.weekCount === 'number' ? record.weekCount : undefined,
+        intensityMethod: typeof record.intensityMethod === 'string'
+          ? (record.intensityMethod as ProgramTemplate['intensityMethod'])
+          : undefined,
+        isCustom: typeof record.isCustom === 'boolean' ? record.isCustom : undefined,
+        weeks,
+      };
+    };
+
+    const rows = (data ?? []) as Array<{ program_data: Json }>;
+    const programs = rows
+      .map(row => parseProgramTemplate(row.program_data))
+      .filter((value): value is ProgramTemplate => value !== null);
+    logger.debug(`📥 Loaded ${programs.length} programs from cloud`);
+    return programs;
+  } catch (err) {
+    console.error('Error loading programs from cloud:', err);
+    return [];
+  }
+}
+
+/**
+ * Delete a program from Supabase
+ */
+export async function deleteProgramFromCloud(programId: string, userId: string): Promise<boolean> {
+  try {
+    if (!isOnline()) {
+      queueOperation('delete', 'custom_programs', { programId });
+      logger.debug('📥 Offline - queued program delete');
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('custom_programs')
+      .delete()
+      .eq('id', programId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Failed to delete program from cloud:', error);
+      queueOperation('delete', 'custom_programs', { programId });
+      return false;
+    }
+
+    logger.debug(`🗑️ Deleted program ${programId} from cloud`);
+    return true;
+  } catch (err) {
+    console.error('Error deleting program from cloud:', err);
+    return false;
+  }
+}
+
+/**
+ * Sync all local programs to cloud (retroactive sync)
+ */
+export async function syncAllProgramsToCloud(programs: ProgramTemplate[], userId: string): Promise<number> {
+  let successCount = 0;
+
+  for (const program of programs) {
+    const success = await saveProgramToCloud(program, userId);
+    if (success) {
+      successCount++;
+    }
   }
 
-  programTemplateCache = new Map();
-  (templates as any[])?.forEach((template: any) => {
-    if (template.app_program_id) {
-      programTemplateCache!.set(template.app_program_id, template.id);
+  logger.debug(`✅ Synced ${successCount}/${programs.length} programs to cloud`);
+  return successCount;
+}
+
+/**
+ * Merge local and cloud programs (cloud wins for conflicts)
+ */
+export function mergeProgramsWithCloud(
+  localPrograms: ProgramTemplate[],
+  cloudPrograms: ProgramTemplate[]
+): ProgramTemplate[] {
+  // Create map of cloud programs by ID
+  const cloudMap = new Map<string, ProgramTemplate>();
+  cloudPrograms.forEach(p => cloudMap.set(p.id, p));
+
+  // Create map of local programs by ID
+  const localMap = new Map<string, ProgramTemplate>();
+  localPrograms.forEach(p => localMap.set(p.id, p));
+
+  // Merge: prefer cloud version for conflicts, keep local-only programs
+  const mergedMap = new Map<string, ProgramTemplate>();
+
+  // Add all cloud programs (they win conflicts)
+  cloudPrograms.forEach(p => mergedMap.set(p.id, p));
+
+  // Add local-only programs (not in cloud)
+  localPrograms.forEach(p => {
+    if (!cloudMap.has(p.id)) {
+      mergedMap.set(p.id, p);
     }
   });
 
-  logger.debug(`✅ Loaded ${programTemplateCache.size} program templates into cache`);
+  const merged = Array.from(mergedMap.values());
+
+  logger.debug('📊 Program merge:', {
+    cloud: cloudPrograms.length,
+    local: localPrograms.length,
+    merged: merged.length,
+    cloudWins: cloudPrograms.filter(cp => localMap.has(cp.id)).length,
+    localOnly: localPrograms.filter(lp => !cloudMap.has(lp.id)).length,
+  });
+
+  return merged;
 }
 
 /**
- * Get program template UUID by app program ID
- * Uses cached mapping for fast lookups
+ * Debounced auto-save for program builder
  */
-export async function getProgramTemplateId(appProgramId: string): Promise<string | null> {
-  // Lazy load cache on first use
-  if (!programTemplateCache) {
-    await loadProgramTemplateCache();
+let autoSaveTimeout: NodeJS.Timeout | null = null;
+
+export function autoSaveProgram(program: ProgramTemplate, userId: string, delayMs: number = 2000) {
+  // Clear previous timeout
+  if (autoSaveTimeout) {
+    clearTimeout(autoSaveTimeout);
   }
 
-  return programTemplateCache?.get(appProgramId) || null;
-}
-
-/**
- * Get program_set_id for a specific set in a program
- *
- * NOTE: This is a simplified version for the hybrid architecture.
- * Since we're not seeding program_weeks/program_days/program_sets tables,
- * this will always return null. The program_set_id column exists in the
- * database schema for future extensibility but is optional.
- *
- * When we eventually seed full program structures into the database,
- * this function can be enhanced to look up the actual program_set UUID.
- */
-export async function getProgramSetId(
-  programId: string,
-  weekNumber: number,
-  dayIndex: number,
-  setIndex: number,
-  exerciseId: string
-): Promise<string | null> {
-  // For now, return null since we're using the hybrid approach
-  // (programs as JS objects, only templates table is seeded)
-  return null;
-
-  // Future implementation (when program_sets table is fully seeded):
-  /*
-  const { data, error } = await supabase
-    .from('program_sets')
-    .select('id')
-    .eq('day_id', dayId)
-    .eq('exercise_id', exerciseUuid)
-    .eq('set_index', setIndex)
-    .single();
-
-  return data?.id || null;
-  */
-}
-
-/**
- * Clear the cache (useful for testing or when programs are updated)
- */
-export function clearProgramCache(): void {
-  programTemplateCache = null;
+  // Set new timeout
+  autoSaveTimeout = setTimeout(async () => {
+    logger.debug('💾 Auto-saving program...');
+    await saveProgramToCloud(program, userId);
+  }, delayMs);
 }

@@ -42,7 +42,6 @@ export default function NumericKeypad({
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     setTimeout(() => setVisible(true), 10);
   }, []);

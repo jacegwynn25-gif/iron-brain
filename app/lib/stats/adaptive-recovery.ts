@@ -16,12 +16,11 @@
  * - Warns of maladaptation (overtraining risk)
  */
 
-import { SetLog, WorkoutSession } from '../types';
+import { SetLog } from '../types';
 import {
   calculateDescriptiveStats,
   exponentialMovingAverage,
-  detectTrend,
-  DescriptiveStats
+  detectTrend
 } from './statistical-utils';
 
 // ============================================================
@@ -366,8 +365,7 @@ export async function buildAdaptiveRecoveryProfile(
  * Returns expected performance relative to baseline (0-100%)
  */
 export function predictPerformance(
-  recoveryProfile: AdaptiveRecoveryProfile,
-  targetLoad: number
+  recoveryProfile: AdaptiveRecoveryProfile
 ): {
   expectedPerformance: number; // 0-100%
   recommendation: 'proceed' | 'reduce_load' | 'skip';

@@ -20,9 +20,7 @@
 import { SetLog } from '../types';
 import {
   calculateDescriptiveStats,
-  detectOutliersModifiedZ,
-  detectOutliersIQR,
-  DescriptiveStats
+  detectOutliersModifiedZ
 } from './statistical-utils';
 
 // ============================================================
@@ -274,6 +272,7 @@ export function sequentialFatigueAnalysis(
 export interface RobustRegressionResult {
   slope: number;
   intercept: number;
+  rSquared: number;
   robustStdError: number;
   confidence: number;
   interpretation: 'stable' | 'gradual_decline' | 'sharp_decline' | 'improving';
@@ -284,6 +283,7 @@ export function robustRegressionVelocity(velocities: number[]): RobustRegression
     return {
       slope: 0,
       intercept: 0,
+      rSquared: 0,
       robustStdError: 0,
       confidence: 0,
       interpretation: 'stable'
@@ -363,9 +363,18 @@ export function robustRegressionVelocity(velocities: number[]): RobustRegression
     interpretation = 'improving';
   }
 
+  const meanY = sumY / n;
+  const ssTot = velocities.reduce((sum, y) => sum + Math.pow(y - meanY, 2), 0);
+  const ssRes = velocities.reduce(
+    (sum, y, i) => sum + Math.pow(y - (slope * x[i] + intercept), 2),
+    0
+  );
+  const rSquared = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+
   return {
     slope,
     intercept,
+    rSquared,
     robustStdError,
     confidence,
     interpretation
@@ -415,7 +424,6 @@ export function predictNextSetPerformance(
   };
 
   // Uncertainty assessment
-  const intervalWidth = predictionInterval.upper - predictionInterval.lower;
   const coefficientOfVariation = stats.stdDev / stats.mean;
 
   let uncertainty: PerformancePrediction['uncertainty'];

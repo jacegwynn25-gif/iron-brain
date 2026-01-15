@@ -2,6 +2,7 @@
 
 import { supabase } from './client';
 import { storage } from '../storage';
+import type { WorkoutSession } from '../types';
 
 /**
  * Hybrid storage layer that syncs between localStorage and Supabase
@@ -37,7 +38,7 @@ export class SyncStorage {
   /**
    * Save workout session to both localStorage and Supabase (if logged in)
    */
-  async saveWorkoutSession(session: any) {
+  async saveWorkoutSession(session: WorkoutSession): Promise<void> {
     // Always save to localStorage first
     const localSessions = storage.getWorkoutHistory();
     const updatedSessions = [...localSessions, session];
@@ -46,16 +47,16 @@ export class SyncStorage {
     // Sync to Supabase if logged in
     if (await this.isLoggedIn()) {
       try {
-        await (supabase.from('workout_sessions') as any).insert({
+        await supabase.from('workout_sessions').insert({
           user_id: this.userId,
-          name: session.name,
+          name: session.programName || session.dayName || 'Workout',
           date: session.date,
           start_time: session.startTime,
           end_time: session.endTime,
           duration_minutes: session.durationMinutes,
           bodyweight: session.bodyweight,
           notes: session.notes,
-          status: session.status || 'completed',
+          status: session.endTime ? 'completed' : 'in_progress',
           // Store local ID for reference
           // We'll use JSONB to store the full session for now
         });
@@ -69,7 +70,7 @@ export class SyncStorage {
   /**
    * Get workout sessions - merge from both sources
    */
-  async getWorkoutSessions(): Promise<any[]> {
+  async getWorkoutSessions(): Promise<WorkoutSession[]> {
     const localSessions = storage.getWorkoutHistory();
 
     if (!(await this.isLoggedIn())) {
@@ -77,7 +78,7 @@ export class SyncStorage {
     }
 
     try {
-      const { data: supabaseSessions } = await supabase
+      await supabase
         .from('workout_sessions')
         .select('*')
         .eq('user_id', this.userId!);

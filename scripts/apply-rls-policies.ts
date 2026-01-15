@@ -15,6 +15,15 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+type RpcError = { code?: string; message?: string } | null;
+
+const runQuery = (sql: string): Promise<{ error: RpcError }> => {
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: { query_text: string }
+  ) => Promise<{ error: RpcError }>;
+  return rpc('query', { query_text: sql });
+};
 
 async function applyPolicies() {
   console.log('🔄 Applying RLS policies for analytics tables...\n');
@@ -59,7 +68,7 @@ async function applyPolicies() {
     const action = sql.startsWith('ALTER') ? 'Enabling RLS' : 'Creating policy';
 
     try {
-      const { error } = await supabase.rpc('query', { query_text: sql }) as any;
+      const { error } = await runQuery(sql);
 
       if (error && error.code !== '42710') { // Ignore "already exists" errors
         console.error(`❌ ${action} for ${tableName}: ${error.message}`);
@@ -68,8 +77,9 @@ async function applyPolicies() {
         console.log(`✅ ${action} for ${tableName}`);
         successCount++;
       }
-    } catch (err: any) {
-      console.error(`❌ ${action} for ${tableName}: ${err.message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`❌ ${action} for ${tableName}: ${message}`);
       failCount++;
     }
   }

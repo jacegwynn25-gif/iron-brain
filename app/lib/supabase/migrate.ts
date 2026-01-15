@@ -1,11 +1,55 @@
 import { supabase } from './client';
 import { createWorkoutSession, createSetLog } from './workouts';
 
+type LegacyExerciseSet = {
+  weight?: number;
+  reps?: number;
+  rpe?: number;
+  rir?: number;
+  e1rm?: number;
+  type?: string;
+  restSeconds?: number;
+  notes?: string;
+};
+
+type LegacyExercise = {
+  name?: string;
+  slug?: string;
+  description?: string;
+  type?: string;
+  difficulty?: string;
+  trackWeight?: boolean;
+  trackReps?: boolean;
+  trackTime?: boolean;
+  trackDistance?: boolean;
+  isSystem?: boolean;
+  sets?: LegacyExerciseSet[];
+};
+
+type LegacyWorkout = {
+  name?: string;
+  date?: string;
+  bodyweight?: number;
+  notes?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  exercises?: LegacyExercise[];
+};
+
+type LegacySettings = {
+  weightUnit?: string;
+  theme?: string;
+  restTimerSound?: boolean;
+  restTimerVibration?: boolean;
+  defaultRestSeconds?: number;
+  autoStartRestTimer?: boolean;
+};
+
 interface LocalStorageData {
-  workouts?: any[];
-  exercises?: any[];
-  programs?: any[];
-  settings?: any;
+  workouts?: LegacyWorkout[];
+  exercises?: LegacyExercise[];
+  programs?: unknown[];
+  settings?: LegacySettings;
 }
 
 export async function migrateLocalStorageToSupabase(): Promise<{
@@ -36,8 +80,9 @@ export async function migrateLocalStorageToSupabase(): Promise<{
       for (const exercise of data.exercises) {
         // Skip system exercises
         if (exercise.isSystem) continue;
+        if (!exercise.name) continue;
 
-        const { error } = await (supabase.from('exercises') as any).insert({
+        const { error } = await supabase.from('exercises').insert({
           name: exercise.name,
           slug: exercise.slug || exercise.name.toLowerCase().replace(/\s+/g, '-'),
           description: exercise.description,
@@ -72,13 +117,14 @@ export async function migrateLocalStorageToSupabase(): Promise<{
             let orderIndex = 0;
             for (const exercise of workout.exercises) {
               // Find exercise ID
-              const { data: exerciseData } = await (supabase
-                .from('exercises') as any)
+              const { data: exerciseData } = await supabase
+                .from('exercises')
                 .select('id')
                 .or(`slug.eq.${exercise.slug},name.eq.${exercise.name}`)
                 .single();
 
-              if (!exerciseData) continue;
+              const exerciseRow = exerciseData as { id: string } | null;
+              if (!exerciseRow?.id) continue;
 
               if (exercise.sets && Array.isArray(exercise.sets)) {
                 for (let i = 0; i < exercise.sets.length; i++) {
@@ -86,7 +132,7 @@ export async function migrateLocalStorageToSupabase(): Promise<{
 
                   await createSetLog({
                     workout_session_id: session.id,
-                    exercise_id: exerciseData.id,
+                    exercise_id: exerciseRow.id,
                     order_index: orderIndex,
                     set_index: i + 1,
                     actual_weight: set.weight,
@@ -108,8 +154,8 @@ export async function migrateLocalStorageToSupabase(): Promise<{
 
           // Complete the workout
           const endTime = workout.endTime || workout.date;
-          await (supabase
-            .from('workout_sessions') as any)
+          await supabase
+            .from('workout_sessions')
             .update({
               status: 'completed',
               end_time: endTime,
@@ -126,8 +172,8 @@ export async function migrateLocalStorageToSupabase(): Promise<{
 
     // Migrate settings
     if (data.settings) {
-      await (supabase
-        .from('user_settings') as any)
+      await supabase
+        .from('user_settings')
         .update({
           weight_unit: data.settings.weightUnit || 'lbs',
           theme: data.settings.theme || 'system',

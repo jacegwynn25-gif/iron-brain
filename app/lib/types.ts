@@ -116,6 +116,7 @@ export interface ProgramTemplate {
   daysPerWeek?: number;
   weekCount?: number;
   intensityMethod?: 'rpe' | 'rir' | 'percentage' | 'amrap' | 'custom';
+  isCustom?: boolean;
   weeks: WeekTemplate[];
 }
 
@@ -127,8 +128,10 @@ export type WeightUnit = 'lbs' | 'kg';
 export type LoadType = 'absolute' | 'bodyweight' | 'assisted' | 'percentage';
 
 export interface SetLog {
+  id?: string;
   // Reference to prescription
   exerciseId: string;
+  exerciseName?: string;            // Optional cached name for analytics/UI
   setIndex: number;
 
   // What was prescribed
@@ -236,7 +239,7 @@ export interface WorkoutSession {
   // Metadata
   metadata?: {
     dayIndex?: number;              // Index of day within week (for program_set_id mapping)
-    [key: string]: any;             // Extensible for future metadata
+    [key: string]: unknown;         // Extensible for future metadata
   };
   createdAt: string;                // ISO
   updatedAt: string;                // ISO

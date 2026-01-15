@@ -5,6 +5,8 @@
  * Reads programs from app/lib/programs.ts and generates SQL INSERT statements
  */
 
+import fs from 'fs';
+import path from 'path';
 import { allPrograms } from '../app/lib/programs';
 
 function escapeSQL(str: string | undefined): string {
@@ -119,8 +121,6 @@ const sql = generateProgramSeedSQL();
 console.log(sql);
 
 // Also save to file
-const fs = require('fs');
-const path = require('path');
 const outputPath = path.join(__dirname, '../supabase/migrations/007_seed_program_templates.sql');
 fs.writeFileSync(outputPath, sql);
 console.error(`\n✅ SQL migration generated at: ${outputPath}`);

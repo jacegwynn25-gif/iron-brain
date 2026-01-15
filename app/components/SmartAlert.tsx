@@ -46,7 +46,7 @@ interface SmartAlertProps {
       outliersRemoved: number;
       quality: 'excellent' | 'good' | 'fair' | 'poor';
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -82,58 +82,58 @@ export default function SmartAlert({
     switch (type) {
       case 'fatigue':
         if (severity === 'critical') return {
-          bg: 'bg-red-50 dark:bg-red-950/20',
-          border: 'border-red-500 dark:border-red-600',
-          text: 'text-red-900 dark:text-red-100',
-          subtext: 'text-red-700 dark:text-red-300',
-          icon: 'text-red-600 dark:text-red-400',
-          button: 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600',
+          bg: 'bg-red-500/10',
+          border: 'border-red-500/30',
+          text: 'text-red-300',
+          subtext: 'text-red-400',
+          icon: 'text-red-400',
+          button: 'bg-red-500 hover:bg-red-600',
         };
         if (severity === 'high') return {
-          bg: 'bg-orange-50 dark:bg-orange-950/20',
-          border: 'border-orange-500 dark:border-orange-600',
-          text: 'text-orange-900 dark:text-orange-100',
-          subtext: 'text-orange-700 dark:text-orange-300',
-          icon: 'text-orange-600 dark:text-orange-400',
-          button: 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600',
+          bg: 'bg-orange-500/10',
+          border: 'border-orange-500/30',
+          text: 'text-orange-300',
+          subtext: 'text-orange-400',
+          icon: 'text-orange-400',
+          button: 'bg-orange-500 hover:bg-orange-600',
         };
         return {
-          bg: 'bg-amber-50 dark:bg-amber-950/20',
-          border: 'border-amber-500 dark:border-amber-600',
-          text: 'text-amber-900 dark:text-amber-100',
-          subtext: 'text-amber-700 dark:text-amber-300',
-          icon: 'text-amber-600 dark:text-amber-400',
-          button: 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600',
+          bg: 'bg-amber-500/10',
+          border: 'border-amber-500/30',
+          text: 'text-amber-300',
+          subtext: 'text-amber-400',
+          icon: 'text-amber-400',
+          button: 'bg-amber-500 hover:bg-amber-600',
         };
 
       case 'progression':
         return {
-          bg: 'bg-green-50 dark:bg-green-950/20',
-          border: 'border-green-500 dark:border-green-600',
-          text: 'text-green-900 dark:text-green-100',
-          subtext: 'text-green-700 dark:text-green-300',
-          icon: 'text-green-600 dark:text-green-400',
-          button: 'bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600',
+          bg: 'bg-emerald-500/10',
+          border: 'border-emerald-500/30',
+          text: 'text-emerald-300',
+          subtext: 'text-emerald-400',
+          icon: 'text-emerald-400',
+          button: 'bg-emerald-500 hover:bg-emerald-600',
         };
 
       case 'pr-opportunity':
         return {
-          bg: 'bg-purple-50 dark:bg-purple-950/20',
-          border: 'border-purple-500 dark:border-purple-600',
-          text: 'text-purple-900 dark:text-purple-100',
-          subtext: 'text-purple-700 dark:text-purple-300',
-          icon: 'text-purple-600 dark:text-purple-400',
-          button: 'bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600',
+          bg: 'bg-purple-500/10',
+          border: 'border-purple-500/30',
+          text: 'text-purple-300',
+          subtext: 'text-purple-400',
+          icon: 'text-purple-400',
+          button: 'bg-purple-500 hover:bg-purple-600',
         };
 
       default:
         return {
-          bg: 'bg-blue-50 dark:bg-blue-950/20',
-          border: 'border-blue-500 dark:border-blue-600',
-          text: 'text-blue-900 dark:text-blue-100',
-          subtext: 'text-blue-700 dark:text-blue-300',
-          icon: 'text-blue-600 dark:text-blue-400',
-          button: 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600',
+          bg: 'bg-blue-500/10',
+          border: 'border-blue-500/30',
+          text: 'text-blue-300',
+          subtext: 'text-blue-400',
+          icon: 'text-blue-400',
+          button: 'bg-blue-500 hover:bg-blue-600',
         };
     }
   };
@@ -161,14 +161,14 @@ export default function SmartAlert({
           </p>
         </div>
         {suggestedWeight && (
-          <span className={`flex-shrink-0 rounded-lg bg-white/70 px-2 py-1 text-[11px] font-black ${colors.text} dark:bg-black/20`}>
+          <span className={`flex-shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-[11px] font-black ${colors.text}`}>
             {suggestedWeight} lbs
           </span>
         )}
         {onApply && (
           <button
             onClick={onApply}
-            className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold text-white ${colors.button} transition-all active:scale-95`}
+            className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold text-white ${colors.button} transition-all active:scale-[0.98]`}
           >
             Apply
           </button>
@@ -187,10 +187,10 @@ export default function SmartAlert({
 
   // Full banner alert
   return (
-    <div className={`rounded-xl ${colors.bg} ${colors.border} border-2 p-3 shadow-lg mb-3 animate-fadeIn sm:p-4`}>
+    <div className={`rounded-2xl ${colors.bg} ${colors.border} border p-4 shadow-lg mb-3 animate-fadeIn sm:p-5 backdrop-blur-xl`}>
       <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className={`flex-shrink-0 rounded-lg bg-white/50 p-2 dark:bg-black/20`}>
+        <div className={`flex-shrink-0 rounded-lg bg-white/10 border border-white/10 p-2`}>
           <Icon className={`h-5 w-5 ${colors.icon}`} />
         </div>
 
@@ -213,7 +213,7 @@ export default function SmartAlert({
 
           {/* Weight suggestion display */}
           {suggestedWeight && currentWeight && (
-            <div className={`flex items-center gap-3 mb-3 p-2 rounded-lg bg-white/50 dark:bg-black/20`}>
+            <div className={`flex items-center gap-3 mb-3 p-2 rounded-lg bg-white/10 border border-white/10`}>
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className={`text-sm font-semibold ${colors.subtext}`}>
@@ -224,7 +224,7 @@ export default function SmartAlert({
                   </span>
                 </div>
               </div>
-              <div className={`text-xl font-black ${colors.icon}`}>→</div>
+              <div className={`text-xs font-semibold uppercase tracking-wider ${colors.subtext}`}>to</div>
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className={`text-sm font-semibold ${colors.subtext}`}>
@@ -259,8 +259,8 @@ export default function SmartAlert({
           {metadata?.usingHierarchicalModel && metadata?.personalizedAssessment && (
             <div className={`mb-3 p-3 rounded-lg bg-white/30 dark:bg-black/10 border ${colors.border}`}>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
-                  🎓 Personalized Analysis
+                <span className="text-xs font-bold text-purple-400">
+                  Personalized Analysis
                 </span>
                 <span className="text-[10px] text-gray-500">
                   (Hierarchical Bayesian Model)
@@ -302,11 +302,11 @@ export default function SmartAlert({
 
                 {/* Critical Moment Warning */}
                 {metadata.personalizedAssessment.criticalMoment?.detected && (
-                  <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/20 rounded border border-red-400 dark:border-red-600">
-                    <div className="text-xs font-bold text-red-700 dark:text-red-300 mb-1">
-                      ⚠️ Critical Moment Detected
+                  <div className="mt-2 p-2 bg-red-500/10 rounded border border-red-500/30">
+                    <div className="text-xs font-bold text-red-300 mb-1">
+                      Critical Moment Detected
                     </div>
-                    <div className="text-[11px] text-red-600 dark:text-red-400">
+                    <div className="text-[11px] text-red-400">
                       {metadata.personalizedAssessment.criticalMoment.interpretation}
                     </div>
                   </div>

@@ -20,8 +20,7 @@ import {
 import {
   detectChangePoints,
   sequentialFatigueAnalysis,
-  type ChangePoint,
-  type SequentialFatigueEstimate
+  type ChangePoint
 } from './advanced-methods';
 
 // ============================================================
@@ -107,21 +106,15 @@ export function getOrBuildHierarchicalModel(
 export function assessFatigueWithHierarchicalModel(
   currentExerciseId: string,
   completedSets: SetLog[],
-  hierarchicalModel: HierarchicalFatigueModel,
-  historicalWorkouts?: Array<{
-    date: Date;
-    exercises: Array<{ exerciseId: string; sets: SetLog[] }>;
-  }>
+  hierarchicalModel: HierarchicalFatigueModel
 ): EnhancedFatigueAssessment {
   const setsCompleted = completedSets.filter(s => s.completed).length;
 
   // 1. Get personalized prediction for next set
-  const lastSetRPE = completedSets[completedSets.length - 1]?.actualRPE;
   const nextSetPrediction = predictFatigueNextSet(
     hierarchicalModel,
     currentExerciseId,
-    setsCompleted,
-    lastSetRPE ?? undefined // Convert null to undefined
+    setsCompleted
   );
 
   // 2. Calculate current fatigue state
@@ -401,8 +394,7 @@ export function getEnhancedFatigueAssessment(
   return assessFatigueWithHierarchicalModel(
     currentExerciseId,
     completedSets,
-    model,
-    allHistoricalWorkouts
+    model
   );
 }
 
@@ -410,7 +402,7 @@ export function getEnhancedFatigueAssessment(
  * Check if we have enough data for hierarchical modeling
  */
 export function canUseHierarchicalModel(
-  historicalWorkouts: Array<{ date: Date; exercises: Array<any> }>
+  historicalWorkouts: Array<{ date: Date; exercises: Array<{ exerciseId: string; sets: SetLog[] }> }>
 ): boolean {
   // Need at least 3 workouts for meaningful personalization
   if (historicalWorkouts.length < 3) return false;

@@ -1,6 +1,10 @@
 import { SetLog } from './types';
 import { defaultExercises } from './programs';
 import { logger } from './logger';
+import { analyzeSampleSizePower, cleanAndValidateData } from './stats/advanced-methods';
+import { analyzeVBTFatigue, type VBTAnalysis } from './stats/velocity-based-training';
+import { analyzeBayesianRPE, type BayesianRPEAnalysis } from './stats/bayesian-rpe';
+import { getEnhancedFatigueAssessment, canUseHierarchicalModel } from './stats/fatigue-integration';
 
 /**
  * Science-Backed Fatigue Model for Auto-Regulation
@@ -555,7 +559,7 @@ export interface TrueFatigueIndicators {
   reasoning: string;
   scientificBasis: string;
   confidence: number;
-  vbtAnalysis?: any; // Full VBT analysis object
+  vbtAnalysis?: VBTAnalysis; // Full VBT analysis object
   dataQuality?: {
     originalSets: number;
     cleanedSets: number;
@@ -596,18 +600,17 @@ export function detectTrueFatigue(
   }
 
   // DATA CLEANING: Remove outliers and validate data quality
-  let dataQualityReport;
+  let dataQualityReport: ReturnType<typeof cleanAndValidateData>['report'] | null = null;
   try {
-    const { cleanAndValidateData } = require('./stats/advanced-methods');
     const cleaningResult = cleanAndValidateData(relevantSets);
     relevantSets = cleaningResult.cleanedSets;
     dataQualityReport = cleaningResult.report;
 
     // Log quality issues if any
-    if (dataQualityReport.outliersRemoved > 0) {
-      logger.debug(`Data cleaning: Removed ${dataQualityReport.outliersRemoved} outlier sets`);
+    if (dataQualityReport.removedCount > 0) {
+      logger.debug(`Data cleaning: Removed ${dataQualityReport.removedCount} outlier sets`);
     }
-  } catch (err) {
+  } catch {
     console.warn('Data cleaning unavailable, proceeding with raw data');
   }
 
@@ -623,15 +626,13 @@ export function detectTrueFatigue(
 
   // Indicator 3: Velocity-Based Training Analysis (Research-Validated)
   // Use proper VBT methodology from González-Badillo & Sánchez-Medina (2010)
-  let vbtAnalysis = null;
+  let vbtAnalysis: VBTAnalysis | null = null;
   let avgVelocityLoss = 0;
 
   try {
-    // Dynamic import to avoid circular dependencies
-    const { analyzeVBTFatigue } = require('./stats/velocity-based-training');
     vbtAnalysis = analyzeVBTFatigue(relevantSets);
     avgVelocityLoss = vbtAnalysis.velocityLossPercent;
-  } catch (err) {
+  } catch {
     // Fallback if VBT module not available
     console.warn('VBT analysis unavailable, using fallback');
   }
@@ -729,29 +730,33 @@ export function detectTrueFatigue(
   }
 
   // POWER ANALYSIS: Calculate statistical power and sample size recommendations
-  let powerAnalysisResult;
+  let powerAnalysisResult: {
+    currentPower: number;
+    setsNeededForHighPower: number;
+    recommendation: string;
+  } | null = null;
   try {
-    const { analyzeSampleSizePower } = require('./stats/advanced-methods');
     const currentN = relevantSets.length;
     const estimatedEffect = hasFatigue ? 0.5 : 0.2; // Medium effect if fatigued, small otherwise
 
-    powerAnalysisResult = analyzeSampleSizePower(currentN, estimatedEffect, 0.05);
+    const powerAnalysis = analyzeSampleSizePower(currentN, estimatedEffect);
+    const requiredN = Math.ceil(64 * (0.5 / Math.max(0.1, estimatedEffect)) ** 2);
 
     let recommendation = '';
-    if (powerAnalysisResult.power < 0.6) {
-      recommendation = `Low statistical power (${(powerAnalysisResult.power * 100).toFixed(0)}%). Complete ${powerAnalysisResult.requiredN - currentN} more sets for reliable estimate.`;
-    } else if (powerAnalysisResult.power < 0.8) {
-      recommendation = `Moderate power (${(powerAnalysisResult.power * 100).toFixed(0)}%). ${powerAnalysisResult.requiredN - currentN} more sets recommended for high confidence.`;
+    if (powerAnalysis.power < 0.6) {
+      recommendation = `Low statistical power (${(powerAnalysis.power * 100).toFixed(0)}%). Complete ${Math.max(0, requiredN - currentN)} more sets for reliable estimate.`;
+    } else if (powerAnalysis.power < 0.8) {
+      recommendation = `Moderate power (${(powerAnalysis.power * 100).toFixed(0)}%). ${Math.max(0, requiredN - currentN)} more sets recommended for high confidence.`;
     } else {
-      recommendation = `High statistical power (${(powerAnalysisResult.power * 100).toFixed(0)}%). Sample size sufficient for reliable conclusions.`;
+      recommendation = `High statistical power (${(powerAnalysis.power * 100).toFixed(0)}%). Sample size sufficient for reliable conclusions.`;
     }
 
     powerAnalysisResult = {
-      currentPower: powerAnalysisResult.power,
-      setsNeededForHighPower: Math.max(0, powerAnalysisResult.requiredN - currentN),
+      currentPower: powerAnalysis.power,
+      setsNeededForHighPower: Math.max(0, requiredN - currentN),
       recommendation
     };
-  } catch (err) {
+  } catch {
     // Power analysis unavailable
   }
 
@@ -759,8 +764,8 @@ export function detectTrueFatigue(
   const dataQuality = dataQualityReport ? {
     originalSets: sets.filter(s => s.completed).length,
     cleanedSets: relevantSets.length,
-    outliersRemoved: dataQualityReport.outliersRemoved,
-    quality: dataQualityReport.quality
+    outliersRemoved: dataQualityReport.removedCount,
+    quality: dataQualityReport.quality,
   } : undefined;
 
   return {
@@ -776,9 +781,9 @@ export function detectTrueFatigue(
     reasoning,
     scientificBasis,
     confidence,
-    vbtAnalysis,
+    vbtAnalysis: vbtAnalysis ?? undefined,
     dataQuality,
-    powerAnalysis: powerAnalysisResult,
+    powerAnalysis: powerAnalysisResult ?? undefined,
   };
 }
 
@@ -852,11 +857,6 @@ export function detectTrueFatigueEnhanced(
   }
 
   try {
-    const {
-      getEnhancedFatigueAssessment,
-      canUseHierarchicalModel
-    } = require('./stats/fatigue-integration');
-
     // Check if we have enough data
     if (!canUseHierarchicalModel(options.historicalWorkouts)) {
       return {
@@ -877,12 +877,30 @@ export function detectTrueFatigueEnhanced(
       options.historicalWorkouts
     );
 
+    const mapFatigueLevel = (
+      level: 'minimal' | 'low' | 'moderate' | 'high' | 'critical'
+    ): TrueFatigueIndicators['severity'] => {
+      switch (level) {
+        case 'critical':
+          return 'critical';
+        case 'high':
+          return 'high';
+        case 'moderate':
+          return 'moderate';
+        case 'low':
+          return 'mild';
+        case 'minimal':
+        default:
+          return 'none';
+      }
+    };
+
     // Merge standard detection with hierarchical insights
     return {
       ...standardDetection,
       // Override severity if hierarchical model is more confident
       severity: enhanced.confidence > standardDetection.confidence
-        ? enhanced.fatigueLevel
+        ? mapFatigueLevel(enhanced.fatigueLevel)
         : standardDetection.severity,
       hasFatigue: enhanced.currentFatigue > 40 || standardDetection.hasFatigue,
       confidence: Math.max(enhanced.confidence, standardDetection.confidence),
@@ -933,7 +951,7 @@ export interface RPECalibration {
   reasoning: string;
   confidence: number;
   credibleInterval?: { lower: number; upper: number }; // Bayesian credible interval
-  bayesianAnalysis?: any; // Full Bayesian analysis object
+  bayesianAnalysis?: BayesianRPEAnalysis; // Full Bayesian analysis object
 }
 
 export function analyzeRPECalibration(sets: SetLog[], exerciseId?: string): RPECalibration {
@@ -955,15 +973,14 @@ export function analyzeRPECalibration(sets: SetLog[], exerciseId?: string): RPEC
   }
 
   // Try to use Bayesian analysis (with fallback to simple method)
-  let bayesianAnalysis = null;
+  let bayesianAnalysis: BayesianRPEAnalysis | null = null;
   let useBayesian = false;
 
   try {
-    const { analyzeBayesianRPE } = require('./stats/bayesian-rpe');
     // For now, analyze without historical profile (future: load from storage)
     bayesianAnalysis = analyzeBayesianRPE(relevantSets, null);
     useBayesian = true;
-  } catch (err) {
+  } catch {
     console.warn('Bayesian RPE analysis unavailable, using fallback');
   }
 

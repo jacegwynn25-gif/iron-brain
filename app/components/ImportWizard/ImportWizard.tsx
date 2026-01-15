@@ -107,9 +107,9 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-purple-900/90 to-pink-900/90 backdrop-blur-sm rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+      <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-purple-900/95 backdrop-blur-sm p-6 border-b border-purple-700">
+        <div className="sticky top-0 bg-white/5 backdrop-blur-xl p-6 border-b border-white/10">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Import Workout History</h2>
             <button
@@ -125,22 +125,22 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
 
           {/* Progress Steps */}
           <div className="flex items-center gap-4 mt-4">
-            <div className={`flex items-center gap-2 ${step === 'upload' ? 'text-pink-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'upload' ? 'border-pink-400 bg-pink-400/20' : 'border-gray-600'}`}>
+            <div className={`flex items-center gap-2 ${step === 'upload' ? 'text-purple-300' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'upload' ? 'border-purple-400 bg-purple-500/20' : 'border-white/20'}`}>
                 1
               </div>
               <span className="text-sm font-medium">Upload</span>
             </div>
-            <div className="flex-1 h-0.5 bg-gray-700"></div>
-            <div className={`flex items-center gap-2 ${step === 'matching' ? 'text-pink-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'matching' ? 'border-pink-400 bg-pink-400/20' : 'border-gray-600'}`}>
+            <div className="flex-1 h-0.5 bg-white/10"></div>
+            <div className={`flex items-center gap-2 ${step === 'matching' ? 'text-purple-300' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'matching' ? 'border-purple-400 bg-purple-500/20' : 'border-white/20'}`}>
                 2
               </div>
               <span className="text-sm font-medium">Match Exercises</span>
             </div>
-            <div className="flex-1 h-0.5 bg-gray-700"></div>
-            <div className={`flex items-center gap-2 ${step === 'review' || step === 'complete' ? 'text-pink-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'review' || step === 'complete' ? 'border-pink-400 bg-pink-400/20' : 'border-gray-600'}`}>
+            <div className="flex-1 h-0.5 bg-white/10"></div>
+            <div className={`flex items-center gap-2 ${step === 'review' || step === 'complete' ? 'text-purple-300' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step === 'review' || step === 'complete' ? 'border-purple-400 bg-purple-500/20' : 'border-white/20'}`}>
                 3
               </div>
               <span className="text-sm font-medium">Review & Import</span>
@@ -179,8 +179,8 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
 
           {step === 'complete' && session && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -193,7 +193,7 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
                   Date range: {parseLocalDate(session.dateRange.start as any).toLocaleDateString()} - {parseLocalDate(session.dateRange.end as any).toLocaleDateString()}
                 </p>
               )}
-              <div className="bg-purple-800/30 rounded-lg p-4 max-w-md mx-auto">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-w-md mx-auto">
                 <div className="flex items-start gap-3 text-left">
                   <svg className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

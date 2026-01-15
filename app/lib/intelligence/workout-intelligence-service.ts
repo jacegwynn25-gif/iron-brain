@@ -13,6 +13,7 @@
  */
 
 import { supabase } from '../supabase/client';
+import type { Database } from '../supabase/database.types';
 import { logger } from '../logger';
 import type { WorkoutSession, SetLog } from '../types';
 import { getWorkoutHistory } from '../storage';
@@ -20,7 +21,8 @@ import {
   calculateACWR,
   updateFitnessFatigueModel,
   calculateTrainingLoad,
-  type FitnessFatigueModel
+  type FitnessFatigueModel,
+  type WorkloadMetrics
 } from '../stats/adaptive-recovery';
 import {
   buildHierarchicalFatigueModel,
@@ -28,13 +30,10 @@ import {
 } from '../stats/hierarchical-models';
 import {
   getRecoveryProfiles,
-  calculateRecoveryPercentage,
-  calculateReadinessScore,
   type RecoveryProfile
 } from '../fatigue/cross-session';
 import {
   getOrBuildHierarchicalModel,
-  getOrComputeTrainingState,
   incrementalModelUpdate
 } from '../supabase/model-cache';
 
@@ -101,6 +100,62 @@ export interface SessionFatigueAssessment {
   confidence: number; // 0-1
 }
 
+const defaultWorkloadMetrics: WorkloadMetrics = {
+  acuteLoad: 0,
+  chronicLoad: 0,
+  acwr: 1.0,
+  trainingMonotony: 0,
+  trainingStrain: 0,
+  status: 'maintaining',
+  recommendation: '',
+  scientificBasis: ''
+};
+
+const defaultFitnessFatigueModel: FitnessFatigueModel = {
+  userId: 'local',
+  muscleGroup: 'overall',
+  fitnessDecayRate: 7,
+  fatigueDecayRate: 2,
+  fitnessGainCoefficient: 1,
+  fatigueGainCoefficient: 2,
+  currentFitness: 50,
+  currentFatigue: 25,
+  netPerformance: 25,
+  lastTrained: new Date(0),
+  confidence: 0
+};
+
+type SupabaseSetLogRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  | 'exercise_id'
+  | 'exercise_slug'
+  | 'set_index'
+  | 'prescribed_reps'
+  | 'prescribed_rpe'
+  | 'prescribed_rir'
+  | 'actual_weight'
+  | 'actual_reps'
+  | 'actual_rpe'
+  | 'actual_rir'
+  | 'e1rm'
+  | 'volume_load'
+  | 'completed'
+  | 'performed_at'
+>;
+
+type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
+  set_logs?: SupabaseSetLogRow[] | null;
+};
+
+type SessionMetadata = {
+  programName?: string;
+  programId?: string;
+  cycleNumber?: number;
+  weekNumber?: number;
+  dayOfWeek?: number;
+  dayName?: string;
+};
+
 // ============================================================
 // WORKOUT INTELLIGENCE SERVICE
 // ============================================================
@@ -110,7 +165,7 @@ export class WorkoutIntelligenceService {
   private hierarchicalModel: HierarchicalFatigueModel | null = null;
   private fitnessFatigueModel: FitnessFatigueModel | null = null;
   private recoveryProfiles: RecoveryProfile[] = [];
-  private acwrMetrics: any = null;
+  private acwrMetrics: WorkloadMetrics | null = null;
   private lastUpdate: number = 0;
   private cacheDuration = 5 * 60 * 1000; // 5 minutes
 
@@ -132,7 +187,7 @@ export class WorkoutIntelligenceService {
       logger.debug('✅ getPreWorkoutReadiness: Models loaded');
 
       // 1. Get ACWR metrics
-      const acwrData = this.acwrMetrics || { acwr: 1.0, status: 'unknown' };
+      const acwrData = this.acwrMetrics ?? defaultWorkloadMetrics;
       logger.debug('📈 getPreWorkoutReadiness: ACWR data:', acwrData);
 
       // 2. Get recovery profiles
@@ -149,11 +204,7 @@ export class WorkoutIntelligenceService {
       this.recoveryProfiles = recoveryData;
 
       // 3. Get fitness-fatigue state
-      const ffModel = this.fitnessFatigueModel || {
-        currentFitness: 50,
-        currentFatigue: 25,
-        netPerformance: 25
-      };
+      const ffModel = this.fitnessFatigueModel ?? defaultFitnessFatigueModel;
 
       // 4. Calculate muscle readiness for planned exercises
       const muscleReadiness = this.calculateMuscleReadiness(plannedExercises);
@@ -245,7 +296,7 @@ export class WorkoutIntelligenceService {
       // 5. Apply adjustments
       const adjustments: Array<{ factor: string; adjustment: number; reason: string }> = [];
       let finalWeight = baseline.weight;
-      let finalReps = targetReps;
+      const finalReps = targetReps;
 
       // Adjustment 1: Muscle readiness
       if (avgMuscleReadiness < 6) {
@@ -364,7 +415,7 @@ export class WorkoutIntelligenceService {
 
       // 4. Determine if weight reduction is needed
       const shouldReduceWeight = severity === 'high' || severity === 'critical';
-      const reductionPercent = this.calculateReductionPercent(severity, indicators);
+      const reductionPercent = this.calculateReductionPercent(severity);
 
       // 5. Identify affected muscles
       const affectedMuscles = this.getAffectedMuscles(completedSets);
@@ -473,24 +524,27 @@ export class WorkoutIntelligenceService {
         }
 
         // Transform Supabase data to WorkoutSession format
-        const supabaseWorkouts: WorkoutSession[] = (sessions || []).map((s: any) => ({
-          id: s.id,
-          programId: s.program_id,
-          programName: s.program_name || 'Unknown',
-          cycleNumber: s.cycle_number || 1,
-          weekNumber: s.week_number,
-          dayOfWeek: s.day_of_week,
-          dayName: s.day_name || '',
-          date: s.date,
-          startTime: s.start_time,
-          endTime: s.end_time,
-          durationMinutes: s.duration_minutes,
-          totalVolumeLoad: s.total_volume_load,
-          averageRPE: s.average_rpe,
-          sets: (s.set_logs || []).map((sl: any) => ({
-            exerciseId: sl.exercise_id,
-            setIndex: sl.set_index,
-            prescribedReps: sl.prescribed_reps,
+        const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
+        const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
+          const metadata = (s.metadata ?? {}) as SessionMetadata;
+          return {
+            id: s.id,
+            programId: metadata.programId || '',
+            programName: metadata.programName || s.name || 'Unknown',
+            cycleNumber: metadata.cycleNumber || 1,
+            weekNumber: metadata.weekNumber || 1,
+            dayOfWeek: metadata.dayOfWeek != null ? String(metadata.dayOfWeek) : '',
+            dayName: metadata.dayName || '',
+            date: s.date,
+          startTime: s.start_time || undefined,
+          endTime: s.end_time || undefined,
+          durationMinutes: s.duration_minutes || undefined,
+          totalVolumeLoad: s.total_volume_load || undefined,
+          averageRPE: s.average_rpe || undefined,
+          sets: (s.set_logs || []).map((sl) => ({
+            exerciseId: sl.exercise_id || sl.exercise_slug || '',
+            setIndex: sl.set_index || 0,
+            prescribedReps: sl.prescribed_reps != null ? String(sl.prescribed_reps) : '0',
             prescribedRPE: sl.prescribed_rpe,
             prescribedRIR: sl.prescribed_rir,
             actualWeight: sl.actual_weight,
@@ -499,14 +553,15 @@ export class WorkoutIntelligenceService {
             actualRIR: sl.actual_rir,
             e1rm: sl.e1rm,
             volumeLoad: sl.volume_load,
-            completed: sl.completed,
-            formBreakdown: sl.form_breakdown,
-            unintentionalFailure: sl.unintentional_failure,
-            timestamp: sl.timestamp
+            completed: sl.completed !== false,
+            formBreakdown: undefined,
+            reachedFailure: undefined,
+            timestamp: sl.performed_at || undefined
           })),
-          createdAt: s.created_at,
-          updatedAt: s.updated_at
-        }));
+          createdAt: s.created_at || new Date().toISOString(),
+          updatedAt: s.updated_at || new Date().toISOString()
+          };
+        });
 
         // Merge local and Supabase (deduplicate by id)
         const allWorkouts = [...localWorkouts, ...supabaseWorkouts];
@@ -551,6 +606,7 @@ export class WorkoutIntelligenceService {
 
       if (completedWorkouts.length < 3) {
         logger.debug('⚠️ loadModels: Not enough workout history for models (need 3, have ' + completedWorkouts.length + ')');
+        this.lastUpdate = now;
         return;
       }
 
@@ -722,38 +778,46 @@ export class WorkoutIntelligenceService {
     return 'poor';
   }
 
-  private generateWarnings(acwrData: any, muscleReadiness: PreWorkoutReadiness['muscleReadiness'], ffModel: any): string[] {
+  private generateWarnings(
+    acwrData: WorkloadMetrics,
+    muscleReadiness: PreWorkoutReadiness['muscleReadiness'],
+    ffModel: FitnessFatigueModel
+  ): string[] {
     const warnings: string[] = [];
 
     // ACWR warnings
     if (acwrData.acwr > 2.0) {
-      warnings.push('🚨 Critical: Training load is 2-4× higher than usual (high injury risk)');
+      warnings.push('Critical: Training load is 2-4x higher than usual (high injury risk).');
     } else if (acwrData.acwr > 1.5) {
-      warnings.push('⚠️ High training load detected. Consider reducing volume or taking extra rest.');
+      warnings.push('High training load detected. Consider reducing volume or taking extra rest.');
     } else if (acwrData.acwr < 0.5) {
-      warnings.push('⚠️ Training load very low. You may be losing fitness.');
+      warnings.push('Training load is very low. You may be losing fitness.');
     }
 
     // Muscle readiness warnings
     const fatiguedMuscles = muscleReadiness.filter(m => m.status === 'fatigued');
     if (fatiguedMuscles.length > 0) {
-      warnings.push(`⚠️ ${fatiguedMuscles.map(m => m.muscle).join(', ')} not fully recovered (${fatiguedMuscles[0].score.toFixed(1)}/10)`);
+      warnings.push(`${fatiguedMuscles.map(m => m.muscle).join(', ')} not fully recovered (${fatiguedMuscles[0].score.toFixed(1)}/10).`);
     }
 
     // Performance warnings
     if (ffModel.netPerformance < 30) {
-      warnings.push('⚠️ Low performance state. Consider lighter training or rest day.');
+      warnings.push('Low performance state. Consider lighter training or rest day.');
     }
 
     return warnings;
   }
 
-  private generateRecommendations(acwrData: any, muscleReadiness: PreWorkoutReadiness['muscleReadiness'], ffModel: any): string[] {
+  private generateRecommendations(
+    acwrData: WorkloadMetrics,
+    muscleReadiness: PreWorkoutReadiness['muscleReadiness'],
+    ffModel: FitnessFatigueModel
+  ): string[] {
     const recommendations: string[] = [];
 
     // ACWR recommendations
     if (acwrData.acwr >= 0.8 && acwrData.acwr <= 1.3) {
-      recommendations.push('✅ Perfect training zone! Keep up this workload.');
+      recommendations.push('Training load is in the optimal zone. Keep this workload.');
     } else if (acwrData.acwr > 1.5) {
       recommendations.push('Plan a deload week within 1-2 weeks');
     } else if (acwrData.acwr < 0.8) {
@@ -768,7 +832,7 @@ export class WorkoutIntelligenceService {
 
     // Performance recommendations
     if (ffModel.netPerformance > 70) {
-      recommendations.push('✅ Great day to push for PRs!');
+      recommendations.push('Great day to push for PRs.');
     }
 
     return recommendations;
@@ -802,7 +866,18 @@ export class WorkoutIntelligenceService {
       };
     }
 
-    // 2. Try to get from hierarchical model (best E1RM for this exercise)
+    // 2. Try to estimate from user's 1RM (if available)
+    const userMax = this.getUserMaxFromStorage(exerciseId);
+    if (userMax) {
+      const estimate = Math.round((userMax / (1 + targetReps / 30)) / 2.5) * 2.5;
+      return {
+        source: 'historical',
+        weight: estimate,
+        reps: targetReps
+      };
+    }
+
+    // 3. Try to get from hierarchical model (best E1RM for this exercise)
     const exerciseProfile = this.hierarchicalModel?.exerciseSpecificFactors.get(exerciseId);
     if (exerciseProfile && exerciseProfile.sampleSize >= 3) {
       // Use average intensity from profile
@@ -815,12 +890,25 @@ export class WorkoutIntelligenceService {
       };
     }
 
-    // 3. Default
+    // 4. Default
     return {
       source: 'default',
       weight: 135,
       reps: targetReps
     };
+  }
+
+  private getUserMaxFromStorage(exerciseId: string): number | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('iron_brain_user_maxes');
+      if (!stored) return null;
+      const maxes = JSON.parse(stored) as Array<{ exerciseId: string; weight: number }>;
+      const match = maxes.find((max) => max.exerciseId === exerciseId);
+      return match?.weight ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private getMuscleGroupsForExercise(exerciseId: string): string[] {
@@ -862,7 +950,7 @@ export class WorkoutIntelligenceService {
     }
 
     // Factor 3: Form breakdown
-    const formBreakdowns = completedSets.filter(s => (s as any).formBreakdown).length;
+    const formBreakdowns = completedSets.filter(s => s.formBreakdown).length;
     fatigue += formBreakdowns * 10; // 10 points per form breakdown
 
     // Factor 4: Unintentional failure
@@ -944,7 +1032,7 @@ export class WorkoutIntelligenceService {
       ? rpeDeviations.reduce((a, b) => a + b, 0) / rpeDeviations.length
       : 0;
 
-    const formBreakdown = completedSets.filter(s => (s as any).formBreakdown).length;
+    const formBreakdown = completedSets.filter(s => s.formBreakdown).length;
 
     const unintentionalFailure = completedSets.filter(s =>
       s.reachedFailure && (!s.actualRPE || s.actualRPE <= 7)
@@ -979,8 +1067,7 @@ export class WorkoutIntelligenceService {
   }
 
   private calculateReductionPercent(
-    severity: SessionFatigueAssessment['severity'],
-    indicators: SessionFatigueAssessment['indicators']
+    severity: SessionFatigueAssessment['severity']
   ): number {
     if (severity === 'critical') return 25;
     if (severity === 'high') return 15;

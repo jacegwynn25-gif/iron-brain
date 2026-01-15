@@ -14,8 +14,7 @@
  * - Imbens & Rubin (2015): Causal Inference for Statistics
  */
 
-import { SetLog } from '../types';
-import { calculateDescriptiveStats, detectTrend } from './statistical-utils';
+import { calculateDescriptiveStats } from './statistical-utils';
 
 // ============================================================
 // GRANGER CAUSALITY

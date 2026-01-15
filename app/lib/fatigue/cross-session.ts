@@ -10,6 +10,7 @@
 import { supabase } from '../supabase/client';
 import { FatigueScore } from '../fatigueModel';
 import { SetLog } from '../types';
+import type { Database } from '../supabase/database.types';
 
 // ============================================================
 // RECOVERY CURVES (Science-Backed)
@@ -65,6 +66,9 @@ export interface FatigueSnapshot {
   failureCount?: number;
   volumeLoad?: number;
 }
+
+type SupabaseFatigueHistoryRow = Database['public']['Tables']['fatigue_history']['Row'];
+type SupabaseFatigueHistoryInsert = Database['public']['Tables']['fatigue_history']['Insert'];
 
 // ============================================================
 // RECOVERY CALCULATIONS
@@ -152,7 +156,7 @@ export async function saveFatigueSnapshot(
 ): Promise<void> {
   if (!userId || fatigueScores.length === 0) return;
 
-  const snapshots = fatigueScores.map(score => ({
+  const snapshots: SupabaseFatigueHistoryInsert[] = fatigueScores.map(score => ({
     user_id: userId,
     workout_session_id: workoutSessionId,
     muscle_group: score.muscleGroup,
@@ -166,8 +170,8 @@ export async function saveFatigueSnapshot(
     volume_load: null,         // TODO: Calculate from sets
   }));
 
-  const { error } = await (supabase
-    .from('fatigue_history') as any)
+  const { error } = await supabase
+    .from('fatigue_history')
     .insert(snapshots);
 
   if (error) {
@@ -195,8 +199,8 @@ async function updateRecoveryEstimates(
       now
     );
 
-    const { error } = await (supabase
-      .from('recovery_estimates') as any)
+    const { error } = await supabase
+      .from('recovery_estimates')
       .upsert({
         user_id: userId,
         muscle_group: score.muscleGroup,
@@ -240,7 +244,8 @@ export async function getRecoveryProfiles(
 
   // Calculate current recovery percentages
   const now = new Date();
-  const profiles: RecoveryProfile[] = (estimates as any[]).map((est: any) => {
+  const rows = estimates ?? [];
+  const profiles: RecoveryProfile[] = rows.map((est) => {
     const lastTrained = new Date(est.last_trained_at);
     const hoursSince = (now.getTime() - lastTrained.getTime()) / (1000 * 60 * 60);
     const daysSince = Math.floor(hoursSince / 24);
@@ -293,7 +298,7 @@ export async function getRecoveryProfile(
 export async function getFatigueHistory(
   userId: string,
   days: number = 30
-): Promise<any[]> {
+): Promise<SupabaseFatigueHistoryRow[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
 
@@ -309,7 +314,7 @@ export async function getFatigueHistory(
     return [];
   }
 
-  return data || [];
+  return data ?? [];
 }
 
 /**

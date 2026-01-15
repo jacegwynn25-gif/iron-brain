@@ -1,5 +1,7 @@
 'use client';
 
+import { X } from 'lucide-react';
+
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,22 +23,22 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-zinc-900"
+        className="w-full max-w-md rounded-2xl bg-white/5 backdrop-blur-xl p-6 border border-white/10 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+          <h2 className="text-2xl font-bold text-white">
             Keyboard Shortcuts
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="rounded-lg p-2 text-gray-400 hover:bg-white/10 transition-all"
           >
-            ✕
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -44,19 +46,19 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
           {shortcuts.map((shortcut) => (
             <div
               key={shortcut.key}
-              className="flex items-center justify-between rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800"
+              className="flex items-center justify-between rounded-xl bg-white/5 p-3 border border-white/10"
             >
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              <span className="text-sm text-gray-300">
                 {shortcut.description}
               </span>
-              <kbd className="rounded border border-zinc-300 bg-white px-3 py-1 font-mono text-sm font-semibold text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50">
+              <kbd className="rounded-lg border border-white/10 bg-white/10 px-3 py-1 font-mono text-sm font-semibold text-white">
                 {shortcut.key}
               </kbd>
             </div>
           ))}
         </div>
 
-        <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-500">
+        <p className="mt-6 text-xs text-gray-500">
           Shortcuts don&apos;t work while typing in input fields
         </p>
       </div>

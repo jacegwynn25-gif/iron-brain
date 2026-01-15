@@ -97,10 +97,11 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
       : workout.id;
 
     // Prepare workout data
+    const workoutName = workout.dayName || workout.programName || 'Workout';
     const workoutData = {
       id: workoutUuid, // Use UUID without prefix for Postgres
       user_id: userId,
-      name: (workout as any).name || `${workout.programName} - ${workout.dayName}`,
+      name: workoutName,
       date: workout.date,
       start_time: workout.startTime,
       end_time: workout.endTime,
@@ -121,8 +122,8 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
     console.log('Uploading workout data:', workoutData);
 
     // Insert workout session
-    const { data: session, error: sessionError } = await (supabase
-      .from('workout_sessions') as any)
+    const { error: sessionError } = await supabase
+      .from('workout_sessions')
       .upsert(workoutData)
       .select()
       .single();
@@ -141,8 +142,8 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
     }
 
     // Delete existing set logs for this workout (in case of re-sync)
-    await (supabase
-      .from('set_logs') as any)
+    await supabase
+      .from('set_logs')
       .delete()
       .eq('workout_session_id', workoutUuid);
 
@@ -173,8 +174,8 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         set_type: set.setType || 'straight',
       }));
 
-      const { error: setsError } = await (supabase
-        .from('set_logs') as any)
+      const { error: setsError } = await supabase
+        .from('set_logs')
         .insert(setLogs);
 
       if (setsError) {
@@ -236,8 +237,9 @@ export async function syncPendingWorkouts(userId: string): Promise<void> {
         errors.push(errorMsg);
         console.error(errorMsg);
       }
-    } catch (err: any) {
-      const errorMsg = `Error syncing workout from ${workout.date}: ${err.message}`;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      const errorMsg = `Error syncing workout from ${workout.date}: ${message}`;
       errors.push(errorMsg);
       console.error(errorMsg, err);
     }

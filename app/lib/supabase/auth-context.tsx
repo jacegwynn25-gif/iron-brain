@@ -152,11 +152,11 @@ async function ensureUserProfile(userId: string) {
   if (!profile) {
     // Create profile and settings
     await Promise.all([
-      (supabase.from('user_profiles') as any).insert({
+      supabase.from('user_profiles').insert({
         id: userId,
         experience_level: 'intermediate',
       }),
-      (supabase.from('user_settings') as any).insert({
+      supabase.from('user_settings').insert({
         user_id: userId,
       }),
     ]);

@@ -15,6 +15,12 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+type WorkoutSessionRow = {
+  id: string;
+  date?: string | null;
+  name?: string | null;
+  deleted_at?: string | null;
+};
 
 async function debugSync() {
   console.log('🔍 Checking Supabase data...\n');
@@ -46,9 +52,10 @@ async function debugSync() {
 
   console.log(`📊 Workout Sessions in Supabase: ${sessions?.length || 0}`);
 
-  if (sessions && sessions.length > 0) {
+  const sessionRows = (sessions ?? []) as WorkoutSessionRow[];
+  if (sessionRows.length > 0) {
     console.log('\nWorkouts:');
-    sessions.forEach((s: any, i: number) => {
+    sessionRows.forEach((s, i) => {
       const status = s.deleted_at ? '🗑️  DELETED' : '✅ ACTIVE';
       console.log(`  ${i + 1}. ${status} ${s.date} - ${s.name || 'Unnamed'}`);
       if (s.deleted_at) {
@@ -61,7 +68,7 @@ async function debugSync() {
   }
 
   // Check for deleted workouts
-  const deletedCount = sessions?.filter((s: any) => s.deleted_at)?.length || 0;
+  const deletedCount = sessionRows.filter((s) => s.deleted_at)?.length || 0;
   if (deletedCount > 0) {
     console.log(`\n🗑️  Found ${deletedCount} deleted workout(s)`);
     console.log('   These will reappear when you fetch from Supabase');

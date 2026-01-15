@@ -1,0 +1,396 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Play, Zap, Calendar, Dumbbell } from 'lucide-react';
+import type { ProgramTemplate, WorkoutSession } from '../lib/types';
+import { storage, setUserNamespace } from '../lib/storage';
+import { supabase } from '../lib/supabase/client';
+import { useAuth } from '../lib/supabase/auth-context';
+import type { Database } from '../lib/supabase/database.types';
+import { parseLocalDate } from '../lib/dateUtils';
+import WorkoutLogger from '../components/WorkoutLogger';
+
+type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  rememberUntil?: number | null;
+};
+
+type SessionMetadata = {
+  programName?: string;
+  programId?: string;
+  cycleNumber?: number;
+  weekNumber?: number;
+  dayOfWeek?: number;
+  dayName?: string;
+};
+
+type SupabaseSetLogRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  | 'id'
+  | 'exercise_slug'
+  | 'exercise_id'
+  | 'set_index'
+  | 'prescribed_reps'
+  | 'prescribed_rpe'
+  | 'prescribed_rir'
+  | 'prescribed_percentage'
+  | 'actual_weight'
+  | 'actual_reps'
+  | 'actual_rpe'
+  | 'actual_rir'
+  | 'e1rm'
+  | 'volume_load'
+  | 'rest_seconds'
+  | 'actual_seconds'
+  | 'notes'
+  | 'completed'
+>;
+
+type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
+  set_logs?: SupabaseSetLogRow[] | null;
+};
+
+export default function StartWorkoutPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [profile] = useState<UserProfile | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const saved = localStorage.getItem('iron_brain_profile');
+    if (saved) {
+      try {
+        const parsed: UserProfile = JSON.parse(saved);
+        if (parsed.rememberUntil && parsed.rememberUntil < Date.now()) {
+          localStorage.removeItem('iron_brain_profile');
+          return null;
+        }
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+  const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
+  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSession[]>([]);
+  const [showQuickStart, setShowQuickStart] = useState(false);
+  const namespaceId = user?.id ?? profile?.id ?? null;
+  const quickStartProgram = useMemo<ProgramTemplate>(() => {
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+    const today = dayLabels[new Date().getDay()] ?? 'Mon';
+    return {
+      id: 'quick_start',
+      name: 'Quick Start',
+      description: 'Freestyle workout',
+      isCustom: true,
+      weeks: [
+        {
+          weekNumber: 1,
+          days: [
+            {
+              dayOfWeek: today,
+              name: 'Quick Workout',
+              sets: [],
+            },
+          ],
+        },
+      ],
+    };
+  }, []);
+
+  const userProgramsKey = useMemo(
+    () => (namespaceId ? `iron_brain_user_programs__${namespaceId}` : 'iron_brain_user_programs_default'),
+    [namespaceId]
+  );
+  const selectedProgramKey = useMemo(
+    () => (namespaceId ? `iron_brain_selected_program__${namespaceId}` : 'iron_brain_selected_program__guest'),
+    [namespaceId]
+  );
+
+  useEffect(() => {
+    setUserNamespace(namespaceId);
+  }, [namespaceId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedPrograms = localStorage.getItem(userProgramsKey);
+    const localPrograms: ProgramTemplate[] = storedPrograms ? JSON.parse(storedPrograms) : [];
+
+    const storedId = localStorage.getItem(selectedProgramKey);
+    if (storedId) {
+      const program = localPrograms.find(p => p.id === storedId) || null;
+      setSelectedProgram(program);
+    } else {
+      setSelectedProgram(null);
+    }
+  }, [userProgramsKey, selectedProgramKey]);
+
+  const loadWorkoutsFromBothSources = useCallback(async () => {
+    const localWorkouts = storage.getWorkoutHistory();
+    const getSortTime = (session: WorkoutSession) =>
+      new Date(session.endTime || session.startTime || session.date).getTime();
+    const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
+
+    const resolveUserId = async () => {
+      if (user?.id) return user.id;
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Failed to resolve Supabase user:', error);
+      }
+      return data.user?.id ?? null;
+    };
+
+    const resolvedUserId = await resolveUserId();
+    if (!resolvedUserId) {
+      setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+      return;
+    }
+
+    if (!user && namespaceId !== resolvedUserId) {
+      setUserNamespace(resolvedUserId);
+    }
+
+    try {
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
+        .select(`
+          *,
+          set_logs (*)
+        `)
+        .eq('user_id', resolvedUserId)
+        .is('deleted_at', null)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Failed to load workouts from Supabase:', error);
+        setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+        return;
+      }
+
+      const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
+      const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
+        const metadata = (s.metadata ?? {}) as SessionMetadata;
+        const resolvedProgramName = metadata.programName || s.name || 'Workout';
+
+        return {
+          id: s.id,
+          date: s.date ?? (s.start_time ? s.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
+          startTime: s.start_time ?? undefined,
+          endTime: s.end_time ?? undefined,
+          durationMinutes: s.duration_minutes ?? undefined,
+          bodyweight: s.bodyweight ?? undefined,
+          notes: s.notes ?? undefined,
+          programId: metadata.programId || '',
+          programName: resolvedProgramName,
+          cycleNumber: metadata.cycleNumber || 0,
+          weekNumber: metadata.weekNumber || 0,
+          dayOfWeek: metadata.dayOfWeek != null ? String(metadata.dayOfWeek) : '',
+          dayName: metadata.dayName || '',
+          createdAt: s.created_at || new Date().toISOString(),
+          updatedAt: s.updated_at || new Date().toISOString(),
+          sets: (s.set_logs || []).map((set) => ({
+            id: set.id ?? undefined,
+            exerciseId: set.exercise_slug || set.exercise_id || '',
+            setIndex: set.set_index ?? 0,
+            prescribedReps: set.prescribed_reps != null ? String(set.prescribed_reps) : '0',
+            prescribedRPE: set.prescribed_rpe,
+            prescribedRIR: set.prescribed_rir,
+            prescribedPercentage: set.prescribed_percentage,
+            actualWeight: set.actual_weight,
+            actualReps: set.actual_reps,
+            actualRPE: set.actual_rpe,
+            actualRIR: set.actual_rir,
+            e1rm: set.e1rm,
+            volumeLoad: set.volume_load,
+            restTakenSeconds: set.rest_seconds,
+            setDurationSeconds: set.actual_seconds,
+            notes: set.notes ?? undefined,
+            completed: set.completed !== false,
+          })),
+        };
+      });
+
+      const stripPrefix = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
+      const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
+      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id)));
+
+      const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
+        (a, b) => getSortTime(b) - getSortTime(a)
+      );
+
+      setRecentWorkouts(mergedWorkouts.slice(0, 3));
+    } catch (err) {
+      console.error('Error loading workouts from Supabase:', err);
+      setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+    }
+  }, [user, namespaceId]);
+
+  useEffect(() => {
+    loadWorkoutsFromBothSources();
+  }, [loadWorkoutsFromBothSources]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hidden = showQuickStart;
+    localStorage.setItem('iron_brain_hide_bottom_nav', hidden ? 'true' : 'false');
+    window.dispatchEvent(new Event('iron_brain_nav_visibility'));
+    return () => {
+      localStorage.setItem('iron_brain_hide_bottom_nav', 'false');
+      window.dispatchEvent(new Event('iron_brain_nav_visibility'));
+    };
+  }, [showQuickStart]);
+
+  const activeDay = useMemo(() => {
+    if (!selectedProgram) return null;
+    const week = selectedProgram.weeks?.[0];
+    const day = week?.days?.[0];
+    if (!day) return null;
+    return {
+      name: day.name,
+      weekNumber: week.weekNumber || 1,
+      dayLabel: day.dayOfWeek,
+    };
+  }, [selectedProgram]);
+
+  const handleContinue = () => {
+    if (!selectedProgram || !activeDay) {
+      router.push('/programs');
+      return;
+    }
+    localStorage.setItem('iron_brain_start_workout', 'true');
+    router.push('/programs');
+  };
+
+  const handleQuickStart = () => {
+    setShowQuickStart(true);
+  };
+
+  const handleChooseDay = () => {
+    localStorage.setItem('iron_brain_focus_day_picker', 'true');
+    router.push('/programs');
+  };
+
+  if (showQuickStart) {
+    return (
+      <WorkoutLogger
+        program={quickStartProgram}
+        weekNumber={1}
+        dayIndex={0}
+        onComplete={(session) => {
+          void storage.saveWorkout(session);
+          setShowQuickStart(false);
+          router.push('/');
+        }}
+        onCancel={() => setShowQuickStart(false)}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
+      <div className="px-4 py-6 sm:px-6 sm:py-8">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Start Workout</h1>
+          <p className="text-gray-300 text-sm mt-1">Choose how you want to train</p>
+        </div>
+
+        <div className="space-y-4 max-w-md mx-auto">
+          <button
+            onClick={handleContinue}
+            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-xl p-4 sm:p-5 text-left shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="text-white font-semibold text-lg">Continue Program</div>
+                <div className="text-gray-200 text-sm">
+                  {activeDay
+                    ? `Week ${activeDay.weekNumber}, ${activeDay.dayLabel} - ${activeDay.name}`
+                    : 'No active program selected'}
+                </div>
+              </div>
+              <Play className="w-8 h-8 text-white" fill="white" />
+            </div>
+          </button>
+
+          <button
+            onClick={handleQuickStart}
+            className="w-full bg-white/5 backdrop-blur-xl rounded-xl p-4 sm:p-5 text-left border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-purple-500/20">
+                <Zap className="w-6 h-6 text-purple-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-white font-semibold">Quick Start</div>
+                <div className="text-gray-400 text-sm">Build a workout on the fly</div>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={handleChooseDay}
+            className="w-full bg-white/5 backdrop-blur-xl rounded-xl p-4 sm:p-5 text-left border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/20">
+                <Dumbbell className="w-6 h-6 text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-white font-semibold">Choose Different Day</div>
+                <div className="text-gray-400 text-sm">Pick from your program</div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div className="mt-6 sm:mt-8 max-w-md mx-auto">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            Recent Workouts
+          </h2>
+          <div className="space-y-2">
+            {recentWorkouts.length === 0 && (
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <Play className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">No recent sessions</div>
+                    <div className="text-gray-500 text-sm">Start your first workout now.</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleQuickStart}
+                  className="mt-3 w-full rounded-xl bg-white/10 border border-white/10 py-3 px-4 text-white font-medium transition-all active:scale-[0.98]"
+                >
+                  Quick Start
+                </button>
+              </div>
+            )}
+            {recentWorkouts.map(session => (
+              <div key={session.id} className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white text-sm font-semibold">{session.dayName || session.programName || 'Workout'}</div>
+                    <div className="text-gray-500 text-xs">{parseLocalDate(session.date).toLocaleDateString()}</div>
+                  </div>
+                  <button
+                    onClick={handleContinue}
+                    className="rounded-lg px-3 py-2 text-purple-400 text-sm font-medium hover:bg-purple-500/10 transition-all"
+                  >
+                    Repeat
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

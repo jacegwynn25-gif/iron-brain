@@ -134,7 +134,7 @@ async function seedPrograms() {
   console.log('🔄 Seeding program templates...\n');
 
   for (const program of programs) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('program_templates')
       .upsert(program, {
         onConflict: 'name',

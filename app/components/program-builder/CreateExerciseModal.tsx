@@ -79,16 +79,16 @@ export default function CreateExerciseModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+      <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-white/5 p-6">
+          <h2 className="text-2xl font-bold text-white">
             Create Custom Exercise
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
@@ -98,7 +98,7 @@ export default function CreateExerciseModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Exercise Name *
             </label>
             <input
@@ -107,13 +107,13 @@ export default function CreateExerciseModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cable Fly"
               required
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
             />
           </div>
 
           {/* Equipment */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Equipment *
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -122,10 +122,10 @@ export default function CreateExerciseModal({
                   key={eq}
                   type="button"
                   onClick={() => setEquipment(eq)}
-                  className={`rounded-lg px-3 py-2 text-sm font-bold capitalize transition-all ${
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold capitalize transition-all active:scale-[0.98] ${
                     equipment === eq
                       ? 'bg-purple-600 text-white'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
                   }`}
                 >
                   {eq}
@@ -136,7 +136,7 @@ export default function CreateExerciseModal({
 
           {/* Exercise Type */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Exercise Type *
             </label>
             <div className="flex gap-2">
@@ -145,10 +145,10 @@ export default function CreateExerciseModal({
                   key={type}
                   type="button"
                   onClick={() => setExerciseType(type)}
-                  className={`flex-1 rounded-lg px-4 py-2 font-bold capitalize transition-all ${
+                  className={`flex-1 rounded-lg px-4 py-2 font-semibold capitalize transition-all active:scale-[0.98] ${
                     exerciseType === type
                       ? 'bg-purple-600 text-white'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
                   }`}
                 >
                   {type}
@@ -159,7 +159,7 @@ export default function CreateExerciseModal({
 
           {/* Primary Muscles */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Primary Muscles * (select 1-3)
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -168,10 +168,10 @@ export default function CreateExerciseModal({
                   key={muscle}
                   type="button"
                   onClick={() => toggleMuscle(muscle, true)}
-                  className={`rounded-lg px-3 py-2 text-sm font-bold transition-all ${
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
                     primaryMuscles.includes(muscle)
                       ? 'bg-purple-600 text-white'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
                   }`}
                 >
                   {muscle}
@@ -182,7 +182,7 @@ export default function CreateExerciseModal({
 
           {/* Secondary Muscles */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Secondary Muscles (optional)
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -191,10 +191,10 @@ export default function CreateExerciseModal({
                   key={muscle}
                   type="button"
                   onClick={() => toggleMuscle(muscle, false)}
-                  className={`rounded-lg px-3 py-2 text-sm font-bold transition-all ${
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
                     secondaryMuscles.includes(muscle)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
                   }`}
                 >
                   {muscle}
@@ -205,13 +205,13 @@ export default function CreateExerciseModal({
 
           {/* Movement Pattern */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Movement Pattern (optional)
             </label>
             <select
               value={movementPattern || ''}
-              onChange={(e) => setMovementPattern(e.target.value as any)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+              onChange={(e) => setMovementPattern(e.target.value as CustomExercise['movementPattern'])}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
               <option value="">None</option>
               <option value="push">Push</option>
@@ -226,7 +226,7 @@ export default function CreateExerciseModal({
 
           {/* Default Rest */}
           <div>
-            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
               Default Rest Time (seconds)
             </label>
             <input
@@ -235,7 +235,7 @@ export default function CreateExerciseModal({
               onChange={(e) => setDefaultRestSeconds(parseInt(e.target.value) || 90)}
               min="0"
               step="15"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
             />
           </div>
 
@@ -244,14 +244,14 @@ export default function CreateExerciseModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border-2 border-zinc-300 bg-white px-6 py-3 font-bold text-zinc-700 transition-all hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="flex-1 rounded-xl border border-white/10 bg-white/10 px-6 py-3 font-semibold text-white transition-all active:scale-[0.98]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !name.trim() || primaryMuscles.length === 0}
-              className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 font-bold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create & Add'}
             </button>

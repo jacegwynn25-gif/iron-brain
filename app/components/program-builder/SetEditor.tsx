@@ -34,12 +34,15 @@ const SET_TYPES: { value: SetType; label: string }[] = [
   { value: 'backoff', label: 'Backoff' },
 ];
 
+const SUPERSET_GROUPS = ['A', 'B', 'C', 'D'] as const;
+
 export default function SetEditor({ setData, onChange, exerciseId, userId }: SetEditorProps) {
   const [hasMax, setHasMax] = useState(false);
   const [checkingMax, setCheckingMax] = useState(false);
 
   const prescriptionMethod = setData.prescriptionMethod || 'rpe';
   const isPercentageBased = prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm';
+  const setType = setData.setType || 'straight';
 
   // Check if user has 1RM for this exercise when using percentage methods
   useEffect(() => {
@@ -60,18 +63,38 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
       });
   }, [userId, exerciseId, isPercentageBased]);
 
-  const handleFieldChange = (field: keyof SetTemplate, value: any) => {
+  const handleFieldChange = <K extends keyof SetTemplate>(field: K, value: SetTemplate[K]) => {
     onChange({ ...setData, [field]: value });
   };
 
+  const handleOptionalNumberChange = (
+    field: keyof SetTemplate,
+    value: string,
+    parser: (input: string) => number
+  ) => {
+    if (!value.trim()) {
+      onChange({ ...setData, [field]: null });
+      return;
+    }
+    const parsed = parser(value);
+    onChange({ ...setData, [field]: Number.isNaN(parsed) ? null : parsed });
+  };
+
   const handlePrescriptionMethodChange = (method: PrescriptionMethod) => {
+    const isPercentageMethod = method === 'percentage_1rm' || method === 'percentage_tm';
+    const nextPrescribedReps = method === 'amrap'
+      ? 'AMRAP'
+      : setData.prescribedReps?.toUpperCase() === 'AMRAP'
+        ? '8'
+        : setData.prescribedReps;
     // Reset all prescription-specific fields when changing method
     const updated: SetTemplate = {
       ...setData,
+      prescribedReps: nextPrescribedReps || '8',
       prescriptionMethod: method,
       targetRPE: method === 'rpe' ? 8 : null,
       targetRIR: method === 'rir' ? 2 : null,
-      targetPercentage: isPercentageBased ? 80 : null,
+      targetPercentage: isPercentageMethod ? 80 : null,
       fixedWeight: method === 'fixed_weight' ? 135 : null,
       targetSeconds: method === 'time_based' ? 60 : null,
     };
@@ -81,37 +104,59 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
   // Parse reps input to handle ranges
   const handleRepsChange = (value: string) => {
     const trimmed = value.trim();
+    const next: SetTemplate = {
+      ...setData,
+      prescribedReps: value,
+      minReps: undefined,
+      maxReps: undefined,
+    };
+
+    if (!trimmed) {
+      onChange(next);
+      return;
+    }
+
+    if (trimmed.toLowerCase() === 'amrap') {
+      onChange({ ...next, prescribedReps: 'AMRAP' });
+      return;
+    }
 
     if (trimmed.includes('-')) {
-      // Range like "8-10"
-      const [min, max] = trimmed.split('-').map(s => parseInt(s.trim()));
+      const [minRaw, maxRaw] = trimmed.split('-');
+      const min = parseInt(minRaw.trim(), 10);
+      const max = parseInt(maxRaw.trim(), 10);
       if (!isNaN(min) && !isNaN(max)) {
-        onChange({
-          ...setData,
-          prescribedReps: trimmed,
-          minReps: min,
-          maxReps: max,
-        });
+        onChange({ ...next, minReps: min, maxReps: max });
+        return;
       }
-    } else if (trimmed.toLowerCase() === 'amrap') {
-      onChange({
-        ...setData,
-        prescribedReps: 'AMRAP',
-        minReps: undefined,
-        maxReps: undefined,
-      });
     } else {
-      // Single number
-      const num = parseInt(trimmed);
+      const num = parseInt(trimmed, 10);
       if (!isNaN(num)) {
-        onChange({
-          ...setData,
-          prescribedReps: trimmed,
-          minReps: undefined,
-          maxReps: undefined,
-        });
+        onChange(next);
+        return;
       }
     }
+
+    onChange(next);
+  };
+
+  const handleSetTypeChange = (value: SetType) => {
+    const next: SetTemplate = {
+      ...setData,
+      setType: value,
+      supersetGroup: value === 'superset'
+        ? (setData.supersetGroup || 'A')
+        : undefined,
+    };
+    onChange(next);
+  };
+
+  const handleSupersetGroupChange = (value: string) => {
+    const normalized = value.trim().toUpperCase();
+    onChange({
+      ...setData,
+      supersetGroup: normalized || 'A',
+    });
   };
 
   return (
@@ -123,7 +168,7 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
         </label>
         <input
           type="text"
-          value={setData.prescribedReps}
+          value={setData.prescribedReps ?? ''}
           onChange={(e) => handleRepsChange(e.target.value)}
           placeholder="e.g., 5 or 8-10 or AMRAP"
           className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
@@ -155,14 +200,14 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
       {prescriptionMethod === 'rpe' && (
         <div>
           <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-            Target RPE: {setData.targetRPE || 8}
+            Target RPE: {setData.targetRPE ?? 8}
           </label>
           <input
             type="range"
             min="6"
             max="10"
             step="0.5"
-            value={setData.targetRPE || 8}
+            value={setData.targetRPE ?? 8}
             onChange={(e) => handleFieldChange('targetRPE', parseFloat(e.target.value))}
             className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700"
           />
@@ -183,8 +228,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
             type="number"
             min="0"
             max="5"
-            value={setData.targetRIR || 2}
-            onChange={(e) => handleFieldChange('targetRIR', parseInt(e.target.value))}
+            value={setData.targetRIR ?? 2}
+            onChange={(e) => handleOptionalNumberChange('targetRIR', e.target.value, parseInt)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
           />
           <p className="mt-1 text-xs text-zinc-500">
@@ -204,8 +249,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
               min="30"
               max="100"
               step="5"
-              value={setData.targetPercentage || 80}
-              onChange={(e) => handleFieldChange('targetPercentage', parseInt(e.target.value))}
+              value={setData.targetPercentage ?? 80}
+              onChange={(e) => handleOptionalNumberChange('targetPercentage', e.target.value, parseInt)}
               className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
             />
           </div>
@@ -213,7 +258,7 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
             <div className="flex gap-2 rounded-lg bg-yellow-50 border border-yellow-200 p-3 dark:bg-yellow-900/20 dark:border-yellow-800">
               <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0" />
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                No 1RM set for this exercise. You'll need to enter one in the Maxes Manager or the weight won't be calculated automatically.
+                No 1RM set for this exercise. You&apos;ll need to enter one in the Maxes Manager or the weight won&apos;t be calculated automatically.
               </p>
             </div>
           )}
@@ -229,8 +274,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
             type="number"
             min="0"
             step="2.5"
-            value={setData.fixedWeight || 135}
-            onChange={(e) => handleFieldChange('fixedWeight', parseFloat(e.target.value))}
+            value={setData.fixedWeight ?? 135}
+            onChange={(e) => handleOptionalNumberChange('fixedWeight', e.target.value, parseFloat)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
           />
         </div>
@@ -245,8 +290,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
             type="number"
             min="0"
             step="5"
-            value={setData.targetSeconds || 60}
-            onChange={(e) => handleFieldChange('targetSeconds', parseInt(e.target.value))}
+            value={setData.targetSeconds ?? 60}
+            onChange={(e) => handleOptionalNumberChange('targetSeconds', e.target.value, parseInt)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
           />
         </div>
@@ -269,8 +314,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
           type="number"
           min="0"
           step="15"
-          value={setData.restSeconds || 90}
-          onChange={(e) => handleFieldChange('restSeconds', parseInt(e.target.value))}
+          value={setData.restSeconds ?? 90}
+          onChange={(e) => handleOptionalNumberChange('restSeconds', e.target.value, parseInt)}
           className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
         />
       </div>
@@ -281,8 +326,8 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
           Set Type
         </label>
         <select
-          value={setData.setType || 'straight'}
-          onChange={(e) => handleFieldChange('setType', e.target.value as SetType)}
+          value={setType}
+          onChange={(e) => handleSetTypeChange(e.target.value as SetType)}
           className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
         >
           {SET_TYPES.map((type) => (
@@ -292,6 +337,41 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
           ))}
         </select>
       </div>
+
+      {setType === 'superset' && (
+        <div>
+          <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+            Superset Group
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {SUPERSET_GROUPS.map(group => (
+              <button
+                key={group}
+                type="button"
+                onClick={() => handleSupersetGroupChange(group)}
+                className={`rounded-lg px-3 py-2 text-sm font-bold transition-all ${
+                  (setData.supersetGroup || 'A') === group
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                }`}
+              >
+                {group}
+              </button>
+            ))}
+            <input
+              type="text"
+              value={setData.supersetGroup || ''}
+              onChange={(e) => handleSupersetGroupChange(e.target.value)}
+              placeholder="Custom"
+              maxLength={3}
+              className="min-w-[96px] flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            />
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            Sets with the same group alternate during logging.
+          </p>
+        </div>
+      )}
 
       {/* Tempo (Optional) */}
       <div>

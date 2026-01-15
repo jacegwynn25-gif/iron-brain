@@ -1,7 +1,10 @@
 import { supabase } from '../supabase/client';
 import type { UserMax } from '../types';
+import type { Database } from '../supabase/database.types';
 
 const LOCAL_STORAGE_KEY = 'iron_brain_user_maxes';
+
+type SupabaseUserMaxUpdate = Database['public']['Tables']['user_maxes']['Update'];
 
 /**
  * Get all 1RM records for user
@@ -11,23 +14,24 @@ export async function getUserMaxes(userId: string | null): Promise<UserMax[]> {
   // Try Supabase first if logged in
   if (userId) {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('user_maxes')
         .select('*')
         .eq('user_id', userId)
         .order('exercise_name');
 
       if (!error && data) {
-        return data.map((d: any) => ({
+        const rows = data ?? [];
+        return rows.map((d) => ({
           id: d.id,
           userId: d.user_id,
           exerciseId: d.exercise_id,
           exerciseName: d.exercise_name,
           weight: d.weight,
-          unit: d.unit || 'lbs',
+          unit: d.unit === 'kg' ? 'kg' : 'lbs',
           testedAt: d.tested_at,
-          estimatedOrTested: d.estimated_or_tested || 'tested',
-          notes: d.notes,
+          estimatedOrTested: d.estimated_or_tested === 'estimated' ? 'estimated' : 'tested',
+          notes: d.notes ?? undefined,
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
@@ -84,7 +88,7 @@ export async function saveUserMax(
   // Create new
   if (userId) {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('user_maxes')
         .insert({
           id,
@@ -127,19 +131,17 @@ export async function updateUserMax(
 
   if (userId) {
     try {
-      const updateData: any = {
-        updated_at: now,
-      };
+      const updateData: SupabaseUserMaxUpdate = { updated_at: now };
 
       if (updates.exerciseId) updateData.exercise_id = updates.exerciseId;
       if (updates.exerciseName) updateData.exercise_name = updates.exerciseName;
       if (updates.weight !== undefined) updateData.weight = updates.weight;
       if (updates.unit) updateData.unit = updates.unit;
-      if (updates.testedAt) updateData.tested_at = updates.testedAt;
+      if (updates.testedAt !== undefined) updateData.tested_at = updates.testedAt;
       if (updates.estimatedOrTested) updateData.estimated_or_tested = updates.estimatedOrTested;
       if (updates.notes !== undefined) updateData.notes = updates.notes;
 
-      await (supabase as any)
+      await supabase
         .from('user_maxes')
         .update(updateData)
         .eq('id', maxId);
@@ -167,7 +169,7 @@ export async function updateUserMax(
 export async function deleteUserMax(userId: string | null, maxId: string): Promise<void> {
   if (userId) {
     try {
-      await (supabase as any).from('user_maxes').delete().eq('id', maxId);
+      await supabase.from('user_maxes').delete().eq('id', maxId);
     } catch (err) {
       console.error('Failed to delete max from Supabase:', err);
     }

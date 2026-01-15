@@ -1,4 +1,20 @@
 import { supabase } from './client';
+import type { Database } from './database.types';
+
+type SupabaseSetLogRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  'id' | 'exercise_id' | 'actual_weight' | 'actual_reps' | 'actual_rpe' | 'e1rm' | 'volume_load'
+>;
+
+type SupabaseSetLogSummaryRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  'actual_reps' | 'volume_load' | 'actual_rpe' | 'actual_weight' | 'e1rm' | 'performed_at'
+>;
+
+type PersonalRecordRow = Pick<
+  Database['public']['Tables']['personal_records']['Row'],
+  'id' | 'weight' | 'reps' | 'e1rm' | 'volume'
+>;
 
 export interface CreateWorkoutSessionData {
   user_program_id?: string;
@@ -36,8 +52,8 @@ export interface CreateSetLogData {
 
 // Create a new workout session
 export async function createWorkoutSession(data: CreateWorkoutSessionData) {
-  const { data: session, error } = await (supabase
-    .from('workout_sessions') as any)
+  const { data: session, error } = await supabase
+    .from('workout_sessions')
     .insert({
       ...data,
       status: 'in_progress',
@@ -47,6 +63,7 @@ export async function createWorkoutSession(data: CreateWorkoutSessionData) {
     .single();
 
   if (error) throw error;
+  if (!session) throw new Error('Workout session not returned');
   return session;
 }
 
@@ -63,14 +80,15 @@ export async function updateWorkoutSession(
     status?: 'in_progress' | 'completed' | 'abandoned';
   }
 ) {
-  const { data: session, error } = await (supabase
-    .from('workout_sessions') as any)
+  const { data: session, error } = await supabase
+    .from('workout_sessions')
     .update(data)
     .eq('id', sessionId)
     .select()
     .single();
 
   if (error) throw error;
+  if (!session) throw new Error('Workout session not returned');
   return session;
 }
 
@@ -84,11 +102,12 @@ export async function completeWorkoutSession(sessionId: string) {
     .eq('completed', true);
 
   const totalSets = sets?.length || 0;
-  const totalReps = (sets as any[])?.reduce((sum, set) => sum + (set.actual_reps || 0), 0) || 0;
-  const totalVolume = (sets as any[])?.reduce((sum, set) => sum + (set.volume_load || 0), 0) || 0;
+  const setsTyped = (sets ?? []) as SupabaseSetLogSummaryRow[];
+  const totalReps = setsTyped.reduce((sum, set) => sum + (set.actual_reps || 0), 0);
+  const totalVolume = setsTyped.reduce((sum, set) => sum + (set.volume_load || 0), 0);
   const avgRpe =
-    sets && sets.length > 0
-      ? (sets as any[]).reduce((sum, set) => sum + (set.actual_rpe || 0), 0) / sets.length
+    setsTyped.length > 0
+      ? setsTyped.reduce((sum, set) => sum + (set.actual_rpe || 0), 0) / setsTyped.length
       : 0;
 
   // Get start time to calculate duration
@@ -98,7 +117,7 @@ export async function completeWorkoutSession(sessionId: string) {
     .eq('id', sessionId)
     .single();
 
-  const startTime = (session as any)?.start_time ? new Date((session as any).start_time) : new Date();
+  const startTime = session?.start_time ? new Date(session.start_time) : new Date();
   const endTime = new Date();
   const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
 
@@ -115,8 +134,8 @@ export async function completeWorkoutSession(sessionId: string) {
 
 // Add a set to a workout
 export async function createSetLog(data: CreateSetLogData) {
-  const { data: setLog, error } = await (supabase
-    .from('set_logs') as any)
+  const { data: setLog, error } = await supabase
+    .from('set_logs')
     .insert(data)
     .select()
     .single();
@@ -124,14 +143,15 @@ export async function createSetLog(data: CreateSetLogData) {
   if (error) throw error;
 
   // Check if this is a new personal record
-  if (setLog && data.completed !== false) {
+  const setLogRow = setLog as SupabaseSetLogRow | null;
+  if (setLogRow?.exercise_id && data.completed !== false) {
     await checkAndUpdatePersonalRecords(
-      setLog.exercise_id,
-      setLog.actual_weight,
-      setLog.actual_reps,
-      setLog.e1rm,
-      setLog.volume_load,
-      setLog.id
+      setLogRow.exercise_id,
+      setLogRow.actual_weight ?? undefined,
+      setLogRow.actual_reps ?? undefined,
+      setLogRow.e1rm ?? undefined,
+      setLogRow.volume_load ?? undefined,
+      setLogRow.id
     );
   }
 
@@ -143,8 +163,8 @@ export async function updateSetLog(
   setLogId: string,
   data: Partial<CreateSetLogData>
 ) {
-  const { data: setLog, error } = await (supabase
-    .from('set_logs') as any)
+  const { data: setLog, error } = await supabase
+    .from('set_logs')
     .update(data)
     .eq('id', setLogId)
     .select()
@@ -153,14 +173,15 @@ export async function updateSetLog(
   if (error) throw error;
 
   // Re-check personal records if weight/reps changed
-  if (setLog && (data.actual_weight || data.actual_reps)) {
+  const updatedSetLog = setLog as SupabaseSetLogRow | null;
+  if (updatedSetLog?.exercise_id && (data.actual_weight || data.actual_reps)) {
     await checkAndUpdatePersonalRecords(
-      setLog.exercise_id,
-      setLog.actual_weight,
-      setLog.actual_reps,
-      setLog.e1rm,
-      setLog.volume_load,
-      setLog.id
+      updatedSetLog.exercise_id,
+      updatedSetLog.actual_weight ?? undefined,
+      updatedSetLog.actual_reps ?? undefined,
+      updatedSetLog.e1rm ?? undefined,
+      updatedSetLog.volume_load ?? undefined,
+      updatedSetLog.id
     );
   }
 
@@ -209,25 +230,26 @@ async function checkAndUpdatePersonalRecords(
 
     const currentValue =
       type === 'max_weight'
-        ? (currentRecord as any)?.weight
+        ? (currentRecord as PersonalRecordRow | null)?.weight
         : type === 'max_reps'
-        ? (currentRecord as any)?.reps
+        ? (currentRecord as PersonalRecordRow | null)?.reps
         : type === 'max_e1rm'
-        ? (currentRecord as any)?.e1rm
-        : (currentRecord as any)?.volume;
+        ? (currentRecord as PersonalRecordRow | null)?.e1rm
+        : (currentRecord as PersonalRecordRow | null)?.volume;
 
     // If new record, update
     if (!currentRecord || value > (currentValue || 0)) {
       // Mark old record as not current
       if (currentRecord) {
-        await (supabase
-          .from('personal_records') as any)
+        const recordRow = currentRecord as PersonalRecordRow;
+        await supabase
+          .from('personal_records')
           .update({ is_current: false })
-          .eq('id', (currentRecord as any).id);
+          .eq('id', recordRow.id);
       }
 
       // Create new record
-      await (supabase.from('personal_records') as any).insert({
+      await supabase.from('personal_records').insert({
         user_id: userId,
         exercise_id: exerciseId,
         record_type: type,
@@ -256,7 +278,7 @@ export async function updateExerciseStats(exerciseId: string) {
 
   if (!sets || sets.length === 0) return;
 
-  const setsTyped = sets as any[];
+  const setsTyped = (sets ?? []) as SupabaseSetLogSummaryRow[];
   const totalSets = setsTyped.length;
   const totalReps = setsTyped.reduce((sum, set) => sum + (set.actual_reps || 0), 0);
   const totalVolume = setsTyped.reduce((sum, set) => sum + (set.volume_load || 0), 0);
@@ -271,13 +293,13 @@ export async function updateExerciseStats(exerciseId: string) {
   const bestReps = Math.max(...setsTyped.map((s) => s.actual_reps || 0));
   const bestE1rm = Math.max(...setsTyped.map((s) => s.e1rm || 0));
 
-  const lastPerformed = setsTyped.sort(
-    (a, b) =>
-      new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime()
-  )[0]?.performed_at;
+  const lastPerformed = setsTyped
+    .map((set) => set.performed_at)
+    .filter((value): value is string => typeof value === 'string')
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
   // Upsert stats
-  const { error } = await (supabase.from('exercise_stats') as any).upsert(
+  const { error } = await supabase.from('exercise_stats').upsert(
     {
       user_id: userId,
       exercise_id: exerciseId,

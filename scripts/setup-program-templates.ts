@@ -157,7 +157,7 @@ async function setup() {
   console.log('🔄 Step 2: Seeding program templates...\n');
 
   for (const program of programs) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('program_templates')
       .upsert(
         {
@@ -197,7 +197,8 @@ async function setup() {
     console.log(`\n📊 Total program templates in database: ${templates?.length || 0}`);
     if (templates && templates.length > 0) {
       console.log('\n✅ Setup complete! Program templates:');
-      templates.forEach((t: any) => {
+      const templateRows = templates as Array<{ name: string; app_program_id?: string | null }>;
+      templateRows.forEach((t) => {
         console.log(`  - ${t.name} (${t.app_program_id})`);
       });
     }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { getWorkoutHistory } from '../lib/storage';
 import type { WorkoutSession } from '../lib/types';
 import {
@@ -193,7 +194,11 @@ export default function CausalInsightsDashboard({ workouts: propsWorkouts }: Cau
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 text-white p-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center py-12">
-            <div className="text-4xl mb-4">📊</div>
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+                <BarChart3 className="h-6 w-6 text-purple-200" />
+              </div>
+            </div>
             <div className="text-2xl font-bold mb-4">Insufficient Data for Causal Analysis</div>
             <div className="text-purple-300 mb-6">
               Complete at least 10 workouts to unlock causal insights
@@ -302,7 +307,7 @@ export default function CausalInsightsDashboard({ workouts: propsWorkouts }: Cau
           <h3 className="text-lg font-bold mb-3 text-purple-200">About Causal Inference</h3>
           <div className="text-sm text-purple-300 space-y-2">
             <p>
-              <strong>Granger Causality:</strong> Tests if past values of X predict future values of Y better than Y's own history.
+              <strong>Granger Causality:</strong> Tests if past values of X predict future values of Y better than Y&apos;s own history.
               If yes, X may causally influence Y (Granger, 1969).
             </p>
             <p>
