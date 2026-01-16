@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createCustomExercise } from '../../lib/exercises/custom-exercises';
 import type { CustomExercise } from '../../lib/types';
@@ -34,6 +34,13 @@ export default function CreateExerciseModal({
   const [movementPattern, setMovementPattern] = useState<CustomExercise['movementPattern']>('push');
   const [defaultRestSeconds, setDefaultRestSeconds] = useState(90);
   const [loading, setLoading] = useState(false);
+
+  // Sync name with initialName when it changes
+  useEffect(() => {
+    if (initialName) {
+      setName(initialName);
+    }
+  }, [initialName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

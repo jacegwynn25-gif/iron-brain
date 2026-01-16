@@ -117,13 +117,14 @@ export default function Home() {
   const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [rememberProfile, setRememberProfile] = useState(true);
+  const namespaceId = user?.id ?? profile?.id ?? null;
   const userProgramsKey = useMemo(
-    () => (profile ? `iron_brain_user_programs__${profile.id}` : 'iron_brain_user_programs_default'),
-    [profile]
+    () => (namespaceId ? `iron_brain_user_programs__${namespaceId}` : 'iron_brain_user_programs_default'),
+    [namespaceId]
   );
   const selectedProgramKey = useMemo(
-    () => (profile ? `iron_brain_selected_program__${profile.id}` : 'iron_brain_selected_program__guest'),
-    [profile]
+    () => (namespaceId ? `iron_brain_selected_program__${namespaceId}` : 'iron_brain_selected_program__guest'),
+    [namespaceId]
   );
 
   useEffect(() => {

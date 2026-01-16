@@ -177,6 +177,27 @@ export function useWorkoutData() {
     loadWorkouts();
   }, [loadWorkouts]);
 
+  // Reload data when the page becomes visible (e.g., after navigation back from workout)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadWorkouts();
+      }
+    };
+
+    const handleFocus = () => {
+      loadWorkouts();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadWorkouts]);
+
   return {
     workoutHistory,
     loading,

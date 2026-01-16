@@ -79,8 +79,8 @@ export default function WorkoutSummary({ session, onClose }: WorkoutSummaryProps
   const prCount = useMemo(() => computePRCount(session), [session]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-sm flex items-center justify-center p-4 safe-top safe-bottom">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-sm flex items-center justify-center p-4 pb-24">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
