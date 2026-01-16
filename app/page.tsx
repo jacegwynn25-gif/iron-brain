@@ -1,14 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, TrendingUp, Flame, ChevronRight, Dumbbell } from 'lucide-react';
-import type { ProgramTemplate, WorkoutSession } from './lib/types';
-import { storage, setUserNamespace } from './lib/storage';
-import { supabase } from './lib/supabase/client';
+import type { ProgramTemplate, DayTemplate } from './lib/types';
 import { useAuth } from './lib/supabase/auth-context';
-import type { Database } from './lib/supabase/database.types';
 import { parseLocalDate } from './lib/dateUtils';
+import { useWorkoutData } from './lib/hooks/useWorkoutData';
+import { AuthGuard } from './components/Auth';
 
 type UserProfile = {
   id: string;
@@ -17,44 +16,10 @@ type UserProfile = {
   rememberUntil?: number | null;
 };
 
-type SessionMetadata = {
-  programName?: string;
-  programId?: string;
-  cycleNumber?: number;
-  weekNumber?: number;
-  dayOfWeek?: number;
-  dayName?: string;
-};
-
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  | 'id'
-  | 'exercise_slug'
-  | 'exercise_id'
-  | 'set_index'
-  | 'prescribed_reps'
-  | 'prescribed_rpe'
-  | 'prescribed_rir'
-  | 'prescribed_percentage'
-  | 'actual_weight'
-  | 'actual_reps'
-  | 'actual_rpe'
-  | 'actual_rir'
-  | 'e1rm'
-  | 'volume_load'
-  | 'rest_seconds'
-  | 'actual_seconds'
-  | 'notes'
-  | 'completed'
->;
-
-type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
-  set_logs?: SupabaseSetLogRow[] | null;
-};
-
 export default function HomePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { workoutHistory } = useWorkoutData();
   const [profile] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
     const saved = localStorage.getItem('iron_brain_profile');
@@ -72,7 +37,6 @@ export default function HomePage() {
     }
     return null;
   });
-  const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
   const namespaceId = user?.id ?? profile?.id ?? null;
 
@@ -84,10 +48,6 @@ export default function HomePage() {
     () => (namespaceId ? `iron_brain_selected_program__${namespaceId}` : 'iron_brain_selected_program__guest'),
     [namespaceId]
   );
-
-  useEffect(() => {
-    setUserNamespace(namespaceId);
-  }, [namespaceId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -103,122 +63,32 @@ export default function HomePage() {
     }
   }, [userProgramsKey, selectedProgramKey]);
 
-  const loadWorkoutsFromBothSources = useCallback(async () => {
-    const localWorkouts = storage.getWorkoutHistory();
-    const getSortTime = (session: WorkoutSession) =>
-      new Date(session.endTime || session.startTime || session.date).getTime();
-    const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
-
-    const resolveUserId = async () => {
-      if (user?.id) return user.id;
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('Failed to resolve Supabase user:', error);
-      }
-      return data.user?.id ?? null;
-    };
-
-    const resolvedUserId = await resolveUserId();
-    if (!resolvedUserId) {
-      setWorkoutHistory(sortedLocalWorkouts);
-      return;
-    }
-
-    if (!user && namespaceId !== resolvedUserId) {
-      setUserNamespace(resolvedUserId);
-    }
-
-    try {
-      const { data: sessions, error } = await supabase
-        .from('workout_sessions')
-        .select(`
-          *,
-          set_logs (*)
-        `)
-        .eq('user_id', resolvedUserId)
-        .is('deleted_at', null)
-        .order('date', { ascending: false });
-
-      if (error) {
-        console.error('Failed to load workouts from Supabase:', error);
-        setWorkoutHistory(sortedLocalWorkouts);
-        return;
-      }
-
-      const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
-      const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
-        const metadata = (s.metadata ?? {}) as SessionMetadata;
-        const resolvedProgramName = metadata.programName || s.name || 'Workout';
-
-        return {
-          id: s.id,
-          date: s.date ?? (s.start_time ? s.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-          startTime: s.start_time ?? undefined,
-          endTime: s.end_time ?? undefined,
-          durationMinutes: s.duration_minutes ?? undefined,
-          bodyweight: s.bodyweight ?? undefined,
-          notes: s.notes ?? undefined,
-          programId: metadata.programId || '',
-          programName: resolvedProgramName,
-          cycleNumber: metadata.cycleNumber || 0,
-          weekNumber: metadata.weekNumber || 0,
-          dayOfWeek: metadata.dayOfWeek != null ? String(metadata.dayOfWeek) : '',
-          dayName: metadata.dayName || '',
-          createdAt: s.created_at || new Date().toISOString(),
-          updatedAt: s.updated_at || new Date().toISOString(),
-          sets: (s.set_logs || []).map((set) => ({
-            id: set.id ?? undefined,
-            exerciseId: set.exercise_slug || set.exercise_id || '',
-            setIndex: set.set_index ?? 0,
-            prescribedReps: set.prescribed_reps != null ? String(set.prescribed_reps) : '0',
-            prescribedRPE: set.prescribed_rpe,
-            prescribedRIR: set.prescribed_rir,
-            prescribedPercentage: set.prescribed_percentage,
-            actualWeight: set.actual_weight,
-            actualReps: set.actual_reps,
-            actualRPE: set.actual_rpe,
-            actualRIR: set.actual_rir,
-            e1rm: set.e1rm,
-            volumeLoad: set.volume_load,
-            restTakenSeconds: set.rest_seconds,
-            setDurationSeconds: set.actual_seconds,
-            notes: set.notes ?? undefined,
-            completed: set.completed !== false,
-          })),
-        };
-      });
-
-      const stripPrefix = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
-      const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
-      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id)));
-
-      const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
-        (a, b) => getSortTime(b) - getSortTime(a)
-      );
-
-      setWorkoutHistory(mergedWorkouts);
-    } catch (err) {
-      console.error('Error loading workouts from Supabase:', err);
-      setWorkoutHistory(sortedLocalWorkouts);
-    }
-  }, [user, namespaceId]);
-
-  useEffect(() => {
-    loadWorkoutsFromBothSources();
-    const handleFocus = () => {
-      loadWorkoutsFromBothSources();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [loadWorkoutsFromBothSources]);
-
   const todayWorkout = useMemo(() => {
     if (!selectedProgram) return null;
+
+    // Get today's actual day of the week
+    const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayLabel = dayOrder[new Date().getDay()] as DayTemplate['dayOfWeek'];
+
+    // Search all weeks for a day matching today
+    for (const week of selectedProgram.weeks) {
+      const matchingDay = week.days.find(d => d.dayOfWeek === todayLabel);
+      if (matchingDay) {
+        return {
+          name: matchingDay.name || 'Training Day',
+          weekNumber: week.weekNumber || 1,
+          dayLabel: todayLabel,  // Use actual today's day
+          setCount: matchingDay.sets.length,
+          exerciseCount: new Set(matchingDay.sets.map(s => s.exerciseId)).size,
+        };
+      }
+    }
+
+    // Fallback: if no day matches today, show first available day
     const firstWeek = selectedProgram.weeks?.[0];
     const firstDay = firstWeek?.days?.[0];
     if (!firstDay) return null;
+
     return {
       name: firstDay.name || 'Training Day',
       weekNumber: firstWeek.weekNumber || 1,
@@ -252,7 +122,8 @@ export default function HomePage() {
   const recentWorkouts = workoutHistory.slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
+    <AuthGuard>
+      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
       <div className="px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <p className="text-gray-500 text-sm">Welcome back</p>
@@ -365,6 +236,7 @@ export default function HomePage() {
           </div>
         </section>
       </div>
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

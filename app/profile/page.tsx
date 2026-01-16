@@ -104,7 +104,13 @@ export default function ProfilePage() {
     const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
     const resolveUserId = async () => {
+      // If we have a user from context, use it
       if (user?.id) return user.id;
+
+      // If user is explicitly null (signed out), don't try to fetch from Supabase
+      if (user === null) return null;
+
+      // Only try to get user from Supabase if user state is undefined (initial load)
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error('Failed to resolve Supabase user:', error);
@@ -241,7 +247,7 @@ export default function ProfilePage() {
     { icon: Dumbbell, label: 'Custom Exercises', path: '/profile/exercises' },
     { icon: Bell, label: 'Notifications', path: '/profile/notifications' },
     { icon: Moon, label: 'Appearance', path: '/profile/appearance' },
-    { icon: Settings, label: 'Preferences', path: '/profile/settings' },
+    { icon: Settings, label: 'Settings', path: '/profile/settings' },
   ];
 
   return (
@@ -301,7 +307,18 @@ export default function ProfilePage() {
 
         {user && (
           <button
-            onClick={() => signOut()}
+            onClick={async () => {
+              console.log('🔘 Sign out button clicked');
+              try {
+                await signOut();
+                console.log('✅ Sign out complete, navigating to home...');
+                // Redirect to home page after sign out
+                router.push('/');
+              } catch (error) {
+                console.error('❌ Failed to sign out:', error);
+                alert('Failed to sign out. Please try again.');
+              }
+            }}
             className="w-full bg-red-500/10 rounded-xl p-4 border border-red-500/20 flex items-center justify-center gap-2 text-red-400 font-medium hover:bg-red-500/20 transition-all active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5" />

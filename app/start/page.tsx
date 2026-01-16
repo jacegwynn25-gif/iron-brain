@@ -246,7 +246,13 @@ export default function StartWorkoutPage() {
     const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
     const resolveUserId = async () => {
+      // If we have a user from context, use it
       if (user?.id) return user.id;
+
+      // If user is explicitly null (signed out), don't try to fetch from Supabase
+      if (user === null) return null;
+
+      // Only try to get user from Supabase if user state is undefined (initial load)
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error('Failed to resolve Supabase user:', error);

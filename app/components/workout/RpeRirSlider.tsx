@@ -41,7 +41,7 @@ export default function RpeRirSlider({ value, onChange }: RpeRirSliderProps) {
 
           <div className="absolute left-0 right-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-zinc-800">
           <div
-            className="h-full bg-gradient-to-r from-purple-900 via-purple-600 to-fuchsia-500"
+            className="h-full bg-gradient-to-r from-purple-900 via-purple-600 to-fuchsia-500 transition-all duration-150"
               style={{ width: `${percent}%` }}
           />
         </div>
@@ -53,7 +53,7 @@ export default function RpeRirSlider({ value, onChange }: RpeRirSliderProps) {
                 className="absolute flex flex-col items-center"
                 style={{ left: `${((tick - 5) / 5) * 100}%`, transform: 'translateX(-50%)' }}
               >
-                <div className="h-2 w-0.5 rounded-full bg-zinc-700" />
+                <div className="h-3 w-1 rounded-full bg-zinc-400" />
               </div>
             ))}
           </div>

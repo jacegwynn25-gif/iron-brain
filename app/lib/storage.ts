@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
 } as const;
 
 let activeUserNamespace = 'default';
+let isNamespaceInitialized = false;
 
 type WorkoutMetadata = {
   programId?: string;
@@ -63,9 +64,15 @@ export function setUserNamespace(userId: string | null) {
   }
 
   activeUserNamespace = newNamespace;
+  isNamespaceInitialized = true;
 }
 
-const getKey = (base: string) => `${base}__${activeUserNamespace}`;
+const getKey = (base: string) => {
+  if (!isNamespaceInitialized && typeof window !== 'undefined') {
+    console.warn('⚠️ Storage accessed before namespace initialized. Using default namespace.');
+  }
+  return `${base}__${activeUserNamespace}`;
+};
 
 // Reserved for future exercise slug -> UUID mapping if needed.
 

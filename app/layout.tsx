@@ -6,7 +6,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import BottomNav from "./components/BottomNav";
 import OnboardingWrapper from "./components/onboarding/OnboardingWrapper";
 import SyncQueueListener from "./components/SyncQueueListener";
-import DevSeedLoader from "./components/DevSeedLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,7 +56,6 @@ export default function RootLayout({
         <ErrorBoundary>
           <AuthProvider>
             <SyncQueueListener />
-            <DevSeedLoader />
             <OnboardingWrapper>
               <main className="pb-20">
                 {children}

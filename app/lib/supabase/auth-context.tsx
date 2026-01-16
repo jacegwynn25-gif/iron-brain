@@ -4,11 +4,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from './client';
 import { syncPendingWorkouts } from './auto-sync';
+import { setUserNamespace } from '../storage';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  namespaceId: string | null;
+  namespaceReady: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
@@ -21,12 +24,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [namespaceId, setNamespaceId] = useState<string | null>(null);
+  const [namespaceReady, setNamespaceReady] = useState(false);
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      const newNamespaceId = currentUser?.id ?? null;
+
+      // Set namespace FIRST, before updating other state
+      setUserNamespace(newNamespaceId);
+      setNamespaceId(newNamespaceId);
+      setNamespaceReady(true);
+
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(currentUser);
       setLoading(false);
 
       // Sync pending workouts if already logged in
@@ -44,8 +57,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
+        const currentUser = session?.user ?? null;
+        const newNamespaceId = currentUser?.id ?? null;
+
+        // Set namespace FIRST, before updating other state
+        setUserNamespace(newNamespaceId);
+        setNamespaceId(newNamespaceId);
+        setNamespaceReady(true);
+
         setSession(session);
-        setUser(session?.user ?? null);
+        setUser(currentUser);
         setLoading(false);
 
         // Create user profile if this is a new signup
@@ -116,13 +137,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('🚪 Starting sign out process...');
+      console.log('Current session:', session);
+      console.log('Current user:', user);
+
+      // Create a promise that races with a timeout
+      const signOutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Sign out timeout')), 5000)
+      );
+
+      try {
+        const result = await Promise.race([signOutPromise, timeoutPromise]) as { error: Error | null };
+
+        if (result && result.error) {
+          console.error('❌ Supabase signOut error:', result.error);
+          throw result.error;
+        }
+
+        console.log('✅ Supabase signOut successful');
+      } catch (timeoutError) {
+        console.warn('⚠️ Supabase signOut timed out, forcing local sign out:', timeoutError);
+      }
+
+      // Explicitly reset namespace and state to ensure clean sign-out
+      setUserNamespace(null);
+      setNamespaceId(null);
+      setNamespaceReady(true);
+      setUser(null);
+      setSession(null);
+
+      console.log('✅ Auth state reset complete');
+    } catch (error) {
+      console.error('❌ Error signing out:', error);
+      throw error;
+    }
   };
 
   const value = {
     user,
     session,
     loading,
+    namespaceId,
+    namespaceReady,
     signUp,
     signIn,
     signInWithGoogle,
