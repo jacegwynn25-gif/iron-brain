@@ -24,11 +24,16 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: .black-translucent.,
     title: 'Iron Brain',
   },
   other: {
     'mobile-web-app-capable': 'yes',
+  },
+  icons: {
+    icon: "/icon-192.png",
+    shortcut: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
