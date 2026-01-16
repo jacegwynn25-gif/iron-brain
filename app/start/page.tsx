@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, Zap, Calendar, Dumbbell } from 'lucide-react';
-import type { ProgramTemplate, WorkoutSession } from '../lib/types';
+import type { DayTemplate, ProgramTemplate, WeekTemplate, WorkoutSession } from '../lib/types';
 import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
 import type { Database } from '../lib/supabase/database.types';
 import { parseLocalDate } from '../lib/dateUtils';
 import WorkoutLogger from '../components/WorkoutLogger';
+import PreWorkoutReadiness from '../components/PreWorkoutReadiness';
+import { loadProgramsFromCloud } from '../lib/supabase/program-sync';
 
 type UserProfile = {
   id: string;
@@ -74,8 +76,11 @@ export default function StartWorkoutPage() {
     return null;
   });
   const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
-  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSession[]>([]);
-  const [showQuickStart, setShowQuickStart] = useState(false);
+  const [activeProgram, setActiveProgram] = useState<ProgramTemplate | null>(null);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+  const [stage, setStage] = useState<'select' | 'readiness' | 'workout'>('select');
   const namespaceId = user?.id ?? profile?.id ?? null;
   const quickStartProgram = useMemo<ProgramTemplate>(() => {
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -127,6 +132,113 @@ export default function StartWorkoutPage() {
     }
   }, [userProgramsKey, selectedProgramKey]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    if (selectedProgram) return;
+    let active = true;
+
+    loadProgramsFromCloud(user.id)
+      .then((cloudPrograms) => {
+        if (!active || cloudPrograms.length === 0) return;
+        localStorage.setItem(userProgramsKey, JSON.stringify(cloudPrograms));
+        const storedId = localStorage.getItem(selectedProgramKey);
+        const resolved =
+          cloudPrograms.find((program) => program.id === storedId) ?? cloudPrograms[0] ?? null;
+        if (resolved) {
+          setSelectedProgram(resolved);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load programs from cloud:', error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, selectedProgram, selectedProgramKey, userProgramsKey]);
+
+  const todayKey = useMemo(
+    () => (typeof window !== 'undefined' ? new Date().toISOString().split('T')[0] : ''),
+    []
+  );
+
+  const getSuggestedWeekAndDay = useCallback(
+    (program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
+      const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const todayLabel = dayOrder[new Date().getDay()] as DayTemplate['dayOfWeek'];
+      const weeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
+      const findDayIndex = (week: WeekTemplate | undefined, day: DayTemplate['dayOfWeek']) =>
+        week ? week.days.findIndex(d => d.dayOfWeek === day) : -1;
+      const findWeek = (weekNumber: number) => program.weeks.find(w => w.weekNumber === weekNumber);
+      const nextWeekNumber = (current: number) => {
+        const idx = weeks.findIndex(w => w.weekNumber === current);
+        return weeks[Math.min(idx + 1, weeks.length - 1)]?.weekNumber ?? current;
+      };
+
+      const historyForProgram = [...history]
+        .filter(h => h.programId === program.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (historyForProgram.length === 0) {
+        const weekWithToday = weeks.find(w => findDayIndex(w, todayLabel) !== -1) ?? weeks[0];
+        const dayIdx = findDayIndex(weekWithToday, todayLabel);
+        return {
+          week: weekWithToday.weekNumber,
+          dayIndex: dayIdx !== -1 ? dayIdx : 0,
+        };
+      }
+
+      const lastSession = historyForProgram[0];
+      const lastWeek = findWeek(lastSession.weekNumber) ?? weeks[0];
+      const lastDayIdx = findDayIndex(lastWeek, lastSession.dayOfWeek as DayTemplate['dayOfWeek']);
+      const todayIdxInLastWeek = findDayIndex(lastWeek, todayLabel);
+      const todayAfterLast = todayIso > lastSession.date;
+
+      if (todayIdxInLastWeek !== -1) {
+        const wrappedToNewCalendarWeek = todayAfterLast && lastDayIdx !== -1 && todayIdxInLastWeek < lastDayIdx;
+        if (wrappedToNewCalendarWeek) {
+          const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+          const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+          const dayIdx = findDayIndex(nextWeek, todayLabel);
+          return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+        }
+
+        if (todayAfterLast || todayIdxInLastWeek >= lastDayIdx) {
+          return { week: lastWeek.weekNumber, dayIndex: todayIdxInLastWeek };
+        }
+        const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+        const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+        const dayIdx = findDayIndex(nextWeek, todayLabel);
+        return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+      }
+
+      if (lastDayIdx !== -1 && lastDayIdx < lastWeek.days.length - 1 && todayAfterLast) {
+        return { week: lastWeek.weekNumber, dayIndex: lastDayIdx + 1 };
+      }
+
+      const nextWeekNum = nextWeekNumber(lastWeek.weekNumber);
+      const nextWeek = findWeek(nextWeekNum) ?? lastWeek;
+      const dayIdx = findDayIndex(nextWeek, todayLabel);
+      return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
+    },
+    []
+  );
+
+  const suggestedDay = useMemo(() => {
+    if (!selectedProgram) return null;
+    const suggestion = getSuggestedWeekAndDay(selectedProgram, workoutHistory, todayKey);
+    const week = selectedProgram.weeks.find(w => w.weekNumber === suggestion.week) ?? selectedProgram.weeks[0];
+    const day = week?.days[suggestion.dayIndex];
+    if (!day) return null;
+    return {
+      ...suggestion,
+      name: day.name,
+      dayLabel: day.dayOfWeek,
+      setCount: day.sets.length,
+      exerciseCount: new Set(day.sets.map(s => s.exerciseId)).size,
+    };
+  }, [selectedProgram, workoutHistory, todayKey, getSuggestedWeekAndDay]);
+
   const loadWorkoutsFromBothSources = useCallback(async () => {
     const localWorkouts = storage.getWorkoutHistory();
     const getSortTime = (session: WorkoutSession) =>
@@ -144,7 +256,7 @@ export default function StartWorkoutPage() {
 
     const resolvedUserId = await resolveUserId();
     if (!resolvedUserId) {
-      setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+      setWorkoutHistory(sortedLocalWorkouts);
       return;
     }
 
@@ -165,7 +277,7 @@ export default function StartWorkoutPage() {
 
       if (error) {
         console.error('Failed to load workouts from Supabase:', error);
-        setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+        setWorkoutHistory(sortedLocalWorkouts);
         return;
       }
 
@@ -220,10 +332,10 @@ export default function StartWorkoutPage() {
         (a, b) => getSortTime(b) - getSortTime(a)
       );
 
-      setRecentWorkouts(mergedWorkouts.slice(0, 3));
+      setWorkoutHistory(mergedWorkouts);
     } catch (err) {
       console.error('Error loading workouts from Supabase:', err);
-      setRecentWorkouts(sortedLocalWorkouts.slice(0, 3));
+      setWorkoutHistory(sortedLocalWorkouts);
     }
   }, [user, namespaceId]);
 
@@ -233,38 +345,31 @@ export default function StartWorkoutPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const hidden = showQuickStart;
+    const hidden = stage !== 'select';
     localStorage.setItem('iron_brain_hide_bottom_nav', hidden ? 'true' : 'false');
     window.dispatchEvent(new Event('iron_brain_nav_visibility'));
     return () => {
       localStorage.setItem('iron_brain_hide_bottom_nav', 'false');
       window.dispatchEvent(new Event('iron_brain_nav_visibility'));
     };
-  }, [showQuickStart]);
-
-  const activeDay = useMemo(() => {
-    if (!selectedProgram) return null;
-    const week = selectedProgram.weeks?.[0];
-    const day = week?.days?.[0];
-    if (!day) return null;
-    return {
-      name: day.name,
-      weekNumber: week.weekNumber || 1,
-      dayLabel: day.dayOfWeek,
-    };
-  }, [selectedProgram]);
+  }, [stage]);
 
   const handleContinue = () => {
-    if (!selectedProgram || !activeDay) {
+    if (!selectedProgram || !suggestedDay) {
       router.push('/programs');
       return;
     }
-    localStorage.setItem('iron_brain_start_workout', 'true');
-    router.push('/programs');
+    setActiveProgram(selectedProgram);
+    setSelectedWeek(suggestedDay.week);
+    setSelectedDayIndex(suggestedDay.dayIndex);
+    setStage('readiness');
   };
 
   const handleQuickStart = () => {
-    setShowQuickStart(true);
+    setActiveProgram(quickStartProgram);
+    setSelectedWeek(1);
+    setSelectedDayIndex(0);
+    setStage('workout');
   };
 
   const handleChooseDay = () => {
@@ -272,21 +377,49 @@ export default function StartWorkoutPage() {
     router.push('/programs');
   };
 
-  if (showQuickStart) {
+  if (stage === 'readiness' && activeProgram && selectedDayIndex !== null) {
+    const week = activeProgram.weeks.find(w => w.weekNumber === selectedWeek);
+    const day = week?.days[selectedDayIndex];
     return (
-      <WorkoutLogger
-        program={quickStartProgram}
-        weekNumber={1}
-        dayIndex={0}
-        onComplete={(session) => {
-          void storage.saveWorkout(session);
-          setShowQuickStart(false);
-          router.push('/');
+      <PreWorkoutReadiness
+        userId={user?.id || null}
+        plannedExerciseIds={day ? Array.from(new Set(day.sets.map(s => s.exerciseId))) : undefined}
+        onContinue={() => setStage('workout')}
+        onCancel={() => {
+          setStage('select');
+          setSelectedDayIndex(null);
+          setActiveProgram(null);
         }}
-        onCancel={() => setShowQuickStart(false)}
       />
     );
   }
+
+  if (stage === 'workout' && activeProgram && selectedDayIndex !== null) {
+    return (
+      <WorkoutLogger
+        program={activeProgram}
+        weekNumber={selectedWeek}
+        dayIndex={selectedDayIndex}
+        onComplete={(session) => {
+          void storage.saveWorkout(session);
+        }}
+        showSummaryOnComplete
+        onSummaryClose={() => {
+          setStage('select');
+          setSelectedDayIndex(null);
+          setActiveProgram(null);
+          router.push('/');
+        }}
+        onCancel={() => {
+          setStage('select');
+          setSelectedDayIndex(null);
+          setActiveProgram(null);
+        }}
+      />
+    );
+  }
+
+  const recentWorkouts = workoutHistory.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
@@ -308,8 +441,8 @@ export default function StartWorkoutPage() {
               <div className="flex-1">
                 <div className="text-white font-semibold text-lg">Continue Program</div>
                 <div className="text-gray-200 text-sm">
-                  {activeDay
-                    ? `Week ${activeDay.weekNumber}, ${activeDay.dayLabel} - ${activeDay.name}`
+                  {suggestedDay
+                    ? `Week ${suggestedDay.week}, ${suggestedDay.dayLabel} - ${suggestedDay.name}`
                     : 'No active program selected'}
                 </div>
               </div>

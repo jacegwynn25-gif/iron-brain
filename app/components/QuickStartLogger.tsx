@@ -20,6 +20,7 @@ import RestTimer from './RestTimer';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getCustomExercises } from '../lib/exercises/custom-exercises';
 import CreateExerciseModal from './program-builder/CreateExerciseModal';
+import WorkoutSummary from './WorkoutSummary';
 
 interface QuickStartSet {
   id: string;
@@ -64,8 +65,14 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(90);
   const [restExerciseName, setRestExerciseName] = useState('Rest');
+  const [restContext, setRestContext] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    isLastSet: boolean;
+  } | null>(null);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customInitialName, setCustomInitialName] = useState('');
+  const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -231,29 +238,42 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
   }, []);
 
   const logSet = useCallback((exerciseId: string, setId: string) => {
+    let restDetails: { exerciseName: string; exerciseType?: Exercise['type']; isLastSet: boolean } | null = null;
+
     setExercises((prev) =>
       prev.map((ex) => {
-        if (ex.id === exerciseId) {
-          return {
-            ...ex,
-            sets: ex.sets.map((set) =>
-              set.id === setId ? { ...set, completed: true } : set
-            ),
-          };
-        }
-        return ex;
+        if (ex.id !== exerciseId) return ex;
+        const setIndex = ex.sets.findIndex((set) => set.id === setId);
+        const isLastSet = setIndex === ex.sets.length - 1;
+        restDetails = {
+          exerciseName: ex.exerciseName,
+          exerciseType: ex.exerciseData?.type,
+          isLastSet,
+        };
+        return {
+          ...ex,
+          sets: ex.sets.map((set) =>
+            set.id === setId ? { ...set, completed: true } : set
+          ),
+        };
       })
     );
 
-    const exercise = exercises.find((ex) => ex.id === exerciseId);
-    setRestExerciseName(exercise?.exerciseName || 'Rest');
-    if (exercise?.exerciseData?.type === 'compound') {
+    if (!restDetails) return;
+
+    setRestExerciseName(restDetails.exerciseName || 'Rest');
+    if (restDetails.exerciseType === 'compound') {
       setRestDuration(150);
     } else {
       setRestDuration(90);
     }
+    setRestContext({
+      exerciseId,
+      exerciseName: restDetails.exerciseName,
+      isLastSet: restDetails.isLastSet,
+    });
     setShowRestTimer(true);
-  }, [exercises]);
+  }, []);
 
   const deleteSet = useCallback((exerciseId: string, setId: string) => {
     setExercises((prev) =>
@@ -285,24 +305,22 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
   const stats = useMemo(() => {
     let totalSets = 0;
     let completedSets = 0;
-    let loggableSets = 0;
     let totalVolume = 0;
 
     for (const ex of exercises) {
       for (const set of ex.sets) {
-        totalSets += 1;
         const hasInputs = set.weight !== null && set.reps !== null;
         if (set.completed) {
           completedSets += 1;
         }
         if (set.completed || hasInputs) {
-          loggableSets += 1;
+          totalSets += 1;
           totalVolume += (set.weight ?? 0) * (set.reps ?? 0);
         }
       }
     }
 
-    return { totalSets, completedSets, loggableSets, totalVolume };
+    return { totalSets, completedSets, totalVolume };
   }, [exercises]);
 
   const finishWorkout = useCallback(() => {
@@ -369,7 +387,16 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
     };
 
     onComplete(session);
+    setSummarySession(session);
   }, [exercises, sessionStartTime, stats.totalVolume, onComplete, workoutName]);
+
+  const handleRestAdvance = useCallback((addExtraSet: boolean) => {
+    if (addExtraSet && restContext) {
+      addSet(restContext.exerciseId);
+    }
+    setShowRestTimer(false);
+    setRestContext(null);
+  }, [addSet, restContext]);
 
   const handleCreateCustom = useCallback(() => {
     setCustomInitialName(searchQuery.trim());
@@ -396,7 +423,11 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
                 {formatTime(elapsedSeconds)}
               </span>
               <span>•</span>
-              <span>{stats.loggableSets}/{stats.totalSets} sets</span>
+              {stats.totalSets > 0 ? (
+                <span>{stats.completedSets}/{stats.totalSets} sets</span>
+              ) : (
+                <span>0 sets</span>
+              )}
               {stats.totalVolume > 0 && (
                 <>
                   <span>•</span>
@@ -427,27 +458,31 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
           />
         </div>
 
-        {exercises.map((exercise) => (
-          <div
-            key={exercise.id}
-            className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden"
-          >
-            <div className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
-              <button
-                onClick={() => toggleExercise(exercise.id)}
-                className="flex items-center gap-3 flex-1 text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Dumbbell className="w-4 h-4 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-white font-semibold">{exercise.exerciseName}</h3>
-                  <p className="text-xs text-gray-500">
-                    {exercise.sets.filter((s) => s.completed || (s.weight !== null && s.reps !== null)).length}
-                    /{exercise.sets.length} sets
-                  </p>
-                </div>
-              </button>
+        {exercises.map((exercise) => {
+          const totalLoggedSets = exercise.sets.filter(
+            (set) => set.completed || (set.weight !== null && set.reps !== null)
+          ).length;
+          const completedSets = exercise.sets.filter((set) => set.completed).length;
+          const progressText = totalLoggedSets > 0 ? `${completedSets}/${totalLoggedSets} sets` : '0 sets';
+
+          return (
+            <div
+              key={exercise.id}
+              className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden"
+            >
+              <div className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
+                <button
+                  onClick={() => toggleExercise(exercise.id)}
+                  className="flex items-center gap-3 flex-1 text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Dumbbell className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">{exercise.exerciseName}</h3>
+                    <p className="text-xs text-gray-500">{progressText}</p>
+                  </div>
+                </button>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => deleteExercise(exercise.id)}
@@ -493,8 +528,9 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
                 </button>
               </div>
             )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
         <button
           onClick={() => setShowExercisePicker(true)}
@@ -524,17 +560,17 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent safe-bottom">
         <button
           onClick={finishWorkout}
-          disabled={stats.loggableSets === 0}
+          disabled={stats.totalSets === 0}
           className={`w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
-            stats.loggableSets === 0
+            stats.totalSets === 0
               ? 'bg-white/10 text-gray-500'
               : 'bg-gradient-to-r from-emerald-600 to-green-500 shadow-emerald-500/20 active:scale-[0.98]'
           }`}
         >
           <Check className="w-5 h-5" />
-          {stats.loggableSets === 0
+          {stats.totalSets === 0
             ? 'Log a set to finish'
-            : `Finish Workout (${stats.loggableSets} sets)`}
+            : `Finish Workout (${stats.totalSets} sets)`}
         </button>
       </div>
 
@@ -564,11 +600,21 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
       <RestTimer
         isActive={showRestTimer}
         duration={restDuration}
-        onComplete={() => setShowRestTimer(false)}
-        onSkip={() => setShowRestTimer(false)}
-        isLastSetOfExercise={false}
+        onComplete={handleRestAdvance}
+        onSkip={handleRestAdvance}
+        isLastSetOfExercise={restContext?.isLastSet ?? false}
         exerciseName={restExerciseName}
       />
+
+      {summarySession && (
+        <WorkoutSummary
+          session={summarySession}
+          onClose={() => {
+            setSummarySession(null);
+            onCancel();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -58,7 +58,34 @@ export default function CreateExerciseModal({
       onClose();
     } catch (err) {
       console.error('Failed to create exercise:', err);
-      alert('Failed to create exercise. Please try again.');
+      const now = new Date().toISOString();
+      const slug = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const fallback: CustomExercise = {
+        id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        userId: userId || 'local',
+        name: name.trim(),
+        slug,
+        equipment,
+        exerciseType,
+        primaryMuscles,
+        secondaryMuscles,
+        movementPattern,
+        trackWeight: true,
+        trackReps: true,
+        trackTime: false,
+        defaultRestSeconds,
+        createdAt: now,
+        updatedAt: now,
+      };
+      try {
+        const stored = localStorage.getItem('iron_brain_custom_exercises');
+        const existing = stored ? JSON.parse(stored) : [];
+        localStorage.setItem('iron_brain_custom_exercises', JSON.stringify([fallback, ...existing]));
+      } catch (storageError) {
+        console.error('Failed to persist fallback exercise:', storageError);
+      }
+      onCreate(fallback);
+      onClose();
     } finally {
       setLoading(false);
     }

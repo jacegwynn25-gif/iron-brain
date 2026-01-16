@@ -205,6 +205,13 @@ export default function HomePage() {
 
   useEffect(() => {
     loadWorkoutsFromBothSources();
+    const handleFocus = () => {
+      loadWorkoutsFromBothSources();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [loadWorkoutsFromBothSources]);
 
   const todayWorkout = useMemo(() => {

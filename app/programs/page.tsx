@@ -136,11 +136,11 @@ export default function Home() {
       localStorage.setItem('iron_brain_hide_bottom_nav', hidden ? 'true' : 'false');
       window.dispatchEvent(new Event('iron_brain_nav_visibility'));
     };
-    updateNavVisibility(isLogging);
+    updateNavVisibility(isLogging || showPreWorkoutReadiness);
     return () => {
       updateNavVisibility(false);
     };
-  }, [isLogging]);
+  }, [isLogging, showPreWorkoutReadiness]);
 
   // Keep a lightweight "today" clock so we can auto-advance the UI each day
   useEffect(() => {
@@ -923,8 +923,8 @@ export default function Home() {
 
   // Main app view
   return (
-      <div className="fixed inset-0 bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 overflow-y-auto safe-x safe-bottom">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 pb-24 min-h-full safe-top">
+      <div className="fixed inset-0 bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 overflow-y-auto safe-x">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 pb-20 min-h-full safe-top">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div className="flex-1">

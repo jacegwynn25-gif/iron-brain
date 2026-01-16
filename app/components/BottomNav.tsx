@@ -41,7 +41,12 @@ export default function BottomNav() {
   }, []);
 
   // Don't show nav during active workout
-  if (pathname?.includes('/workout/active') || isHidden) {
+  if (
+    pathname?.includes('/workout/active') ||
+    pathname === '/workout/readiness' ||
+    pathname === '/workout/summary' ||
+    isHidden
+  ) {
     return null;
   }
 

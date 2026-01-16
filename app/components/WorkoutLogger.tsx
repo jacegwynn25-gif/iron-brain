@@ -6,6 +6,7 @@ import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
+import WorkoutSummary from './WorkoutSummary';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getWorkoutIntelligence, type SetRecommendation } from '../lib/intelligence/workout-intelligence';
@@ -32,6 +33,8 @@ interface WorkoutLoggerProps {
   onCancel: () => void;
   initialSession?: WorkoutSession | null;
   initialActiveState?: ActiveSessionState | null;
+  showSummaryOnComplete?: boolean;
+  onSummaryClose?: () => void;
 }
 
 type WorkoutView = 'selection' | 'logging' | 'rest';
@@ -60,9 +63,12 @@ export default function WorkoutLogger({
   onCancel,
   initialSession,
   initialActiveState,
+  showSummaryOnComplete = false,
+  onSummaryClose,
 }: WorkoutLoggerProps) {
   const { user } = useAuth();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -279,29 +285,10 @@ export default function WorkoutLogger({
 
     const loggedCount = getLoggedSetsForExercise(entry.exerciseId);
     if (loggedCount >= entry.sets.length) {
-      setExerciseEntries((prev) =>
-        prev.map((item) => {
-          if (item.exerciseId !== entry.exerciseId) return item;
-          const last = item.sets[item.sets.length - 1];
-          const baseTemplate: SetTemplate = last ?? {
-            exerciseId: item.exerciseId,
-            setIndex: 1,
-            prescribedReps: '8',
-            targetRPE: 8,
-            restSeconds: 90,
-          };
-          const nextIndex = (last?.setIndex ?? item.sets.length) + 1;
-          const extraTemplate: SetTemplate = {
-            ...baseTemplate,
-            setIndex: nextIndex,
-          };
-          return { ...item, sets: [...item.sets, extraTemplate] };
-        })
-      );
-      setActiveSetIndex(entry.sets.length);
-    } else {
-      setActiveSetIndex(loggedCount);
+      setActiveSetIndex(Math.max(0, entry.sets.length - 1));
+      return;
     }
+    setActiveSetIndex(loggedCount);
   }, [currentExerciseId, exerciseEntries, getLoggedSetsForExercise]);
 
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -410,8 +397,13 @@ export default function WorkoutLogger({
     }
 
     clearActiveSession();
+    if (showSummaryOnComplete) {
+      setSummarySession(finalSession);
+      onComplete(finalSession);
+      return;
+    }
     onComplete(finalSession);
-  }, [buildFinalSession, onCancel, onComplete, user]);
+  }, [buildFinalSession, onCancel, onComplete, showSummaryOnComplete, user]);
 
   const handleCancelWorkout = useCallback(() => {
     clearActiveSession();
@@ -832,6 +824,22 @@ export default function WorkoutLogger({
       lastReps: lastSet?.actualReps ?? undefined,
     };
   }, [restContext, resolveExercise, nextSetRecommendation, sessionSets]);
+
+  if (summarySession) {
+    return (
+      <WorkoutSummary
+        session={summarySession}
+        onClose={() => {
+          setSummarySession(null);
+          if (onSummaryClose) {
+            onSummaryClose();
+          } else {
+            onCancel();
+          }
+        }}
+      />
+    );
+  }
 
   if (!day) {
     return (
