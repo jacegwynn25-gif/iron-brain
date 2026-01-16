@@ -238,18 +238,23 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
   }, []);
 
   const logSet = useCallback((exerciseId: string, setId: string) => {
-    let restDetails: { exerciseName: string; exerciseType?: Exercise['type']; isLastSet: boolean } | null = null;
+    // 1. Calculate rest details first
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return;
+    
+    const setIndex = exercise.sets.findIndex(s => s.id === setId);
+    const isLastSet = setIndex === exercise.sets.length - 1;
+    
+    const details = {
+      exerciseName: exercise.exerciseName,
+      exerciseType: exercise.exerciseData?.type,
+      isLastSet
+    };
 
+    // 2. Update state
     setExercises((prev) =>
       prev.map((ex) => {
         if (ex.id !== exerciseId) return ex;
-        const setIndex = ex.sets.findIndex((set) => set.id === setId);
-        const isLastSet = setIndex === ex.sets.length - 1;
-        restDetails = {
-          exerciseName: ex.exerciseName,
-          exerciseType: ex.exerciseData?.type,
-          isLastSet,
-        };
         return {
           ...ex,
           sets: ex.sets.map((set) =>
@@ -259,21 +264,20 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
       })
     );
 
-    if (!restDetails) return;
-
-    setRestExerciseName(restDetails.exerciseName || 'Rest');
-    if (restDetails.exerciseType === 'compound') {
+    // 3. Set rest timer
+    setRestExerciseName(details.exerciseName || 'Rest');
+    if (details.exerciseType === 'compound') {
       setRestDuration(150);
     } else {
       setRestDuration(90);
     }
     setRestContext({
       exerciseId,
-      exerciseName: restDetails.exerciseName,
-      isLastSet: restDetails.isLastSet,
+      exerciseName: details.exerciseName,
+      isLastSet: details.isLastSet,
     });
     setShowRestTimer(true);
-  }, []);
+  }, [exercises]); // Add exercises to dependency
 
   const deleteSet = useCallback((exerciseId: string, setId: string) => {
     setExercises((prev) =>
