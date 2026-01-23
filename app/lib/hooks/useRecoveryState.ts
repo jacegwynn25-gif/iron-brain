@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../supabase/auth-context';
 import {
   getRecoveryAssessment,
-  buildCompleteRecoveryAssessment,
   type RecoveryAssessment
 } from '../intelligence/recovery-integration-service';
 

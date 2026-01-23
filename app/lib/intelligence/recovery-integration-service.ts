@@ -15,10 +15,9 @@
  */
 
 import { supabase } from '../supabase/client';
+import type { Database } from '../supabase/database.types';
 import {
   buildRecoveryState,
-  calculateMuscleFatigueState,
-  calculateExerciseFatigueState,
   type RecoveryState,
   type FatigueEvent
 } from './recovery/decay-engine';
@@ -28,7 +27,6 @@ import {
   type ConnectiveTissueState
 } from './recovery/connective-tissue';
 import {
-  buildEnergySystemState,
   type EnergySystemState
 } from './recovery/energy-systems';
 import {
@@ -44,15 +42,9 @@ import {
   type InjuryRiskAssessment
 } from './recovery/injury-risk-scoring';
 import {
-  getCalibratedMuscleHalfLife,
-  getCalibratedExerciseHalfLife,
-  type UserRecoveryParameter
-} from './recovery/bayesian-calibration';
-import {
   generateReadinessMessage,
   generateMuscleStatusList,
   generateInjuryWarning,
-  generateSetRecommendation,
   type ReadinessMessage,
   type SimpleMuscleStatus,
   type SimpleWarning
@@ -77,6 +69,9 @@ export interface RecoveryAssessment {
   confidence: number; // 0-1
 }
 
+type RecoveryHistoryRow = Database['public']['Functions']['get_workout_history_for_recovery']['Returns'][number];
+type UserContextRow = Database['public']['Tables']['user_context_data']['Row'];
+
 /**
  * Fetch workout history and convert to fatigue events
  */
@@ -95,7 +90,8 @@ async function fetchWorkoutHistory(
     return [];
   }
 
-  return (data || []).map((row: any) => ({
+  const rows: RecoveryHistoryRow[] = data ?? [];
+  return rows.map((row) => ({
     timestamp: new Date(row.event_timestamp),
     exerciseName: row.exercise_name,
     sets: row.sets,
@@ -142,14 +138,15 @@ async function fetchContextData(userId: string, days: number = 7): Promise<{
     .limit(1);
 
   // Convert to typed objects
-  const sleepData: SleepData[] = (contextRows || [])
-    .filter((row: any) => row.sleep_hours !== null)
-    .map((row: any) => ({
-      hours: row.sleep_hours,
-      quality: row.sleep_quality || 'fair',
-      interruptions: row.sleep_interruptions || 0,
-      timestamp: new Date(row.date)
-    }));
+  const sleepRows = (contextRows ?? []).filter(
+    (row): row is UserContextRow & { sleep_hours: number } => row.sleep_hours !== null
+  );
+  const sleepData: SleepData[] = sleepRows.map((row) => ({
+    hours: row.sleep_hours,
+    quality: row.sleep_quality || 'fair',
+    interruptions: row.sleep_interruptions || 0,
+    timestamp: new Date(row.date)
+  }));
 
   const latestContext = contextRows?.[0];
   const nutritionData: NutritionData | null = latestContext ? {
@@ -197,33 +194,6 @@ async function fetchContextData(userId: string, days: number = 7): Promise<{
 }
 
 /**
- * Fetch user's Bayesian calibration parameters
- */
-async function fetchUserParameters(userId: string): Promise<Map<string, UserRecoveryParameter>> {
-  const { data } = await supabase
-    .from('user_recovery_parameters')
-    .select('*')
-    .eq('user_id', userId);
-
-  const paramsMap = new Map<string, UserRecoveryParameter>();
-
-  for (const row of data || []) {
-    paramsMap.set(row.parameter_name, {
-      parameterName: row.parameter_name,
-      populationMean: row.population_mean,
-      populationStdDev: row.population_std_dev,
-      userMean: row.user_mean,
-      userStdDev: row.user_std_dev,
-      observationCount: row.observation_count,
-      lastUpdated: new Date(row.last_updated),
-      confidenceLevel: row.confidence_level
-    });
-  }
-
-  return paramsMap;
-}
-
-/**
  * Build complete recovery assessment
  *
  * This is the main entry point - call this to get full recovery data.
@@ -237,12 +207,10 @@ export async function buildCompleteRecoveryAssessment(
   // 1. Fetch all data in parallel
   const [
     workoutHistory,
-    contextData,
-    userParameters
+    contextData
   ] = await Promise.all([
     fetchWorkoutHistory(userId),
-    fetchContextData(userId),
-    fetchUserParameters(userId)
+    fetchContextData(userId)
   ]);
 
   // 2. Build recovery state using decay engine
@@ -276,10 +244,8 @@ export async function buildCompleteRecoveryAssessment(
 
   // 4. Build energy system states (for primary muscles)
   const energyStates: EnergySystemState[] = [];
-  const primaryMuscles = Array.from(recoveryState.muscles.keys()).slice(0, 6);
 
   // 5. Calculate contextual recovery capacity
-  const bodyweight = contextData.demographics?.age || 75; // Default 75kg
   const recoveryCapacityResult = calculateOverallRecoveryCapacity(
     contextData.sleepData,
     contextData.nutritionData,
@@ -292,8 +258,7 @@ export async function buildCompleteRecoveryAssessment(
       currentInjuries: [],
       chronicConditions: []
     },
-    contextData.cycleData,
-    bodyweight
+    contextData.cycleData
   );
 
   // 6. Calculate ACWR
@@ -334,7 +299,7 @@ export async function buildCompleteRecoveryAssessment(
   // 10. Cache result in recovery_snapshots table
   const computationTimeMs = Date.now() - startTime;
 
-  await supabase
+  const { error: snapshotError } = await supabase
     .from('recovery_snapshots')
     .insert({
       user_id: userId,
@@ -373,10 +338,10 @@ export async function buildCompleteRecoveryAssessment(
       warnings: injuryRisk.warnings,
       recommendations: injuryRisk.recommendations,
       computation_time_ms: computationTimeMs
-    })
-    .then(({ error }: any) => {
-      if (error) console.warn('Failed to cache recovery snapshot:', error);
     });
+  if (snapshotError) {
+    console.warn('Failed to cache recovery snapshot:', snapshotError);
+  }
 
   return {
     recoveryState,

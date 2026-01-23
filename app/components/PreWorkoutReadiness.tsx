@@ -13,19 +13,12 @@ interface PreWorkoutReadinessProps {
   onCancel: () => void;
 }
 
-export default function PreWorkoutReadiness({
-  userId,
-  plannedExerciseIds,
-  onContinue,
-  onCancel,
-}: PreWorkoutReadinessProps) {
+export default function PreWorkoutReadiness(props: PreWorkoutReadinessProps) {
+  const { onContinue, onCancel } = props;
   const {
     readinessMessage,
-    overallRecovery,
     muscleStatuses,
     injuryWarning,
-    dataQuality,
-    confidence,
     loading,
     error
   } = usePreWorkoutReadiness();

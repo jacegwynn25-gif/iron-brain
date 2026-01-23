@@ -70,7 +70,6 @@ export default function WorkoutLogger({
   onSummaryClose,
 }: WorkoutLoggerProps) {
   const { user } = useAuth();
-  const { weightUnit } = useUnitPreference();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
 

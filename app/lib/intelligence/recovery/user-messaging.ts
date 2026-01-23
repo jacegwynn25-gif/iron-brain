@@ -274,14 +274,12 @@ export function generateInjuryWarning(
  * @param predictedWeight - Recommended weight (lbs)
  * @param lastWeight - Weight from last session (lbs)
  * @param confidence - Confidence level (0-1)
- * @param muscleRecovery - Recovery percentage (0-100)
  * @returns Simple set recommendation
  */
 export function generateSetRecommendation(
   predictedWeight: number,
   lastWeight: number | null,
-  confidence: number,
-  muscleRecovery: number
+  confidence: number
 ): {
   weight: number;
   reps: number;

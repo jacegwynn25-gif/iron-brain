@@ -7,7 +7,6 @@ import { getWorkoutHistory } from '../storage';
 import type {
   WorkoutSession,
   SessionMetadata,
-  SupabaseSetLogRow,
   SupabaseWorkoutSessionRow
 } from '../types';
 

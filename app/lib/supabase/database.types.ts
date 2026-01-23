@@ -2027,7 +2027,7 @@ export type Database = {
       }
       get_latest_context_data: {
         Args: { p_user_id: string }
-        Returns: Record<string, any>
+        Returns: Record<string, Json>
       }
       get_model_performance_metrics: {
         Args: { p_user_id: string }

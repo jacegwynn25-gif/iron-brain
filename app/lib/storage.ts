@@ -351,14 +351,16 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
       // Add timeout to prevent hanging
       try {
         const getUserPromise = supabase.auth.getUser();
-        const timeoutPromise = new Promise((_, reject) =>
+        const timeoutPromise: Promise<never> = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('getUser timeout')), 5000)
         );
 
-        const { data: { user: authUser }, error: userError } = await Promise.race([
+        const authResult: Awaited<ReturnType<typeof supabase.auth.getUser>> = await Promise.race([
           getUserPromise,
           timeoutPromise
-        ]) as any;
+        ]);
+
+        const { data: { user: authUser }, error: userError } = authResult;
 
         if (userError) {
           console.error('❌ Error getting user:', userError);
@@ -393,7 +395,8 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
       console.log('💾 About to call supabase.from(workout_sessions).upsert()...');
 
       // Create workout session in Supabase with timeout
-      let sessionData, sessionError;
+      let sessionData: { id?: string } | null = null;
+      let sessionError: PostgrestError | null = null;
 
       try {
         const upsertPromise = supabase
@@ -418,11 +421,12 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
         .select()
         .single();
 
-        const timeoutPromise = new Promise((_, reject) =>
+        const timeoutPromise: Promise<never> = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Database upsert timeout after 10s')), 10000)
         );
 
-        const result = await Promise.race([upsertPromise, timeoutPromise]) as Awaited<typeof upsertPromise>;
+        type UpsertResponse = Awaited<typeof upsertPromise>;
+        const result: UpsertResponse = await Promise.race([upsertPromise, timeoutPromise]);
         sessionData = result.data;
         sessionError = result.error;
 
@@ -430,11 +434,12 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
       } catch (error) {
         console.error('❌ Upsert failed or timed out:', error);
         sessionError = {
+          name: 'PostgrestError',
           message: error instanceof Error ? error.message : 'Unknown error',
-          details: null,
-          hint: null,
+          details: '',
+          hint: '',
           code: 'TIMEOUT'
-        } as any;
+        };
       }
 
       if (sessionError) {

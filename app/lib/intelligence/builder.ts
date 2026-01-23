@@ -228,6 +228,11 @@ function getBestExercise(
 
   // Prioritize by tier, then by stretch-focused
   const tierOrder: ExerciseTier[] = ['S', 'A', 'B', 'C'];
+  const preferIndex = tierOrder.indexOf(preferTier);
+  if (preferIndex > 0) {
+    tierOrder.splice(preferIndex, 1);
+    tierOrder.unshift(preferTier);
+  }
   available.sort((a, b) => {
     const tierDiff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier);
     if (tierDiff !== 0) return tierDiff;
@@ -289,7 +294,7 @@ function calculateWeeklyVolume(
   const volumeMap = new Map<string, { sets: number; frequency: number }>();
   const { experienceLevel, recoveryCapacity = 'average', emphasisMuscles = [] } = profile;
 
-  for (const [muscleKey, landmark] of Object.entries(VOLUME_LANDMARKS)) {
+  for (const muscleKey of Object.keys(VOLUME_LANDMARKS)) {
     const { min, max, frequency } = getRecommendedVolume(
       muscleKey,
       experienceLevel,

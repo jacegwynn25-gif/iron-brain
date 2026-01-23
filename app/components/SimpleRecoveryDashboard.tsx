@@ -7,7 +7,7 @@ import { useMuscleRecovery, useInjuryRisk } from '../lib/hooks/useRecoveryState'
 export default function SimpleRecoveryDashboard() {
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const { muscleStatuses, loading: muscleLoading } = useMuscleRecovery();
-  const { injuryRisk, injuryWarning, loading: riskLoading } = useInjuryRisk();
+  const { injuryRisk, loading: riskLoading } = useInjuryRisk();
 
   const loading = muscleLoading || riskLoading;
 

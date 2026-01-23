@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase/client';
 
@@ -32,7 +32,7 @@ export default function ResetAuthPage() {
         } else {
           addLog('   ✅ Signed out from Supabase');
         }
-      } catch (e) {
+      } catch {
         addLog('   ⚠️  Sign out failed or timed out (continuing anyway)');
       }
 

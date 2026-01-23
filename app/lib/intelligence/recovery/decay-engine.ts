@@ -13,16 +13,10 @@
  * - Mujika & Padilla (2003): Detraining and recovery timelines
  */
 
+import { MUSCLE_RECOVERY_CONSTANTS } from './muscle-architecture';
 import {
-  MUSCLE_RECOVERY_CONSTANTS,
-  calculateMuscleRecovery,
-  type MuscleArchitecture
-} from './muscle-architecture';
-import {
-  EXERCISE_PATTERNS,
   getExercisePattern,
-  calculateExerciseFatigue,
-  type ExercisePattern
+  calculateExerciseFatigue
 } from './exercise-patterns';
 
 /**

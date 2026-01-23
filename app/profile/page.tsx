@@ -17,7 +17,6 @@ import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
 import type {
   WorkoutSession,
   SessionMetadata,
-  SupabaseSetLogRow,
   SupabaseWorkoutSessionRow
 } from '../lib/types';
 import { storage, setUserNamespace } from '../lib/storage';

@@ -13,6 +13,12 @@ export interface Subscription {
   lifetimeSlotsRemaining: number | null;
 }
 
+type SubscriptionProfileRow = {
+  is_pro: boolean | null;
+  subscription_tier: SubscriptionTier | null;
+  subscription_expires_at: string | null;
+};
+
 export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription>({
@@ -39,16 +45,18 @@ export function useSubscription() {
         .single();
 
       const { data: settings } = await supabase
-        .from('app_settings' as any)
+        .from('app_settings')
         .select('lifetime_slots_remaining')
         .eq('id', 'singleton')
         .single();
 
+      const profileData = profile as unknown as SubscriptionProfileRow | null;
+
       setSubscription({
-        isPro: (profile as any)?.is_pro ?? false,
-        tier: ((profile as any)?.subscription_tier as SubscriptionTier) ?? 'free',
-        expiresAt: (profile as any)?.subscription_expires_at ?? null,
-        lifetimeSlotsRemaining: (settings as any)?.lifetime_slots_remaining ?? null
+        isPro: profileData?.is_pro ?? false,
+        tier: profileData?.subscription_tier ?? 'free',
+        expiresAt: profileData?.subscription_expires_at ?? null,
+        lifetimeSlotsRemaining: settings?.lifetime_slots_remaining ?? null
       });
       setLoading(false);
     };

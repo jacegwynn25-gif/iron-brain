@@ -253,14 +253,12 @@ export function getCalibratedExerciseHalfLife(
  * @param muscleName - Muscle being assessed
  * @param hoursSinceTraining - Hours since last trained
  * @param subjectiveRecovery - User's subjective recovery (0-100%)
- * @param initialFatigue - How fatigued they were after workout
  * @returns Recovery observation
  */
 export function inferRecoveryFromSubjectiveRating(
   muscleName: string,
   hoursSinceTraining: number,
-  subjectiveRecovery: number,
-  initialFatigue: number
+  subjectiveRecovery: number
 ): RecoveryObservation {
   // Solve for observed half-life from exponential decay
   // Recovery = (1 - e^(-kt)) × 100

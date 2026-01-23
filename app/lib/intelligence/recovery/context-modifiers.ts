@@ -137,12 +137,10 @@ export function calculateSleepModifier(sleepData: SleepData[]): number {
  * - Post-workout nutrition timing critical
  *
  * @param nutritionData - Recent nutrition data
- * @param bodyweight - User bodyweight in kg
  * @returns Recovery multiplier (0.7-1.15)
  */
 export function calculateNutritionModifier(
-  nutritionData: NutritionData | null,
-  bodyweight: number
+  nutritionData: NutritionData | null
 ): number {
   if (!nutritionData) return 0.95; // No data = assume slightly suboptimal
 
@@ -384,7 +382,6 @@ export function calculateMenstrualCycleModifier(
  * @param stressData - Recent stress data
  * @param demographics - User demographics
  * @param cycleData - Menstrual cycle data (if applicable)
- * @param bodyweight - User bodyweight in kg
  * @returns Combined recovery modifier (0.4-1.4)
  */
 export function calculateOverallRecoveryCapacity(
@@ -392,8 +389,7 @@ export function calculateOverallRecoveryCapacity(
   nutritionData: NutritionData | null,
   stressData: StressData | null,
   demographics: UserDemographics,
-  cycleData: MenstrualCycleData | null,
-  bodyweight: number
+  cycleData: MenstrualCycleData | null
 ): {
   overallModifier: number;
   breakdown: {
@@ -407,7 +403,7 @@ export function calculateOverallRecoveryCapacity(
   recommendations: string[];
 } {
   const sleepMod = calculateSleepModifier(sleepData);
-  const nutritionMod = calculateNutritionModifier(nutritionData, bodyweight);
+  const nutritionMod = calculateNutritionModifier(nutritionData);
   const stressMod = calculateStressModifier(stressData);
   const trainingAgeMod = calculateTrainingAgeModifier(demographics);
   const cycleMod = demographics.sex === 'female'

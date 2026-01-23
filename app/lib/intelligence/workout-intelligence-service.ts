@@ -156,6 +156,15 @@ type SessionMetadata = {
   dayName?: string;
 };
 
+type ProProfileRow = {
+  is_pro: boolean | null;
+};
+
+const resolveProStatus = (profile: unknown): boolean => {
+  const profileData = profile as ProProfileRow | null;
+  return profileData?.is_pro ?? false;
+};
+
 // ============================================================
 // WORKOUT INTELLIGENCE SERVICE
 // ============================================================
@@ -191,7 +200,7 @@ export class WorkoutIntelligenceService {
             .select('is_pro')
             .eq('id', this.userId)
             .single();
-          isPro = (profile as any)?.is_pro ?? false;
+          isPro = resolveProStatus(profile);
         } catch (err) {
           console.warn('Could not check Pro status:', err);
         }
@@ -316,7 +325,7 @@ export class WorkoutIntelligenceService {
             .select('is_pro')
             .eq('id', this.userId)
             .single();
-          isPro = (profile as any)?.is_pro ?? false;
+          isPro = resolveProStatus(profile);
         } catch (err) {
           console.warn('Could not check Pro status:', err);
         }
@@ -462,7 +471,7 @@ export class WorkoutIntelligenceService {
             .select('is_pro')
             .eq('id', this.userId)
             .single();
-          isPro = (profile as any)?.is_pro ?? false;
+          isPro = resolveProStatus(profile);
         } catch (err) {
           console.warn('Could not check Pro status:', err);
         }

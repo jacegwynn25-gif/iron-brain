@@ -16,8 +16,6 @@
  * - Stone et al. (2007): Axial loading and systemic recovery
  */
 
-import { MUSCLE_RECOVERY_CONSTANTS } from './muscle-architecture';
-
 /**
  * Exercise Complexity Tiers
  *

@@ -10,7 +10,6 @@ import type {
   WorkoutSession,
   UserProfile,
   SessionMetadata,
-  SupabaseSetLogRow,
   SupabaseWorkoutSessionRow
 } from '../lib/types';
 

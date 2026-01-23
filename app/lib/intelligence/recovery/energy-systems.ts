@@ -14,7 +14,6 @@
  * - Haff & Triplett (2016): Essentials of Strength Training and Conditioning
  */
 
-import { MUSCLE_RECOVERY_CONSTANTS } from './muscle-architecture';
 import { getExercisePattern } from './exercise-patterns';
 
 /**
