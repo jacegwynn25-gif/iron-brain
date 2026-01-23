@@ -30,10 +30,10 @@ const coachMarks: CoachMark[] = [
     position: 'top',
   },
   {
-    id: 'analytics',
-    targetSelector: '[data-coach="analytics-tab"]',
-    title: 'Smart Analytics',
-    description: 'Track your progress with science-backed insights.',
+    id: 'insights',
+    targetSelector: '[data-coach="insights-tab"]',
+    title: 'Insights',
+    description: 'Track recovery and performance with science-backed insights.',
     position: 'top',
   },
 ];

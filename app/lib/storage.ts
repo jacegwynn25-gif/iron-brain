@@ -35,31 +35,57 @@ type WorkoutMetadata = {
  * This fixes the issue where workouts stored under 'default' aren't visible
  * after logging in with a user ID
  */
+const normalizeNamespace = (value?: string | null) => {
+  if (!value || value === 'default' || value === 'guest') return 'default';
+  return value;
+};
+
+const migrateWorkoutsBetweenNamespaces = (fromNamespace: string, toNamespace: string) => {
+  if (fromNamespace === toNamespace || typeof window === 'undefined') return;
+
+  const oldKey = `${STORAGE_KEYS.WORKOUT_HISTORY}__${fromNamespace}`;
+  const newKey = `${STORAGE_KEYS.WORKOUT_HISTORY}__${toNamespace}`;
+
+  try {
+    const oldData = localStorage.getItem(oldKey);
+    const oldWorkouts = oldData ? JSON.parse(oldData) : [];
+
+    const newData = localStorage.getItem(newKey);
+    const newWorkouts = newData ? JSON.parse(newData) : [];
+
+    const stripPrefix = (id: string) => (typeof id === 'string' && id.startsWith('session_') ? id.substring(8) : id);
+    const newIds = new Set(
+      Array.isArray(newWorkouts) ? newWorkouts.map((workout: { id?: string }) => stripPrefix(workout.id ?? '')) : []
+    );
+    const uniqueOld = Array.isArray(oldWorkouts)
+      ? oldWorkouts.filter((workout: { id?: string }) => !newIds.has(stripPrefix(workout.id ?? '')))
+      : [];
+
+    if (uniqueOld.length > 0) {
+      logger.debug(`🔄 Migrating ${uniqueOld.length} workouts from ${fromNamespace} to ${toNamespace}`);
+      const merged = Array.isArray(newWorkouts) ? [...newWorkouts, ...uniqueOld] : uniqueOld;
+      localStorage.setItem(newKey, JSON.stringify(merged));
+      logger.debug('✅ Workouts migrated successfully');
+    }
+  } catch (err) {
+    console.error('Failed to migrate workouts on namespace change:', err);
+  }
+};
+
 export function setUserNamespace(userId: string | null) {
-  const newNamespace = userId ? userId : 'default';
+  const normalizedCurrent = normalizeNamespace(activeUserNamespace);
 
-  // If namespace is changing, migrate workouts
-  if (newNamespace !== activeUserNamespace && typeof window !== 'undefined') {
-    const oldKey = `${STORAGE_KEYS.WORKOUT_HISTORY}__${activeUserNamespace}`;
-    const newKey = `${STORAGE_KEYS.WORKOUT_HISTORY}__${newNamespace}`;
+  if (normalizedCurrent !== activeUserNamespace) {
+    migrateWorkoutsBetweenNamespaces(activeUserNamespace, normalizedCurrent);
+    activeUserNamespace = normalizedCurrent;
+  }
 
-    try {
-      // Get workouts from old namespace
-      const oldData = localStorage.getItem(oldKey);
-      const oldWorkouts = oldData ? JSON.parse(oldData) : [];
+  const newNamespace = normalizeNamespace(userId);
 
-      // Get workouts from new namespace
-      const newData = localStorage.getItem(newKey);
-      const newWorkouts = newData ? JSON.parse(newData) : [];
-
-      // Only migrate if old has workouts and new is empty
-      if (oldWorkouts.length > 0 && newWorkouts.length === 0) {
-        logger.debug(`🔄 Migrating ${oldWorkouts.length} workouts from ${activeUserNamespace} to ${newNamespace}`);
-        localStorage.setItem(newKey, JSON.stringify(oldWorkouts));
-        logger.debug('✅ Workouts migrated successfully');
-      }
-    } catch (err) {
-      console.error('Failed to migrate workouts on namespace change:', err);
+  if (newNamespace !== normalizedCurrent && typeof window !== 'undefined') {
+    const shouldMigrateWorkouts = normalizedCurrent === 'default' && newNamespace !== 'default';
+    if (shouldMigrateWorkouts) {
+      migrateWorkoutsBetweenNamespaces(normalizedCurrent, newNamespace);
     }
   }
 
@@ -265,8 +291,15 @@ function clearStaleActiveSessions(): void {
 // WORKOUT HISTORY STORAGE
 // ============================================================
 
-export async function saveWorkout(session: WorkoutSession): Promise<void> {
-  logger.debug('🔵 saveWorkout called');
+export async function saveWorkout(session: WorkoutSession, providedUserId?: string | null): Promise<void> {
+  console.log('🔵 saveWorkout called with userId:', providedUserId || 'not provided');
+  console.log('📊 Session data:', {
+    id: session.id,
+    sets: session.sets?.length || 0,
+    hasDate: !!session.date,
+    hasProgramName: !!session.programName
+  });
+  console.log('📋 First 3 sets:', session.sets?.slice(0, 3));
   let sessionToQueue = session;
   try {
     // Normalize session ID to always include a valid UUID
@@ -305,19 +338,46 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
     }
 
     // Also save to Supabase if user is logged in
-    logger.debug('🔍 Checking if user is logged in...');
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('🔍 Checking if user is logged in...');
 
-    if (userError) {
-      console.error('❌ Error getting user:', userError);
-      queueWorkout();
-      return;
+    // Use provided userId if available, otherwise try to get it
+    let user: { id: string } | null = null;
+
+    if (providedUserId) {
+      console.log('✅ Using provided userId:', providedUserId);
+      user = { id: providedUserId };
+    } else {
+      console.log('⚠️ No userId provided, attempting auth.getUser()...');
+      // Add timeout to prevent hanging
+      try {
+        const getUserPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('getUser timeout')), 5000)
+        );
+
+        const { data: { user: authUser }, error: userError } = await Promise.race([
+          getUserPromise,
+          timeoutPromise
+        ]) as any;
+
+        if (userError) {
+          console.error('❌ Error getting user:', userError);
+          queueWorkout();
+          return;
+        }
+
+        user = authUser;
+      } catch (error) {
+        console.error('❌ Auth check timed out or failed:', error);
+        queueWorkout();
+        return;
+      }
     }
 
-    logger.debug('👤 User:', user ? user.id : 'NOT LOGGED IN');
+    console.log('👤 User:', user ? user.id : 'NOT LOGGED IN');
 
     if (user) {
-      logger.debug('💾 Syncing workout to Supabase...');
+      console.log('💾 Syncing workout to Supabase for user:', user.id);
 
       // Prepare program metadata for storage
       const metadata: WorkoutMetadata = {};
@@ -328,28 +388,54 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
       if (sessionToSave.dayOfWeek) metadata.dayOfWeek = sessionToSave.dayOfWeek;
       if (sessionToSave.dayName) metadata.dayName = sessionToSave.dayName;
 
-      // Create workout session in Supabase
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('workout_sessions')
-        .upsert({
+      console.log('📝 Creating workout session:', { id: workoutUuid, sets: sessionToSave.sets?.length });
+
+      console.log('💾 About to call supabase.from(workout_sessions).upsert()...');
+
+      // Create workout session in Supabase with timeout
+      let sessionData, sessionError;
+
+      try {
+        const upsertPromise = supabase
+          .from('workout_sessions')
+          .upsert({
           id: workoutUuid,
           user_id: user.id,
           name: sessionToSave.dayName || sessionToSave.programName || 'Workout',
           date: sessionToSave.date,
           start_time: sessionToSave.startTime,
           end_time: sessionToSave.endTime,
-          duration_minutes: sessionToSave.durationMinutes,
+          duration_minutes: sessionToSave.durationMinutes != null ? Math.round(Number(sessionToSave.durationMinutes)) : null,
           bodyweight: sessionToSave.bodyweight,
           notes: sessionToSave.notes,
           metadata: metadata,
           status: 'completed',
           total_sets: sessionToSave.sets?.length || 0,
-          total_reps: sessionToSave.sets?.reduce((sum, s) => sum + (s.actualReps || 0), 0) || 0,
-          total_volume_load: sessionToSave.sets?.reduce((sum, s) => sum + ((s.actualWeight || 0) * (s.actualReps || 0)), 0) || 0,
-          average_rpe: sessionToSave.sets?.length ? sessionToSave.sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / sessionToSave.sets.length : null,
+          total_reps: Math.round(sessionToSave.sets?.reduce((sum, s) => sum + (Number(s.actualReps) || 0), 0) || 0),
+          total_volume_load: Math.round(sessionToSave.sets?.reduce((sum, s) => sum + ((Number(s.actualWeight) || 0) * (Number(s.actualReps) || 0)), 0) || 0),
+          average_rpe: sessionToSave.sets?.length ? sessionToSave.sets.reduce((sum, s) => sum + (Number(s.actualRPE) || 0), 0) / sessionToSave.sets.length : null,
         })
         .select()
         .single();
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database upsert timeout after 10s')), 10000)
+        );
+
+        const result = await Promise.race([upsertPromise, timeoutPromise]) as Awaited<typeof upsertPromise>;
+        sessionData = result.data;
+        sessionError = result.error;
+
+        console.log('✅ Upsert completed:', sessionError ? 'ERROR' : 'SUCCESS');
+      } catch (error) {
+        console.error('❌ Upsert failed or timed out:', error);
+        sessionError = {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          details: null,
+          hint: null,
+          code: 'TIMEOUT'
+        } as any;
+      }
 
       if (sessionError) {
         const errorPayload: Pick<PostgrestError, 'message' | 'details' | 'hint' | 'code'> = {
@@ -369,10 +455,11 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
       }
 
       const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
+      console.log('✅ Session saved, ID:', sessionId);
 
       // Save each set
       if (sessionToSave.sets && sessionToSave.sets.length > 0) {
-        logger.debug(`💾 Saving ${sessionToSave.sets.length} sets to Supabase...`);
+        console.log(`💾 Saving ${sessionToSave.sets.length} sets to Supabase...`);
         logger.debug('First set data:', JSON.stringify(sessionToSave.sets[0], null, 2));
 
         let setSyncFailed = false;
@@ -395,25 +482,25 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
             program_set_id: null,
             order_index: i,
-            set_index: set.setIndex || i + 1,
+            set_index: set.setIndex ? Math.round(Number(set.setIndex)) : i + 1,
             // Prescribed values (what the program said to do)
-            prescribed_reps: set.prescribedReps,
-            prescribed_rpe: set.prescribedRPE,
-            prescribed_rir: set.prescribedRIR,
+            prescribed_reps: set.prescribedReps != null ? Math.round(Number(set.prescribedReps)).toString() : null,
+            prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
+            prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
             prescribed_percentage: set.prescribedPercentage,
             // Actual values (what was actually done)
             actual_weight: set.actualWeight,
-            actual_reps: set.actualReps,
-            actual_rpe: set.actualRPE,
-            actual_rir: set.actualRIR,
+            actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
+            actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
+            actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
             // Performance metrics
             e1rm: set.e1rm,
-            volume_load: set.actualWeight && set.actualReps ? set.actualWeight * set.actualReps : null,
+            volume_load: set.actualWeight && set.actualReps ? Math.round(Number(set.actualWeight) * Number(set.actualReps)) : null,
             // Set metadata
             set_type: set.setType || 'straight',
             tempo: set.tempo,
-            rest_seconds: set.restTakenSeconds,
-            actual_seconds: set.setDurationSeconds,
+            rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
+            actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
             notes: set.notes,
             completed: set.completed !== false,
             skipped: set.completed === false,
@@ -448,7 +535,7 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
           const { data: { user } } = await supabase.auth.getUser();
           if (user && sessionToSave.sets.length > 0) {
             // Calculate fatigue for all trained muscles
-            const completedSets = sessionToSave.sets.filter(s => s.completed);
+            const completedSets = sessionToSave.sets.filter(s => s.completed && s.setType !== 'warmup');
             if (completedSets.length > 0) {
               // Track fatigue for all major muscle groups
               const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
@@ -460,6 +547,16 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
               if (significantFatigue.length > 0) {
                 await saveFatigueSnapshot(user.id, sessionId, significantFatigue);
                 logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
+              }
+
+              // PHASE 2.5: Save to NEW recovery system (fatigue_events table)
+              console.log(`🔄 Calling saveFatigueEventsToNewSystem with ${completedSets.length} sets`);
+              try {
+                await saveFatigueEventsToNewSystem(user.id, sessionId, completedSets);
+                console.log(`✅ Saved fatigue events to new recovery system`);
+              } catch (newSystemError) {
+                console.error('❌ Could not save to new recovery system:', newSystemError);
+                // Non-critical - continue
               }
 
               // PHASE 3: Calculate and save SFR analysis
@@ -495,6 +592,9 @@ export async function saveWorkout(session: WorkoutSession): Promise<void> {
 
 export function getWorkoutHistory(): WorkoutSession[] {
   try {
+    if (typeof window === 'undefined') {
+      return [];
+    }
     const data = localStorage.getItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY));
     return data ? JSON.parse(data) : [];
   } catch (error) {
@@ -505,6 +605,9 @@ export function getWorkoutHistory(): WorkoutSession[] {
 
 export function setWorkoutHistory(sessions: WorkoutSession[]): void {
   try {
+    if (typeof window === 'undefined') {
+      return;
+    }
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(sessions));
   } catch (error) {
     console.error('Failed to set workout history:', error);
@@ -1283,7 +1386,7 @@ export async function getPriorityAlert(
         indicators: trueFatigue.indicators,
         affectedMuscles: trueFatigue.affectedMuscles,
         velocityLoss: trueFatigue.indicators.velocityLoss,
-        vbtAnalysis: trueFatigue.vbtAnalysis, // Full VBT data for advanced users
+        // vbtAnalysis: trueFatigue.vbtAnalysis, // Commented out - VBT module deleted
         // Hierarchical model insights (if available)
         usingHierarchicalModel: 'usingHierarchicalModel' in trueFatigue ? trueFatigue.usingHierarchicalModel : false,
         personalizedAssessment: 'personalizedAssessment' in trueFatigue ? trueFatigue.personalizedAssessment : undefined,
@@ -1410,4 +1513,93 @@ export async function getPriorityAlert(
     scientificBasis: '',
     confidence: 0,
   };
+}
+
+/**
+ * Save workout data to NEW recovery system (fatigue_events table)
+ * This bridges the old and new recovery systems
+ */
+async function saveFatigueEventsToNewSystem(
+  userId: string,
+  sessionId: string,
+  completedSets: SetLog[]
+): Promise<void> {
+  console.log(`📊 saveFatigueEventsToNewSystem called with ${completedSets.length} sets for user ${userId}`);
+  if (completedSets.length === 0) {
+    console.log('⚠️ No completed sets, skipping');
+    return;
+  }
+
+  // Group sets by exercise to create fatigue events
+  const exerciseMap = new Map<string, SetLog[]>();
+  for (const set of completedSets) {
+    if (!exerciseMap.has(set.exerciseId)) {
+      exerciseMap.set(set.exerciseId, []);
+    }
+    exerciseMap.get(set.exerciseId)!.push(set);
+  }
+  console.log(`📋 Grouped into ${exerciseMap.size} unique exercises`);
+
+  // Create fatigue events for each exercise
+  const fatigueEvents = [];
+  for (const [exerciseId, sets] of exerciseMap.entries()) {
+    // Get exercise name
+    const exercise = defaultExercises.find(e => e.id === exerciseId);
+    const exerciseName = exercise?.name || exerciseId;
+
+    // Calculate aggregates for this exercise
+    const totalSets = sets.length;
+    const totalReps = sets.reduce((sum, s) => sum + (s.actualReps || 0), 0);
+    const avgWeight = sets.reduce((sum, s) => sum + (s.actualWeight || 0), 0) / totalSets;
+    const avgRpe = sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / totalSets;
+    const totalVolume = sets.reduce((sum, s) => (s.actualWeight || 0) * (s.actualReps || 0) + sum, 0);
+
+    // Calculate effective volume (RPE-weighted)
+    const effectiveVolume = sets.reduce((sum, s) => {
+      const rpe = s.actualRPE || 7;
+      const rpeMultiplier = rpe >= 9 ? 1.0 : rpe >= 7 ? 0.7 : 0.4;
+      return sum + (s.actualWeight || 0) * (s.actualReps || 0) * rpeMultiplier;
+    }, 0);
+
+    // Estimate initial fatigue from RPE
+    const initialFatigue = avgRpe >= 9 ? 80 : avgRpe >= 7 ? 50 : 30;
+
+    // Create event (matches fatigue_events table schema)
+    fatigueEvents.push({
+      user_id: userId,
+      timestamp: new Date().toISOString(),
+      exercise_name: exerciseName,
+      sets: totalSets,
+      reps: Math.round(totalReps / totalSets), // avg reps per set
+      weight: Math.round(avgWeight),
+      rpe: Math.round(avgRpe * 10) / 10, // round to 1 decimal
+      volume: Math.round(totalVolume),
+      effective_volume: Math.round(effectiveVolume),
+      initial_fatigue: Math.round(initialFatigue),
+      set_duration: sets[0]?.setDurationSeconds || null,
+      rest_interval: sets[0]?.restTakenSeconds || null,
+      is_eccentric: false,  // TODO: detect from exercise type
+      is_ballistic: false   // TODO: detect from exercise type
+    });
+  }
+
+  // Bulk insert all events
+  if (fatigueEvents.length > 0) {
+    console.log(`💾 Inserting ${fatigueEvents.length} fatigue events into database...`);
+    console.log('Sample event:', JSON.stringify(fatigueEvents[0], null, 2));
+
+    const { error } = await supabase
+      .from('fatigue_events')
+      .insert(fatigueEvents);
+
+    if (error) {
+      console.error('❌ Failed to save fatigue events:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+
+    console.log(`✅ Successfully saved ${fatigueEvents.length} fatigue events to new system!`);
+  } else {
+    console.log('⚠️ No fatigue events to insert');
+  }
 }

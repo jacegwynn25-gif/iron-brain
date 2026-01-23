@@ -13,53 +13,16 @@ import {
   Scale
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
-import type { WorkoutSession } from '../lib/types';
+import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
+import type {
+  WorkoutSession,
+  SessionMetadata,
+  SupabaseSetLogRow,
+  SupabaseWorkoutSessionRow
+} from '../lib/types';
 import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
-import type { Database } from '../lib/supabase/database.types';
 import { parseLocalDate } from '../lib/dateUtils';
-
-type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  rememberUntil?: number | null;
-};
-
-type SessionMetadata = {
-  programName?: string;
-  programId?: string;
-  cycleNumber?: number;
-  weekNumber?: number;
-  dayOfWeek?: number;
-  dayName?: string;
-};
-
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  | 'id'
-  | 'exercise_slug'
-  | 'exercise_id'
-  | 'set_index'
-  | 'prescribed_reps'
-  | 'prescribed_rpe'
-  | 'prescribed_rir'
-  | 'prescribed_percentage'
-  | 'actual_weight'
-  | 'actual_reps'
-  | 'actual_rpe'
-  | 'actual_rir'
-  | 'e1rm'
-  | 'volume_load'
-  | 'rest_seconds'
-  | 'actual_seconds'
-  | 'notes'
-  | 'completed'
->;
-
-type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
-  set_logs?: SupabaseSetLogRow[] | null;
-};
 
 const getIsoWeekKey = (date: Date) => {
   const tmp = new Date(date);
@@ -73,25 +36,10 @@ const getIsoWeekKey = (date: Date) => {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const [profile] = useState<UserProfile | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const saved = localStorage.getItem('iron_brain_profile');
-    if (saved) {
-      try {
-        const parsed: UserProfile = JSON.parse(saved);
-        if (parsed.rememberUntil && parsed.rememberUntil < Date.now()) {
-          localStorage.removeItem('iron_brain_profile');
-          return null;
-        }
-        return parsed;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
-  const namespaceId = user?.id ?? profile?.id ?? null;
+
+  // Unified namespace: user ID if authenticated, 'guest' for offline mode
+  const namespaceId = user?.id ?? 'guest';
 
   useEffect(() => {
     setUserNamespace(namespaceId);
@@ -251,79 +199,104 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
-      <div className="px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Profile</h1>
-        </div>
-
-        <div className="flex items-center gap-4 mb-6 sm:mb-8">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
-            <User className="w-8 h-8 text-white" />
+    <div className="min-h-screen app-gradient safe-top">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+          <p className="section-label">Profile</p>
+          <div className="mt-5 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
+              <User className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white">
+                {user?.email?.split('@')[0] || 'Guest User'}
+              </h1>
+              <p className="text-zinc-400 text-sm">
+                {user?.email || 'Offline Mode'}
+              </p>
+            </div>
           </div>
+
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="surface-panel p-4 sm:p-5 text-center">
+              <div className="text-2xl font-bold text-white">{workoutHistory.length}</div>
+              <div className="text-xs text-zinc-400">Workouts</div>
+            </div>
+            <div className="surface-panel p-4 sm:p-5 text-center">
+              <div className="text-2xl font-bold text-white">{weeklyStreak}</div>
+              <div className="text-xs text-zinc-400">Week Streak</div>
+            </div>
+            <div className="surface-panel p-4 sm:p-5 text-center">
+              <div className="text-2xl font-bold text-white">{prCount}</div>
+              <div className="text-xs text-zinc-400">PRs</div>
+            </div>
+          </div>
+        </header>
+
+        <section className="space-y-3">
           <div>
-            <h2 className="text-xl font-bold text-white">
-              {user?.email?.split('@')[0] || profile?.name || 'Guest User'}
-            </h2>
-            <p className="text-gray-300 text-sm">
-              {user ? user.email : profile?.email || 'Not signed in'}
-            </p>
+            <p className="section-label">Configuration</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Preferences</h2>
           </div>
-        </div>
+          <div className="space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => router.push(item.path)}
+                  className="w-full surface-panel rounded-2xl p-4 sm:p-5 flex items-center justify-between hover:border-white/20 transition-all active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5 text-zinc-400" />
+                    <span className="text-white font-semibold">{item.label}</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-500" />
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-        <div className="grid grid-cols-3 gap-3 mb-6 sm:mb-8">
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 text-center border border-white/10">
-            <div className="text-2xl font-bold text-white">{workoutHistory.length}</div>
-            <div className="text-xs text-gray-400">Workouts</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 text-center border border-white/10">
-            <div className="text-2xl font-bold text-white">{weeklyStreak}</div>
-            <div className="text-xs text-gray-400">Week Streak</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 text-center border border-white/10">
-            <div className="text-2xl font-bold text-white">{prCount}</div>
-            <div className="text-xs text-gray-400">PRs</div>
-          </div>
-        </div>
-
-        <div className="space-y-2 mb-6 sm:mb-8">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className="w-full bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 flex items-center justify-between hover:bg-white/10 transition-all active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-gray-400" />
-                  <span className="text-white font-semibold">{item.label}</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-500" />
-              </button>
-            );
-          })}
-        </div>
-
-        {user && (
-          <button
-            onClick={async () => {
-              console.log('🔘 Sign out button clicked');
-              try {
-                await signOut();
-                console.log('✅ Sign out complete, navigating to home...');
-                // Redirect to home page after sign out
-                router.push('/');
-              } catch (error) {
-                console.error('❌ Failed to sign out:', error);
-                alert('Failed to sign out. Please try again.');
-              }
-            }}
-            className="w-full bg-red-500/10 rounded-xl p-4 border border-red-500/20 flex items-center justify-center gap-2 text-red-400 font-medium hover:bg-red-500/20 transition-all active:scale-[0.98]"
-          >
-            <LogOut className="w-5 h-5" />
-            Sign Out
-          </button>
+        {user ? (
+          <section className="space-y-3">
+            <div className="surface-panel rounded-xl p-4 border border-emerald-500/20 bg-emerald-500/10">
+              <div className="flex items-center gap-2 text-emerald-300 text-sm font-medium">
+                <User className="w-4 h-4" />
+                <span>Signed in as {user.email}</span>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await signOut();
+                  router.push('/');
+                } catch (error) {
+                  console.error('❌ Failed to sign out:', error);
+                  alert('Failed to sign out. Please try again.');
+                }
+              }}
+              className="w-full rounded-xl p-4 border border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2 text-red-300 font-medium hover:bg-red-500/20 transition-all active:scale-[0.98]"
+            >
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </button>
+          </section>
+        ) : (
+          <section className="space-y-3">
+            <div className="surface-panel rounded-xl p-4 border border-blue-500/20 bg-blue-500/10">
+              <div className="text-sm text-blue-300">
+                <strong>Guest Mode</strong> - Your data is stored locally on this device. Sign in to sync across devices and backup to the cloud.
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
+              className="w-full btn-primary rounded-xl p-4 flex items-center justify-center gap-2 text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            >
+              <User className="w-5 h-5" />
+              Sign In / Create Account
+            </button>
+          </section>
         )}
       </div>
     </div>

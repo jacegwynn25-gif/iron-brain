@@ -101,7 +101,7 @@ export default function NumericKeypad({
           <button
             type="button"
             onClick={onClose}
-            className="mt-4 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 py-3 text-sm font-bold text-white shadow-md transition active:scale-95"
+            className="mt-4 flex w-full items-center justify-center rounded-xl btn-primary py-3 text-sm font-bold text-white shadow-md transition active:scale-95"
           >
             Done
           </button>

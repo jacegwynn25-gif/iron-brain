@@ -4,41 +4,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, TrendingUp, Flame, ChevronRight, Dumbbell } from 'lucide-react';
 import type { ProgramTemplate, DayTemplate } from './lib/types';
+import { normalizePrograms } from './lib/programs/normalize';
 import { useAuth } from './lib/supabase/auth-context';
 import { parseLocalDate } from './lib/dateUtils';
 import { useWorkoutData } from './lib/hooks/useWorkoutData';
-import { AuthGuard } from './components/Auth';
-
-type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  rememberUntil?: number | null;
-};
 
 export default function HomePage() {
   const router = useRouter();
   const { user } = useAuth();
   const { workoutHistory } = useWorkoutData();
-  const [profile] = useState<UserProfile | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const saved = localStorage.getItem('iron_brain_profile');
-    if (saved) {
-      try {
-        const parsed: UserProfile = JSON.parse(saved);
-        if (parsed.rememberUntil && parsed.rememberUntil < Date.now()) {
-          localStorage.removeItem('iron_brain_profile');
-          return null;
-        }
-        return parsed;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
   const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
-  const namespaceId = user?.id ?? profile?.id ?? null;
+
+  // Unified namespace: user ID if authenticated, 'guest' for offline mode
+  const namespaceId = user?.id ?? 'guest';
 
   const userProgramsKey = useMemo(
     () => (namespaceId ? `iron_brain_user_programs__${namespaceId}` : 'iron_brain_user_programs_default'),
@@ -53,10 +31,14 @@ export default function HomePage() {
     if (typeof window === 'undefined') return;
     const storedPrograms = localStorage.getItem(userProgramsKey);
     const localPrograms: ProgramTemplate[] = storedPrograms ? JSON.parse(storedPrograms) : [];
+    const localNormalized = normalizePrograms(localPrograms);
+    if (localNormalized.changedPrograms.length > 0) {
+      localStorage.setItem(userProgramsKey, JSON.stringify(localNormalized.programs));
+    }
 
     const storedId = localStorage.getItem(selectedProgramKey);
     if (storedId) {
-      const program = localPrograms.find(p => p.id === storedId) || null;
+      const program = localNormalized.programs.find(p => p.id === storedId) || null;
       setSelectedProgram(program);
     } else {
       setSelectedProgram(null);
@@ -122,42 +104,48 @@ export default function HomePage() {
   const recentWorkouts = workoutHistory.slice(0, 2);
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
-      <div className="px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mb-6 sm:mb-8">
-          <p className="text-gray-500 text-sm">Welcome back</p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Iron Brain</h1>
-        </div>
+    <div className="min-h-screen app-gradient safe-top">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+          <p className="section-label">Dashboard</p>
+          <h1 className="mt-3 text-3xl font-black text-white">Iron Brain</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            Your training status and next session at a glance.
+          </p>
+        </header>
 
-        <section className="mb-6 sm:mb-8">
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
-            <div className="flex items-center gap-2 text-purple-400 text-sm font-medium mb-2">
-              <Calendar className="w-4 h-4" />
-              Today&apos;s Workout
+        <section className="space-y-4">
+          <div>
+            <p className="section-label">Next Session</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Workout</h2>
+          </div>
+          <div className="surface-card p-4 sm:p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-2">
+              <Calendar className="w-4 h-4 text-zinc-500" />
+              Scheduled Session
             </div>
             {todayWorkout ? (
               <>
-                <h2 className="text-xl font-bold text-white mb-1">{todayWorkout.name}</h2>
-                <p className="text-gray-300 text-sm mb-4">
+                <h3 className="text-xl font-bold text-white mb-1">{todayWorkout.name}</h3>
+                <p className="text-zinc-400 text-sm mb-4">
                   Week {todayWorkout.weekNumber} • {todayWorkout.dayLabel} • {todayWorkout.exerciseCount} exercises
                 </p>
                 <button
                   onClick={() => router.push('/start')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-xl py-3 px-4 text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+                  className="w-full btn-primary rounded-xl py-3 px-4 text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
                 >
                   Start Workout
                 </button>
               </>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-white mb-1">No program selected</h2>
-                <p className="text-gray-300 text-sm mb-4">
-                  Choose a program to get today&apos;s workout.
+                <h3 className="text-xl font-bold text-white mb-1">No program selected</h3>
+                <p className="text-zinc-400 text-sm mb-4">
+                  Choose a program to generate today&apos;s workout.
                 </p>
                 <button
                   onClick={() => router.push('/programs')}
-                  className="w-full bg-white/10 rounded-xl py-3 px-4 text-white font-semibold border border-white/10 transition-all active:scale-[0.98]"
+                  className="w-full btn-secondary rounded-xl py-3 px-4 text-sm font-semibold transition-all active:scale-[0.98]"
                 >
                   Select Program
                 </button>
@@ -166,77 +154,78 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mb-6 sm:mb-8">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            This Week
-          </h2>
+        <section className="space-y-4">
+          <div>
+            <p className="section-label">This Week</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Training Load</h2>
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+            <div className="surface-panel p-4 sm:p-5">
               <div className="flex items-center gap-2 text-emerald-400 mb-2">
                 <Flame className="w-4 h-4" />
-                <span className="text-xs font-medium">Workouts</span>
+                <span className="text-xs font-medium text-zinc-300">Workouts</span>
               </div>
               <div className="text-2xl font-bold text-white">{workoutsThisWeek.length}</div>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+            <div className="surface-panel p-4 sm:p-5">
               <div className="flex items-center gap-2 text-blue-400 mb-2">
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-xs font-medium">Volume</span>
+                <span className="text-xs font-medium text-zinc-300">Volume</span>
               </div>
               <div className="text-2xl font-bold text-white">{Math.round(weeklyVolume / 1000)}k</div>
             </div>
           </div>
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Recent Activity
-            </h2>
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="section-label">Recent Activity</p>
+              <h2 className="mt-2 text-xl font-bold text-white">Latest sessions</h2>
+            </div>
             <button
               onClick={() => router.push('/history')}
-              className="rounded-lg px-3 py-2 text-purple-400 text-sm font-medium hover:bg-purple-500/10 transition-all"
+              className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-white/20"
             >
               View All
             </button>
           </div>
           <div className="space-y-2">
             {recentWorkouts.length === 0 && (
-              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+              <div className="surface-panel p-4 sm:p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
                     <Dumbbell className="h-5 w-5 text-purple-400" />
                   </div>
                   <div>
                     <div className="text-white font-semibold">No workouts yet</div>
-                    <div className="text-gray-500 text-sm">Start your first session from the Start tab.</div>
+                    <div className="text-zinc-500 text-sm">Start your first session from the Start tab.</div>
                   </div>
                 </div>
                 <button
                   onClick={() => router.push('/start')}
-                  className="mt-3 w-full rounded-xl bg-white/10 border border-white/10 py-3 px-4 text-white font-medium transition-all active:scale-[0.98]"
+                  className="mt-3 w-full btn-secondary rounded-xl py-3 px-4 text-sm font-semibold transition-all active:scale-[0.98]"
                 >
                   Start a Workout
                 </button>
               </div>
             )}
             {recentWorkouts.map(session => (
-              <div key={session.id} className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+              <div key={session.id} className="surface-panel p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-white font-semibold">{session.dayName || session.programName || 'Workout'}</div>
-                    <div className="text-gray-500 text-sm">
+                    <div className="text-zinc-500 text-sm">
                       {parseLocalDate(session.date).toLocaleDateString()} • {session.durationMinutes || '--'} min
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-500" />
+                  <ChevronRight className="w-5 h-5 text-zinc-500" />
                 </div>
               </div>
             ))}
           </div>
         </section>
       </div>
-      </div>
-    </AuthGuard>
+    </div>
   );
 }

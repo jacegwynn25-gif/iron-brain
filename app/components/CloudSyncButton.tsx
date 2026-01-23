@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/supabase/auth-context';
-import { AuthModal } from './Auth';
+import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
 import { migrateLocalStorageToSupabase, hasLocalStorageData } from '../lib/supabase/migrate';
 import { Cloud, CloudOff } from 'lucide-react';
 
 export function CloudSyncButton() {
+  const router = useRouter();
   const { user, signOut } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState('');
 
@@ -25,7 +26,7 @@ export function CloudSyncButton() {
         setTimeout(() => setMigrationMessage(''), 5000);
       }
     } else {
-      setShowAuth(true);
+      router.push(buildLoginUrl(getReturnToFromLocation()));
     }
   };
 
@@ -65,7 +66,7 @@ export function CloudSyncButton() {
         ) : (
           <button
             onClick={handleEnableSync}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl btn-primary text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
           >
             <CloudOff className="w-4 h-4" />
             <span>Enable Cloud Sync</span>
@@ -73,7 +74,6 @@ export function CloudSyncButton() {
         )}
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </>
   );
 }

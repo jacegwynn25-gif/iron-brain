@@ -23,21 +23,21 @@ export default function ExercisePicker({
   const [searchTerm, setSearchTerm] = useState('');
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loadingCustom, setLoadingCustom] = useState(false);
 
   // Load custom exercises on mount
   useEffect(() => {
     if (!isOpen) return;
 
-    setLoading(true);
+    setLoadingCustom(true);
     getCustomExercises(userId)
       .then(exercises => {
         setCustomExercises(exercises);
-        setLoading(false);
+        setLoadingCustom(false);
       })
       .catch(err => {
         console.error('Failed to load custom exercises:', err);
-        setLoading(false);
+        setLoadingCustom(false);
       });
   }, [userId, isOpen]);
 
@@ -140,7 +140,7 @@ export default function ExercisePicker({
             <div className="px-6 pb-4">
               <button
                 onClick={handleCreateClick}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-4 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-2 rounded-xl btn-primary px-4 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
               >
                 <Plus className="h-5 w-5" />
                 Create &quot;{searchTerm}&quot; as custom exercise
@@ -150,15 +150,13 @@ export default function ExercisePicker({
 
           {/* Results */}
           <div className="flex-1 overflow-y-auto px-6 pb-6">
-            {loading ? (
+            {totalResults === 0 ? (
               <div className="text-center py-8 text-gray-400">
-                Loading exercises...
-              </div>
-            ) : totalResults === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                {searchTerm
-                  ? 'No exercises found. Try creating a custom exercise!'
-                  : 'No exercises available.'}
+                {loadingCustom
+                  ? 'Loading exercises...'
+                  : searchTerm
+                    ? 'No exercises found. Try creating a custom exercise!'
+                    : 'No exercises available.'}
               </div>
             ) : (
               <div className="space-y-6">
@@ -188,6 +186,11 @@ export default function ExercisePicker({
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+                {loadingCustom && customMatches.length === 0 && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-gray-400">
+                    Loading your custom exercises...
                   </div>
                 )}
 

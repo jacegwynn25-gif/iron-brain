@@ -2,7 +2,8 @@ import { SetLog } from './types';
 import { defaultExercises } from './programs';
 import { logger } from './logger';
 import { analyzeSampleSizePower, cleanAndValidateData } from './stats/advanced-methods';
-import { analyzeVBTFatigue, type VBTAnalysis } from './stats/velocity-based-training';
+// Commented out - VBT module deleted (incomplete implementation)
+// import { analyzeVBTFatigue, type VBTAnalysis } from './stats/velocity-based-training';
 import { analyzeBayesianRPE, type BayesianRPEAnalysis } from './stats/bayesian-rpe';
 import { getEnhancedFatigueAssessment, canUseHierarchicalModel } from './stats/fatigue-integration';
 
@@ -559,7 +560,7 @@ export interface TrueFatigueIndicators {
   reasoning: string;
   scientificBasis: string;
   confidence: number;
-  vbtAnalysis?: VBTAnalysis; // Full VBT analysis object
+  // vbtAnalysis?: VBTAnalysis; // Commented out - VBT module deleted
   dataQuality?: {
     originalSets: number;
     cleanedSets: number;
@@ -624,18 +625,11 @@ export function detectTrueFatigue(
     return s.prescribedRPE <= 7;
   }).length;
 
-  // Indicator 3: Velocity-Based Training Analysis (Research-Validated)
-  // Use proper VBT methodology from González-Badillo & Sánchez-Medina (2010)
-  let vbtAnalysis: VBTAnalysis | null = null;
-  let avgVelocityLoss = 0;
-
-  try {
-    vbtAnalysis = analyzeVBTFatigue(relevantSets);
-    avgVelocityLoss = vbtAnalysis.velocityLossPercent;
-  } catch {
-    // Fallback if VBT module not available
-    console.warn('VBT analysis unavailable, using fallback');
-  }
+  // Indicator 3: Velocity-Based Training Analysis (DISABLED - VBT module deleted)
+  // Previously used VBT methodology from González-Badillo & Sánchez-Medina (2010)
+  // Commented out until rep-by-rep timing data is collected in UI
+  // let vbtAnalysis: VBTAnalysis | null = null;
+  const avgVelocityLoss = 0; // Default to 0 (no velocity loss detected)
 
   // Indicator 4: Volume Overload with Muscle Interference
   const allMuscleGroups = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'calves', 'abs'];
@@ -721,13 +715,15 @@ export function detectTrueFatigue(
   let confidence = 0.5;
   const indicatorCount = (formBreakdownCount > 0 ? 1 : 0) + (unintentionalFailureCount > 0 ? 1 : 0) + (avgVelocityLoss > 10 ? 1 : 0);
 
-  if (vbtAnalysis && vbtAnalysis.confidence) {
-    // Use VBT confidence weighted by indicator agreement
-    confidence = (vbtAnalysis.confidence * 0.6) + (Math.min(1.0, indicatorCount / 3) * 0.4);
-  } else {
-    // Fallback confidence without VBT
-    confidence = indicatorCount >= 3 ? 0.85 : indicatorCount >= 2 ? 0.70 : 0.55;
-  }
+  // VBT confidence calculation disabled (VBT module deleted)
+  // if (vbtAnalysis && vbtAnalysis.confidence) {
+  //   confidence = (vbtAnalysis.confidence * 0.6) + (Math.min(1.0, indicatorCount / 3) * 0.4);
+  // } else {
+  //   confidence = indicatorCount >= 3 ? 0.85 : indicatorCount >= 2 ? 0.70 : 0.55;
+  // }
+
+  // Fallback confidence calculation (without VBT)
+  confidence = indicatorCount >= 3 ? 0.85 : indicatorCount >= 2 ? 0.70 : 0.55;
 
   // POWER ANALYSIS: Calculate statistical power and sample size recommendations
   let powerAnalysisResult: {
@@ -781,7 +777,7 @@ export function detectTrueFatigue(
     reasoning,
     scientificBasis,
     confidence,
-    vbtAnalysis: vbtAnalysis ?? undefined,
+    // vbtAnalysis: vbtAnalysis ?? undefined, // Commented out - VBT module deleted
     dataQuality,
     powerAnalysis: powerAnalysisResult ?? undefined,
   };

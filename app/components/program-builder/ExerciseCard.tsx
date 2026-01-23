@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import type { Exercise, CustomExercise, SetTemplate, SetType } from '../../lib/types';
 import SetEditor from './SetEditor';
@@ -32,7 +32,7 @@ export default function ExerciseCard({
   isLast,
   userId,
 }: ExerciseCardProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(() => sets.length <= 1);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [bulkReps, setBulkReps] = useState('');
   const [bulkRestSeconds, setBulkRestSeconds] = useState('');
@@ -49,6 +49,36 @@ export default function ExerciseCard({
     setBulkSetType(lastSet?.setType || 'straight');
     setBulkSupersetGroup(lastSet?.supersetGroup || 'A');
   }, [showBulkEdit, sets]);
+
+  const setSummary = useMemo(() => {
+    if (sets.length === 0) return [];
+    const firstSet = sets[0];
+    const repsLabel = sets.every(set => set.prescribedReps === firstSet.prescribedReps)
+      ? firstSet.prescribedReps
+      : 'Varied reps';
+    const method = firstSet.prescriptionMethod || 'rpe';
+    const methodLabel = method === 'rpe'
+      ? `RPE ${firstSet.targetRPE ?? 8}`
+      : method === 'rir'
+        ? `RIR ${firstSet.targetRIR ?? 2}`
+        : method === 'percentage_1rm'
+          ? `${firstSet.targetPercentage ?? 0}% 1RM`
+          : method === 'percentage_tm'
+            ? `${firstSet.targetPercentage ?? 0}% TM`
+            : method === 'fixed_weight'
+              ? `${firstSet.fixedWeight ?? 0} lbs`
+              : method === 'time_based'
+                ? `${firstSet.targetSeconds ?? 0}s`
+                : 'AMRAP';
+    const restLabel = firstSet.restSeconds ? `${firstSet.restSeconds}s rest` : null;
+
+    return [
+      `${sets.length} set${sets.length === 1 ? '' : 's'}`,
+      repsLabel ? `Reps ${repsLabel}` : null,
+      methodLabel,
+      restLabel,
+    ].filter((value): value is string => Boolean(value));
+  }, [sets]);
 
   const parseRepsInput = (value: string) => {
     const trimmed = value.trim();
@@ -222,6 +252,18 @@ export default function ExerciseCard({
           </button>
         </div>
       </div>
+
+      {!expanded && (
+        <div className="px-4 pb-4">
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+            {setSummary.map((item, index) => (
+              <span key={`${item}-${index}`} className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sets */}
       {expanded && (

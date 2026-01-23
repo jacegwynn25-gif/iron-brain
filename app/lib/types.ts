@@ -329,3 +329,55 @@ export interface ProgressData {
     value: number;
   }[];
 }
+
+// ============================================================
+// SHARED APP TYPES (Previously duplicated across pages)
+// ============================================================
+
+export type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  rememberUntil?: number | null;
+};
+
+export type SessionMetadata = {
+  programName?: string;
+  programId?: string;
+  cycleNumber?: number;
+  weekNumber?: number;
+  dayOfWeek?: number;
+  dayName?: string;
+};
+
+// ============================================================
+// SUPABASE ROW TYPES (for type-safe database queries)
+// ============================================================
+
+import type { Database } from './supabase/database.types';
+
+export type SupabaseSetLogRow = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  | 'id'
+  | 'exercise_slug'
+  | 'exercise_id'
+  | 'set_index'
+  | 'prescribed_reps'
+  | 'prescribed_rpe'
+  | 'prescribed_rir'
+  | 'prescribed_percentage'
+  | 'actual_weight'
+  | 'actual_reps'
+  | 'actual_rpe'
+  | 'actual_rir'
+  | 'e1rm'
+  | 'volume_load'
+  | 'rest_seconds'
+  | 'actual_seconds'
+  | 'notes'
+  | 'completed'
+>;
+
+export type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
+  set_logs?: SupabaseSetLogRow[] | null;
+};

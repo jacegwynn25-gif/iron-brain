@@ -6,6 +6,7 @@ import type { ProgramTemplate } from '../types';
 import { queueOperation, isOnline } from '../sync/offline-queue';
 import type { PostgrestError } from '@supabase/supabase-js';
 import type { Json } from './database.types';
+import { normalizeProgramMetadata, normalizePrograms } from '../programs/normalize';
 
 /**
  * Program Cloud Sync
@@ -27,16 +28,17 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
       return true;
     }
 
-    const programData: Json = JSON.parse(JSON.stringify(program));
+    const { program: normalizedProgram } = normalizeProgramMetadata(program);
+    const programData: Json = JSON.parse(JSON.stringify(normalizedProgram));
 
     const { error } = await supabase
       .from('custom_programs')
       .upsert({
-        id: program.id,
+        id: normalizedProgram.id,
         user_id: userId,
         program_data: programData,
-        name: program.name,
-        is_custom: program.isCustom ?? true,
+        name: normalizedProgram.name,
+        is_custom: normalizedProgram.isCustom ?? true,
         updated_at: new Date().toISOString(),
       });
 
@@ -53,7 +55,7 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
       return false;
     }
 
-    logger.debug(`✅ Synced program "${program.name}" to cloud`);
+    logger.debug(`✅ Synced program "${normalizedProgram.name}" to cloud`);
     return true;
   } catch (err) {
     console.error('Error syncing program:', err);
@@ -64,6 +66,48 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
 /**
  * Load all programs from Supabase
  */
+function parseWeeks(value: Json): ProgramTemplate['weeks'] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as ProgramTemplate['weeks'];
+}
+
+function parseProgramTemplate(value: Json): ProgramTemplate | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, Json>;
+  if (typeof record.id !== 'string' || typeof record.name !== 'string') {
+    return null;
+  }
+
+  const weeks = parseWeeks(record.weeks);
+  if (!weeks) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    name: record.name,
+    description: typeof record.description === 'string' ? record.description : undefined,
+    author: typeof record.author === 'string' ? record.author : undefined,
+    goal: typeof record.goal === 'string' ? (record.goal as ProgramTemplate['goal']) : undefined,
+    experienceLevel: typeof record.experienceLevel === 'string'
+      ? (record.experienceLevel as ProgramTemplate['experienceLevel'])
+      : undefined,
+    daysPerWeek: typeof record.daysPerWeek === 'number' ? record.daysPerWeek : undefined,
+    weekCount: typeof record.weekCount === 'number' ? record.weekCount : undefined,
+    intensityMethod: typeof record.intensityMethod === 'string'
+      ? (record.intensityMethod as ProgramTemplate['intensityMethod'])
+      : undefined,
+    isCustom: typeof record.isCustom === 'boolean' ? record.isCustom : undefined,
+    weeks,
+  };
+}
+
 export async function loadProgramsFromCloud(userId: string): Promise<ProgramTemplate[]> {
   try {
     const { data, error } = await supabase
@@ -77,57 +121,45 @@ export async function loadProgramsFromCloud(userId: string): Promise<ProgramTemp
       return [];
     }
 
-    const parseWeeks = (value: Json): ProgramTemplate['weeks'] | null => {
-      if (!Array.isArray(value)) {
-        return null;
-      }
+    const rows = (data ?? []) as Array<{ program_data: Json }>;
+    const programs = rows
+      .map(row => parseProgramTemplate(row.program_data))
+      .filter((value): value is ProgramTemplate => value !== null);
+    const normalized = normalizePrograms(programs).programs;
+    logger.debug(`📥 Loaded ${normalized.length} programs from cloud`);
+    return normalized;
+  } catch (err) {
+    console.error('Error loading programs from cloud:', err);
+    return [];
+  }
+}
 
-      return JSON.parse(JSON.stringify(value)) as ProgramTemplate['weeks'];
-    };
+export async function loadProgramsFromCloudWithCleanup(userId: string): Promise<{
+  programs: ProgramTemplate[];
+  changedPrograms: ProgramTemplate[];
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('custom_programs')
+      .select('program_data, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
 
-    const parseProgramTemplate = (value: Json): ProgramTemplate | null => {
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        return null;
-      }
-
-      const record = value as Record<string, Json>;
-      if (typeof record.id !== 'string' || typeof record.name !== 'string') {
-        return null;
-      }
-
-      const weeks = parseWeeks(record.weeks);
-      if (!weeks) {
-        return null;
-      }
-
-      return {
-        id: record.id,
-        name: record.name,
-        description: typeof record.description === 'string' ? record.description : undefined,
-        author: typeof record.author === 'string' ? record.author : undefined,
-        goal: typeof record.goal === 'string' ? (record.goal as ProgramTemplate['goal']) : undefined,
-        experienceLevel: typeof record.experienceLevel === 'string'
-          ? (record.experienceLevel as ProgramTemplate['experienceLevel'])
-          : undefined,
-        daysPerWeek: typeof record.daysPerWeek === 'number' ? record.daysPerWeek : undefined,
-        weekCount: typeof record.weekCount === 'number' ? record.weekCount : undefined,
-        intensityMethod: typeof record.intensityMethod === 'string'
-          ? (record.intensityMethod as ProgramTemplate['intensityMethod'])
-          : undefined,
-        isCustom: typeof record.isCustom === 'boolean' ? record.isCustom : undefined,
-        weeks,
-      };
-    };
+    if (error) {
+      console.error('Failed to load programs from cloud:', error);
+      return { programs: [], changedPrograms: [] };
+    }
 
     const rows = (data ?? []) as Array<{ program_data: Json }>;
     const programs = rows
       .map(row => parseProgramTemplate(row.program_data))
       .filter((value): value is ProgramTemplate => value !== null);
-    logger.debug(`📥 Loaded ${programs.length} programs from cloud`);
-    return programs;
+    const normalized = normalizePrograms(programs);
+    logger.debug(`📥 Loaded ${normalized.programs.length} programs from cloud`);
+    return normalized;
   } catch (err) {
     console.error('Error loading programs from cloud:', err);
-    return [];
+    return { programs: [], changedPrograms: [] };
   }
 }
 

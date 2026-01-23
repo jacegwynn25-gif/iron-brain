@@ -3,57 +3,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, Zap, Calendar, Dumbbell } from 'lucide-react';
-import type { DayTemplate, ProgramTemplate, WeekTemplate, WorkoutSession } from '../lib/types';
+import type {
+  DayTemplate,
+  ProgramTemplate,
+  WeekTemplate,
+  WorkoutSession,
+  UserProfile,
+  SessionMetadata,
+  SupabaseSetLogRow,
+  SupabaseWorkoutSessionRow
+} from '../lib/types';
 import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
-import type { Database } from '../lib/supabase/database.types';
 import { parseLocalDate } from '../lib/dateUtils';
 import WorkoutLogger from '../components/WorkoutLogger';
 import PreWorkoutReadiness from '../components/PreWorkoutReadiness';
-import { loadProgramsFromCloud } from '../lib/supabase/program-sync';
-
-type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  rememberUntil?: number | null;
-};
-
-type SessionMetadata = {
-  programName?: string;
-  programId?: string;
-  cycleNumber?: number;
-  weekNumber?: number;
-  dayOfWeek?: number;
-  dayName?: string;
-};
-
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  | 'id'
-  | 'exercise_slug'
-  | 'exercise_id'
-  | 'set_index'
-  | 'prescribed_reps'
-  | 'prescribed_rpe'
-  | 'prescribed_rir'
-  | 'prescribed_percentage'
-  | 'actual_weight'
-  | 'actual_reps'
-  | 'actual_rpe'
-  | 'actual_rir'
-  | 'e1rm'
-  | 'volume_load'
-  | 'rest_seconds'
-  | 'actual_seconds'
-  | 'notes'
-  | 'completed'
->;
-
-type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
-  set_logs?: SupabaseSetLogRow[] | null;
-};
+import { normalizePrograms } from '../lib/programs/normalize';
+import { loadProgramsFromCloudWithCleanup, saveProgramToCloud } from '../lib/supabase/program-sync';
 
 export default function StartWorkoutPage() {
   const router = useRouter();
@@ -122,10 +89,14 @@ export default function StartWorkoutPage() {
     if (typeof window === 'undefined') return;
     const storedPrograms = localStorage.getItem(userProgramsKey);
     const localPrograms: ProgramTemplate[] = storedPrograms ? JSON.parse(storedPrograms) : [];
+    const localNormalized = normalizePrograms(localPrograms);
+    if (localNormalized.changedPrograms.length > 0) {
+      localStorage.setItem(userProgramsKey, JSON.stringify(localNormalized.programs));
+    }
 
     const storedId = localStorage.getItem(selectedProgramKey);
     if (storedId) {
-      const program = localPrograms.find(p => p.id === storedId) || null;
+      const program = localNormalized.programs.find(p => p.id === storedId) || null;
       setSelectedProgram(program);
     } else {
       setSelectedProgram(null);
@@ -137,9 +108,19 @@ export default function StartWorkoutPage() {
     if (selectedProgram) return;
     let active = true;
 
-    loadProgramsFromCloud(user.id)
-      .then((cloudPrograms) => {
+    const loadPrograms = async () => {
+      try {
+        const { programs: cloudPrograms, changedPrograms } =
+          await loadProgramsFromCloudWithCleanup(user.id);
+
         if (!active || cloudPrograms.length === 0) return;
+
+        if (changedPrograms.length > 0) {
+          await Promise.all(changedPrograms.map((program) => saveProgramToCloud(program, user.id)));
+        }
+
+        if (!active) return;
+
         localStorage.setItem(userProgramsKey, JSON.stringify(cloudPrograms));
         const storedId = localStorage.getItem(selectedProgramKey);
         const resolved =
@@ -147,10 +128,12 @@ export default function StartWorkoutPage() {
         if (resolved) {
           setSelectedProgram(resolved);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Failed to load programs from cloud:', error);
-      });
+      }
+    };
+
+    loadPrograms();
 
     return () => {
       active = false;
@@ -368,7 +351,8 @@ export default function StartWorkoutPage() {
     setActiveProgram(selectedProgram);
     setSelectedWeek(suggestedDay.week);
     setSelectedDayIndex(suggestedDay.dayIndex);
-    setStage('readiness');
+    // Skip readiness check for now - goes straight to workout
+    setStage('workout');
   };
 
   const handleQuickStart = () => {
@@ -407,7 +391,7 @@ export default function StartWorkoutPage() {
         weekNumber={selectedWeek}
         dayIndex={selectedDayIndex}
         onComplete={(session) => {
-          void storage.saveWorkout(session);
+          void storage.saveWorkout(session, user?.id);
         }}
         showSummaryOnComplete
         onSummaryClose={() => {
@@ -428,17 +412,18 @@ export default function StartWorkoutPage() {
   const recentWorkouts = workoutHistory.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
-      <div className="px-4 py-6 sm:px-6 sm:py-8">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Start Workout</h1>
-          <p className="text-gray-300 text-sm mt-1">Choose how you want to train</p>
-        </div>
+    <div className="min-h-screen app-gradient safe-top">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+          <p className="section-label">Start</p>
+          <h1 className="mt-3 text-3xl font-black text-white">Start Workout</h1>
+          <p className="mt-2 text-sm text-zinc-400">Choose how you want to train today.</p>
+        </header>
 
-        <div className="space-y-4 max-w-md mx-auto">
+        <section className="space-y-4 max-w-3xl mx-auto">
           <button
             onClick={handleContinue}
-            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-xl p-4 sm:p-5 text-left shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            className="w-full btn-primary rounded-xl p-4 sm:p-5 text-left shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20">
@@ -458,7 +443,7 @@ export default function StartWorkoutPage() {
 
           <button
             onClick={handleQuickStart}
-            className="w-full bg-white/5 backdrop-blur-xl rounded-xl p-4 sm:p-5 text-left border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+            className="w-full surface-panel rounded-xl p-4 sm:p-5 text-left hover:border-white/20 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-purple-500/20">
@@ -473,7 +458,7 @@ export default function StartWorkoutPage() {
 
           <button
             onClick={handleChooseDay}
-            className="w-full bg-white/5 backdrop-blur-xl rounded-xl p-4 sm:p-5 text-left border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+            className="w-full surface-panel rounded-xl p-4 sm:p-5 text-left hover:border-white/20 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/20">
@@ -485,42 +470,43 @@ export default function StartWorkoutPage() {
               </div>
             </div>
           </button>
-        </div>
+        </section>
 
-        <div className="mt-6 sm:mt-8 max-w-md mx-auto">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Recent Workouts
-          </h2>
+        <section className="space-y-4 max-w-3xl mx-auto">
+          <div>
+            <p className="section-label">Recent</p>
+            <h2 className="mt-2 text-xl font-bold text-white">Recent Workouts</h2>
+          </div>
           <div className="space-y-2">
             {recentWorkouts.length === 0 && (
-              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+              <div className="surface-panel rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
                     <Play className="h-5 w-5 text-purple-400" />
                   </div>
                   <div>
                     <div className="text-white font-semibold">No recent sessions</div>
-                    <div className="text-gray-500 text-sm">Start your first workout now.</div>
+                    <div className="text-zinc-500 text-sm">Start your first workout now.</div>
                   </div>
                 </div>
                 <button
                   onClick={handleQuickStart}
-                  className="mt-3 w-full rounded-xl bg-white/10 border border-white/10 py-3 px-4 text-white font-medium transition-all active:scale-[0.98]"
+                  className="mt-3 w-full btn-secondary rounded-xl py-3 px-4 text-sm font-semibold transition-all active:scale-[0.98]"
                 >
                   Quick Start
                 </button>
               </div>
             )}
             {recentWorkouts.map(session => (
-              <div key={session.id} className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+              <div key={session.id} className="surface-panel rounded-2xl p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-white text-sm font-semibold">{session.dayName || session.programName || 'Workout'}</div>
-                    <div className="text-gray-500 text-xs">{parseLocalDate(session.date).toLocaleDateString()}</div>
+                    <div className="text-zinc-500 text-xs">{parseLocalDate(session.date).toLocaleDateString()}</div>
                   </div>
                   <button
                     onClick={handleContinue}
-                    className="rounded-lg px-3 py-2 text-purple-400 text-sm font-medium hover:bg-purple-500/10 transition-all"
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-white/20"
                   >
                     Repeat
                   </button>
@@ -528,7 +514,7 @@ export default function StartWorkoutPage() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

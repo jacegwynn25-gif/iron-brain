@@ -3,13 +3,14 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Exercise, SetTemplate, SetLog, WorkoutSession, ProgramTemplate, CustomExercise } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
+import { EXERCISE_TIER_LIST } from '../lib/intelligence/config';
 import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import RestTimer from './RestTimer';
 import WorkoutSummary from './WorkoutSummary';
 import { useWorkoutIntelligence } from '../lib/useWorkoutIntelligence';
 import { useAuth } from '../lib/supabase/auth-context';
-import { getWorkoutIntelligence, type SetRecommendation } from '../lib/intelligence/workout-intelligence';
+import { getWorkoutIntelligence, type SetRecommendation, type SessionFatigueAssessment } from '../lib/intelligence/workout-intelligence';
 import {
   saveActiveSession,
   clearActiveSession,
@@ -24,6 +25,8 @@ import WorkoutSelection from './workout/WorkoutSelection';
 import RpeRirSlider from './workout/RpeRirSlider';
 import CreateExerciseModal from './program-builder/CreateExerciseModal';
 import { getWeightForPercentage } from '../lib/maxes/maxes-service';
+import InWorkoutFatigueAlert from './InWorkoutFatigueAlert';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -67,6 +70,7 @@ export default function WorkoutLogger({
   onSummaryClose,
 }: WorkoutLoggerProps) {
   const { user } = useAuth();
+  const { weightUnit } = useUnitPreference();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
 
@@ -107,6 +111,18 @@ export default function WorkoutLogger({
   const exerciseMap = useMemo(() => {
     const map = new Map<string, Exercise>();
     defaultExercises.forEach((ex) => map.set(ex.id, ex));
+    // Include generated builder exercises from config
+    EXERCISE_TIER_LIST.forEach((ex) => {
+      if (!map.has(ex.id)) {
+        map.set(ex.id, {
+          id: ex.id,
+          name: ex.name,
+          type: ex.movementType,
+          muscleGroups: [ex.primaryMuscle, ...ex.secondaryMuscles],
+          equipment: ex.equipment,
+        });
+      }
+    });
     customExercises.forEach((ex) => map.set(ex.id, normalizeCustomExercise(ex)));
     return map;
   }, [customExercises, normalizeCustomExercise]);
@@ -243,6 +259,9 @@ export default function WorkoutLogger({
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customInitialName, setCustomInitialName] = useState('');
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+
+  const [sessionFatigue, setSessionFatigue] = useState<SessionFatigueAssessment | null>(null);
+  const [showFatigueAlert, setShowFatigueAlert] = useState(false);
 
   const sessionSets = session.sets;
 
@@ -535,6 +554,22 @@ export default function WorkoutLogger({
       totalSets: wasLastSet ? currentExerciseEntry.sets.length + 1 : currentExerciseEntry.sets.length,
     });
 
+    // Assess session fatigue after every 3rd set
+    if (user?.id && updatedSets.filter(s => s.completed).length % 3 === 0) {
+      try {
+        const intelligence = getWorkoutIntelligence(user.id);
+        const fatigueAssessment = await intelligence.assessSessionFatigue(updatedSets);
+        setSessionFatigue(fatigueAssessment);
+
+        // Show alert if fatigue is moderate or higher
+        if (fatigueAssessment.severity !== 'mild' && !showFatigueAlert) {
+          setShowFatigueAlert(true);
+        }
+      } catch (error) {
+        console.error('Failed to assess session fatigue:', error);
+      }
+    }
+
     if (wasLastSet && user?.id) {
       try {
         const intelligence = getWorkoutIntelligence(user.id);
@@ -543,7 +578,7 @@ export default function WorkoutLogger({
         console.error('Failed to update intelligence models:', error);
       }
     }
-  }, [currentTemplate, currentExerciseEntry, activeSetIndex, session, currentExercise, buildFinalSession, user]);
+  }, [currentTemplate, currentExerciseEntry, activeSetIndex, session, currentExercise, buildFinalSession, user, showFatigueAlert]);
 
   const skipSet = useCallback(() => {
     if (!currentTemplate || !currentExerciseEntry) return;
@@ -889,7 +924,7 @@ export default function WorkoutLogger({
     const setPositionForExercise = Math.min(activeSetIndex + 1, totalSetsForExercise);
 
     return (
-      <div className="min-h-screen safe-top bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950">
+      <div className="min-h-screen safe-top app-gradient">
         <div className="w-full max-w-none px-4 py-6 sm:mx-auto sm:max-w-4xl sm:px-6 sm:py-8">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -970,6 +1005,20 @@ export default function WorkoutLogger({
           }}
         />
       )}
+
+      {showFatigueAlert && sessionFatigue && (
+        <InWorkoutFatigueAlert
+          fatigueLevel={sessionFatigue.overallFatigue}
+          message={sessionFatigue.reasoning}
+          recommendation={
+            sessionFatigue.shouldReduceWeight
+              ? `Reduce weight by ${sessionFatigue.reductionPercent}% for remaining sets`
+              : 'Consider taking a longer rest period or ending the workout'
+          }
+          onAcknowledge={() => setShowFatigueAlert(false)}
+          onStopWorkout={sessionFatigue.severity === 'critical' ? requestFinishWorkout : undefined}
+        />
+      )}
     </>
   );
 }
@@ -1022,6 +1071,7 @@ function SetLogger({
   onFinishWorkout,
 }: SetLoggerProps) {
   const { user } = useAuth();
+  const { weightUnit } = useUnitPreference();
   const nowValue = useMemo(() => new Date().getTime(), []);
   const setType = template.setType || 'straight';
   const isDropSet = setType === 'drop';
@@ -1444,7 +1494,7 @@ function SetLogger({
             onDecrement={() => incrementWeight(-0.5)}
             onSanitize={sanitizeWeight}
             inputMode="decimal"
-            displayUnit="lbs"
+            displayUnit={weightUnit}
             accelerate
           />
           <HardyStepper
@@ -1585,7 +1635,7 @@ function SetLogger({
       actualRPE,
       actualRIR,
       notes: notes || undefined,
-      weightUnit: 'lbs',
+      weightUnit,
       setType,
       tempo: showTempo && tempo ? tempo : undefined,
     };
@@ -1735,7 +1785,7 @@ function SetLogger({
                 >
                   <span className="text-xs font-medium text-gray-400">{dateLabel}</span>
                   <span className="font-semibold text-white">
-                    {bestSet.actualWeight || 0}lbs × {bestSet.actualReps || 0}
+                    {bestSet.actualWeight || 0}{weightUnit} × {bestSet.actualReps || 0}
                     {bestSet.actualRPE && <span className="ml-1 text-xs text-amber-400">@{bestSet.actualRPE}</span>}
                   </span>
                 </button>
@@ -1770,7 +1820,7 @@ function SetLogger({
                       {set.setIndex}
                     </div>
                     <div className="text-sm text-white">
-                      {set.actualWeight ?? 0}lbs × {set.actualReps ?? 0}
+                      {set.actualWeight ?? 0}{weightUnit} × {set.actualReps ?? 0}
                       {set.actualRPE != null ? (
                         <span className="ml-2 text-xs text-purple-300">@{set.actualRPE}</span>
                       ) : set.actualRIR != null ? (
@@ -1795,7 +1845,7 @@ function SetLogger({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-2xl bg-white/5 backdrop-blur-xl p-3 border border-white/10 shadow-2xl">
           <button
             onClick={handleSubmit}
-            className="group relative flex-1 overflow-hidden rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3.5 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
+            className="group relative flex-1 overflow-hidden rounded-xl btn-primary px-5 py-3.5 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
           >
             <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex items-center justify-center">
@@ -1954,7 +2004,7 @@ function ConfirmFinishModal({ onCancel, onConfirm }: ConfirmFinishModalProps) {
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            className="flex-1 rounded-xl btn-primary px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
           >
             Finish Anyway
           </button>

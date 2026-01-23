@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { AlertTriangle, CheckCircle2, Star } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface SFRInsight {
   exerciseId: string;
@@ -15,6 +16,8 @@ interface SFRInsight {
 interface SFRInsightsTableProps {
   insights: SFRInsight[];
   loading?: boolean;
+  pinnedExerciseIds?: string[];
+  onTogglePin?: (exerciseId: string) => void;
 }
 
 function getSFRColor(interpretation: string): string {
@@ -47,18 +50,19 @@ function getInterpretationFromSFR(sfr: number): 'excellent' | 'good' | 'moderate
   return 'excessive';
 }
 
-export default function SFRInsightsTable({ insights, loading }: SFRInsightsTableProps) {
+export default function SFRInsightsTable({ insights, loading, pinnedExerciseIds, onTogglePin }: SFRInsightsTableProps) {
   const [sortBy, setSortBy] = useState<'sfr' | 'name' | 'times'>('sfr');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const pinnedSet = useMemo(() => new Set(pinnedExerciseIds ?? []), [pinnedExerciseIds]);
 
   if (loading) {
     return (
       <div className="space-y-3">
         <h2 className="text-xl font-semibold text-white mb-4">Training Efficiency</h2>
-        <div className="bg-gray-800/50 rounded-lg p-4 animate-pulse">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-pulse">
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-gray-700 rounded"></div>
+              <div key={i} className="h-12 bg-white/10 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -68,9 +72,9 @@ export default function SFRInsightsTable({ insights, loading }: SFRInsightsTable
 
   if (insights.length === 0) {
     return (
-      <div className="bg-gray-800/50 rounded-lg p-8 text-center">
-        <div className="text-gray-400 mb-2">No efficiency data yet</div>
-        <div className="text-sm text-gray-500">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+        <div className="text-zinc-200 font-semibold mb-2">No efficiency data yet</div>
+        <div className="text-sm text-zinc-400">
           Complete workouts to see which exercises are most efficient
         </div>
       </div>
@@ -122,22 +126,24 @@ export default function SFRInsightsTable({ insights, loading }: SFRInsightsTable
       {(excellentCount > 0 || poorCount > 0) && (
         <div className="flex gap-3 text-sm">
           {excellentCount > 0 && (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-green-500">
-              ✓ {excellentCount} excellent
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-emerald-200">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{excellentCount} excellent</span>
             </div>
           )}
           {poorCount > 0 && (
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-orange-500">
-              ⚠️ {poorCount} needs improvement
+            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-amber-200">
+              <AlertTriangle className="h-4 w-4" />
+              <span>{poorCount} needs improvement</span>
             </div>
           )}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 overflow-hidden">
+      <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
         {/* Header */}
-        <div className="grid grid-cols-12 gap-4 p-4 bg-gray-800/80 border-b border-gray-700/50 text-sm font-medium text-gray-400">
+        <div className="grid grid-cols-12 gap-4 p-4 bg-white/5 border-b border-white/10 text-sm font-medium text-zinc-400">
           <div
             className="col-span-5 cursor-pointer hover:text-white transition-colors"
             onClick={() => toggleSort('name')}
@@ -161,19 +167,35 @@ export default function SFRInsightsTable({ insights, loading }: SFRInsightsTable
         </div>
 
         {/* Rows */}
-        <div className="divide-y divide-gray-700/30">
+        <div className="divide-y divide-white/10">
           {sortedInsights.map((insight) => {
             const interpretation = insight.interpretation;
             const colorClass = getSFRColor(interpretation);
             const badgeClass = getSFRBadge(interpretation);
+            const isPinned = pinnedSet.has(insight.exerciseId);
 
             return (
               <div
                 key={insight.exerciseId}
-                className="grid grid-cols-12 gap-4 p-4 hover:bg-gray-700/20 transition-colors"
+                className="grid grid-cols-12 gap-4 p-4 hover:bg-white/5 transition-colors"
               >
-                <div className="col-span-5 text-white font-medium truncate">
-                  {insight.exerciseName}
+                <div className="col-span-5 flex items-center gap-2 min-w-0">
+                  {onTogglePin && (
+                    <button
+                      type="button"
+                      onClick={() => onTogglePin(insight.exerciseId)}
+                      className={`rounded-md border p-1 transition-colors ${
+                        isPinned
+                          ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                          : 'border-gray-700/50 bg-gray-800/40 text-gray-400 hover:bg-gray-700/40 hover:text-gray-200'
+                      }`}
+                      title={isPinned ? 'Unpin from overview' : 'Pin to overview'}
+                      aria-label={isPinned ? 'Unpin exercise' : 'Pin exercise'}
+                    >
+                      <Star className={`h-4 w-4 ${isPinned ? 'fill-current' : ''}`} />
+                    </button>
+                  )}
+                  <span className="text-white font-medium truncate">{insight.exerciseName}</span>
                 </div>
                 <div className={`col-span-2 text-center font-bold ${colorClass}`}>
                   {Math.round(insight.avgSFR)}
@@ -196,16 +218,16 @@ export default function SFRInsightsTable({ insights, loading }: SFRInsightsTable
       </div>
 
       {/* Legend */}
-      <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-        <div className="text-sm font-medium text-gray-300 mb-2">SFR Scale (Stimulus-to-Fatigue Ratio)</div>
+      <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+        <div className="text-sm font-medium text-zinc-200 mb-2">SFR Scale (Stimulus-to-Fatigue Ratio)</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-          <div className="text-gray-400">
+          <div className="text-zinc-400">
             <span className="text-green-500 font-medium">&gt;200:</span> Excellent - optimal efficiency
           </div>
-          <div className="text-gray-400">
+          <div className="text-zinc-400">
             <span className="text-yellow-500 font-medium">100-150:</span> Moderate - monitor trends
           </div>
-          <div className="text-gray-400">
+          <div className="text-zinc-400">
             <span className="text-red-500 font-medium">&lt;50:</span> Excessive - junk volume, cut back
           </div>
         </div>

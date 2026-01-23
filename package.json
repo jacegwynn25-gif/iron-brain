@@ -21,6 +21,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "^3.5.1",
+    "stripe": "^20.2.0",
     "xlsx": "^0.18.5",
     "zod": "^4.3.5"
   },
@@ -30,8 +31,11 @@
     "@types/papaparse": "^5.5.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
+    "openapi-typescript": "^7.10.1",
+    "supabase": "^2.72.8",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

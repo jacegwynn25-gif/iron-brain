@@ -53,7 +53,7 @@ export default function Settings({ name, email, onLogout, onClearData, onExtendS
           </p>
           <button
             onClick={onExtendSession}
-            className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-4 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            className="w-full rounded-xl btn-primary px-4 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
           >
             Extend Session
           </button>

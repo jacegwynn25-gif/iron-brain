@@ -1,25 +1,26 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Zap,
   Battery,
   Target,
-  Lightbulb,
   User,
+  Star,
   AlertTriangle,
   AlertCircle,
   Activity
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
+import { trackUiEvent } from '../lib/analytics/ui-events';
 import type { SetType, WorkoutSession } from '../lib/types';
 import {
   calculateACWR,
   updateFitnessFatigueModel,
-  calculateTrainingLoad,
   type FitnessFatigueModel
 } from '../lib/stats/adaptive-recovery';
 import {
@@ -30,13 +31,7 @@ import { getRecoveryProfiles, type RecoveryProfile } from '../lib/fatigue/cross-
 import { getExerciseEfficiencyLeaderboard } from '../lib/fatigue/sfr';
 import RecoveryOverview from './RecoveryOverview';
 import SFRInsightsTable from './SFRInsightsTable';
-import CausalInsightsDashboard from './CausalInsightsDashboard';
 import type { Database } from '../lib/supabase/database.types';
-
-type SupabaseExerciseRow = Pick<
-  Database['public']['Tables']['exercises']['Row'],
-  'id' | 'name' | 'slug'
->;
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
@@ -65,6 +60,9 @@ const interpretSfr = (avgSFR: number): SfrInsight['interpretation'] => {
   if (avgSFR > 50) return 'poor';
   return 'excessive';
 };
+
+const clampValue = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
 
 type SupabaseWorkoutRow = Pick<
   Database['public']['Tables']['workout_sessions']['Row'],
@@ -137,402 +135,594 @@ interface AnalyticsData {
   }>;
 }
 
-type ViewType = 'overview' | 'training-load' | 'recovery' | 'efficiency' | 'causal' | 'personal';
+type ViewType = 'overview' | 'training-load' | 'recovery' | 'efficiency' | 'personal';
 
-export default function AdvancedAnalyticsDashboard() {
-  const { user } = useAuth();
+interface AdvancedAnalyticsDashboardProps {
+  initialView?: string;
+}
+
+const VIEW_OPTIONS: ViewType[] = ['overview', 'training-load', 'recovery', 'efficiency', 'personal'];
+
+const resolveInitialView = (value?: string): ViewType =>
+  VIEW_OPTIONS.includes(value as ViewType) ? (value as ViewType) : 'overview';
+
+export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnalyticsDashboardProps) {
+  const { user, loading: authLoading, namespaceReady } = useAuth();
+  const { unitSystem, setUnitSystem, weightUnit, lbsToKg, kgToLbs } = useUnitPreference();
   const [analytics, setAnalytics] = useState<AnalyticsData>({});
   const [loading, setLoading] = useState(true);
-  const [selectedView, setSelectedView] = useState<ViewType>('overview');
-  const [allWorkouts, setAllWorkouts] = useState<WorkoutSession[]>([]);
+  const initialLoadRef = useRef(true);
+  const [selectedView, setSelectedView] = useState<ViewType>(() => resolveInitialView(initialView));
+  const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutSession[]>([]);
+  const [cloudSyncing, setCloudSyncing] = useState(false);
+  const [loadingRecovery, setLoadingRecovery] = useState(false);
+  const [loadingEfficiency, setLoadingEfficiency] = useState(false);
+  const [loadingModel, setLoadingModel] = useState(false);
+  const [includeWarmupSets, setIncludeWarmupSets] = useState(false);
+  const pinnedStorageKey = useMemo(
+    () => `iron_brain_insights_pinned_exercises_v1::${user?.id ?? 'guest'}`,
+    [user?.id]
+  );
+  const [pinnedExerciseIds, setPinnedExerciseIds] = useState<string[]>([]);
+  const pinnedExerciseSet = useMemo(() => new Set(pinnedExerciseIds), [pinnedExerciseIds]);
+  const hasMinimumData = completedWorkouts.length >= 3;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem('iron_brain_insights_include_warmups_v1');
+    if (raw === '1' || raw === 'true') {
+      setIncludeWarmupSets(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('iron_brain_insights_include_warmups_v1', includeWarmupSets ? '1' : '0');
+  }, [includeWarmupSets]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(pinnedStorageKey);
+    if (!raw) {
+      setPinnedExerciseIds([]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        setPinnedExerciseIds([]);
+        return;
+      }
+      setPinnedExerciseIds(parsed.filter((value): value is string => typeof value === 'string').slice(0, 12));
+    } catch {
+      setPinnedExerciseIds([]);
+    }
+  }, [pinnedStorageKey]);
+
+  useEffect(() => {
+    setAnalytics({});
+    setCompletedWorkouts([]);
+    setCloudSyncing(false);
+    setLoading(true);
+    initialLoadRef.current = true;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(pinnedStorageKey, JSON.stringify(pinnedExerciseIds.slice(0, 12)));
+  }, [pinnedExerciseIds, pinnedStorageKey]);
+
+  const togglePinnedExercise = useCallback((exerciseId: string) => {
+    const willPin = !pinnedExerciseSet.has(exerciseId);
+    setPinnedExerciseIds((prev) => {
+      if (willPin) return [...prev, exerciseId].slice(0, 12);
+      return prev.filter((id) => id !== exerciseId);
+    });
+    void trackUiEvent(
+      {
+        name: willPin ? 'insights_pin_exercise' : 'insights_unpin_exercise',
+        source: 'insights',
+        properties: { exerciseId },
+      },
+      user?.id
+    );
+  }, [pinnedExerciseSet, user?.id]);
+
+  useEffect(() => {
+    if (!initialView) return;
+    setSelectedView(resolveInitialView(initialView));
+  }, [initialView]);
+
+  const normalizeWorkoutId = useCallback(
+    (value: string) => (value.startsWith('session_') ? value.substring(8) : value),
+    []
+  );
+
+  const buildCompletedWorkouts = useCallback((workouts: WorkoutSession[]) => {
+    const uniqueWorkouts = new Map<string, WorkoutSession>();
+    workouts.forEach((workout) => {
+      uniqueWorkouts.set(normalizeWorkoutId(workout.id), workout);
+    });
+
+    return Array.from(uniqueWorkouts.values()).filter((workout) => {
+      const hasTimestamp = Boolean(workout.endTime || workout.startTime || workout.date);
+      if (!hasTimestamp) return false;
+
+      const hasValidSets = workout.sets.some((set) => {
+        if (set.completed === false) return false;
+        const weight = set.actualWeight || 0;
+        const reps = set.actualReps || 0;
+        const isWarmup = set.setType === 'warmup';
+        if (isWarmup) return false;
+        return weight > 0 && reps > 0 && !Number.isNaN(weight) && !Number.isNaN(reps);
+      });
+
+      if (hasValidSets) return true;
+
+      const totalVolumeLoad = typeof workout.totalVolumeLoad === 'number'
+        ? workout.totalVolumeLoad
+        : Number(workout.totalVolumeLoad ?? 0);
+      return Number.isFinite(totalVolumeLoad) && totalVolumeLoad > 0;
+    });
+  }, [normalizeWorkoutId]);
+
+  const buildCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
+    if (workouts.length < 3) return null;
+
+    const convertWeight = (value: number, fromUnit: 'lbs' | 'kg', toUnit: 'lbs' | 'kg') => {
+      if (fromUnit === toUnit) return value;
+      return fromUnit === 'lbs' ? lbsToKg(value) : kgToLbs(value);
+    };
+
+    const resolveSetWeight = (set: WorkoutSession['sets'][number]) => {
+      const raw = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
+      if (!Number.isFinite(raw)) return 0;
+      const fromUnit = set.weightUnit ?? weightUnit;
+      return convertWeight(raw, fromUnit, weightUnit);
+    };
+
+    const resolveFallbackVolumeLoad = (workout: WorkoutSession) => {
+      const fallback = typeof workout.totalVolumeLoad === 'number'
+        ? workout.totalVolumeLoad
+        : Number(workout.totalVolumeLoad ?? 0);
+      return Number.isFinite(fallback) ? fallback : 0;
+    };
+
+    const resolveWorkoutVolumeLoad = (workout: WorkoutSession) => {
+      const calculatedLoad = workout.sets.reduce((sum, set) => {
+        if (set.completed === false || set.setType === 'warmup') return sum;
+        const weight = resolveSetWeight(set);
+        const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
+        if (weight > 0 && reps > 0 && !Number.isNaN(weight) && !Number.isNaN(reps) && weight < 2000 && reps < 200) {
+          return sum + (weight * reps);
+        }
+        return sum;
+      }, 0);
+      return calculatedLoad > 0 ? calculatedLoad : resolveFallbackVolumeLoad(workout);
+    };
+
+    const workoutsWithLoad = workouts.map((workout) => ({
+      date: new Date(workout.endTime || workout.startTime || workout.date),
+      load: resolveWorkoutVolumeLoad(workout),
+    }));
+
+    const acwrMetrics = calculateACWR(workoutsWithLoad);
+
+    const sortedWorkouts = [...workouts].sort(
+      (a, b) => new Date(a.endTime || a.startTime || a.date).getTime()
+        - new Date(b.endTime || b.startTime || b.date).getTime()
+    );
+    const recentWorkouts = sortedWorkouts.slice(-14);
+    let fitnessFatigueModel: FitnessFatigueModel | null = null;
+    let lastWorkoutDate = new Date(recentWorkouts[0]?.endTime || Date.now());
+
+    for (const workout of recentWorkouts) {
+      const workoutDate = new Date(workout.endTime || workout.startTime || workout.date);
+      const daysSince = fitnessFatigueModel
+        ? (workoutDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24)
+        : 0;
+
+      const effortLoad = workout.sets.reduce((sum, set) => {
+        if (set.completed === false || set.setType === 'warmup') return sum;
+        const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
+        if (!Number.isFinite(reps) || reps <= 0) return sum;
+        const weight = resolveSetWeight(set);
+        if (!Number.isFinite(weight) || weight <= 0) return sum;
+
+        const volume = reps * weight;
+        const rpe = set.actualRPE ?? set.prescribedRPE ?? 7;
+        const intensity = Number.isFinite(rpe) ? (rpe / 10) : 0.7;
+        const effortMultiplier = set.reachedFailure ? 1.5 : 1.0;
+        return sum + (volume * intensity * effortMultiplier);
+      }, 0);
+
+      const fallbackVolume = resolveFallbackVolumeLoad(workout);
+      const fallbackRpe = workout.averageRPE ?? workout.sessionRPE ?? 7;
+      const fallbackIntensity = Number.isFinite(fallbackRpe) ? fallbackRpe / 10 : 0.7;
+      const resolvedEffortLoad = effortLoad > 0 ? effortLoad : fallbackVolume * fallbackIntensity;
+      const load = resolvedEffortLoad / 1000;
+
+      fitnessFatigueModel = updateFitnessFatigueModel(
+        fitnessFatigueModel,
+        'full_body',
+        load,
+        daysSince
+      );
+
+      lastWorkoutDate = workoutDate;
+    }
+
+    let readiness: 'excellent' | 'good' | 'moderate' | 'poor' = 'moderate';
+    if (fitnessFatigueModel) {
+      const perf = fitnessFatigueModel.netPerformance;
+      if (perf >= 70) readiness = 'excellent';
+      else if (perf >= 60) readiness = 'good';
+      else if (perf >= 40) readiness = 'moderate';
+      else readiness = 'poor';
+    }
+
+    const totalSets = workouts.reduce((sum, workout) => {
+      const eligibleSets = includeWarmupSets
+        ? workout.sets.filter((set) => set.completed !== false)
+        : workout.sets.filter((set) => set.completed !== false && set.setType !== 'warmup');
+      return sum + eligibleSets.length;
+    }, 0);
+
+    return {
+      acwr: {
+        ratio: clampValue(acwrMetrics.acwr, 0, 5.0),
+        status: acwrMetrics.status,
+        acuteLoad: clampValue(acwrMetrics.acuteLoad, 0, 1000000),
+        chronicLoad: clampValue(acwrMetrics.chronicLoad, 0, 1000000),
+        monotony: clampValue(acwrMetrics.trainingMonotony, 0, 10),
+        strain: clampValue(acwrMetrics.trainingStrain, 0, 10000000),
+      },
+      fitnessFatigue: fitnessFatigueModel
+        ? {
+            currentFitness: clampValue(fitnessFatigueModel.currentFitness, 0, 200),
+            currentFatigue: clampValue(fitnessFatigueModel.currentFatigue, 0, 150),
+            performance: clampValue(fitnessFatigueModel.netPerformance, 0, 100),
+            readiness,
+          }
+        : undefined,
+      personalStats: {
+        fatigueResistance: 50,
+        recoveryRate: 1.0,
+        totalWorkouts: workouts.length,
+        totalSets,
+      },
+    } satisfies Pick<AnalyticsData, 'acwr' | 'fitnessFatigue' | 'personalStats'>;
+  }, [includeWarmupSets, kgToLbs, lbsToKg, weightUnit]);
+
+  const updateCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
+    setCompletedWorkouts(workouts);
+    const core = buildCoreAnalytics(workouts);
+
+    if (!core) {
+      setAnalytics((prev) => ({
+        ...prev,
+        acwr: undefined,
+        fitnessFatigue: undefined,
+        personalStats: undefined,
+        hierarchicalModel: undefined,
+        exerciseRates: undefined,
+      }));
+      return;
+    }
+
+    setAnalytics((prev) => ({
+      ...prev,
+      ...core,
+      hierarchicalModel: undefined,
+      exerciseRates: undefined,
+    }));
+  }, [buildCoreAnalytics]);
 
   const loadAnalytics = useCallback(async () => {
     try {
-      // Set namespace based on auth state
-      setUserNamespace(user?.id || null);
+      setLoading(initialLoadRef.current);
+      setCloudSyncing(false);
+      if (namespaceReady || user) {
+        setUserNamespace(user?.id || null);
+      }
 
-      console.log('📊 Loading analytics for user:', user?.id || 'guest');
-
-      // Load from BOTH localStorage AND Supabase
-      let allWorkouts: WorkoutSession[] = [];
-
-      // 1. Get from localStorage (current namespace)
       const localWorkouts = getWorkoutHistory();
-      console.log('💾 localStorage workouts:', localWorkouts.length);
+      const localCompleted = buildCompletedWorkouts(localWorkouts);
+      updateCoreAnalytics(localCompleted);
+      setLoading(false);
+      initialLoadRef.current = false;
 
-      // 2. Get from Supabase if logged in
-      if (user) {
-        try {
-          console.log('🔍 Fetching from Supabase...');
-
-          const { data: supabaseWorkouts, error } = await supabase
-            .from('workout_sessions')
-            .select(`
-              id,
-              date,
-              start_time,
-              end_time,
-              duration_minutes,
-              total_volume_load,
-              notes,
-              set_logs (
-                id,
-                exercise_id,
-                exercise_slug,
-                order_index,
-                actual_weight,
-                actual_reps,
-                actual_rpe,
-                completed,
-                set_type
-              )
-            `)
-            .eq('user_id', user.id)
-            .order('start_time', { ascending: false });
-
-          if (error) {
-            console.error('❌ Supabase error:', error);
-            throw error;
-          }
-
-          console.log('📦 Got Supabase data:', supabaseWorkouts?.length || 0, 'workouts');
-
-          if (supabaseWorkouts && supabaseWorkouts.length > 0) {
-            // Load exercise name mappings
-            console.log('🔍 Loading exercise names...');
-            const { data: exercises, error: exerciseError } = await supabase
-              .from('exercises')
-              .select('id, name, slug');
-
-            if (exerciseError) {
-              console.error('❌ Exercise mapping error:', exerciseError);
-            }
-
-            const exerciseMap = new Map<string, string>();
-            (exercises as SupabaseExerciseRow[] | null | undefined)?.forEach((ex) => {
-              exerciseMap.set(ex.id, ex.name);
-              if (ex.slug) exerciseMap.set(ex.slug, ex.name);
-            });
-
-            console.log('✅ Loaded', exerciseMap.size, 'exercise names');
-
-            // Convert Supabase format to WorkoutSession format
-            const supabaseRows: SupabaseWorkoutRow[] = supabaseWorkouts ?? [];
-            const converted: WorkoutSession[] = supabaseRows.map((sw) => ({
-              id: sw.id,
-              startTime: sw.start_time ?? undefined,
-              endTime: sw.end_time ?? undefined,
-              totalVolumeLoad: sw.total_volume_load ?? undefined,
-              notes: sw.notes ?? undefined,
-              programId: '',
-              programName: '',
-              cycleNumber: 0,
-              weekNumber: 0,
-              dayName: '',
-              dayOfWeek: '',
-              date: sw.date ?? (sw.start_time ? sw.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-              createdAt: sw.start_time ?? new Date().toISOString(),
-              updatedAt: sw.end_time ?? sw.start_time ?? new Date().toISOString(),
-              sets: (sw.set_logs || []).map((sl, idx) => ({
-                id: sl.id ?? undefined,
-                exerciseId: sl.exercise_id || '',
-                exerciseName: exerciseMap.get(sl.exercise_id || '') || exerciseMap.get(sl.exercise_slug || '') || 'Unknown Exercise',
-                setIndex: idx + 1,
-                prescribedReps: '0',
-                actualWeight: sl.actual_weight ?? undefined,
-                actualReps: sl.actual_reps ?? undefined,
-                actualRPE: sl.actual_rpe ?? undefined,
-                completed: sl.completed !== false,
-                setType: normalizeSetType(sl.set_type),
-                timestamp: sw.start_time ?? undefined
-              }))
-            }));
-
-            console.log('☁️ Supabase workouts:', converted.length);
-            allWorkouts = converted;
-          } else {
-            console.log('ℹ️ No Supabase workouts found');
-          }
-        } catch (err) {
-          console.error('❌ Failed to load from Supabase:', err);
-          // Continue with localStorage data
-        }
-      } else {
-        console.log('ℹ️ No user logged in, skipping Supabase');
-      }
-
-      // 3. Merge: Prefer Supabase data, fall back to localStorage
-      if (allWorkouts.length === 0) {
-        console.log('📦 Using localStorage data');
-        allWorkouts = localWorkouts;
-      } else if (localWorkouts.length > allWorkouts.length) {
-        console.log('🔄 localStorage has more data, merging...');
-        // Merge and deduplicate by ID
-        const supabaseIds = new Set(allWorkouts.map(w => w.id));
-        const uniqueLocal = localWorkouts.filter(w => !supabaseIds.has(w.id));
-        allWorkouts = [...allWorkouts, ...uniqueLocal];
-        console.log(`✅ Merged: ${allWorkouts.length} total (${uniqueLocal.length} from localStorage)`);
-      }
-
-      console.log('📚 Total workouts loaded:', allWorkouts.length);
-
-      // DATA VALIDATION: Deduplicate workouts by ID
-      const uniqueWorkouts = Array.from(
-        new Map(allWorkouts.map(w => [w.id, w])).values()
-      );
-      console.log(`🔍 Deduplication: ${allWorkouts.length} -> ${uniqueWorkouts.length} workouts`);
-
-      // Filter completed workouts with valid data
-      const completedWorkouts = uniqueWorkouts.filter(w => {
-        if (!w.endTime) return false;
-
-        // Validate sets have proper data
-        const hasValidSets = w.sets.some(set => {
-          const weight = set.actualWeight || 0;
-          const reps = set.actualReps || 0;
-          return weight > 0 && reps > 0 && !isNaN(weight) && !isNaN(reps);
-        });
-
-        return hasValidSets;
-      });
-
-      console.log('✅ Completed workouts with valid data:', completedWorkouts.length);
-
-      if (completedWorkouts.length < 3) {
-        console.warn(`⚠️ Not enough workouts for analytics (have ${completedWorkouts.length}, need 3)`);
-        // Don't have enough data - component will show "not enough data" message
-        setLoading(false);
+      if (authLoading || !namespaceReady || !user) {
         return;
       }
 
-      // Load recovery profiles and SFR insights if user is logged in
-      let recoveryProfiles: RecoveryProfile[] = [];
-      let sfrInsights: SfrInsight[] = [];
+      setCloudSyncing(true);
+      try {
+        const { data: supabaseWorkouts, error } = await supabase
+          .from('workout_sessions')
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            duration_minutes,
+            total_volume_load,
+            notes,
+            set_logs (
+              id,
+              exercise_id,
+              exercise_slug,
+              actual_weight,
+              actual_reps,
+              actual_rpe,
+              completed,
+              set_type
+            )
+          `)
+          .eq('user_id', user.id)
+          .is('deleted_at', null)
+          .order('start_time', { ascending: false });
 
-      if (user) {
-        try {
-          const [profiles, leaderboard] = await Promise.all([
-            getRecoveryProfiles(user.id),
-            getExerciseEfficiencyLeaderboard(user.id, 20)
-          ]);
-          recoveryProfiles = profiles;
-          sfrInsights = leaderboard.map((entry) => ({
-            ...entry,
-            interpretation: interpretSfr(entry.avgSFR)
-          }));
-        } catch (err) {
-          console.error('Error loading recovery/SFR data:', err);
+        if (error) {
+          throw error;
         }
+
+        const supabaseRows: SupabaseWorkoutRow[] = supabaseWorkouts ?? [];
+        const converted: WorkoutSession[] = supabaseRows.map((sw) => ({
+          id: sw.id,
+          startTime: sw.start_time ?? undefined,
+          endTime: sw.end_time ?? undefined,
+          totalVolumeLoad: sw.total_volume_load ?? undefined,
+          notes: sw.notes ?? undefined,
+          programId: '',
+          programName: '',
+          cycleNumber: 0,
+          weekNumber: 0,
+          dayName: '',
+          dayOfWeek: '',
+          date: sw.date ?? (sw.start_time ? sw.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
+          createdAt: sw.start_time ?? new Date().toISOString(),
+          updatedAt: sw.end_time ?? sw.start_time ?? new Date().toISOString(),
+          sets: (sw.set_logs || []).map((sl, idx) => {
+            const exerciseId = sl.exercise_id || sl.exercise_slug || '';
+            const exerciseName = sl.exercise_slug || sl.exercise_id || 'Unknown Exercise';
+            return {
+              id: sl.id ?? undefined,
+              exerciseId,
+              exerciseName,
+              setIndex: idx + 1,
+              prescribedReps: '0',
+              actualWeight: sl.actual_weight ?? undefined,
+              actualReps: sl.actual_reps ?? undefined,
+              actualRPE: sl.actual_rpe ?? undefined,
+              completed: sl.completed !== false,
+              setType: normalizeSetType(sl.set_type),
+              timestamp: sw.start_time ?? undefined,
+            };
+          }),
+        }));
+
+        const mergedWorkouts = converted.length === 0
+          ? localWorkouts
+          : (() => {
+              const localById = new Map<string, WorkoutSession>();
+              localWorkouts.forEach((workout) => {
+                localById.set(normalizeWorkoutId(workout.id), workout);
+              });
+
+              const cloudIds = new Set(converted.map((workout) => normalizeWorkoutId(workout.id)));
+              const mergedCloud = converted.map((workout) => localById.get(normalizeWorkoutId(workout.id)) ?? workout);
+              const uniqueLocal = localWorkouts.filter((workout) => !cloudIds.has(normalizeWorkoutId(workout.id)));
+
+              return [...mergedCloud, ...uniqueLocal];
+            })();
+
+        const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
+        updateCoreAnalytics(mergedCompleted);
+      } catch (err) {
+        console.error('Failed to load analytics from Supabase:', err);
+      } finally {
+        setCloudSyncing(false);
       }
+    } catch (err) {
+      console.error('Error loading analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authLoading, namespaceReady, user, buildCompletedWorkouts, updateCoreAnalytics, normalizeWorkoutId]);
 
-      // Calculate ACWR with validated volume calculation
-      console.log('📈 Calculating ACWR...');
-      const workoutsWithLoad = completedWorkouts.map(w => {
-        // Calculate volume: weight * reps, with proper validation
-        const calculatedLoad = w.sets.reduce((sum, set) => {
-          const weight = set.actualWeight || 0;
-          const reps = set.actualReps || 0;
+  const loadRecoveryProfiles = useCallback(async () => {
+    if (!user || loadingRecovery || analytics.recoveryProfiles) return;
+    setLoadingRecovery(true);
+    try {
+      const profiles = await getRecoveryProfiles(user.id);
+      setAnalytics((prev) => ({
+        ...prev,
+        recoveryProfiles: profiles,
+      }));
+    } catch (err) {
+      console.error('Error loading recovery profiles:', err);
+    } finally {
+      setLoadingRecovery(false);
+    }
+  }, [user, loadingRecovery, analytics.recoveryProfiles]);
 
-          // Validate: positive numbers, not NaN, reasonable bounds
-          if (weight > 0 && reps > 0 && !isNaN(weight) && !isNaN(reps) && weight < 2000 && reps < 200) {
-            return sum + (weight * reps);
-          }
-          return sum;
-        }, 0);
+  const loadSfrInsights = useCallback(async () => {
+    if (!user || loadingEfficiency || analytics.sfrInsights) return;
+    setLoadingEfficiency(true);
+    try {
+      const leaderboard = await getExerciseEfficiencyLeaderboard(user.id, 20);
+      setAnalytics((prev) => ({
+        ...prev,
+        sfrInsights: leaderboard.map((entry) => ({
+          ...entry,
+          interpretation: interpretSfr(entry.avgSFR),
+        })),
+      }));
+    } catch (err) {
+      console.error('Error loading SFR insights:', err);
+    } finally {
+      setLoadingEfficiency(false);
+    }
+  }, [user, loadingEfficiency, analytics.sfrInsights]);
 
-        return {
-          date: new Date(w.endTime!),
-          load: w.totalVolumeLoad && w.totalVolumeLoad > 0 ? w.totalVolumeLoad : calculatedLoad
-        };
-      });
-
-      const acwrMetrics = calculateACWR(workoutsWithLoad);
-      console.log('✅ ACWR calculated:', acwrMetrics.acwr);
-      console.log('  Acute (7d):', acwrMetrics.acuteLoad);
-      console.log('  Chronic (28d avg/week):', acwrMetrics.chronicLoad / 4);
-
-      // Build hierarchical model with caching if available
-      let hierarchicalModel: HierarchicalFatigueModel | undefined;
-      const historicalForModel = completedWorkouts.map(w => ({
-        date: new Date(w.endTime!),
-        exercises: w.sets.reduce((acc, set) => {
-          const existing = acc.find(e => e.exerciseId === set.exerciseId);
+  const loadHierarchicalModel = useCallback(async () => {
+    if (loadingModel || analytics.hierarchicalModel || completedWorkouts.length < 3) return;
+    setLoadingModel(true);
+    try {
+      const historicalForModel = completedWorkouts.map((workout) => ({
+        date: new Date(workout.endTime || workout.startTime || workout.date),
+        exercises: workout.sets
+          .filter((set) => set.completed !== false && set.setType !== 'warmup')
+          .reduce((acc, set) => {
+            const existing = acc.find((exercise) => exercise.exerciseId === set.exerciseId);
           if (existing) {
             existing.sets.push(set);
           } else {
             acc.push({ exerciseId: set.exerciseId, sets: [set] });
           }
           return acc;
-        }, [] as Array<{ exerciseId: string; sets: typeof w.sets }>)
+        }, [] as Array<{ exerciseId: string; sets: typeof workout.sets }>),
       }));
 
-      if (historicalForModel.length >= 3) {
-        console.log('🧠 Building hierarchical model...');
-        // Try to use cached model
-        if (user) {
-          try {
-            const { getOrBuildHierarchicalModel } = await import('../lib/supabase/model-cache');
-            hierarchicalModel = await getOrBuildHierarchicalModel(user.id, historicalForModel);
-          } catch (err) {
-            console.error('Cache load failed, building from scratch:', err);
-            hierarchicalModel = buildHierarchicalFatigueModel('default_user', historicalForModel);
-          }
-        } else {
+      let hierarchicalModel: HierarchicalFatigueModel;
+      if (user) {
+        try {
+          const { getOrBuildHierarchicalModel } = await import('../lib/supabase/model-cache');
+          hierarchicalModel = await getOrBuildHierarchicalModel(user.id, historicalForModel);
+        } catch (err) {
+          console.error('Cache load failed, building from scratch:', err);
           hierarchicalModel = buildHierarchicalFatigueModel('default_user', historicalForModel);
         }
-        console.log('✅ Hierarchical model built:', hierarchicalModel?.userFatigueResistance);
       } else {
-        console.log('⚠️ Not enough workouts for hierarchical model (need 3, have', historicalForModel.length, ')');
+        hierarchicalModel = buildHierarchicalFatigueModel('default_user', historicalForModel);
       }
 
-      // Calculate Fitness-Fatigue by sequencing through recent workouts
-      const recentWorkouts = completedWorkouts.slice(-14); // Last 2 weeks
-      let fitnessFatigueModel: FitnessFatigueModel | null = null;
-      let lastWorkoutDate = new Date(recentWorkouts[0]?.endTime || Date.now());
+      const exerciseRates = Array.from(hierarchicalModel.exerciseSpecificFactors.entries()).map(([id, data]) => {
+        const set = completedWorkouts
+          .flatMap((workout) => workout.sets.filter((item) => item.completed !== false && item.setType !== 'warmup'))
+          .find((item) => item.exerciseId === id);
 
-      for (const workout of recentWorkouts) {
-        const workoutDate = new Date(workout.endTime!);
-        const daysSince = fitnessFatigueModel
-          ? (workoutDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24)
-          : 0;
-
-        const load = workout.totalVolumeLoad || calculateTrainingLoad(workout.sets);
-
-        fitnessFatigueModel = updateFitnessFatigueModel(
-          fitnessFatigueModel,
-          'full_body',
-          load,
-          daysSince
-        );
-
-        lastWorkoutDate = workoutDate;
-      }
-
-      // Calculate readiness from performance (0-100 scale)
-      let readiness: 'excellent' | 'good' | 'moderate' | 'poor' = 'moderate';
-      if (fitnessFatigueModel) {
-        const perf = fitnessFatigueModel.netPerformance;
-        if (perf >= 70) readiness = 'excellent';
-        else if (perf >= 60) readiness = 'good';
-        else if (perf >= 40) readiness = 'moderate';
-        else readiness = 'poor';
-      }
-
-      const fitnessFatigue = fitnessFatigueModel
-        ? {
-            currentFitness: fitnessFatigueModel.currentFitness,
-            currentFatigue: fitnessFatigueModel.currentFatigue,
-            performance: fitnessFatigueModel.netPerformance,
-            readiness
-          }
-        : undefined;
-
-      // Personal stats
-      const totalSets = completedWorkouts.reduce((sum, w) => sum + w.sets.length, 0);
-      const personalStats = {
-        fatigueResistance: hierarchicalModel?.userFatigueResistance || 50,
-        recoveryRate: hierarchicalModel?.userRecoveryRate || 1.0,
-        totalWorkouts: completedWorkouts.length,
-        totalSets
-      };
-
-      // Exercise-specific rates with names
-      const exerciseRates = hierarchicalModel
-        ? Array.from(hierarchicalModel.exerciseSpecificFactors.entries()).map(([id, data]) => {
-            // Find exercise name from completed workouts
-            const set = completedWorkouts
-              .flatMap(w => w.sets)
-              .find(s => s.exerciseId === id);
-
-            const exerciseName = set?.exerciseName || id;
-
-            return {
-              exerciseId: id,
-              exerciseName: exerciseName,
-              fatigueRate: data.baselineFatigueRate,
-              variance: data.variance,
-              sampleSize: data.sampleSize
-            };
-          })
-        : [];
-
-      // Store workouts for causal insights
-      setAllWorkouts(completedWorkouts);
-
-      // CLAMPING: Apply sanity checks to display values
-      const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-
-      setAnalytics({
-        acwr: {
-          ratio: clamp(acwrMetrics.acwr, 0, 5.0), // ACWR should never exceed 5.0
-          status: acwrMetrics.status,
-          acuteLoad: clamp(acwrMetrics.acuteLoad, 0, 1000000),
-          chronicLoad: clamp(acwrMetrics.chronicLoad, 0, 1000000),
-          monotony: clamp(acwrMetrics.trainingMonotony, 0, 10),
-          strain: clamp(acwrMetrics.trainingStrain, 0, 10000000)
-        },
-        fitnessFatigue: fitnessFatigue ? {
-          currentFitness: clamp(fitnessFatigue.currentFitness, 0, 200),
-          currentFatigue: clamp(fitnessFatigue.currentFatigue, 0, 150),
-          performance: clamp(fitnessFatigue.performance, 0, 100),
-          readiness: fitnessFatigue.readiness
-        } : undefined,
-        hierarchicalModel,
-        personalStats: {
-          fatigueResistance: clamp(personalStats.fatigueResistance, 0, 100),
-          recoveryRate: clamp(personalStats.recoveryRate, 0, 3),
-          totalWorkouts: personalStats.totalWorkouts,
-          totalSets: personalStats.totalSets
-        },
-        exerciseRates,
-        recoveryProfiles,
-        sfrInsights
+        return {
+          exerciseId: id,
+          exerciseName: set?.exerciseName || id,
+          fatigueRate: data.baselineFatigueRate,
+          variance: data.variance,
+          sampleSize: data.sampleSize,
+        };
       });
 
+      const totalSets = completedWorkouts.reduce(
+        (sum, workout) => sum + workout.sets.filter((set) => set.completed !== false && set.setType !== 'warmup').length,
+        0
+      );
+
+      setAnalytics((prev) => ({
+        ...prev,
+        hierarchicalModel,
+        exerciseRates,
+        personalStats: {
+          fatigueResistance: clampValue(hierarchicalModel.userFatigueResistance || 50, 0, 100),
+          recoveryRate: clampValue(hierarchicalModel.userRecoveryRate || 1.0, 0, 3),
+          totalWorkouts: prev.personalStats?.totalWorkouts ?? completedWorkouts.length,
+          totalSets: prev.personalStats?.totalSets ?? totalSets,
+        },
+      }));
     } catch (err) {
-      console.error('Error loading analytics:', err);
+      console.error('Failed to build hierarchical model:', err);
     } finally {
-      setLoading(false);
+      setLoadingModel(false);
     }
-  }, [user]);
+  }, [analytics.hierarchicalModel, completedWorkouts, loadingModel, user]);
 
   useEffect(() => {
     loadAnalytics();
   }, [loadAnalytics]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAnalytics();
+      }
+    };
+    const handleFocus = () => {
+      loadAnalytics();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadAnalytics]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (analytics.recoveryProfiles || loadingRecovery) return;
+    if (selectedView === 'recovery' || selectedView === 'overview') {
+      void loadRecoveryProfiles();
+    }
+  }, [selectedView, user, analytics.recoveryProfiles, loadingRecovery, loadRecoveryProfiles]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (analytics.sfrInsights || loadingEfficiency) return;
+    if (selectedView === 'efficiency' || selectedView === 'overview') {
+      void loadSfrInsights();
+    }
+  }, [selectedView, user, analytics.sfrInsights, loadingEfficiency, loadSfrInsights]);
+
+  useEffect(() => {
+    if (selectedView === 'personal' || selectedView === 'efficiency') {
+      void loadHierarchicalModel();
+    }
+  }, [selectedView, loadHierarchicalModel]);
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 p-4">
+      <div className="flex min-h-screen items-center justify-center app-gradient safe-top p-6">
         <div className="space-y-4 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-500 flex items-center justify-center animate-pulse">
+          <div className="w-16 h-16 mx-auto rounded-full btn-primary flex items-center justify-center animate-pulse">
             <Activity className="h-8 w-8 text-white" />
           </div>
-          <div className="text-white text-lg font-semibold">Loading your insights...</div>
-          <div className="text-gray-400 text-sm">Analyzing workouts and calculating metrics</div>
+          <div className="text-white text-lg font-semibold">Loading insights...</div>
+          <div className="text-zinc-400 text-sm">Syncing workouts and calculating metrics</div>
         </div>
       </div>
     );
   }
 
-  if (!analytics.acwr && !analytics.hierarchicalModel) {
+  if (!hasMinimumData) {
+    const awaitingSync = cloudSyncing && completedWorkouts.length === 0;
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 p-4">
+      <div className="flex min-h-screen items-center justify-center app-gradient safe-top p-6">
         <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 max-w-md text-center border border-white/10">
           <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
             <BarChart3 className="h-10 w-10 text-white" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Start Your Journey</h2>
-          <p className="text-gray-300 text-sm sm:text-base mb-6">
-            Complete at least 3 workouts to unlock your personalized analytics dashboard.
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+            {awaitingSync ? 'Syncing your workouts…' : 'Not enough data yet'}
+          </h2>
+          <p className="text-zinc-300 text-sm sm:text-base mb-6">
+            {awaitingSync
+              ? 'Pulling your workout history. This can take a minute on the first sync.'
+              : 'Log at least 3 workouts with working sets (weight + reps) to unlock Insights.'}
           </p>
-          <div className="bg-white/5 rounded-xl p-4 text-left space-y-2 text-sm text-gray-400 border border-white/10">
+          {cloudSyncing && (
+            <div className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400">
+              Syncing cloud workouts…
+            </div>
+          )}
+          <div className="bg-white/5 rounded-xl p-4 text-left space-y-2 text-sm text-zinc-400 border border-white/10">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
               <span>ACWR injury risk monitoring</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-              <span>Fitness-Fatigue performance tracking</span>
+              <span>Fitness-fatigue performance tracking</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
@@ -557,34 +747,34 @@ export default function AdvancedAnalyticsDashboard() {
       if (analytics.acwr.ratio > 2.0) {
         insights.push({
           type: 'danger',
-          message: `High injury risk! Your training load is ${analytics.acwr.ratio.toFixed(1)}x higher than usual.`,
-          action: 'Take a rest day or deload this week'
+          message: `High injury risk. ACWR is ${analytics.acwr.ratio.toFixed(1)}× above baseline.`,
+          action: 'Reduce volume or take a rest day'
         });
       } else if (analytics.acwr.ratio > 1.5) {
         insights.push({
           type: 'warning',
-          message: `You're pushing hard (ACWR: ${analytics.acwr.ratio.toFixed(2)}). Watch for fatigue.`,
+          message: `Load elevated (ACWR ${analytics.acwr.ratio.toFixed(2)}). Monitor fatigue.`,
           action: 'Plan recovery within 1-2 weeks'
         });
       } else if (analytics.acwr.ratio >= 0.8 && analytics.acwr.ratio <= 1.3) {
         insights.push({
           type: 'good',
-          message: `Perfect training zone! ACWR ${analytics.acwr.ratio.toFixed(2)} is in the sweet spot.`,
-          action: 'Keep this up for optimal gains'
+          message: `Load is in the target range (ACWR ${analytics.acwr.ratio.toFixed(2)}).`,
+          action: 'Maintain current load'
         });
       } else if (analytics.acwr.ratio < 0.5) {
         insights.push({
           type: 'warning',
-          message: 'Training load is too low. You may be losing fitness.',
-          action: 'Gradually increase volume'
+          message: 'Training load is below baseline.',
+          action: 'Increase volume gradually'
         });
       }
 
       if (analytics.acwr.monotony > 2.5) {
         insights.push({
           type: 'info',
-          message: 'Your training lacks variety. Try mixing things up.',
-          action: 'Add new exercises or rep ranges'
+          message: 'Training monotony is high.',
+          action: 'Add variety in exercises or rep ranges'
         });
       }
     }
@@ -594,14 +784,14 @@ export default function AdvancedAnalyticsDashboard() {
       if (analytics.fitnessFatigue.readiness === 'excellent') {
         insights.push({
           type: 'good',
-          message: 'Your body is primed for a great workout!',
-          action: 'Perfect day to push for PRs'
+          message: 'Readiness is high.',
+          action: 'Good day for intensity'
         });
       } else if (analytics.fitnessFatigue.readiness === 'poor') {
         insights.push({
           type: 'warning',
-          message: 'Low readiness detected. Recovery is needed.',
-          action: 'Light session or rest recommended'
+          message: 'Readiness is low.',
+          action: 'Prioritize recovery or reduce intensity'
         });
       }
 
@@ -609,8 +799,8 @@ export default function AdvancedAnalyticsDashboard() {
       if (fatigueRatio > 1.2) {
         insights.push({
           type: 'warning',
-          message: 'Fatigue is outpacing fitness gains.',
-          action: 'Schedule a deload week'
+          message: 'Fatigue is outpacing fitness.',
+          action: 'Consider a deload week'
         });
       }
     }
@@ -634,15 +824,85 @@ export default function AdvancedAnalyticsDashboard() {
   };
 
   const smartInsights = getSmartInsights();
+  const pinnedSfrInsights = analytics.sfrInsights && pinnedExerciseIds.length > 0
+    ? analytics.sfrInsights.filter((insight) => pinnedExerciseSet.has(insight.exerciseId))
+    : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 px-4 py-6 sm:px-6 sm:py-8 pb-24 safe-top">
+    <div className="min-h-screen app-gradient px-4 py-6 sm:px-6 sm:py-8 pb-24 safe-top">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">Analytics</h1>
-          <p className="text-gray-300 text-sm">Science-backed insights for smarter training</p>
-        </div>
+        <header className="mb-6 sm:mb-8 rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="section-label">Insights</p>
+              <h1 className="mt-3 text-3xl font-black text-white">Insights</h1>
+              <p className="mt-2 text-sm text-zinc-400">Training metrics and recovery insights.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {cloudSyncing && (
+                <span className="w-fit rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-zinc-200">
+                  Syncing workouts
+                </span>
+              )}
+              <div className="flex items-center rounded-full border border-white/10 bg-white/10 p-1 text-xs font-semibold text-zinc-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (unitSystem === 'imperial') return;
+                    setUnitSystem('imperial');
+                    void trackUiEvent(
+                      { name: 'insights_unit_change', source: 'insights', properties: { unit: 'lbs' } },
+                      user?.id
+                    );
+                  }}
+                  className={`rounded-full px-3 py-1 transition-colors ${
+                    unitSystem === 'imperial' ? 'bg-white/20 text-white' : 'text-zinc-300 hover:text-white'
+                  }`}
+                  aria-pressed={unitSystem === 'imperial'}
+                >
+                  lbs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (unitSystem === 'metric') return;
+                    setUnitSystem('metric');
+                    void trackUiEvent(
+                      { name: 'insights_unit_change', source: 'insights', properties: { unit: 'kg' } },
+                      user?.id
+                    );
+                  }}
+                  className={`rounded-full px-3 py-1 transition-colors ${
+                    unitSystem === 'metric' ? 'bg-white/20 text-white' : 'text-zinc-300 hover:text-white'
+                  }`}
+                  aria-pressed={unitSystem === 'metric'}
+                >
+                  kg
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !includeWarmupSets;
+                  setIncludeWarmupSets(next);
+                  void trackUiEvent(
+                    { name: 'insights_warmups_toggle', source: 'insights', properties: { enabled: next } },
+                    user?.id
+                  );
+                }}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  includeWarmupSets
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                    : 'border-white/10 bg-white/10 text-zinc-200 hover:bg-white/15'
+                }`}
+                title="Warm-up sets are always excluded from fatigue/readiness. This toggle only affects totals and summaries."
+                aria-pressed={includeWarmupSets}
+              >
+                Warmups: {includeWarmupSets ? 'Included' : 'Hidden'}
+              </button>
+            </div>
+          </div>
+        </header>
 
         {/* Smart Insights Banner - Only show most critical alert */}
         {smartInsights.length > 0 && selectedView === 'overview' && (() => {
@@ -679,7 +939,7 @@ export default function AdvancedAnalyticsDashboard() {
                     </p>
                     {mostCritical.action && (
                       <p className="text-xs sm:text-sm text-gray-400">
-                        Action: {mostCritical.action}
+                        Recommended: {mostCritical.action}
                       </p>
                     )}
                   </div>
@@ -696,15 +956,21 @@ export default function AdvancedAnalyticsDashboard() {
             { id: 'training-load' as ViewType, label: 'Load', Icon: Zap },
             { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
             { id: 'efficiency' as ViewType, label: 'Efficiency', Icon: Target },
-            { id: 'causal' as ViewType, label: 'Insights', Icon: Lightbulb },
             { id: 'personal' as ViewType, label: 'Profile', Icon: User }
           ]).map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setSelectedView(id)}
+              onClick={() => {
+                if (selectedView === id) return;
+                void trackUiEvent(
+                  { name: 'insights_view_change', source: 'insights', properties: { from: selectedView, to: id } },
+                  user?.id
+                );
+                setSelectedView(id);
+              }}
               className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all text-sm touch-manipulation active:scale-[0.98] ${
                 selectedView === id
-                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
+                  ? 'btn-primary text-white shadow-lg shadow-purple-500/30 scale-[1.02]'
                   : 'bg-white/10 text-gray-300 hover:bg-white/15 hover:text-white'
               }`}
             >
@@ -740,19 +1006,25 @@ export default function AdvancedAnalyticsDashboard() {
                   {analytics.acwr.ratio.toFixed(2)}
                 </div>
                 <div className="text-sm text-gray-300 mb-4 font-medium">
-                  {analytics.acwr.ratio < 0.8 ? 'Too low - increase training' :
-                   analytics.acwr.ratio <= 1.3 ? 'Perfect zone for gains' :
-                   analytics.acwr.ratio <= 1.5 ? 'High but manageable' :
-                   'Danger zone - rest needed!'}
+                  {analytics.acwr.ratio < 0.8 ? 'Below target range' :
+                   analytics.acwr.ratio <= 1.3 ? 'Target range' :
+                   analytics.acwr.ratio <= 1.5 ? 'High load' :
+                   'High risk — reduce load'}
                 </div>
                 <div className="space-y-2.5 pt-4 border-t border-white/10">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-400">7-day load</span>
-                    <span className="text-base text-white font-bold">{analytics.acwr.acuteLoad.toFixed(0)}</span>
+                    <span className="text-base text-white font-bold">
+                      {analytics.acwr.acuteLoad.toFixed(0)}
+                      <span className="ml-1 text-xs font-semibold text-zinc-400">{weightUnit}</span>
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-400">28-day avg</span>
-                    <span className="text-base text-white font-bold">{analytics.acwr.chronicLoad.toFixed(0)}</span>
+                    <span className="text-base text-white font-bold">
+                      {analytics.acwr.chronicLoad.toFixed(0)}
+                      <span className="ml-1 text-xs font-semibold text-zinc-400">{weightUnit}</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -889,7 +1161,13 @@ export default function AdvancedAnalyticsDashboard() {
                   ))}
                 </div>
                 <button
-                  onClick={() => setSelectedView('recovery')}
+                  onClick={() => {
+                    void trackUiEvent(
+                      { name: 'insights_view_change', source: 'insights', properties: { from: 'overview', to: 'recovery' } },
+                      user?.id
+                    );
+                    setSelectedView('recovery');
+                  }}
                   className="mt-4 w-full text-sm text-purple-400 hover:text-purple-300 transition-colors font-bold hover:bg-white/5 rounded-lg py-2"
                 >
                   View All Muscles →
@@ -902,29 +1180,70 @@ export default function AdvancedAnalyticsDashboard() {
               <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
-                    <Target className="h-5 w-5 text-yellow-400" />
+                    {pinnedExerciseIds.length > 0 ? (
+                      <Star className="h-5 w-5 text-yellow-300" />
+                    ) : (
+                      <Target className="h-5 w-5 text-yellow-400" />
+                    )}
                   </div>
-                  <h3 className="text-base font-bold text-white">Best Exercises</h3>
+                  <h3 className="text-base font-bold text-white">
+                    {pinnedExerciseIds.length > 0 ? 'Pinned Exercises' : 'Best Exercises'}
+                  </h3>
                 </div>
                 <div className="space-y-3">
-                  {analytics.sfrInsights.slice(0, 3).map(insight => (
-                    <div key={insight.exerciseId} className="flex justify-between items-center gap-3 bg-white/5 rounded-lg p-3">
-                      <span className="text-sm text-gray-200 truncate font-medium">{insight.exerciseName}</span>
-                      <span className={`text-xs px-2.5 py-1 rounded-lg font-bold flex-shrink-0 ${
-                        insight.interpretation === 'excellent' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
-                        insight.interpretation === 'good' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                        'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                      }`}>
-                        {insight.interpretation}
-                      </span>
+                  {pinnedExerciseIds.length > 0 && pinnedSfrInsights.length === 0 ? (
+                    <div className="bg-white/5 rounded-lg p-4 text-sm text-zinc-400">
+                      Your pinned exercises don’t have enough recent data yet. Pin from the Efficiency tab once you’ve logged a few sessions.
                     </div>
-                  ))}
+                  ) : (
+                    (pinnedExerciseIds.length > 0 ? pinnedSfrInsights : analytics.sfrInsights)
+                      .slice(0, 3)
+                      .map((insight) => {
+                        const isPinned = pinnedExerciseSet.has(insight.exerciseId);
+                        return (
+                          <div
+                            key={insight.exerciseId}
+                            className="flex justify-between items-center gap-3 bg-white/5 rounded-lg p-3"
+                          >
+                            <span className="text-sm text-gray-200 truncate font-medium">{insight.exerciseName}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${
+                                insight.interpretation === 'excellent' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                                insight.interpretation === 'good' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                                'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                              }`}>
+                                {insight.interpretation}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => togglePinnedExercise(insight.exerciseId)}
+                                className={`rounded-lg border p-1 transition-colors ${
+                                  isPinned
+                                    ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300'
+                                    : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white'
+                                }`}
+                                title={isPinned ? 'Unpin exercise' : 'Pin exercise'}
+                                aria-label={isPinned ? 'Unpin exercise' : 'Pin exercise'}
+                              >
+                                <Star className={`h-4 w-4 ${isPinned ? 'fill-current' : ''}`} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
                 </div>
                 <button
-                  onClick={() => setSelectedView('efficiency')}
+                  onClick={() => {
+                    void trackUiEvent(
+                      { name: 'insights_view_change', source: 'insights', properties: { from: 'overview', to: 'efficiency' } },
+                      user?.id
+                    );
+                    setSelectedView('efficiency');
+                  }}
                   className="mt-4 w-full text-sm text-purple-400 hover:text-purple-300 transition-colors font-bold hover:bg-white/5 rounded-lg py-2"
                 >
-                  View All Exercises →
+                  {pinnedExerciseIds.length > 0 ? 'Manage Pins →' : 'View All Exercises →'}
                 </button>
               </div>
             )}
@@ -970,13 +1289,19 @@ export default function AdvancedAnalyticsDashboard() {
                     <div className="bg-white/5 rounded-lg p-3">
                       <div className="flex justify-between items-center">
                         <span className="text-xs sm:text-sm text-gray-400">7-day load</span>
-                        <span className="text-base sm:text-lg text-white font-bold">{analytics.acwr.acuteLoad.toFixed(0)}</span>
+                        <span className="text-base sm:text-lg text-white font-bold">
+                          {analytics.acwr.acuteLoad.toFixed(0)}
+                          <span className="ml-1 text-xs font-semibold text-zinc-400">{weightUnit}</span>
+                        </span>
                       </div>
                     </div>
                     <div className="bg-white/5 rounded-lg p-3">
                       <div className="flex justify-between items-center">
                         <span className="text-xs sm:text-sm text-gray-400">28-day average</span>
-                        <span className="text-base sm:text-lg text-white font-bold">{analytics.acwr.chronicLoad.toFixed(0)}</span>
+                        <span className="text-base sm:text-lg text-white font-bold">
+                          {analytics.acwr.chronicLoad.toFixed(0)}
+                          <span className="ml-1 text-xs font-semibold text-zinc-400">{weightUnit}</span>
+                        </span>
                       </div>
                     </div>
                     <div className="bg-white/5 rounded-lg p-3">
@@ -1076,7 +1401,7 @@ export default function AdvancedAnalyticsDashboard() {
           <div className="space-y-4 sm:space-y-6">
             <RecoveryOverview
               profiles={analytics.recoveryProfiles || []}
-              loading={loading}
+              loading={loadingRecovery}
             />
 
             {/* Info Card */}
@@ -1093,7 +1418,7 @@ export default function AdvancedAnalyticsDashboard() {
                     <p className="text-gray-400">Based on research: Legs ~72h, Chest/Back ~48h, Arms ~36h. Adjusted for your fatigue.</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="font-medium text-purple-400 mb-1">Smart Training</p>
+                    <p className="font-medium text-purple-400 mb-1">Training Guidance</p>
                     <p className="text-gray-400">Train high-readiness muscles hard. Give low-readiness muscles more time.</p>
                   </div>
                 </div>
@@ -1107,7 +1432,9 @@ export default function AdvancedAnalyticsDashboard() {
           <div className="space-y-4 sm:space-y-6">
             <SFRInsightsTable
               insights={analytics.sfrInsights || []}
-              loading={loading}
+              loading={loadingEfficiency}
+              pinnedExerciseIds={pinnedExerciseIds}
+              onTogglePin={togglePinnedExercise}
             />
 
             {/* Info Card */}
@@ -1133,22 +1460,11 @@ export default function AdvancedAnalyticsDashboard() {
           </div>
         )}
 
-        {/* Causal Insights View */}
-        {selectedView === 'causal' && allWorkouts.length > 0 && (
-          <div>
-            <CausalInsightsDashboard workouts={allWorkouts} />
-          </div>
-        )}
-        {selectedView === 'causal' && allWorkouts.length === 0 && (
-          <div className="bg-white/5 rounded-2xl p-6 text-center border border-white/10 backdrop-blur-xl">
-            <p className="text-gray-400">Loading workouts...</p>
-          </div>
-        )}
-
         {/* Personal Profile View */}
-        {selectedView === 'personal' && analytics.hierarchicalModel && (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
+        {selectedView === 'personal' && (
+          analytics.hierarchicalModel ? (
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/10">
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Your Profile</h2>
 
               {/* Core Traits */}
@@ -1273,6 +1589,13 @@ export default function AdvancedAnalyticsDashboard() {
               )}
             </div>
           </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">
+              {loadingModel
+                ? 'Building your performance profile...'
+                : 'Profile insights will appear once enough workouts are available.'}
+            </div>
+          )
         )}
 
         {/* Research Citation */}

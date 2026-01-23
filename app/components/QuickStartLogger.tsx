@@ -21,6 +21,7 @@ import { useAuth } from '../lib/supabase/auth-context';
 import { getCustomExercises } from '../lib/exercises/custom-exercises';
 import CreateExerciseModal from './program-builder/CreateExerciseModal';
 import WorkoutSummary from './WorkoutSummary';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 
 interface QuickStartSet {
   id: string;
@@ -55,6 +56,7 @@ const TRACKING_DEFAULTS: Record<QuickStartSet['trackingMethod'], number | null> 
 
 export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLoggerProps) {
   const { user } = useAuth();
+  const { weightUnit } = useUnitPreference();
   const [exercises, setExercises] = useState<QuickStartExercise[]>([]);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [workoutName, setWorkoutName] = useState('Quick Workout');
@@ -355,7 +357,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
           actualRIR: set.trackingMethod === 'rir' ? set.trackingValue ?? undefined : undefined,
           completed: true,
           timestamp: now.toISOString(),
-          weightUnit: 'lbs',
+          weightUnit,
           loadType: 'absolute',
           e1rm: set.weight !== null && set.reps !== null
             ? Math.round(set.weight * (1 + set.reps / 30) * 10) / 10
@@ -392,7 +394,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
 
     onComplete(session);
     setSummarySession(session);
-  }, [exercises, sessionStartTime, stats.totalVolume, onComplete, workoutName]);
+  }, [exercises, sessionStartTime, stats.totalVolume, onComplete, workoutName, weightUnit]);
 
   const handleRestAdvance = useCallback((addExtraSet: boolean) => {
     if (addExtraSet && restContext) {
@@ -416,7 +418,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
   }, [addExercise, customToExercise]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top pb-32">
+    <div className="min-h-screen app-gradient safe-top pb-32">
       <div className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur-xl border-b border-white/10">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
@@ -553,7 +555,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
             </p>
             <button
               onClick={() => setShowExercisePicker(true)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-xl text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+              className="px-6 py-3 btn-primary rounded-xl text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
             >
               Add First Exercise
             </button>
@@ -645,6 +647,7 @@ function formatTrackingValue(method: QuickStartSet['trackingMethod'], value: num
 }
 
 function SetRow({ set, setNumber, onUpdate, onLog, onDelete, showDelete }: SetRowProps) {
+  const { weightUnit } = useUnitPreference();
   const trackingOptions = [
     { value: 'rpe', label: 'RPE', defaultValue: TRACKING_DEFAULTS.rpe },
     { value: 'rir', label: 'RIR', defaultValue: TRACKING_DEFAULTS.rir },
@@ -659,7 +662,7 @@ function SetRow({ set, setNumber, onUpdate, onLog, onDelete, showDelete }: SetRo
           <Check className="w-4 h-4 text-white" />
         </div>
         <span className="text-sm text-gray-400">Set {setNumber}</span>
-        <span className="text-white font-semibold">{set.weight ?? '--'} lbs</span>
+        <span className="text-white font-semibold">{set.weight ?? '--'} {weightUnit}</span>
         <span className="text-gray-400">×</span>
         <span className="text-white font-semibold">{set.reps ?? '--'}</span>
         {set.trackingMethod !== 'fixed' && set.trackingValue !== null && (
@@ -761,7 +764,7 @@ function SetRow({ set, setNumber, onUpdate, onLog, onDelete, showDelete }: SetRo
         disabled={!canLog}
         className={`w-full py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
           canLog
-            ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]'
+            ? 'btn-primary text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]'
             : 'bg-white/10 text-gray-500'
         }`}
       >

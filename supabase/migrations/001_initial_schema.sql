@@ -105,7 +105,7 @@ CREATE TABLE exercise_muscles (
 -- 3. PROGRAM TEMPLATES
 -- ============================================================
 
--- Program templates (the "blueprints")
+-- Program templates (the "programs")
 CREATE TABLE program_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,

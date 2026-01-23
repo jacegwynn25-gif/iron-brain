@@ -310,7 +310,7 @@ export default function RestTimer({
   const colors = getAlertColors();
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
+    <div className="fixed inset-0 z-50 flex flex-col app-gradient safe-top">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-2 text-gray-400">
@@ -504,7 +504,7 @@ export default function RestTimer({
 
               {/* Suggested Weight - Prominent Display */}
               {nextSetInfo.suggestedWeight ? (
-                <div className="mb-4 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 p-4 text-center shadow-lg">
+                <div className="mb-4 rounded-xl btn-primary p-4 text-center shadow-lg">
                   <div className="text-4xl font-black text-white">
                     {nextSetInfo.suggestedWeight} lbs
                   </div>
@@ -546,7 +546,7 @@ export default function RestTimer({
             className={`w-full rounded-xl py-4 text-lg font-semibold text-white shadow-xl transition-all active:scale-[0.98] ${
               isComplete
                 ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                : 'bg-gradient-to-r from-purple-600 to-fuchsia-500'
+                : 'btn-primary'
             }`}
           >
             {isLastSetOfExercise && !addExtraSet

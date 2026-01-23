@@ -6,50 +6,13 @@ import WorkoutHistory from '../components/WorkoutHistory';
 import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
-import type { WorkoutSession } from '../lib/types';
-import type { Database } from '../lib/supabase/database.types';
-
-type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  rememberUntil?: number | null;
-};
-
-type SessionMetadata = {
-  programName?: string;
-  programId?: string;
-  cycleNumber?: number;
-  weekNumber?: number;
-  dayOfWeek?: number;
-  dayName?: string;
-};
-
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  | 'id'
-  | 'exercise_slug'
-  | 'exercise_id'
-  | 'set_index'
-  | 'prescribed_reps'
-  | 'prescribed_rpe'
-  | 'prescribed_rir'
-  | 'prescribed_percentage'
-  | 'actual_weight'
-  | 'actual_reps'
-  | 'actual_rpe'
-  | 'actual_rir'
-  | 'e1rm'
-  | 'volume_load'
-  | 'rest_seconds'
-  | 'actual_seconds'
-  | 'notes'
-  | 'completed'
->;
-
-type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
-  set_logs?: SupabaseSetLogRow[] | null;
-};
+import type {
+  WorkoutSession,
+  UserProfile,
+  SessionMetadata,
+  SupabaseSetLogRow,
+  SupabaseWorkoutSessionRow
+} from '../lib/types';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -185,20 +148,23 @@ export default function HistoryPage() {
   }, [loadWorkoutsFromBothSources, profile?.id]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top">
-      <div className="px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Workout History</h1>
-            <p className="text-gray-400 text-sm mt-1">Every session, all in one place.</p>
+    <div className="min-h-screen app-gradient safe-top">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="section-label">Archive</p>
+              <h1 className="mt-3 text-3xl font-black text-white">Workout History</h1>
+              <p className="mt-2 text-sm text-zinc-400">Every session, all in one place.</p>
+            </div>
+            <button
+              onClick={() => router.push('/start')}
+              className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-white/20"
+            >
+              Start Workout
+            </button>
           </div>
-          <button
-            onClick={() => router.push('/start')}
-            className="text-purple-400 text-sm font-medium"
-          >
-            Start Workout
-          </button>
-        </div>
+        </header>
         <WorkoutHistory
           workoutHistory={workoutHistory}
           onHistoryUpdate={loadWorkoutsFromBothSources}

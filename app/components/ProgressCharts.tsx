@@ -19,8 +19,10 @@ import { analytics, CalendarDay } from '../lib/analytics';
 import { storage } from '../lib/storage';
 import CustomSelect from './CustomSelect';
 import HelpTooltip from './Tooltip';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 
 export default function ProgressCharts() {
+  const { weightUnit } = useUnitPreference();
   const [selectedExercise, setSelectedExercise] = useState<string>('bench_tng');
   const [viewMode, setViewMode] = useState<'e1rm' | 'volume' | 'rpe' | 'prs' | 'recovery' | 'calendar'>('e1rm');
 
@@ -237,7 +239,7 @@ export default function ProgressCharts() {
                     }}
                     labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                     formatter={(value: number, name: string) => {
-                      if (name === 'e1rm') return [`${value.toFixed(1)} lbs`, 'E1RM'];
+                      if (name === 'e1rm') return [`${value.toFixed(1)} ${weightUnit}`, 'E1RM'];
                       return [value, name];
                     }}
                   />
@@ -276,13 +278,13 @@ export default function ProgressCharts() {
                 <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
                   <p className="text-[10px] sm:text-xs font-bold text-pink-100 uppercase tracking-wide">Current</p>
                   <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
-                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
+                    {e1rmData[e1rmData.length - 1]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">{weightUnit}</span>
                   </p>
                 </div>
                 <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
                   <p className="text-[10px] sm:text-xs font-bold text-purple-100 uppercase tracking-wide">Starting</p>
                   <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
-                    {e1rmData[0]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
+                    {e1rmData[0]?.e1rm.toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">{weightUnit}</span>
                   </p>
                 </div>
                 <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
@@ -290,7 +292,7 @@ export default function ProgressCharts() {
                   <p className="mt-1 sm:mt-2 text-lg sm:text-2xl md:text-3xl font-black text-white">
                     +{(
                       e1rmData[e1rmData.length - 1]?.e1rm - e1rmData[0]?.e1rm || 0
-                    ).toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">lbs</span>
+                    ).toFixed(1)} <span className="text-sm sm:text-lg md:text-xl">{weightUnit}</span>
                   </p>
                 </div>
               </div>
@@ -353,7 +355,7 @@ export default function ProgressCharts() {
                       labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
                       formatter={(value: number, name: string) => {
                         if (name === 'totalVolume')
-                          return [`${value.toLocaleString()} lbs`, 'Total Volume'];
+                          return [`${value.toLocaleString()} ${weightUnit}`, 'Total Volume'];
                         if (name === 'sets') return [value, 'Sets'];
                         return [value, name];
                       }}
@@ -380,7 +382,7 @@ export default function ProgressCharts() {
                       {(
                         volumeData.reduce((sum, d) => sum + d.totalVolume, 0) / volumeData.length
                       ).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                      <span className="text-xs sm:text-lg md:text-xl">lbs</span>
+                      <span className="text-xs sm:text-lg md:text-xl">{weightUnit}</span>
                     </p>
                   </div>
                   <div className="group rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 p-3 sm:p-4 md:p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
@@ -440,7 +442,7 @@ export default function ProgressCharts() {
                       boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                     }}
                     labelStyle={{ color: '#a1a1aa', fontWeight: '600', marginBottom: '4px' }}
-                    formatter={(value: number) => [`${value.toLocaleString()} lbs`, 'Weekly Volume']}
+                    formatter={(value: number) => [`${value.toLocaleString()} ${weightUnit}`, 'Weekly Volume']}
                   />
                   <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
                   <Line
@@ -686,7 +688,7 @@ export default function ProgressCharts() {
                     Max Weight
                   </p>
                   <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {personalRecords.maxWeight.weight} lbs
+                    {personalRecords.maxWeight.weight} {weightUnit}
                   </p>
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                     {personalRecords.maxWeight.reps} reps
@@ -702,7 +704,7 @@ export default function ProgressCharts() {
                     {personalRecords.maxReps.reps} reps
                   </p>
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    @ {personalRecords.maxReps.weight} lbs
+                    @ {personalRecords.maxReps.weight} {weightUnit}
                   </p>
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                     {new Date(personalRecords.maxReps.date).toLocaleDateString()}
@@ -714,10 +716,10 @@ export default function ProgressCharts() {
                     Max E1RM
                   </p>
                   <p className="mt-2 text-3xl font-bold text-green-900 dark:text-green-50">
-                    {personalRecords.maxE1RM.e1rm.toFixed(1)} lbs
+                    {personalRecords.maxE1RM.e1rm.toFixed(1)} {weightUnit}
                   </p>
                   <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                    {personalRecords.maxE1RM.weight}lbs × {personalRecords.maxE1RM.reps}
+                    {personalRecords.maxE1RM.weight}{weightUnit} × {personalRecords.maxE1RM.reps}
                   </p>
                   <p className="mt-1 text-xs text-green-600 dark:text-green-400">
                     {new Date(personalRecords.maxE1RM.date).toLocaleDateString()}
@@ -729,10 +731,10 @@ export default function ProgressCharts() {
                     Max Volume (Single Set)
                   </p>
                   <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {personalRecords.maxVolume.volume.toLocaleString()} lbs
+                    {personalRecords.maxVolume.volume.toLocaleString()} {weightUnit}
                   </p>
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    {personalRecords.maxVolume.weight}lbs × {personalRecords.maxVolume.reps}
+                    {personalRecords.maxVolume.weight}{weightUnit} × {personalRecords.maxVolume.reps}
                   </p>
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                     {new Date(personalRecords.maxVolume.date).toLocaleDateString()}
@@ -1007,7 +1009,7 @@ export default function ProgressCharts() {
             <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">Total Volume</p>
               <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                {(calendarData.reduce((sum, d) => sum + d.totalVolume, 0) / 1000).toFixed(1)}k lbs
+                {(calendarData.reduce((sum, d) => sum + d.totalVolume, 0) / 1000).toFixed(1)}k {weightUnit}
               </p>
             </div>
           </div>
@@ -1052,7 +1054,7 @@ export default function ProgressCharts() {
                           <div
                             key={day.date}
                             className={`h-3 w-full rounded-sm ${bgColor} transition-all hover:ring-2 hover:ring-blue-500`}
-                            title={`${day.date}\n${day.workoutCount} workout${day.workoutCount !== 1 ? 's' : ''}\n${day.totalSets} sets\n${day.totalVolume.toLocaleString()} lbs volume`}
+                            title={`${day.date}\n${day.workoutCount} workout${day.workoutCount !== 1 ? 's' : ''}\n${day.totalSets} sets\n${day.totalVolume.toLocaleString()} ${weightUnit} volume`}
                           />
                         );
                       })}

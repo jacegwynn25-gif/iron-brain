@@ -1,10 +1,17 @@
 import AdvancedAnalyticsDashboard from '../components/AdvancedAnalyticsDashboard';
 
 export const metadata = {
-  title: 'Advanced Analytics | Iron Brain',
-  description: 'PhD-level statistical insights into your training'
+  title: 'Insights | Iron Brain',
+  description: 'Science-backed insights into your training'
 };
 
-export default function AnalyticsPage() {
-  return <AdvancedAnalyticsDashboard />;
+type AnalyticsPageProps = {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+};
+
+export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
+  const resolved = searchParams ? await searchParams : undefined;
+  return <AdvancedAnalyticsDashboard initialView={resolved?.view} />;
 }

@@ -285,7 +285,7 @@ export default function CreateExerciseModal({
             <button
               type="submit"
               disabled={loading || !name.trim() || primaryMuscles.length === 0}
-              className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl btn-primary px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create & Add'}
             </button>

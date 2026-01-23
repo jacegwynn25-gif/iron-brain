@@ -199,7 +199,7 @@ export default function ImportWizard({ onComplete, onCancel }: ImportWizardProps
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <p className="text-purple-200 font-medium text-sm">Smart Resume Active</p>
+                    <p className="text-purple-200 font-medium text-sm">Auto Resume</p>
                     <p className="text-purple-300 text-xs mt-1">
                       The app will automatically detect your last completed workout and select the next day in your program.
                     </p>

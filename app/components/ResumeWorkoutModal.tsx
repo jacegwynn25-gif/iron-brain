@@ -72,7 +72,7 @@ export default function ResumeWorkoutModal({
           </button>
           <button
             onClick={onResume}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+            className="flex-1 py-3 px-4 rounded-xl btn-primary text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
           >
             <Play className="w-4 h-4" />
             Resume

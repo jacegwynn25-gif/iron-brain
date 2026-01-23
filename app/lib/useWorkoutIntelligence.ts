@@ -224,9 +224,10 @@ export function useWorkoutIntelligence(
 }
 
 /**
- * Hook for pre-workout readiness assessment
+ * Hook for pre-workout readiness assessment (LEGACY - uses old workout intelligence service)
+ * @deprecated Use usePreWorkoutReadiness from hooks/useRecoveryState.ts instead
  */
-export function usePreWorkoutReadiness(userId: string | null, plannedExercises?: string[]) {
+export function useLegacyPreWorkoutReadiness(userId: string | null, plannedExercises?: string[]) {
   const initialPlanKey = plannedExercises && plannedExercises.length > 0
     ? Array.from(new Set(plannedExercises)).sort().join(',')
     : '';

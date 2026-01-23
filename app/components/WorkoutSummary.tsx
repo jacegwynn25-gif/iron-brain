@@ -134,7 +134,7 @@ export default function WorkoutSummary({ session, onClose }: WorkoutSummaryProps
 
         <button
           onClick={onClose}
-          className="mt-6 w-full rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+          className="mt-6 w-full rounded-xl btn-primary px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
         >
           Done
         </button>

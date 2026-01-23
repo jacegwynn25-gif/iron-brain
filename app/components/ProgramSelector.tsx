@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, FileText, Library, Trash2, User } from 'lucide-react';
 import { ProgramTemplate } from '../lib/types';
 
@@ -10,6 +10,8 @@ interface ProgramSelectorProps {
   selectedProgram: ProgramTemplate | null;
   onSelectProgram: (program: ProgramTemplate) => void;
   onDeleteProgram: (programId: string) => void;
+  preferredTab?: 'builtin' | 'mine';
+  variant?: 'compact' | 'grid' | 'list';
 }
 
 export default function ProgramSelector({
@@ -18,12 +20,33 @@ export default function ProgramSelector({
   selectedProgram,
   onSelectProgram,
   onDeleteProgram,
+  preferredTab,
+  variant = 'grid',
 }: ProgramSelectorProps) {
-  const initialTab: 'builtin' | 'mine' = userPrograms.length > 0 ? 'mine' : 'builtin';
+  const initialTab: 'builtin' | 'mine' = preferredTab ?? (userPrograms.length > 0 ? 'mine' : 'builtin');
   const [activeTab, setActiveTab] = useState<'builtin' | 'mine'>(initialTab);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const displayPrograms = activeTab === 'builtin' ? builtInPrograms : userPrograms;
+  const isList = variant === 'list';
+  const gridClassName = isList
+    ? 'space-y-2'
+    : variant === 'compact'
+      ? 'grid grid-cols-1 gap-4'
+      : 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3';
+  const cardBaseClass = isList
+    ? 'rounded-xl surface-panel px-3 py-3 transition-all'
+    : 'rounded-2xl surface-panel p-4 sm:p-5 backdrop-blur-xl transition-all';
+  const cardSelectedClass = isList
+    ? 'border-purple-500/40 bg-white/10 shadow-md shadow-purple-500/10'
+    : 'border-purple-500/40 bg-white/10 shadow-lg shadow-purple-500/20';
+  const cardHoverClass = isList ? 'hover:bg-white/10' : 'hover:bg-white/10';
+
+  useEffect(() => {
+    if (preferredTab) {
+      setActiveTab(preferredTab);
+    }
+  }, [preferredTab]);
 
   const getProgramStats = (program: ProgramTemplate) => {
     const totalDays = program.weeks.reduce((sum, week) => sum + week.days.length, 0);
@@ -83,19 +106,20 @@ export default function ProgramSelector({
       </div>
 
       {/* Program Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className={gridClassName}>
         {displayPrograms.map((program) => {
           const stats = getProgramStats(program);
           const isSelected = selectedProgram ? selectedProgram.id === program.id : false;
           const isUserProgram = activeTab === 'mine';
+          const metaLine = `${stats.weeks} wk • ${stats.avgDaysPerWeek} days/wk • ${stats.totalExercises} exercises`;
 
           return (
             <div
               key={program.id}
-              className={`group relative rounded-2xl border p-4 sm:p-5 backdrop-blur-xl transition-all ${
+              className={`group relative ${cardBaseClass} ${
                 isSelected
-                  ? 'border-purple-500/40 bg-white/10 shadow-lg shadow-purple-500/20'
-                  : 'border-white/10 bg-white/5 hover:bg-white/10'
+                  ? cardSelectedClass
+                  : `${cardHoverClass}`
               }`}
             >
               {/* Delete Button (User Programs Only) */}
@@ -154,19 +178,24 @@ export default function ProgramSelector({
                 )}
 
                 {/* Program Name */}
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className={`mb-2 font-semibold text-white ${isList ? 'text-base' : 'text-lg'}`}>
                   {program.name}
                 </h3>
 
                 {/* Program Description */}
-                {program.description && (
+                {program.description && !isList && (
                   <p className="mb-4 line-clamp-2 text-sm text-gray-400">
                     {program.description}
                   </p>
                 )}
+                {isList && (
+                  <p className="mb-3 text-xs text-gray-400">
+                    {metaLine}
+                  </p>
+                )}
 
                 {/* Program Metadata */}
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className={`flex flex-wrap gap-2 ${isList ? 'mb-2' : 'mb-4'}`}>
                   {program.goal && (
                     <span className="rounded-full bg-purple-500/20 px-2.5 py-1 text-xs font-medium text-purple-200">
                       {program.goal}
@@ -185,32 +214,34 @@ export default function ProgramSelector({
                 </div>
 
                 {/* Program Stats */}
-                <div className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Duration</p>
-                    <p className="text-lg font-semibold text-white">
-                      {stats.weeks} {stats.weeks === 1 ? 'Week' : 'Weeks'}
-                    </p>
+                {!isList && (
+                  <div className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Duration</p>
+                      <p className="text-lg font-semibold text-white">
+                        {stats.weeks} {stats.weeks === 1 ? 'Week' : 'Weeks'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Days/Week</p>
+                      <p className="text-lg font-semibold text-white">
+                        {stats.avgDaysPerWeek}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Total Days</p>
+                      <p className="text-lg font-semibold text-white">
+                        {stats.totalDays}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Exercises</p>
+                      <p className="text-lg font-semibold text-white">
+                        {stats.totalExercises}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Days/Week</p>
-                    <p className="text-lg font-semibold text-white">
-                      {stats.avgDaysPerWeek}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Total Days</p>
-                    <p className="text-lg font-semibold text-white">
-                      {stats.totalDays}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Exercises</p>
-                    <p className="text-lg font-semibold text-white">
-                      {stats.totalExercises}
-                    </p>
-                  </div>
-                </div>
+                )}
               </button>
             </div>
           );
@@ -218,7 +249,7 @@ export default function ProgramSelector({
 
         {/* Empty State */}
         {displayPrograms.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
+          <div className="col-span-full rounded-2xl surface-panel p-8 text-center backdrop-blur-xl">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
               <FileText className="h-6 w-6 text-gray-300" />
             </div>

@@ -28,62 +28,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [namespaceReady, setNamespaceReady] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
+    let active = true;
+
+    const applySessionState = (nextSession: Session | null) => {
+      if (!active) return;
+      const currentUser = nextSession?.user ?? null;
       const newNamespaceId = currentUser?.id ?? null;
 
-      // Set namespace FIRST, before updating other state
       setUserNamespace(newNamespaceId);
       setNamespaceId(newNamespaceId);
       setNamespaceReady(true);
-
-      setSession(session);
+      setSession(nextSession);
       setUser(currentUser);
       setLoading(false);
+    };
 
-      // Sync pending workouts if already logged in
-      if (session?.user) {
-        setTimeout(() => {
-          syncPendingWorkouts(session.user.id).catch(err => {
-            console.error('Failed to sync pending workouts on load:', err);
-          });
-        }, 1000);
+    const syncPending = (userId: string) => {
+      setTimeout(() => {
+        syncPendingWorkouts(userId).catch(err => {
+          console.error('Failed to sync pending workouts on load:', err);
+        });
+      }, 1000);
+    };
+
+    const reconcileSession = async () => {
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 8000)
+        );
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        if (!session?.user) return;
+        applySessionState(session);
+        syncPending(session.user.id);
+      } catch (error) {
+        console.error('❌ Failed to reconcile session:', error);
       }
-    });
+    };
+
+    const getInitialSession = async () => {
+      let didTimeout = false;
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => {
+            didTimeout = true;
+            resolve({ data: { session: null } });
+          }, 3000)
+        );
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        applySessionState(session);
+
+        if (session?.user) {
+          syncPending(session.user.id);
+        } else if (didTimeout) {
+          void reconcileSession();
+        }
+      } catch (error) {
+        console.error('❌ Failed to get initial session:', error);
+
+        // Assume logged out and continue
+        applySessionState(null);
+      }
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
-        const currentUser = session?.user ?? null;
-        const newNamespaceId = currentUser?.id ?? null;
-
-        // Set namespace FIRST, before updating other state
-        setUserNamespace(newNamespaceId);
-        setNamespaceId(newNamespaceId);
-        setNamespaceReady(true);
-
-        setSession(session);
-        setUser(currentUser);
-        setLoading(false);
+        applySessionState(session);
 
         // Create user profile if this is a new signup
         if (event === 'SIGNED_IN' && session?.user) {
           await ensureUserProfile(session.user.id);
-
-          // Automatically sync any pending workouts from localStorage
-          setTimeout(() => {
-            syncPendingWorkouts(session.user.id).catch(err => {
-              console.error('Failed to sync pending workouts:', err);
-            });
-          }, 1000); // Small delay to let UI settle
+          syncPending(session.user.id);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string) => {
@@ -138,10 +169,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 Starting sign out process...');
-      console.log('Current session:', session);
-      console.log('Current user:', user);
-
       // Create a promise that races with a timeout
       const signOutPromise = supabase.auth.signOut();
       const timeoutPromise = new Promise((_, reject) =>
@@ -155,8 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('❌ Supabase signOut error:', result.error);
           throw result.error;
         }
-
-        console.log('✅ Supabase signOut successful');
       } catch (timeoutError) {
         console.warn('⚠️ Supabase signOut timed out, forcing local sign out:', timeoutError);
       }
@@ -167,8 +192,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setNamespaceReady(true);
       setUser(null);
       setSession(null);
-
-      console.log('✅ Auth state reset complete');
     } catch (error) {
       console.error('❌ Error signing out:', error);
       throw error;

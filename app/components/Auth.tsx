@@ -3,7 +3,15 @@
 import { useState } from 'react';
 import { useAuth } from '../lib/supabase/auth-context';
 
-export function AuthModal({ onClose }: { onClose?: () => void }) {
+export function AuthModal({
+  onClose,
+  onSuccess,
+  hideClose,
+}: {
+  onClose?: () => void;
+  onSuccess?: () => void;
+  hideClose?: boolean;
+}) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,6 +19,14 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const { signIn, signUp } = useAuth();
+
+  const handleSuccess = () => {
+    if (onSuccess) {
+      onSuccess();
+      return;
+    }
+    onClose?.();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +48,10 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
           }
           throw error;
         }
-        onClose?.();
+        handleSuccess();
       }
       if (mode === 'signin') {
-        onClose?.();
+        handleSuccess();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -46,7 +62,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 sm:p-8 max-w-md w-full border border-white/10">
+      <div className="surface-card rounded-2xl p-6 sm:p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold mb-6 text-white">
           {mode === 'signin' ? 'Sign In' : 'Create Account'}
         </h2>
@@ -60,7 +76,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full input-field rounded-lg px-4 py-3 text-white"
               placeholder="you@example.com"
               required
             />
@@ -74,7 +90,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full input-field rounded-lg px-4 py-3 text-white"
               placeholder="••••••••"
               required
               minLength={6}
@@ -94,7 +110,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full btn-primary text-white rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
           </button>
@@ -114,7 +130,7 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
           </button>
         </div>
 
-        {onClose && (
+        {onClose && !hideClose && (
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -127,47 +143,4 @@ export function AuthModal({ onClose }: { onClose?: () => void }) {
       </div>
     </div>
   );
-}
-
-export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    if (!showAuth) {
-      return (
-        <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 flex items-center justify-center p-4">
-          <div className="text-center max-w-md">
-            <h1 className="text-4xl font-bold mb-4 text-white">
-              Iron Brain
-            </h1>
-            <p className="text-gray-300 mb-8">
-              Smart workout tracking with science-backed fatigue detection
-            </p>
-            <button
-              onClick={() => setShowAuth(true)}
-              className="bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white rounded-xl px-8 py-4 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
-            >
-              Get Started
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return <AuthModal onClose={() => setShowAuth(false)} />;
-  }
-
-  return <>{children}</>;
 }

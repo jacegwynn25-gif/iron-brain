@@ -53,7 +53,7 @@ export default function WorkoutSelection({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-purple-950/20 to-zinc-950 safe-top pb-32">
+    <div className="min-h-screen app-gradient safe-top pb-32">
       <div className="px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-8">
           {isNameEditable ? (

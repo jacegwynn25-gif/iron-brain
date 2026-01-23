@@ -39,9 +39,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState(0);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
+  const [age, setAge] = useState<number | null>(null);
+  const [sex, setSex] = useState<'male' | 'female' | 'other' | null>(null);
+  const [bodyweight, setBodyweight] = useState<number | null>(null);
 
   const handleNext = () => {
-    if (step < 3) {
+    if (step < 4) {
       setStep(step + 1);
       return;
     }
@@ -64,7 +67,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     localStorage.setItem('iron_brain_user_experience', selectedExperience ?? '');
 
     if (user) {
-      const { error } = await supabase.auth.updateUser({
+      // Save to auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
           onboarding_complete: true,
           user_goal: selectedGoal ?? undefined,
@@ -72,8 +76,31 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         },
       });
 
-      if (error) {
-        console.error('Failed to update onboarding metadata:', error);
+      if (authError) {
+        console.error('Failed to update onboarding metadata:', authError);
+      }
+
+      // Save demographics to database
+      if (age && sex) {
+        const { error: demoError } = await supabase
+          .from('user_demographics')
+          .upsert({
+            user_id: user.id,
+            age,
+            sex,
+            training_age: selectedExperience === 'beginner' ? 0.5 : selectedExperience === 'intermediate' ? 2 : 5,
+            athletic_background: selectedExperience === 'beginner' ? 'beginner' : selectedExperience === 'intermediate' ? 'intermediate' : 'advanced',
+            bodyweight,
+            height: null,
+            current_injuries: [],
+            chronic_conditions: []
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (demoError) {
+          console.error('Failed to save demographics:', demoError);
+        }
       }
     }
   };
@@ -81,6 +108,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const canProceed = () => {
     if (step === 1) return selectedGoal !== null;
     if (step === 2) return selectedExperience !== null;
+    if (step === 3) return age !== null && sex !== null;
     return true;
   };
 
@@ -91,7 +119,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       <div className="relative z-10 flex flex-col flex-1">
         <div className="flex justify-center gap-2 pt-12 pb-6">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -119,9 +147,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 <Dumbbell className="w-12 h-12 text-white" />
               </div>
               <h1 className="text-4xl font-bold text-white mb-4">Iron Brain</h1>
-              <p className="text-xl text-gray-300 mb-2">Train Smarter.</p>
+              <p className="text-xl text-gray-300 mb-2">Train better.</p>
               <p className="text-gray-500 max-w-xs mx-auto">
-                Science-backed training intelligence that adapts to you.
+                Evidence-based training guidance that adapts to you.
               </p>
             </motion.div>
           )}
@@ -222,6 +250,80 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
           {step === 3 && (
             <motion.div
+              key="demographics"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="py-8"
+            >
+              <h2 className="text-2xl font-bold text-white mb-2 text-center">
+                A few more details
+              </h2>
+              <p className="text-gray-400 text-center mb-8">
+                This enables accurate recovery tracking.
+              </p>
+              <div className="space-y-4">
+                {/* Age */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Age <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="13"
+                    max="120"
+                    value={age || ''}
+                    onChange={(e) => setAge(parseInt(e.target.value) || null)}
+                    className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="Enter your age"
+                  />
+                </div>
+
+                {/* Sex */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Sex <span className="text-red-400">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['male', 'female', 'other'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSex(option)}
+                        className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
+                          sex === option
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-300'
+                            : 'border-white/20 bg-white/5 text-gray-400 hover:border-white/30'
+                        }`}
+                      >
+                        {option.charAt(0).toUpperCase() + option.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bodyweight (Optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Bodyweight (kg) <span className="text-gray-500 text-xs">(optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="30"
+                    max="300"
+                    step="0.1"
+                    value={bodyweight || ''}
+                    onChange={(e) => setBodyweight(parseFloat(e.target.value) || null)}
+                    className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                    placeholder="e.g. 75"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 4 && (
+            <motion.div
               key="ready"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -261,12 +363,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             disabled={!canProceed()}
             className={`flex-1 py-4 rounded-2xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
               canProceed()
-                ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg shadow-purple-500/20'
+                ? 'btn-primary text-white shadow-lg shadow-purple-500/20'
                 : 'bg-white/10 text-gray-500'
             }`}
           >
-            {step === 3 ? 'Get Started' : 'Continue'}
-            {step < 3 && <ChevronRight className="w-5 h-5" />}
+            {step === 4 ? 'Get Started' : 'Continue'}
+            {step < 4 && <ChevronRight className="w-5 h-5" />}
           </button>
           </div>
         </div>

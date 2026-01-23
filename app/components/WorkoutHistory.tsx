@@ -638,7 +638,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
               <button
                 onClick={handleConfirmEdit}
                 disabled={editBusy}
-                className="rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+                className="rounded-xl btn-primary px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
               >
                 {editBusy ? 'Saving...' : 'Save Changes'}
               </button>

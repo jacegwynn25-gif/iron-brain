@@ -152,82 +152,56 @@ export default function DataManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="rounded-3xl bg-gradient-to-br from-orange-500 via-red-600 to-pink-600 p-6 sm:p-10 shadow-2xl depth-effect animate-slideUp">
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm flex-shrink-0">
-            <Database className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight text-balance">
-            Data Management
-          </h2>
-        </div>
-        <p className="text-base sm:text-lg font-medium text-orange-100 text-balance">
-          Export, import, and manage your complete workout history
+      <div className="surface-card p-6 sm:p-8">
+        <p className="section-label">Data</p>
+        <h2 className="mt-3 text-2xl sm:text-3xl font-black text-white">Data & Backups</h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          Export, import, and manage your workout history.
         </p>
       </div>
 
-      {/* Data Statistics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-fadeIn">
-        <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-lg hover:scale-105 transition-all depth-effect">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg bg-white/20 p-2">
-              <BarChart3 className="h-6 w-6 text-white" />
-            </div>
-            <p className="text-sm font-bold text-blue-100">
-              Total Workouts
-            </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="surface-panel p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-zinc-300 mb-2">
+            <BarChart3 className="h-5 w-5 text-blue-300" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Total Workouts</span>
           </div>
-          <p className="text-4xl font-black text-white">
-            {totalWorkouts}
-          </p>
+          <p className="text-3xl font-black text-white">{totalWorkouts}</p>
         </div>
-        <div className="rounded-2xl bg-gradient-to-br from-green-500 to-green-600 p-6 shadow-lg hover:scale-105 transition-all depth-effect">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg bg-white/20 p-2">
-              <Database className="h-6 w-6 text-white" />
-            </div>
-            <p className="text-sm font-bold text-green-100">
-              Total Sets Logged
-            </p>
+        <div className="surface-panel p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-zinc-300 mb-2">
+            <Database className="h-5 w-5 text-emerald-300" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Total Sets</span>
           </div>
-          <p className="text-4xl font-black text-white">
-            {totalSets}
-          </p>
+          <p className="text-3xl font-black text-white">{totalSets}</p>
         </div>
-        <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 shadow-lg hover:scale-105 transition-all depth-effect">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="rounded-lg bg-white/20 p-2">
-              <HardDrive className="h-6 w-6 text-white" />
-            </div>
-            <p className="text-sm font-bold text-purple-100">
-              Data Size
-            </p>
+        <div className="surface-panel p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-zinc-300 mb-2">
+            <HardDrive className="h-5 w-5 text-purple-300" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Data Size</span>
           </div>
-          <p className="text-4xl font-black text-white">
-            {dataSizeKB} KB
-          </p>
+          <p className="text-3xl font-black text-white">{dataSizeKB} KB</p>
         </div>
       </div>
 
       {/* Export Section */}
-      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.1s'}}>
+      <div className="surface-card p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-            <Download className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          <div className="rounded-lg bg-white/10 p-2">
+            <Download className="h-6 w-6 text-blue-300" />
           </div>
-          <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+          <h3 className="text-xl sm:text-2xl font-black text-white">
             Export Data
           </h3>
         </div>
-        <p className="mb-6 text-sm sm:text-base font-medium text-zinc-600 dark:text-zinc-400 text-balance">
-          Download your workout data for backup or analysis
+        <p className="mb-6 text-sm sm:text-base text-zinc-400">
+          Download your workout data for backup or analysis.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={exportToJSON}
             disabled={totalWorkouts === 0}
-            className="flex-1 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 rounded-xl btn-primary px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-5 w-5" />
             Export as JSON
@@ -235,54 +209,54 @@ export default function DataManagement() {
           <button
             onClick={exportToCSV}
             disabled={totalWorkouts === 0}
-            className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 rounded-xl btn-secondary px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <BarChart3 className="h-5 w-5" />
             Export as CSV
           </button>
         </div>
         {totalWorkouts === 0 && (
-          <p className="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-500">
-            No workout data to export. Complete a workout first!
+          <p className="mt-3 text-sm text-zinc-400">
+            No workout data to export yet.
           </p>
         )}
       </div>
 
       {/* Import Section */}
-      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.2s'}}>
+      <div className="surface-card p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
-            <Upload className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          <div className="rounded-lg bg-white/10 p-2">
+            <Upload className="h-6 w-6 text-purple-300" />
           </div>
-          <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+          <h3 className="text-xl sm:text-2xl font-black text-white">
             Import Data
           </h3>
         </div>
-        <p className="mb-6 text-sm sm:text-base font-medium text-zinc-600 dark:text-zinc-400 text-balance">
-          Import workout data from CSV, Excel, or JSON files with intelligent exercise matching
+        <p className="mb-6 text-sm sm:text-base text-zinc-400">
+          Import workouts from CSV, Excel, or JSON.
         </p>
 
         {/* New Multi-Format Import Button */}
         <button
           onClick={() => setShowImportWizard(true)}
-          className="w-full rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-3 sm:px-6 sm:py-4 font-black text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-4 text-sm sm:text-base"
+          className="w-full rounded-xl btn-primary px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2 mb-4"
         >
           <Upload className="h-5 w-5" />
-          Import Workouts (Multi-Format)
+          Import Workouts
         </button>
 
         {/* Legacy JSON Import */}
         <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-400 hover:text-zinc-200">
             Legacy JSON Import (Advanced)
           </summary>
-          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-purple-300 bg-purple-50 px-4 py-6 sm:px-6 sm:py-8 transition-all hover:border-purple-400 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/10 dark:hover:border-purple-600 dark:hover:bg-purple-900/20 text-center">
+          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/5 px-4 py-6 sm:px-6 sm:py-8 transition-all hover:border-purple-400/60 hover:bg-white/10 text-center">
             <div className="text-center">
-              <Upload className="h-10 w-10 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
-              <p className="text-base font-bold text-purple-900 dark:text-purple-100">
+              <Upload className="h-10 w-10 text-purple-300 mx-auto mb-2" />
+              <p className="text-base font-semibold text-white">
                 {importing ? 'Processing...' : 'Choose JSON file'}
               </p>
-              <p className="mt-1 text-xs font-medium text-purple-700 dark:text-purple-300">
+              <p className="mt-1 text-xs font-medium text-zinc-400">
                 Direct JSON import without validation
               </p>
             </div>
@@ -298,23 +272,23 @@ export default function DataManagement() {
       </div>
 
       {/* Recently Deleted Section */}
-      <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-premium border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 animate-fadeIn" style={{animationDelay: '0.3s'}}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="rounded-lg bg-red-100 p-2 dark:bg-red-900/30">
-            <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+      <div className="surface-card p-6 sm:p-8">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="rounded-lg bg-rose-500/15 p-2">
+            <Trash2 className="h-6 w-6 text-rose-300" />
           </div>
           <div className="flex-1">
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+            <h3 className="text-xl sm:text-2xl font-black text-white">
               Recently Deleted
             </h3>
-            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-zinc-400">
               Recover workouts deleted by mistake
               {trashCount > 0 && ` • ${trashCount} item${trashCount === 1 ? '' : 's'}`}
             </p>
           </div>
           <button
             onClick={() => setShowTrash(!showTrash)}
-            className="rounded-xl bg-gradient-to-r from-red-500 to-pink-600 px-6 py-3 font-bold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95"
+            className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-200 transition-all hover:bg-rose-500/20"
           >
             {showTrash ? 'Close' : 'View Trash'}
           </button>

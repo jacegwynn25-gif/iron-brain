@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
   { id: 'programs', label: 'Programs', icon: BookOpen, path: '/programs' },
   { id: 'start', label: 'Start', icon: Plus, path: '/start', isCenter: true },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
+  { id: 'insights', label: 'Insights', icon: BarChart3, path: '/analytics' },
   { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
 ];
 
@@ -82,7 +82,7 @@ export default function BottomNav() {
 
           const coachAttr =
             item.id === 'programs' ? 'programs-tab' :
-            item.id === 'analytics' ? 'analytics-tab' :
+            item.id === 'insights' ? 'insights-tab' :
             undefined;
 
           return (

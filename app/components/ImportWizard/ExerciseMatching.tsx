@@ -66,7 +66,7 @@ export default function ExerciseMatching({
 
   return (
     <div className="space-y-6">
-      <div className="bg-purple-800/30 rounded-lg p-4">
+      <div className="surface-panel p-4 sm:p-5">
         <h3 className="text-lg font-semibold text-white mb-2">Exercise Matching Summary</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -92,7 +92,7 @@ export default function ExerciseMatching({
             {needsReviewMatches.map((match) => (
               <div
                 key={match.originalName}
-                className="bg-purple-800/30 rounded-lg p-4 border border-purple-700"
+                className="surface-card p-4 sm:p-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -106,7 +106,7 @@ export default function ExerciseMatching({
                         <select
                           defaultValue={match.matchedExerciseId || ''}
                           onChange={(e) => handleMatchUpdate(match.originalName, e.target.value)}
-                          className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white"
+                          className="w-full rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                         >
                           <option value="">-- Select Exercise --</option>
                           <option value="__SKIP__" className="text-gray-400">
@@ -128,12 +128,12 @@ export default function ExerciseMatching({
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">→</span>
-                        <span className="text-pink-400">
+                        <span className="text-purple-300">
                           {match.matchedExerciseName || 'No match'}
                         </span>
                         <button
                           onClick={() => setEditingMatch(match.originalName)}
-                          className="ml-auto text-sm text-pink-400 hover:text-pink-300"
+                          className="ml-auto text-sm text-purple-300 hover:text-purple-200"
                         >
                           Change
                         </button>
@@ -149,7 +149,7 @@ export default function ExerciseMatching({
                             <button
                               key={alt.exerciseId}
                               onClick={() => handleMatchUpdate(match.originalName, alt.exerciseId)}
-                              className="px-2 py-1 bg-purple-900/50 hover:bg-purple-800/50 text-gray-300 text-xs rounded"
+                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-300 hover:bg-white/10"
                             >
                               {alt.exerciseName} ({alt.score}%)
                             </button>
@@ -167,8 +167,8 @@ export default function ExerciseMatching({
 
       {/* Auto-matched Section (Collapsible) */}
       {autoMatched.length > 0 && (
-        <details className="bg-purple-800/20 rounded-lg">
-          <summary className="p-4 cursor-pointer text-white font-medium hover:bg-purple-800/30">
+        <details className="surface-panel">
+          <summary className="cursor-pointer p-4 text-white font-medium hover:bg-white/5">
             Auto-matched Exercises ({autoMatched.length})
           </summary>
           <div className="p-4 space-y-2">
@@ -178,7 +178,7 @@ export default function ExerciseMatching({
                 <div className="flex items-center gap-2">
                   {getConfidenceBadge(match)}
                   <span className="text-gray-400">→</span>
-                  <span className="text-pink-400">{match.matchedExerciseName}</span>
+                  <span className="text-purple-300">{match.matchedExerciseName}</span>
                 </div>
               </div>
             ))}
@@ -190,7 +190,7 @@ export default function ExerciseMatching({
       <button
         onClick={onComplete}
         disabled={isProcessing || needsReviewMatches.some((m) => !m.matchedExerciseId)}
-        className="w-full py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
+        className="w-full py-3 btn-primary disabled:opacity-50 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
       >
         {isProcessing ? 'Processing...' : 'Continue to Review'}
       </button>

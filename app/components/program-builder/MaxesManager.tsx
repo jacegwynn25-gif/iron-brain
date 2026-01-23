@@ -142,7 +142,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-4 py-2.5 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+          className="flex items-center gap-2 rounded-xl btn-primary px-4 py-2.5 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
         >
           <Plus className="h-5 w-5" />
           Add Max
@@ -370,7 +370,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
               <button
                 onClick={handleSaveMax}
                 disabled={saving || !selectedExercise || weight <= 0}
-                className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 rounded-xl btn-primary px-6 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving...' : editingMax ? 'Update' : 'Save'}
               </button>

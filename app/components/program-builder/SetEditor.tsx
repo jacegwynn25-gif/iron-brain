@@ -39,6 +39,7 @@ const SUPERSET_GROUPS = ['A', 'B', 'C', 'D'] as const;
 export default function SetEditor({ setData, onChange, exerciseId, userId }: SetEditorProps) {
   const [hasMax, setHasMax] = useState(false);
   const [checkingMax, setCheckingMax] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const prescriptionMethod = setData.prescriptionMethod || 'rpe';
   const isPercentageBased = prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm';
@@ -305,104 +306,117 @@ export default function SetEditor({ setData, onChange, exerciseId, userId }: Set
         </div>
       )}
 
-      {/* Rest Time */}
-      <div>
-        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-          Rest Time (seconds)
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="15"
-          value={setData.restSeconds ?? 90}
-          onChange={(e) => handleOptionalNumberChange('restSeconds', e.target.value, parseInt)}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-        />
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(prev => !prev)}
+        className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition-all hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+      >
+        <span>{showAdvanced ? 'Hide advanced settings' : 'Show advanced settings'}</span>
+        <span className="text-zinc-400">{showAdvanced ? '-' : '+'}</span>
+      </button>
 
-      {/* Set Type */}
-      <div>
-        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-          Set Type
-        </label>
-        <select
-          value={setType}
-          onChange={(e) => handleSetTypeChange(e.target.value as SetType)}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-        >
-          {SET_TYPES.map((type) => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {setType === 'superset' && (
-        <div>
-          <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-            Superset Group
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {SUPERSET_GROUPS.map(group => (
-              <button
-                key={group}
-                type="button"
-                onClick={() => handleSupersetGroupChange(group)}
-                className={`rounded-lg px-3 py-2 text-sm font-bold transition-all ${
-                  (setData.supersetGroup || 'A') === group
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                }`}
-              >
-                {group}
-              </button>
-            ))}
+      {showAdvanced && (
+        <div className="space-y-4 rounded-lg border border-dashed border-zinc-200 bg-white/50 p-4 dark:border-zinc-700 dark:bg-zinc-900/60">
+          {/* Rest Time */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              Rest Time (seconds)
+            </label>
             <input
-              type="text"
-              value={setData.supersetGroup || ''}
-              onChange={(e) => handleSupersetGroupChange(e.target.value)}
-              placeholder="Custom"
-              maxLength={3}
-              className="min-w-[96px] flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+              type="number"
+              min="0"
+              step="15"
+              value={setData.restSeconds ?? 90}
+              onChange={(e) => handleOptionalNumberChange('restSeconds', e.target.value, parseInt)}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
             />
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            Sets with the same group alternate during logging.
-          </p>
+
+          {/* Set Type */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              Set Type
+            </label>
+            <select
+              value={setType}
+              onChange={(e) => handleSetTypeChange(e.target.value as SetType)}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            >
+              {SET_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {setType === 'superset' && (
+            <div>
+              <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+                Superset Group
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {SUPERSET_GROUPS.map(group => (
+                  <button
+                    key={group}
+                    type="button"
+                    onClick={() => handleSupersetGroupChange(group)}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-all ${
+                      (setData.supersetGroup || 'A') === group
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+                    }`}
+                  >
+                    {group}
+                  </button>
+                ))}
+                <input
+                  type="text"
+                  value={setData.supersetGroup || ''}
+                  onChange={(e) => handleSupersetGroupChange(e.target.value)}
+                  placeholder="Custom"
+                  maxLength={3}
+                  className="min-w-[96px] flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                />
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Sets with the same group alternate during logging.
+              </p>
+            </div>
+          )}
+
+          {/* Tempo (Optional) */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              Tempo (optional)
+            </label>
+            <input
+              type="text"
+              value={setData.tempo || ''}
+              onChange={(e) => handleFieldChange('tempo', e.target.value)}
+              placeholder="e.g., 3-0-1-0"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Format: eccentric-pause-concentric-pause (e.g., 3-0-1-0)
+            </p>
+          </div>
+
+          {/* Notes (Optional) */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              Notes (optional)
+            </label>
+            <input
+              type="text"
+              value={setData.notes || ''}
+              onChange={(e) => handleFieldChange('notes', e.target.value)}
+              placeholder="e.g., paused, close grip, deficit"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            />
+          </div>
         </div>
       )}
-
-      {/* Tempo (Optional) */}
-      <div>
-        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-          Tempo (optional)
-        </label>
-        <input
-          type="text"
-          value={setData.tempo || ''}
-          onChange={(e) => handleFieldChange('tempo', e.target.value)}
-          placeholder="e.g., 3-0-1-0"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-        />
-        <p className="mt-1 text-xs text-zinc-500">
-          Format: eccentric-pause-concentric-pause (e.g., 3-0-1-0)
-        </p>
-      </div>
-
-      {/* Notes (Optional) */}
-      <div>
-        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-          Notes (optional)
-        </label>
-        <input
-          type="text"
-          value={setData.notes || ''}
-          onChange={(e) => handleFieldChange('notes', e.target.value)}
-          placeholder="e.g., paused, close grip, deficit"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
-        />
-      </div>
     </div>
   );
 }

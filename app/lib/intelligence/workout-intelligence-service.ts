@@ -181,6 +181,22 @@ export class WorkoutIntelligenceService {
     try {
       logger.debug('🏋️ getPreWorkoutReadiness: Starting for userId:', this.userId);
 
+      // Check if user has Pro access
+      let isPro = false;
+      if (this.userId) {
+        try {
+          // TODO: Update types after running migration 003_subscription_system
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('is_pro')
+            .eq('id', this.userId)
+            .single();
+          isPro = (profile as any)?.is_pro ?? false;
+        } catch (err) {
+          console.warn('Could not check Pro status:', err);
+        }
+      }
+
       // Ensure models are loaded
       logger.debug('📊 getPreWorkoutReadiness: Loading models...');
       await this.loadModels();
@@ -226,7 +242,8 @@ export class WorkoutIntelligenceService {
       // 8. Calculate confidence based on data availability
       const confidence = this.calculateReadinessConfidence();
 
-      return {
+      // Build full readiness result
+      const fullReadiness: PreWorkoutReadiness = {
         overallScore,
         overallStatus,
         acwr: acwrData.acwr,
@@ -239,6 +256,25 @@ export class WorkoutIntelligenceService {
         recommendations,
         confidence
       };
+
+      // If not Pro, return limited/blurred version
+      if (!isPro) {
+        return {
+          overallScore: Math.round(fullReadiness.overallScore), // No decimals for free tier
+          overallStatus: fullReadiness.overallStatus,
+          acwr: 0, // Hidden
+          acwrStatus: 'upgrade_required',
+          fitnessScore: 0,
+          fatigueScore: 0,
+          performanceScore: 0,
+          muscleReadiness: [], // Empty - no per-muscle breakdown
+          warnings: ['Upgrade to Iron Pro to see detailed readiness metrics'],
+          recommendations: ['Join Founding Members for $149 lifetime access', 'Or subscribe monthly for $12.99/month'],
+          confidence: 0
+        };
+      }
+
+      return fullReadiness;
     } catch (err) {
       console.error('Error calculating pre-workout readiness:', err);
 
@@ -271,6 +307,21 @@ export class WorkoutIntelligenceService {
     completedSessionSets: SetLog[]
   ): Promise<SetRecommendation> {
     try {
+      // Check if user has Pro access
+      let isPro = false;
+      if (this.userId) {
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('is_pro')
+            .eq('id', this.userId)
+            .single();
+          isPro = (profile as any)?.is_pro ?? false;
+        } catch (err) {
+          console.warn('Could not check Pro status:', err);
+        }
+      }
+
       // Ensure models are loaded
       await this.loadModels();
 
@@ -351,7 +402,8 @@ export class WorkoutIntelligenceService {
       // 8. Check for fatigue alert
       const fatigueAlert = await this.checkFatigueAlert(completedSessionSets, sessionFatigue);
 
-      return {
+      // Build full recommendation
+      const fullRecommendation: SetRecommendation = {
         suggestedWeight: Math.round(finalWeight),
         suggestedReps: finalReps,
         confidence,
@@ -360,6 +412,21 @@ export class WorkoutIntelligenceService {
         adjustments,
         fatigueAlert
       };
+
+      // If not Pro, return basic recommendation only
+      if (!isPro) {
+        return {
+          suggestedWeight: baseline.weight, // No adjustments for free tier
+          suggestedReps: finalReps,
+          confidence: 'low',
+          reasoning: 'Upgrade to Iron Pro for personalized weight recommendations based on your recovery and fatigue',
+          baseline,
+          adjustments: [],
+          fatigueAlert: undefined
+        };
+      }
+
+      return fullRecommendation;
     } catch (err) {
       console.error('Error generating set recommendation:', err);
 
@@ -386,6 +453,41 @@ export class WorkoutIntelligenceService {
 
   async assessSessionFatigue(completedSets: SetLog[]): Promise<SessionFatigueAssessment> {
     try {
+      // Check if user has Pro access
+      let isPro = false;
+      if (this.userId) {
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('is_pro')
+            .eq('id', this.userId)
+            .single();
+          isPro = (profile as any)?.is_pro ?? false;
+        } catch (err) {
+          console.warn('Could not check Pro status:', err);
+        }
+      }
+
+      // Free tier: basic fatigue tracking only
+      if (!isPro) {
+        const basicFatigue = Math.min(100, completedSets.length * 8); // Simple count-based
+        return {
+          overallFatigue: basicFatigue,
+          shouldReduceWeight: basicFatigue > 60,
+          reductionPercent: basicFatigue > 60 ? 10 : 0,
+          affectedMuscles: [],
+          severity: basicFatigue > 80 ? 'high' : basicFatigue > 60 ? 'moderate' : 'mild',
+          reasoning: 'Upgrade to Iron Pro for detailed fatigue analysis and personalized recommendations',
+          indicators: {
+            rpeOvershoot: 0,
+            formBreakdown: 0,
+            unintentionalFailure: 0,
+            volumeAccumulation: 0
+          },
+          confidence: 0.3
+        };
+      }
+
       if (completedSets.length === 0) {
         return {
           overallFatigue: 0,

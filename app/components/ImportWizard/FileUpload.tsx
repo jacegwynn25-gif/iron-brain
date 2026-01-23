@@ -72,10 +72,10 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
     <div className="space-y-6">
       {/* File Drop Zone */}
       <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition-colors ${
           isDragging
-            ? 'border-pink-400 bg-pink-400/10'
-            : 'border-gray-600 hover:border-gray-500'
+            ? 'border-purple-400 bg-purple-500/10'
+            : 'border-white/10 bg-white/5 hover:border-white/20'
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -111,7 +111,7 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-pink-400 hover:text-pink-300 text-sm"
+              className="text-purple-300 hover:text-purple-200 text-sm"
             >
               Choose a different file
             </button>
@@ -122,7 +122,7 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
             <p className="text-gray-400 text-sm">or</p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors"
+              className="btn-primary rounded-xl px-4 py-2 text-white font-semibold transition-all active:scale-[0.98]"
             >
               Choose File
             </button>
@@ -135,13 +135,13 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
 
       {/* Configuration Options */}
       {selectedFile && (
-        <div className="space-y-4 bg-purple-800/30 rounded-lg p-4">
+        <div className="space-y-4 surface-panel p-4 sm:p-5">
           <h3 className="text-lg font-semibold text-white">Import Settings</h3>
 
           {/* Program Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Program ID (optional)
               </label>
               <input
@@ -149,12 +149,12 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
                 value={programId}
                 onChange={(e) => setProgramId(e.target.value)}
                 placeholder="e.g., bench_specialization"
-                className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white placeholder-gray-500"
+                className="w-full rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Program Name (optional)
               </label>
               <input
@@ -162,36 +162,36 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
                 value={programName}
                 onChange={(e) => setProgramName(e.target.value)}
                 placeholder="e.g., Bench Specialization"
-                className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white placeholder-gray-500"
+                className="w-full rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               />
             </div>
           </div>
 
           {/* Start Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-zinc-300 mb-1">
               Week 1 Start Date (optional)
             </label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white"
+              className="w-full rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-zinc-500 mt-1">
               If not set, workout dates will be calculated from today
             </p>
           </div>
 
           {/* Merge Strategy */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-zinc-300 mb-1">
               Duplicate Handling
             </label>
             <select
               value={mergeStrategy}
               onChange={(e) => setMergeStrategy(e.target.value as any)}
-              className="w-full px-3 py-2 bg-purple-900/50 border border-purple-700 rounded-lg text-white"
+              className="w-full rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             >
               <option value="skip_duplicates">Skip Duplicates (Keep Existing)</option>
               <option value="merge_by_date">Merge by Date (Replace Matching Dates)</option>
@@ -252,7 +252,7 @@ export default function FileUpload({ onFileSelect, isProcessing, errors, warning
       <button
         onClick={handleSubmit}
         disabled={!selectedFile || isProcessing}
-        className="w-full py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
+        className="w-full py-3 btn-primary disabled:opacity-50 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
       >
         {isProcessing ? 'Processing...' : 'Continue'}
       </button>

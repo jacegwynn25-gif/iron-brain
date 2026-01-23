@@ -1,6 +1,18 @@
 /**
  * Bayesian RPE Calibration
  *
+ * ⚠️ DEFERRED - NOT CURRENTLY IN USE ⚠️
+ *
+ * This implementation is well-designed but requires additional features before activation:
+ * - Behavioral tracking UI (not currently implemented)
+ * - RPE recording for every set (needs UI updates)
+ * - Sufficient data collection period (minimum 30 days)
+ *
+ * Status: Keep for future V2 implementation
+ * Ticket: #IRONBRAIN-V2-RPE-CALIBRATION
+ *
+ * ---
+ *
  * Proper statistical treatment of RPE-based load selection with uncertainty quantification.
  *
  * Research Foundations:
