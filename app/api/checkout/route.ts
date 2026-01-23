@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-12-15.clover' });
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2025-12-15.clover' }) : null;
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -10,8 +11,20 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const tier = searchParams.get('tier') as 'lifetime' | 'monthly';
+  const tier = searchParams.get('tier') as 'lifetime' | 'monthly' | null;
   const userId = searchParams.get('user_id');
+
+  if (!stripe) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
+  }
+
+  if (!process.env.NEXT_PUBLIC_APP_URL) {
+    return NextResponse.json({ error: 'App URL is not configured' }, { status: 500 });
+  }
+
+  if (tier !== 'lifetime' && tier !== 'monthly') {
+    return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+  }
 
   if (!userId) {
     return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -31,13 +44,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const priceId = tier === 'lifetime'
+      ? process.env.STRIPE_PRICE_ID_LIFETIME
+      : process.env.STRIPE_PRICE_ID_MONTHLY;
+
+    if (!priceId) {
+      return NextResponse.json({ error: 'Stripe price is not configured' }, { status: 500 });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: tier === 'lifetime' ? 'payment' : 'subscription',
       payment_method_types: ['card'],
       line_items: [{
-        price: tier === 'lifetime'
-          ? process.env.STRIPE_PRICE_ID_LIFETIME!
-          : process.env.STRIPE_PRICE_ID_MONTHLY!,
+        price: priceId,
         quantity: 1,
       }],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
