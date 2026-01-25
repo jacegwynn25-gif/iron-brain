@@ -53,7 +53,7 @@ export default function ProgramCard({
           <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
             {variant === 'template' ? 'Template' : 'Program'}
           </p>
-          <h3 className="mt-2 min-h-[2.5rem] text-sm font-semibold text-white sm:text-base leading-snug line-clamp-2 break-words">
+          <h3 className="mt-2 min-h-[3rem] text-xs font-semibold text-white sm:text-sm leading-snug line-clamp-3 break-words">
             {program.name}
           </h3>
           {program.description && (

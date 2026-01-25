@@ -319,7 +319,7 @@ function OneRMCalculator() {
         <div className="space-y-4">
           <div className="rounded-xl btn-primary p-6 text-white">
             <h3 className="mb-2 text-sm font-medium opacity-90">Estimated 1RM (Average)</h3>
-            <p className="text-5xl font-bold">{result.average} lbs</p>
+            <p className="text-3xl sm:text-5xl font-bold">{result.average} lbs</p>
             <p className="mt-2 text-sm opacity-75">Based on {weight} lbs × {reps} reps</p>
           </div>
 

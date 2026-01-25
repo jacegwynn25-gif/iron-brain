@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { getAllExercises } from './programs';
+import { convertWeight } from './units';
 
 // ============================================================
 // E1RM PROGRESSION ANALYSIS
@@ -25,13 +26,19 @@ export function getE1RMProgression(exerciseId: string): E1RMDataPoint[] {
     if (exerciseSets.length > 0) {
       // Get best E1RM from this session
       const bestSet = exerciseSets.reduce((best, current) =>
-        (current.e1rm || 0) > (best.e1rm || 0) ? current : best
+        convertWeight(current.e1rm || 0, current.weightUnit ?? 'lbs', 'lbs')
+          > convertWeight(best.e1rm || 0, best.weightUnit ?? 'lbs', 'lbs')
+          ? current
+          : best
       );
+      const fromUnit = bestSet.weightUnit ?? 'lbs';
+      const e1rmLbs = convertWeight(bestSet.e1rm || 0, fromUnit, 'lbs');
+      const weightLbs = convertWeight(bestSet.actualWeight || 0, fromUnit, 'lbs');
 
       dataPoints.push({
         date: session.date,
-        e1rm: bestSet.e1rm || 0,
-        weight: bestSet.actualWeight || 0,
+        e1rm: e1rmLbs,
+        weight: weightLbs,
         reps: bestSet.actualReps || 0,
         sessionId: session.id,
       });
@@ -64,8 +71,18 @@ export function getVolumeProgression(exerciseId: string): VolumeDataPoint[] {
     );
 
     if (exerciseSets.length > 0) {
-      const totalVolume = exerciseSets.reduce((sum, set) => sum + (set.volumeLoad || 0), 0);
-      const totalWeight = exerciseSets.reduce((sum, set) => sum + (set.actualWeight || 0), 0);
+      const totalVolume = exerciseSets.reduce((sum, set) => {
+        const fromUnit = set.weightUnit ?? 'lbs';
+        const reps = set.actualReps || 0;
+        const weightLbs = convertWeight(set.actualWeight || 0, fromUnit, 'lbs');
+        const derivedVolume = weightLbs * reps;
+        const fallbackVolume = set.volumeLoad != null ? convertWeight(set.volumeLoad, fromUnit, 'lbs') : 0;
+        return sum + (derivedVolume || fallbackVolume);
+      }, 0);
+      const totalWeight = exerciseSets.reduce((sum, set) => {
+        const fromUnit = set.weightUnit ?? 'lbs';
+        return sum + convertWeight(set.actualWeight || 0, fromUnit, 'lbs');
+      }, 0);
       const totalReps = exerciseSets.reduce((sum, set) => sum + (set.actualReps || 0), 0);
 
       dataPoints.push({
@@ -102,7 +119,14 @@ export function getWeeklyVolumeProgression(exerciseId: string): WeeklyVolumeData
       const weekStart = getWeekStart(sessionDate);
       const weekKey = weekStart.toISOString().split('T')[0];
 
-      const totalVolume = exerciseSets.reduce((sum, set) => sum + (set.volumeLoad || 0), 0);
+      const totalVolume = exerciseSets.reduce((sum, set) => {
+        const fromUnit = set.weightUnit ?? 'lbs';
+        const reps = set.actualReps || 0;
+        const weightLbs = convertWeight(set.actualWeight || 0, fromUnit, 'lbs');
+        const derivedVolume = weightLbs * reps;
+        const fallbackVolume = set.volumeLoad != null ? convertWeight(set.volumeLoad, fromUnit, 'lbs') : 0;
+        return sum + (derivedVolume || fallbackVolume);
+      }, 0);
 
       if (!weeklyData.has(weekKey)) {
         weeklyData.set(weekKey, { volume: 0, sessions: 0 });

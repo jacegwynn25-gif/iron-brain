@@ -866,6 +866,7 @@ export type Database = {
           skipped: boolean | null
           tempo: string | null
           volume_load: number | null
+          weight_unit: string
           workout_session_id: string | null
         }
         Insert: {
@@ -897,6 +898,7 @@ export type Database = {
           skipped?: boolean | null
           tempo?: string | null
           volume_load?: number | null
+          weight_unit?: string
           workout_session_id?: string | null
         }
         Update: {
@@ -928,6 +930,7 @@ export type Database = {
           skipped?: boolean | null
           tempo?: string | null
           volume_load?: number | null
+          weight_unit?: string
           workout_session_id?: string | null
         }
         Relationships: [

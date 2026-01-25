@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { CM_TO_INCHES, KG_TO_LBS } from '../units';
 
 export type UnitSystem = 'metric' | 'imperial';
 
 const STORAGE_KEY = 'iron_brain_unit_system';
-
-// Conversion constants
-const KG_TO_LBS = 2.20462;
-const CM_TO_INCHES = 0.393701;
+const STORAGE_EVENT = 'iron_brain_unit_system_change';
 
 export interface UnitConversions {
   // Weight conversions
@@ -49,10 +47,38 @@ export function useUnitPreference(): UseUnitPreferenceReturn {
     setHydrated(true);
   }, []);
 
+  // Sync unit preference across multiple hook instances (and tabs)
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'metric' || stored === 'imperial') {
+        setUnitSystemState(stored);
+      }
+    };
+
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY) return;
+      syncFromStorage();
+    };
+
+    const handleCustomEvent = () => {
+      syncFromStorage();
+    };
+
+    window.addEventListener('storage', handleStorageEvent);
+    window.addEventListener(STORAGE_EVENT, handleCustomEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageEvent);
+      window.removeEventListener(STORAGE_EVENT, handleCustomEvent);
+    };
+  }, []);
+
   // Save preference to localStorage
   const setUnitSystem = useCallback((system: UnitSystem) => {
     setUnitSystemState(system);
     localStorage.setItem(STORAGE_KEY, system);
+    window.dispatchEvent(new Event(STORAGE_EVENT));
   }, []);
 
   // Conversion functions

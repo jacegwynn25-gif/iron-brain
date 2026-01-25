@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { Trophy, Clock, TrendingUp, X } from 'lucide-react';
 import type { WorkoutSession } from '../lib/types';
 import { storage } from '../lib/storage';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
+import { convertWeight } from '../lib/units';
 
 interface WorkoutSummaryProps {
   session: WorkoutSession;
@@ -18,29 +20,31 @@ const formatDuration = (minutes?: number) => {
   return `${hours}h ${mins}m`;
 };
 
-const getSessionVolume = (session: WorkoutSession) => {
-  if (session.totalVolumeLoad && session.totalVolumeLoad > 0) return session.totalVolumeLoad;
-  return session.sets.reduce((sum, set) => {
+const getSessionVolume = (session: WorkoutSession, displayUnit: 'lbs' | 'kg') =>
+  session.sets.reduce((sum, set) => {
     if (!set.completed || !set.actualWeight || !set.actualReps) return sum;
-    return sum + set.actualWeight * set.actualReps;
+    const fromUnit = set.weightUnit ?? 'lbs';
+    const displayWeight = convertWeight(set.actualWeight, fromUnit, displayUnit);
+    return sum + (displayWeight * set.actualReps);
   }, 0);
-};
 
 const computePRCount = (session: WorkoutSession) => {
   const history = storage.getWorkoutHistory().filter((item) => item.id !== session.id);
   const previousBest = new Map<string, number>();
   const currentBest = new Map<string, number>();
 
-  const extractValue = (weight?: number | null, reps?: number | null, e1rm?: number | null) => {
-    if (e1rm) return e1rm;
-    if (!weight || !reps) return null;
-    return Math.round(weight * (1 + reps / 30));
+  const extractValue = (set: WorkoutSession['sets'][number]) => {
+    const fromUnit = set.weightUnit ?? 'lbs';
+    if (set.e1rm != null) return convertWeight(set.e1rm, fromUnit, 'lbs');
+    if (set.actualWeight == null || set.actualReps == null) return null;
+    const weightLbs = convertWeight(set.actualWeight, fromUnit, 'lbs');
+    return Math.round(weightLbs * (1 + set.actualReps / 30));
   };
 
   for (const past of history) {
     for (const set of past.sets) {
       if (!set.completed) continue;
-      const value = extractValue(set.actualWeight, set.actualReps, set.e1rm);
+      const value = extractValue(set);
       if (value === null) continue;
       const existing = previousBest.get(set.exerciseId) ?? 0;
       if (value > existing) previousBest.set(set.exerciseId, value);
@@ -49,7 +53,7 @@ const computePRCount = (session: WorkoutSession) => {
 
   for (const set of session.sets) {
     if (!set.completed) continue;
-    const value = extractValue(set.actualWeight, set.actualReps, set.e1rm);
+    const value = extractValue(set);
     if (value === null) continue;
     const existing = currentBest.get(set.exerciseId) ?? 0;
     if (value > existing) currentBest.set(set.exerciseId, value);
@@ -65,7 +69,8 @@ const computePRCount = (session: WorkoutSession) => {
 };
 
 export default function WorkoutSummary({ session, onClose }: WorkoutSummaryProps) {
-  const totalVolume = useMemo(() => getSessionVolume(session), [session]);
+  const { weightUnit } = useUnitPreference();
+  const totalVolume = useMemo(() => getSessionVolume(session, weightUnit), [session, weightUnit]);
   const durationMinutes = useMemo(() => {
     if (session.durationMinutes && session.durationMinutes > 0) return session.durationMinutes;
     if (session.startTime && session.endTime) {
@@ -107,7 +112,7 @@ export default function WorkoutSummary({ session, onClose }: WorkoutSummaryProps
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Volume</p>
-              <p className="text-lg font-semibold text-white">{Math.round(totalVolume).toLocaleString()} lbs</p>
+              <p className="text-lg font-semibold text-white">{Math.round(totalVolume).toLocaleString()} {weightUnit}</p>
             </div>
           </div>
 

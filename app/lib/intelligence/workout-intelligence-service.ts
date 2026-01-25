@@ -36,6 +36,7 @@ import {
   getOrBuildHierarchicalModel,
   incrementalModelUpdate
 } from '../supabase/model-cache';
+import { convertWeight } from '../units';
 
 // ============================================================
 // INTERFACES
@@ -134,6 +135,7 @@ type SupabaseSetLogRow = Pick<
   | 'prescribed_rpe'
   | 'prescribed_rir'
   | 'actual_weight'
+  | 'weight_unit'
   | 'actual_reps'
   | 'actual_rpe'
   | 'actual_rir'
@@ -659,6 +661,7 @@ export class WorkoutIntelligenceService {
             prescribedRPE: sl.prescribed_rpe,
             prescribedRIR: sl.prescribed_rir,
             actualWeight: sl.actual_weight,
+            weightUnit: sl.weight_unit === 'kg' ? 'kg' : 'lbs',
             actualReps: sl.actual_reps,
             actualRPE: sl.actual_rpe,
             actualRIR: sl.actual_rir,
@@ -970,9 +973,12 @@ export class WorkoutIntelligenceService {
     const sameExerciseSets = completedSessionSets.filter(s => s.exerciseId === exerciseId);
     if (sameExerciseSets.length > 0) {
       const lastSet = sameExerciseSets[sameExerciseSets.length - 1];
+      const lastWeightLbs = lastSet.actualWeight != null
+        ? convertWeight(lastSet.actualWeight, lastSet.weightUnit ?? 'lbs', 'lbs')
+        : null;
       return {
         source: 'historical',
-        weight: lastSet.actualWeight || 135,
+        weight: lastWeightLbs || 135,
         reps: targetReps
       };
     }
@@ -1047,7 +1053,11 @@ export class WorkoutIntelligenceService {
 
     // Factor 1: Volume accumulation
     const totalVolume = completedSets.reduce((sum, set) => {
-      return sum + ((set.actualWeight || 0) * (set.actualReps || 0));
+      const reps = set.actualReps || 0;
+      const weightLbs = set.actualWeight != null
+        ? convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs')
+        : 0;
+      return sum + (weightLbs * reps);
     }, 0);
     fatigue += Math.min(40, totalVolume / 1000); // Up to 40 points from volume
 
@@ -1077,7 +1087,7 @@ export class WorkoutIntelligenceService {
     baseline: SetRecommendation['baseline'],
     adjustments: SetRecommendation['adjustments']
   ): string {
-    let reasoning = `Starting from ${baseline.source} weight of ${baseline.weight} lbs`;
+    let reasoning = `Starting from ${baseline.source} weight of ${baseline.weight}`;
 
     if (adjustments.length > 0) {
       reasoning += '. Adjustments: ';
@@ -1150,7 +1160,11 @@ export class WorkoutIntelligenceService {
     ).length;
 
     const volumeAccumulation = completedSets.reduce((sum, set) => {
-      return sum + ((set.actualWeight || 0) * (set.actualReps || 0));
+      const reps = set.actualReps || 0;
+      const weightLbs = set.actualWeight != null
+        ? convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs')
+        : 0;
+      return sum + (weightLbs * reps);
     }, 0);
 
     return {
@@ -1214,7 +1228,7 @@ export class WorkoutIntelligenceService {
       reasons.push(`Average RPE overshoot of ${indicators.rpeOvershoot.toFixed(1)} points`);
     }
     if (indicators.volumeAccumulation > 50000) {
-      reasons.push(`High volume accumulation (${Math.round(indicators.volumeAccumulation / 1000)}K lbs)`);
+      reasons.push(`High volume accumulation (${Math.round(indicators.volumeAccumulation / 1000)}K)`);
     }
 
     if (reasons.length === 0) {
@@ -1228,7 +1242,8 @@ export class WorkoutIntelligenceService {
     const sameExerciseSets = completedSets.filter(s => s.exerciseId === exerciseId);
     if (sameExerciseSets.length > 0) {
       const lastSet = sameExerciseSets[sameExerciseSets.length - 1];
-      return lastSet.actualWeight || null;
+      if (lastSet.actualWeight == null) return null;
+      return convertWeight(lastSet.actualWeight, lastSet.weightUnit ?? 'lbs', 'lbs');
     }
     return null;
   }

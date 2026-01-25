@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, TrendingUp, Award, Info, X } from 'lucide-react';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 
 export type AlertType = 'fatigue' | 'progression' | 'pr-opportunity' | 'info';
 export type AlertSeverity = 'mild' | 'moderate' | 'high' | 'critical';
@@ -70,6 +71,7 @@ export default function SmartAlert({
   compact = false,
   metadata,
 }: SmartAlertProps) {
+  const { weightUnit } = useUnitPreference();
   const iconMap = {
     fatigue: AlertTriangle,
     progression: TrendingUp,
@@ -162,7 +164,7 @@ export default function SmartAlert({
         </div>
         {suggestedWeight && (
           <span className={`flex-shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-[11px] font-black ${colors.text}`}>
-            {suggestedWeight} lbs
+            {suggestedWeight} {weightUnit}
           </span>
         )}
         {onApply && (
@@ -220,7 +222,7 @@ export default function SmartAlert({
                     Current:
                   </span>
                   <span className={`text-lg font-black ${colors.text}`}>
-                    {currentWeight} lbs
+                    {currentWeight} {weightUnit}
                   </span>
                 </div>
               </div>
@@ -231,7 +233,7 @@ export default function SmartAlert({
                     Suggested:
                   </span>
                   <span className={`text-lg font-black ${colors.text}`}>
-                    {suggestedWeight} lbs
+                    {suggestedWeight} {weightUnit}
                   </span>
                   {weightChangeStr && (
                     <span className={`text-xs font-bold ${colors.subtext}`}>
@@ -430,7 +432,7 @@ export default function SmartAlert({
                 onClick={onApply}
                 className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-white ${colors.button} transition-all hover:scale-105 active:scale-95 shadow-md`}
               >
-                Apply {suggestedWeight} lbs
+                Apply {suggestedWeight} {weightUnit}
               </button>
             )}
             {onDismiss && (

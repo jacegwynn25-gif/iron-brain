@@ -18,6 +18,7 @@ type SupabaseSetLogRow = Pick<
   | 'prescribed_rir'
   | 'prescribed_percentage'
   | 'actual_weight'
+  | 'weight_unit'
   | 'actual_reps'
   | 'actual_rpe'
   | 'actual_rir'
@@ -136,6 +137,7 @@ export function useWorkoutData() {
             prescribedRIR: set.prescribed_rir,
             prescribedPercentage: set.prescribed_percentage,
             actualWeight: set.actual_weight,
+            weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lbs',
             actualReps: set.actual_reps,
             actualRPE: set.actual_rpe,
             actualRIR: set.actual_rir,

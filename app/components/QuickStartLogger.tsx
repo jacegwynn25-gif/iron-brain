@@ -437,7 +437,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
               {stats.totalVolume > 0 && (
                 <>
                   <span>•</span>
-                  <span>{(stats.totalVolume / 1000).toFixed(1)}k lbs</span>
+                  <span>{(stats.totalVolume / 1000).toFixed(1)}k {weightUnit}</span>
                 </>
               )}
             </div>

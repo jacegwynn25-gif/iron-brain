@@ -631,6 +631,15 @@ input[type="number"] {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Dynamic viewport height for mobile - accounts for browser UI */
+.min-h-dvh {
+  min-height: 100dvh;
+}
+
+.h-dvh {
+  height: 100dvh;
+}
+
 /* Smooth grid row transitions for expanding/collapsing day details */
 .grid-rows-\[0fr\] {
   grid-template-rows: 0fr;

@@ -3,7 +3,7 @@ import type { Database } from './database.types';
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'actual_weight' | 'actual_reps' | 'actual_rpe' | 'e1rm' | 'volume_load'
+  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'e1rm' | 'volume_load'
 >;
 
 type SupabaseSetLogSummaryRow = Pick<
@@ -36,6 +36,7 @@ export interface CreateSetLogData {
   prescribed_rir?: number;
   prescribed_percentage?: number;
   actual_weight?: number;
+  weight_unit?: 'lbs' | 'kg';
   actual_reps?: number;
   actual_rpe?: number;
   actual_rir?: number;

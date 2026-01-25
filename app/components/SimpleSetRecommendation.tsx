@@ -77,13 +77,13 @@ export default function SimpleSetRecommendation({
       {/* Recommended Weight - Big and Clear */}
       <div className="mb-4">
         <div className="flex items-baseline justify-center gap-2 mb-2">
-          <span className="text-6xl font-bold text-white">{roundedWeight}</span>
-          <span className="text-2xl text-gray-400">lbs</span>
+          <span className="text-4xl sm:text-6xl font-bold text-white">{roundedWeight}</span>
+          <span className="text-lg sm:text-2xl text-gray-400">lbs</span>
         </div>
         <div className="flex items-center justify-center gap-2">
-          <span className="text-xl text-gray-300">×</span>
-          <span className="text-3xl font-semibold text-white">{reps}</span>
-          <span className="text-lg text-gray-400">reps</span>
+          <span className="text-lg sm:text-xl text-gray-300">×</span>
+          <span className="text-2xl sm:text-3xl font-semibold text-white">{reps}</span>
+          <span className="text-base sm:text-lg text-gray-400">reps</span>
         </div>
       </div>
 

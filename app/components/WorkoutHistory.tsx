@@ -9,6 +9,8 @@ import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
+import { convertWeight } from '../lib/units';
 
 interface WorkoutHistoryProps {
   workoutHistory: WorkoutSession[];
@@ -18,6 +20,7 @@ interface WorkoutHistoryProps {
 export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: WorkoutHistoryProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { weightUnit } = useUnitPreference();
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<WorkoutSession | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -80,11 +83,19 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
     const setDate = set.timestamp || '';
     const { maxWeight, maxReps, maxE1RM } = prs;
+    const almostEqual = (a: number, b: number) => Math.abs(a - b) < 0.01;
+    const setWeightLbs = set.actualWeight != null
+      ? convertWeight(Number(set.actualWeight), set.weightUnit ?? 'lbs', 'lbs')
+      : null;
+    const setE1rmLbs = set.e1rm != null
+      ? convertWeight(Number(set.e1rm), set.weightUnit ?? 'lbs', 'lbs')
+      : null;
 
     // Check if this set IS the PR (within same day)
     if (
       maxWeight &&
-      set.actualWeight === maxWeight.weight &&
+      setWeightLbs != null &&
+      almostEqual(setWeightLbs, maxWeight.weight) &&
       set.actualReps === maxWeight.reps &&
       setDate.startsWith(maxWeight.date.split('T')[0])
     ) {
@@ -93,7 +104,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
     if (
       maxReps &&
-      set.actualWeight === maxReps.weight &&
+      setWeightLbs != null &&
+      almostEqual(setWeightLbs, maxReps.weight) &&
       set.actualReps === maxReps.reps &&
       setDate.startsWith(maxReps.date.split('T')[0])
     ) {
@@ -102,7 +114,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
     if (
       maxE1RM &&
-      set.e1rm === maxE1RM.e1rm &&
+      setE1rmLbs != null &&
+      almostEqual(setE1rmLbs, maxE1RM.e1rm) &&
       setDate.startsWith(maxE1RM.date.split('T')[0])
     ) {
       return { type: 'E1RM PR', icon: <TrendingUp className="h-4 w-4" /> };
@@ -125,7 +138,13 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
   const calculateSessionStats = (session: WorkoutSession) => {
     const completedSets = session.sets.filter(s => s.completed);
     const totalVolume = completedSets.reduce((sum, set) => {
-      return sum + ((set.actualWeight || 0) * (set.actualReps || 0));
+      const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
+      const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
+      if (!Number.isFinite(reps) || reps <= 0) return sum;
+      if (!Number.isFinite(rawWeight) || rawWeight <= 0) return sum;
+      const fromUnit = set.weightUnit ?? 'lbs';
+      const displayWeight = convertWeight(rawWeight, fromUnit, weightUnit);
+      return sum + (displayWeight * reps);
     }, 0);
     const avgRPE = completedSets.length > 0
       ? completedSets.reduce((sum, set) => sum + (set.actualRPE || 0), 0) / completedSets.length
@@ -282,9 +301,9 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
           </div>
           <div className="text-right">
             <p className="text-2xl sm:text-3xl font-bold text-white">
-              {sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0).toLocaleString()}
+              {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
             </p>
-            <p className="text-xs font-semibold text-gray-400">lbs total volume</p>
+            <p className="text-xs font-semibold text-gray-400">{weightUnit} total volume</p>
           </div>
         </div>
       </div>
@@ -414,7 +433,15 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
                       const exerciseName = getExerciseName(exerciseId);
                       const exerciseVolume = completedSets.reduce(
-                        (sum, set) => sum + ((set.actualWeight || 0) * (set.actualReps || 0)),
+                        (sum, set) => {
+                          const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
+                          const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
+                          if (!Number.isFinite(reps) || reps <= 0) return sum;
+                          if (!Number.isFinite(rawWeight) || rawWeight <= 0) return sum;
+                          const fromUnit = set.weightUnit ?? 'lbs';
+                          const displayWeight = convertWeight(rawWeight, fromUnit, weightUnit);
+                          return sum + (displayWeight * reps);
+                        },
                         0
                       );
 
@@ -433,7 +460,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                                 Volume
                               </p>
                               <p className="text-lg font-semibold text-white">
-                                {exerciseVolume.toLocaleString()} lbs
+                                {Math.round(exerciseVolume).toLocaleString()} {weightUnit}
                               </p>
                             </div>
                           </div>
@@ -441,6 +468,13 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                           <div className="space-y-2">
                             {completedSets.map((set, idx) => {
                               const pr = checkIfPR(set, exerciseId);
+                              const fromUnit = set.weightUnit ?? 'lbs';
+                              const displayWeight = set.actualWeight != null
+                                ? convertWeight(Number(set.actualWeight), fromUnit, weightUnit)
+                                : null;
+                              const displayE1RM = set.e1rm != null
+                                ? convertWeight(Number(set.e1rm), fromUnit, weightUnit)
+                                : null;
 
                               return (
                                 <div
@@ -453,7 +487,9 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                                     </span>
                                     <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
                                       <span className="font-semibold text-white">
-                                        {set.actualWeight} lbs
+                                        {displayWeight != null && Number.isFinite(displayWeight)
+                                          ? `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(displayWeight)} ${weightUnit}`
+                                          : `— ${weightUnit}`}
                                       </span>
                                       <span className="text-gray-500">×</span>
                                       <span className="font-semibold text-white">
@@ -473,7 +509,9 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                                   <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                                     {set.e1rm && (
                                       <span className="rounded-full bg-blue-500/20 border border-blue-500/30 px-3 py-1 text-xs font-semibold text-blue-300">
-                                        {Math.round(set.e1rm)} E1RM
+                                        {displayE1RM != null && Number.isFinite(displayE1RM)
+                                          ? `${Math.round(displayE1RM)} E1RM`
+                                          : 'E1RM'}
                                       </span>
                                     )}
                                     {pr && (

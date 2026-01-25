@@ -367,6 +367,7 @@ export type SupabaseSetLogRow = Pick<
   | 'prescribed_rir'
   | 'prescribed_percentage'
   | 'actual_weight'
+  | 'weight_unit'
   | 'actual_reps'
   | 'actual_rpe'
   | 'actual_rir'

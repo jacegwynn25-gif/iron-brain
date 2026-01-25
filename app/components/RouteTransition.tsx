@@ -19,7 +19,7 @@ export default function RouteTransition({ children }: { children: React.ReactNod
       initial="initial"
       animate="animate"
       transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      className="min-h-screen"
+      className="min-h-dvh"
       style={{ willChange: reduceMotion ? 'auto' : 'opacity, transform' }}
     >
       {children}

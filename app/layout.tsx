@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Iron Brain',
   },
   other: {
@@ -44,7 +44,7 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#09090b',
+  themeColor: '#0b0d12',
 };
 
 export default function RootLayout({
@@ -53,8 +53,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen app-gradient`}>
+    <html lang="en" className="app-gradient">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh safe-top app-gradient`}>
         <ErrorBoundary>
           <AuthProvider>
             <ProgramProvider>

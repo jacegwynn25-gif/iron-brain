@@ -8,6 +8,7 @@ import { defaultExercises } from './programs';
 import { createUuid, isValidUuid } from './uuid';
 import { queueOperation, isOnline } from './sync/offline-queue';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { convertWeight } from './units';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -482,6 +483,7 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
           });
 
           const { error: setError } = await supabase.from('set_logs').insert({
+            id: set.id && isValidUuid(set.id) ? set.id : undefined,
             workout_session_id: workoutUuid,
             exercise_id: null, // Set to NULL - we use exercise_slug instead
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
@@ -495,6 +497,7 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
             prescribed_percentage: set.prescribedPercentage,
             // Actual values (what was actually done)
             actual_weight: set.actualWeight,
+            weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
             actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
             actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
             actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
@@ -520,6 +523,7 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
               order_index: i,
               set_index: set.setIndex || i + 1,
               actual_weight: set.actualWeight,
+              weight_unit: set.weightUnit,
               actual_reps: set.actualReps,
               actual_rpe: set.actualRPE,
               actual_rir: set.actualRIR,
@@ -724,10 +728,16 @@ export function getLastWorkoutForExercise(exerciseId: string): {
   if (exerciseSets.length === 0) return null;
 
   // Find best set (highest E1RM, or highest weight × reps if no E1RM)
+  const scoreInLbs = (set: WorkoutSession['sets'][0]) => {
+    const fromUnit = set.weightUnit ?? 'lbs';
+    const reps = set.actualReps ?? 0;
+    const weightLbs = set.actualWeight != null ? convertWeight(set.actualWeight, fromUnit, 'lbs') : 0;
+    const e1rmLbs = set.e1rm != null ? convertWeight(set.e1rm, fromUnit, 'lbs') : null;
+    return e1rmLbs ?? (weightLbs * reps);
+  };
+
   const bestSet = exerciseSets.reduce((best, current) => {
-    const currentScore = current.e1rm || (current.actualWeight || 0) * (current.actualReps || 0);
-    const bestScore = best.e1rm || (best.actualWeight || 0) * (best.actualReps || 0);
-    return currentScore > bestScore ? current : best;
+    return scoreInLbs(current) > scoreInLbs(best) ? current : best;
   });
 
   return { session: lastSession, bestSet };
@@ -745,9 +755,20 @@ export function getPersonalRecords(exerciseId: string) {
 
   if (allSets.length === 0) return null;
 
+  const weightInLbs = (set: SetLog) =>
+    set.actualWeight != null ? convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs') : 0;
+
+  const e1rmInLbs = (set: SetLog) =>
+    set.e1rm != null ? convertWeight(set.e1rm, set.weightUnit ?? 'lbs', 'lbs') : 0;
+
+  const volumeInLbs = (set: SetLog) => {
+    const reps = set.actualReps ?? 0;
+    return weightInLbs(set) * reps;
+  };
+
   // Max weight (for any rep count)
   const maxWeightSet = allSets.reduce((max, current) =>
-    (current.actualWeight || 0) > (max.actualWeight || 0) ? current : max
+    weightInLbs(current) > weightInLbs(max) ? current : max
   );
 
   // Max reps (for any weight)
@@ -757,34 +778,34 @@ export function getPersonalRecords(exerciseId: string) {
 
   // Max E1RM
   const maxE1RMSet = allSets.reduce((max, current) =>
-    (current.e1rm || 0) > (max.e1rm || 0) ? current : max
+    e1rmInLbs(current) > e1rmInLbs(max) ? current : max
   );
 
   // Max volume (weight × reps)
   const maxVolumeSet = allSets.reduce((max, current) =>
-    (current.volumeLoad || 0) > (max.volumeLoad || 0) ? current : max
+    volumeInLbs(current) > volumeInLbs(max) ? current : max
   );
 
   return {
     maxWeight: {
-      weight: maxWeightSet.actualWeight || 0,
+      weight: weightInLbs(maxWeightSet),
       reps: maxWeightSet.actualReps || 0,
       date: maxWeightSet.timestamp || '',
     },
     maxReps: {
-      weight: maxRepsSet.actualWeight || 0,
+      weight: weightInLbs(maxRepsSet),
       reps: maxRepsSet.actualReps || 0,
       date: maxRepsSet.timestamp || '',
     },
     maxE1RM: {
-      e1rm: maxE1RMSet.e1rm || 0,
-      weight: maxE1RMSet.actualWeight || 0,
+      e1rm: e1rmInLbs(maxE1RMSet),
+      weight: weightInLbs(maxE1RMSet),
       reps: maxE1RMSet.actualReps || 0,
       date: maxE1RMSet.timestamp || '',
     },
     maxVolume: {
-      volume: maxVolumeSet.volumeLoad || 0,
-      weight: maxVolumeSet.actualWeight || 0,
+      volume: volumeInLbs(maxVolumeSet),
+      weight: weightInLbs(maxVolumeSet),
       reps: maxVolumeSet.actualReps || 0,
       date: maxVolumeSet.timestamp || '',
     },
@@ -1272,7 +1293,8 @@ export interface PriorityAlert {
 export async function getPriorityAlert(
   exerciseId: string,
   currentSessionSets: WorkoutSession['sets'],
-  lastWeight?: number | null
+  lastWeight?: number | null,
+  displayWeightUnit: 'lbs' | 'kg' = 'lbs'
 ): Promise<PriorityAlert> {
   // Import upgraded detection functions with statistical rigor
   const { detectTrueFatigue, detectTrueFatigueEnhanced, analyzeRPECalibration } = await import('./fatigueModel');
@@ -1479,7 +1501,7 @@ export async function getPriorityAlert(
       message: rpeCalibration.reasoning,
       actions: [
         {
-          label: `${rpeCalibration.direction === 'increase' ? 'Increase' : 'Reduce'} to ${newWeight} lbs`,
+          label: `${rpeCalibration.direction === 'increase' ? 'Increase' : 'Reduce'} to ${newWeight} ${displayWeightUnit}`,
           type: 'primary',
           action: 'apply_weight',
           value: newWeight,

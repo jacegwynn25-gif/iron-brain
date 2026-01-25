@@ -4,6 +4,7 @@ import type { ProgramTemplate, WorkoutSession } from '../types';
 import { supabase } from '../supabase/client';
 import type { Json } from '../supabase/database.types';
 import { logger } from '../logger';
+import { isValidUuid } from '../uuid';
 
 const QUEUE_KEY = 'iron_brain_sync_queue';
 const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
@@ -159,6 +160,7 @@ const syncWorkoutToCloud = async (
 
   if (session.sets && session.sets.length > 0) {
     const setLogs = session.sets.map((set, index) => ({
+      id: set.id && isValidUuid(set.id) ? set.id : undefined,
       workout_session_id: workoutUuid,
       exercise_id: null,
       exercise_slug: set.exerciseId,
@@ -170,6 +172,7 @@ const syncWorkoutToCloud = async (
       prescribed_rir: set.prescribedRIR,
       prescribed_percentage: set.prescribedPercentage,
       actual_weight: set.actualWeight,
+      weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
       actual_reps: set.actualReps,
       actual_rpe: set.actualRPE,
       actual_rir: set.actualRIR,

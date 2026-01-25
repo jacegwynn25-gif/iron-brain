@@ -89,6 +89,7 @@ export async function loadWorkoutsFromBothSources(
           prescribedRIR: set.prescribed_rir,
           prescribedPercentage: set.prescribed_percentage,
           actualWeight: set.actual_weight,
+          weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lbs',
           actualReps: set.actual_reps,
           actualRPE: set.actual_rpe,
           actualRIR: set.actual_rir,
