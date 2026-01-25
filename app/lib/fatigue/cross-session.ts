@@ -595,7 +595,7 @@ export async function calculateRecoveryFromWorkouts(
   // Also fetch fatigue history from the database for chronic fatigue calculations
   // Even if recovery_estimates is empty, fatigue_history may have data
   const muscleGroupsList = Array.from(muscleData.keys());
-  let fatigueByMuscle = new Map<string, number[]>();
+  const fatigueByMuscle = new Map<string, number[]>();
 
   if (muscleGroupsList.length > 0) {
     const { data: fatigueHistoryData, error: fatigueError } = await supabase

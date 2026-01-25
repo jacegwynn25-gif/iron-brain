@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { getPriorityAlert, PriorityAlert } from '../lib/storage';
 import type { WorkoutSession } from '../lib/types';
+import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 
 interface NextSetInfo {
   exerciseName: string;
@@ -59,6 +60,7 @@ export default function RestTimer({
   isLastSetOfExercise,
   exerciseName,
 }: RestTimerProps) {
+  const { weightUnit } = useUnitPreference();
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const [priorityAlert, setPriorityAlert] = useState<PriorityAlert | null>(null);
@@ -115,7 +117,8 @@ export default function RestTimer({
         const alert = await getPriorityAlert(
           nextSetInfo.exerciseId,
           currentSessionSets,
-          nextSetInfo.lastWeight
+          nextSetInfo.lastWeight,
+          weightUnit
         );
 
         // Only show if not "none"
@@ -130,7 +133,7 @@ export default function RestTimer({
     }
 
     fetchAlert();
-  }, [isActive, nextSetInfo, currentSessionSets]);
+  }, [isActive, nextSetInfo, currentSessionSets, weightUnit]);
 
   const playCompletionSound = () => {
     try {
@@ -331,7 +334,7 @@ export default function RestTimer({
         {/* Timer Display */}
         <div className="mx-auto max-w-md py-6 text-center sm:py-10">
           <div
-            className={`text-7xl font-black tabular-nums sm:text-8xl ${
+            className={`text-6xl font-black tabular-nums sm:text-8xl ${
               isComplete
                 ? 'text-green-400'
                 : isAlmostDone
@@ -506,7 +509,7 @@ export default function RestTimer({
               {nextSetInfo.suggestedWeight ? (
                 <div className="mb-4 rounded-xl btn-primary p-4 text-center shadow-lg">
                   <div className="text-4xl font-black text-white">
-                    {nextSetInfo.suggestedWeight} lbs
+                    {nextSetInfo.suggestedWeight} {weightUnit}
                   </div>
                   <div className="mt-1 text-sm font-medium text-white/80">
                     {nextSetInfo.prescribedReps} reps
@@ -530,7 +533,7 @@ export default function RestTimer({
               {/* Previous Performance */}
               {nextSetInfo.lastWeight != null && nextSetInfo.lastReps != null && (
                 <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-center text-sm text-gray-400">
-                  Previous: {nextSetInfo.lastWeight} lbs × {nextSetInfo.lastReps} reps
+                  Previous: {nextSetInfo.lastWeight} {weightUnit} × {nextSetInfo.lastReps} reps
                 </div>
               )}
             </div>

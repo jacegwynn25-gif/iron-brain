@@ -27,6 +27,7 @@ import CreateExerciseModal from './program-builder/CreateExerciseModal';
 import { getWeightForPercentage } from '../lib/maxes/maxes-service';
 import InWorkoutFatigueAlert from './InWorkoutFatigueAlert';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
+import { convertWeight } from '../lib/units';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -70,6 +71,7 @@ export default function WorkoutLogger({
   onSummaryClose,
 }: WorkoutLoggerProps) {
   const { user } = useAuth();
+  const { unitSystem, setUnitSystem, weightUnit } = useUnitPreference();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [summarySession, setSummarySession] = useState<WorkoutSession | null>(null);
 
@@ -842,6 +844,16 @@ export default function WorkoutLogger({
     if (!nextTemplate) return undefined;
     const exercise = resolveExercise(nextTemplate.exerciseId);
     const lastSet = sessionSets.filter((set) => set.exerciseId === nextTemplate.exerciseId && set.actualWeight).slice(-1)[0];
+    const lastWeight = lastSet?.actualWeight != null
+      ? convertWeight(lastSet.actualWeight, lastSet.weightUnit ?? 'lbs', weightUnit)
+      : undefined;
+
+    const suggestedWeight = nextSetRecommendation?.suggestedWeight != null
+      ? convertWeight(nextSetRecommendation.suggestedWeight, 'lbs', weightUnit)
+      : undefined;
+
+    const round = (value: number | undefined) =>
+      value == null ? undefined : Math.round(value * 10) / 10;
 
     return {
       exerciseName: exercise.name,
@@ -852,12 +864,12 @@ export default function WorkoutLogger({
       prescribedReps: nextTemplate.prescribedReps,
       targetRPE: nextTemplate.targetRPE ?? undefined,
       targetRIR: nextTemplate.targetRIR ?? undefined,
-      suggestedWeight: nextSetRecommendation?.suggestedWeight ?? undefined,
+      suggestedWeight: round(suggestedWeight),
       weightReasoning: nextSetRecommendation?.reasoning ?? undefined,
-      lastWeight: lastSet?.actualWeight ?? undefined,
+      lastWeight: round(lastWeight),
       lastReps: lastSet?.actualReps ?? undefined,
     };
-  }, [restContext, resolveExercise, nextSetRecommendation, sessionSets]);
+  }, [restContext, resolveExercise, nextSetRecommendation, sessionSets, weightUnit]);
 
   if (summarySession) {
     return (
@@ -930,12 +942,34 @@ export default function WorkoutLogger({
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Session Time</p>
               <p className="text-sm text-gray-300">{elapsedDisplay}</p>
             </div>
-            <button
-              onClick={() => setView('selection')}
-              className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-all active:scale-[0.98]"
-            >
-              Back to Menu
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
+                  className={`rounded-full px-3 py-1 transition-colors ${
+                    unitSystem === 'imperial' ? 'bg-white/20 text-white' : 'text-zinc-400'
+                  }`}
+                >
+                  lbs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
+                  className={`rounded-full px-3 py-1 transition-colors ${
+                    unitSystem === 'metric' ? 'bg-white/20 text-white' : 'text-zinc-400'
+                  }`}
+                >
+                  kg
+                </button>
+              </div>
+              <button
+                onClick={() => setView('selection')}
+                className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-all active:scale-[0.98]"
+              >
+                Back to Menu
+              </button>
+            </div>
           </div>
 
           <SetLogger
@@ -1128,7 +1162,9 @@ function SetLogger({
     let cancelled = false;
     getWeightForPercentage(template.exerciseId, template.targetPercentage, user?.id || null)
       .then((weightValue) => {
-        if (!cancelled) setPercentageWeight(weightValue);
+        if (!cancelled) {
+          setPercentageWeight(weightValue != null ? convertWeight(weightValue, 'lbs', weightUnit) : null);
+        }
       })
       .catch(() => {
         if (!cancelled) setPercentageWeight(null);
@@ -1137,7 +1173,7 @@ function SetLogger({
     return () => {
       cancelled = true;
     };
-  }, [template.exerciseId, template.targetPercentage, user?.id]);
+  }, [template.exerciseId, template.targetPercentage, user?.id, weightUnit]);
 
   useEffect(() => {
     if (initialWeight != null && initialWeight > 0) {
@@ -1223,7 +1259,8 @@ function SetLogger({
     setShowCompletedSets(true);
 
     if (set.actualWeight != null) {
-      const formatted = formatToStep(set.actualWeight, 0.5, 0);
+      const displayWeight = convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', weightUnit);
+      const formatted = formatToStep(displayWeight, 0.5, 0);
       weightRef.current = formatted;
       setWeight(formatted);
     } else {
@@ -1252,7 +1289,7 @@ function SetLogger({
 
     if (set.dropSetRounds?.length) {
       setDropSetRounds(set.dropSetRounds.map((round) => ({
-        weight: round.weight.toString(),
+        weight: convertWeight(round.weight, set.weightUnit ?? 'lbs', weightUnit).toString(),
         reps: round.reps.toString(),
         rpe: round.rpe != null ? round.rpe.toString() : '',
       })));
@@ -1277,7 +1314,7 @@ function SetLogger({
     } else {
       setClusterRounds([{ reps: '2', restSeconds: '20' }]);
     }
-  }, [defaultRpeValue]);
+  }, [defaultRpeValue, weightUnit]);
 
   const basePrescribedReps = useMemo(() => {
     if (!template.prescribedReps) return null;
@@ -1564,16 +1601,22 @@ function SetLogger({
     }
 
     if (ignoredSuggestion) {
-      if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
+      if (lastWorkout?.bestSet.actualWeight != null) {
+        return convertWeight(lastWorkout.bestSet.actualWeight, lastWorkout.bestSet.weightUnit ?? 'lbs', weightUnit);
+      }
       if (percentageWeight != null) return percentageWeight;
       return null;
     }
 
-    if (intelligence.setRecommendation?.suggestedWeight) return intelligence.setRecommendation.suggestedWeight;
+    if (intelligence.setRecommendation?.suggestedWeight) {
+      return convertWeight(intelligence.setRecommendation.suggestedWeight, 'lbs', weightUnit);
+    }
     if (percentageWeight != null) return percentageWeight;
-    if (lastWorkout?.bestSet.actualWeight) return lastWorkout.bestSet.actualWeight;
+    if (lastWorkout?.bestSet.actualWeight != null) {
+      return convertWeight(lastWorkout.bestSet.actualWeight, lastWorkout.bestSet.weightUnit ?? 'lbs', weightUnit);
+    }
     return null;
-  }, [intelligence.setRecommendation?.suggestedWeight, lastWorkout?.bestSet.actualWeight, initialWeight, ignoredSuggestion, percentageWeight]);
+  }, [intelligence.setRecommendation, lastWorkout, initialWeight, ignoredSuggestion, percentageWeight, weightUnit]);
 
   const repSeed = useMemo(() => {
     if (ignoredSuggestion) {
@@ -1770,12 +1813,15 @@ function SetLogger({
               const bestSet = historySession.sets.reduce((best, set) =>
                 (set.e1rm || 0) > (best.e1rm || 0) ? set : best
               );
+              const bestDisplayWeight = bestSet.actualWeight != null
+                ? convertWeight(bestSet.actualWeight, bestSet.weightUnit ?? 'lbs', weightUnit)
+                : null;
 
               return (
                 <button
                   key={idx}
                   onClick={() => {
-                    if (bestSet.actualWeight) setWeight(bestSet.actualWeight.toString());
+                    if (bestDisplayWeight != null) setWeight(formatToStep(bestDisplayWeight, 0.5, 0));
                     if (bestSet.actualReps) setReps(bestSet.actualReps.toString());
                     if (bestSet.actualRPE) setRpeValue(bestSet.actualRPE);
                     setShowHistory(false);
@@ -1784,7 +1830,9 @@ function SetLogger({
                 >
                   <span className="text-xs font-medium text-gray-400">{dateLabel}</span>
                   <span className="font-semibold text-white">
-                    {bestSet.actualWeight || 0}{weightUnit} × {bestSet.actualReps || 0}
+                    {(bestDisplayWeight != null && Number.isFinite(bestDisplayWeight)
+                      ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(bestDisplayWeight)
+                      : '0')}{weightUnit} × {bestSet.actualReps || 0}
                     {bestSet.actualRPE && <span className="ml-1 text-xs text-amber-400">@{bestSet.actualRPE}</span>}
                   </span>
                 </button>
@@ -1819,7 +1867,11 @@ function SetLogger({
                       {set.setIndex}
                     </div>
                     <div className="text-sm text-white">
-                      {set.actualWeight ?? 0}{weightUnit} × {set.actualReps ?? 0}
+                      {(set.actualWeight != null
+                        ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(
+                            convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', weightUnit)
+                          )
+                        : '0')}{weightUnit} × {set.actualReps ?? 0}
                       {set.actualRPE != null ? (
                         <span className="ml-2 text-xs text-purple-300">@{set.actualRPE}</span>
                       ) : set.actualRIR != null ? (
