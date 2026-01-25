@@ -201,12 +201,79 @@ export interface FatigueAlert {
 
 /**
  * Get primary muscle groups for an exercise
+ * Tries multiple strategies: direct ID match, slug match, name inference
  */
-function getExerciseMuscleGroups(exerciseId: string): string[] {
-  const exercise = defaultExercises.find(ex => ex.id === exerciseId);
-  if (!exercise) return [];
+function getExerciseMuscleGroups(exerciseId: string, exerciseName?: string): string[] {
+  // Strategy 1: Direct ID match
+  let exercise = defaultExercises.find(ex => ex.id === exerciseId);
 
-  return exercise.muscleGroups.map(mg => mg.toLowerCase());
+  // Strategy 2: Try matching by slug (exerciseId might be a slug)
+  if (!exercise) {
+    const slug = exerciseId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    exercise = defaultExercises.find(ex =>
+      ex.id.toLowerCase() === slug ||
+      ex.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug
+    );
+  }
+
+  // Strategy 3: Try matching by name
+  if (!exercise && exerciseName) {
+    const searchName = exerciseName.toLowerCase();
+    exercise = defaultExercises.find(ex =>
+      ex.name.toLowerCase() === searchName ||
+      ex.name.toLowerCase().includes(searchName) ||
+      searchName.includes(ex.name.toLowerCase())
+    );
+  }
+
+  if (exercise) {
+    return exercise.muscleGroups.map(mg => mg.toLowerCase());
+  }
+
+  // Strategy 4: Infer from exercise name keywords
+  const name = (exerciseName || exerciseId).toLowerCase();
+  const inferred: string[] = [];
+
+  // Chest exercises
+  if (name.includes('bench') || name.includes('chest') || name.includes('fly') || name.includes('pec')) {
+    inferred.push('chest');
+    if (name.includes('press')) inferred.push('triceps', 'shoulders');
+  }
+  // Back exercises
+  if (name.includes('row') || name.includes('pull') || name.includes('lat') || name.includes('back')) {
+    inferred.push('back');
+    if (name.includes('row') || name.includes('pull')) inferred.push('biceps');
+  }
+  // Shoulder exercises
+  if (name.includes('shoulder') || name.includes('delt') || name.includes('ohp') || name.includes('military')) {
+    inferred.push('shoulders');
+    if (name.includes('press')) inferred.push('triceps');
+  }
+  // Leg exercises
+  if (name.includes('squat') || name.includes('leg press') || name.includes('quad') || name.includes('lunge')) {
+    inferred.push('quads', 'glutes');
+  }
+  if (name.includes('deadlift') || name.includes('rdl') || name.includes('hamstring') || name.includes('curl')) {
+    if (name.includes('leg') || name.includes('ham')) inferred.push('hamstrings');
+    if (name.includes('deadlift') || name.includes('rdl')) inferred.push('hamstrings', 'back', 'glutes');
+  }
+  // Arm exercises
+  if (name.includes('bicep') || name.includes('curl')) {
+    if (!name.includes('leg') && !name.includes('ham')) inferred.push('biceps');
+  }
+  if (name.includes('tricep') || name.includes('pushdown') || name.includes('extension') || name.includes('skullcrusher')) {
+    if (!name.includes('leg') && !name.includes('quad')) inferred.push('triceps');
+  }
+  // Core
+  if (name.includes('ab') || name.includes('crunch') || name.includes('plank') || name.includes('core')) {
+    inferred.push('abs');
+  }
+  // Calves
+  if (name.includes('calf') || name.includes('calves')) {
+    inferred.push('calves');
+  }
+
+  return [...new Set(inferred)]; // Remove duplicates
 }
 
 /**
@@ -237,6 +304,9 @@ function getInterferenceWeight(sourceMuscle: string, targetMuscle: string): numb
 
 /**
  * Calculate fatigue accumulation for specific muscle groups
+ *
+ * FIXED: Now tracks actual training load, not just RPE overshoots
+ * Research: Schoenfeld & Grgic (2018) - Volume and intensity both contribute to fatigue
  */
 export function calculateMuscleFatigue(
   completedSets: SetLog[],
@@ -249,63 +319,80 @@ export function calculateMuscleFatigue(
     const contributions: FatigueScore['contributingSets'] = [];
 
     for (const set of completedSets) {
-      if (!set.completed || !set.prescribedRPE || !set.actualRPE) continue;
+      // Only skip if not completed - we DO want to count sets without RPE data
+      if (!set.completed) continue;
 
-      const rpeOvershoot = set.actualRPE - set.prescribedRPE;
+      const sourceMuscles = getExerciseMuscleGroups(set.exerciseId, set.exerciseName);
 
-      // Only count overshoots (negative = undershoot, ignore)
-      if (rpeOvershoot <= 0) continue;
-
-      const sourceMuscles = getExerciseMuscleGroups(set.exerciseId);
+      // Skip if exercise doesn't target any muscles we track
+      if (sourceMuscles.length === 0) continue;
 
       for (const sourceMuscle of sourceMuscles) {
         const interference = getInterferenceWeight(sourceMuscle, targetMuscle);
 
-        // Fatigue contribution formula:
-        // Base = RPE overshoot × interference weight
-        // Multiplier = Set volume (higher reps = more fatigue)
-        const repsMultiplier = Math.min((set.actualReps || 5) / 10, 1.5); // Cap at 1.5x
+        // Skip if no interference with target muscle
+        if (interference < 0.1) continue;
+
+        // BASE FATIGUE: Calculate from actual training intensity (RPE-based)
+        // RPE 10 = max fatigue contribution, RPE 6 = minimal
+        const actualRPE = set.actualRPE ?? set.prescribedRPE ?? 7;
+        // Scale: RPE 6=0.3, RPE 7=0.5, RPE 8=0.7, RPE 9=0.9, RPE 10=1.0
+        const rpeIntensity = Math.max(0.3, (actualRPE - 5) / 5);
+
+        // VOLUME FACTOR: Higher reps = more fatigue
+        const repsMultiplier = Math.min((set.actualReps || 5) / 8, 1.5); // 8 reps = 1.0x
+
+        // LOAD FACTOR: Heavier weights create more systemic fatigue
+        const weight = set.actualWeight || 0;
+        // Normalize weight contribution (assuming 100-300 is typical working range)
+        const loadFactor = weight > 0 ? Math.min(1.5, Math.max(0.5, weight / 150)) : 1.0;
 
         // ENHANCED: Form breakdown multiplier (Häkkinen & Komi 1983)
-        // Form breakdown indicates neuromuscular fatigue
         let formBreakdownMultiplier = 1.0;
         if (set.formBreakdown === true) {
-          formBreakdownMultiplier = 1.5; // 50% more fatigue
+          formBreakdownMultiplier = 1.5;
         }
 
         // ENHANCED: Failure multiplier (Izquierdo et al. 2006)
-        // Reaching failure disproportionately stresses CNS
         let failureMultiplier = 1.0;
         if (set.reachedFailure === true) {
-          failureMultiplier = 1.3; // 30% more fatigue
+          failureMultiplier = 1.4;
         }
 
-        // ENHANCED: Tempo slowdown detection (González-Badillo & Sánchez-Medina 2010)
-        // Slower tempo indicates velocity loss and fatigue
+        // ENHANCED: Tempo slowdown detection
         let tempoMultiplier = 1.0;
         if (set.setDurationSeconds && set.actualReps && set.actualReps > 0) {
           const avgSecondsPerRep = set.setDurationSeconds / set.actualReps;
           const exercise = defaultExercises.find(ex => ex.id === set.exerciseId);
           const isCompound = exercise?.type === 'compound';
-          const slowThreshold = isCompound ? 4 : 3; // Compound lifts naturally slower
+          const slowThreshold = isCompound ? 4 : 3;
 
           if (avgSecondsPerRep > slowThreshold) {
-            tempoMultiplier = 1.2; // 20% more fatigue
+            tempoMultiplier = 1.2;
           }
         }
 
-        const contribution = rpeOvershoot * interference * repsMultiplier *
-                            formBreakdownMultiplier * failureMultiplier * tempoMultiplier * 10; // Scale to 0-100
+        // RPE OVERSHOOT BONUS: Still give extra penalty for overshooting targets
+        let overshootBonus = 0;
+        if (set.prescribedRPE && set.actualRPE && set.actualRPE > set.prescribedRPE) {
+          overshootBonus = (set.actualRPE - set.prescribedRPE) * 3;
+        }
+
+        // FINAL FATIGUE CONTRIBUTION
+        // Base contribution = intensity × volume × load × interference × multipliers
+        // Each set at RPE 8+ with decent volume contributes ~8-15 fatigue points
+        const baseContribution = rpeIntensity * repsMultiplier * loadFactor * interference * 12;
+        const contribution = baseContribution * formBreakdownMultiplier * failureMultiplier * tempoMultiplier + overshootBonus;
 
         totalFatigue += contribution;
 
-        if (contribution > 0.5) { // Only track meaningful contributions
+        if (contribution > 1) {
           const exercise = defaultExercises.find(ex => ex.id === set.exerciseId);
           contributions.push({
             exerciseId: set.exerciseId,
-            exerciseName: exercise?.name || set.exerciseId,
+            exerciseName: exercise?.name || set.exerciseName || set.exerciseId,
             setIndex: set.setIndex,
-            rpeOvershoot,
+            rpeOvershoot: set.prescribedRPE && set.actualRPE ? set.actualRPE - set.prescribedRPE : 0,
             interferenceWeight: interference,
             contribution,
           });

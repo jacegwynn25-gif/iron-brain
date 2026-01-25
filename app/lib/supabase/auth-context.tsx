@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from './client';
 import { syncPendingWorkouts } from './auto-sync';
@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   namespaceId: string | null;
   namespaceReady: boolean;
+  isSyncing: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
@@ -26,15 +27,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [namespaceId, setNamespaceId] = useState<string | null>(null);
   const [namespaceReady, setNamespaceReady] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Track last applied session to prevent duplicate state changes
+  const lastAppliedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     const applySessionState = (nextSession: Session | null) => {
       if (!active) return;
+
+      // Deduplicate: Don't re-apply if same session user
+      const sessionKey = nextSession?.user?.id ?? 'null';
+      if (sessionKey === lastAppliedSessionRef.current) {
+        console.log('[Auth] Session already applied, skipping:', sessionKey);
+        return;
+      }
+      lastAppliedSessionRef.current = sessionKey;
+
       const currentUser = nextSession?.user ?? null;
       const newNamespaceId = currentUser?.id ?? null;
 
+      console.log('[Auth] Applying session state:', { hasUser: !!currentUser, userId: newNamespaceId });
       setUserNamespace(newNamespaceId);
       setNamespaceId(newNamespaceId);
       setNamespaceReady(true);
@@ -43,12 +58,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    const syncPending = (userId: string) => {
-      setTimeout(() => {
-        syncPendingWorkouts(userId).catch(err => {
-          console.error('Failed to sync pending workouts on load:', err);
-        });
-      }, 1000);
+    const syncPending = async (userId: string) => {
+      setIsSyncing(true);
+      console.log('[Auth] Starting workout sync...');
+      try {
+        await syncPendingWorkouts(userId);
+        console.log('[Auth] Workout sync complete');
+      } catch (err) {
+        console.error('[Auth] Failed to sync pending workouts:', err);
+      } finally {
+        setIsSyncing(false);
+      }
     };
 
     const reconcileSession = async () => {
@@ -69,25 +89,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const getInitialSession = async () => {
       let didTimeout = false;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      console.log('[Auth] Getting initial session...');
       try {
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-          setTimeout(() => {
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => {
+          timeoutId = setTimeout(() => {
             didTimeout = true;
+            console.log('[Auth] Session fetch timed out after 3s');
             resolve({ data: { session: null } });
-          }, 3000)
-        );
+          }, 3000);
+        });
 
         const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+        // CRITICAL: Clear timeout if session resolved first to prevent cascade
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        console.log('[Auth] Initial session result:', { hasSession: !!session, didTimeout });
         applySessionState(session);
 
         if (session?.user) {
           syncPending(session.user.id);
         } else if (didTimeout) {
+          console.log('[Auth] Attempting session reconciliation...');
           void reconcileSession();
         }
       } catch (error) {
-        console.error('❌ Failed to get initial session:', error);
+        if (timeoutId) clearTimeout(timeoutId);
+        console.error('[Auth] Failed to get initial session:', error);
 
         // Assume logged out and continue
         applySessionState(null);
@@ -169,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Create a promise that races with a timeout
+      // Try Supabase signout with timeout
       const signOutPromise = supabase.auth.signOut();
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Sign out timeout')), 5000)
@@ -177,25 +209,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const result = await Promise.race([signOutPromise, timeoutPromise]) as { error: Error | null };
-
-        if (result && result.error) {
+        if (result?.error) {
           console.error('❌ Supabase signOut error:', result.error);
-          throw result.error;
         }
       } catch (timeoutError) {
         console.warn('⚠️ Supabase signOut timed out, forcing local sign out:', timeoutError);
+        // Don't await - fire and forget to prevent hanging
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       }
-
-      // Explicitly reset namespace and state to ensure clean sign-out
-      setUserNamespace(null);
-      setNamespaceId(null);
-      setNamespaceReady(true);
-      setUser(null);
-      setSession(null);
     } catch (error) {
-      console.error('❌ Error signing out:', error);
-      throw error;
+      console.error('❌ Error during signout:', error);
     }
+
+    // ALWAYS clear state, regardless of Supabase call success
+    // This ensures the UI updates even if the API call hangs
+    lastAppliedSessionRef.current = 'null';
+    setUserNamespace(null);
+    setNamespaceId(null);
+    setNamespaceReady(true);
+    setUser(null);
+    setSession(null);
+    console.log('[Auth] Signed out successfully');
   };
 
   const value = {
@@ -204,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     namespaceId,
     namespaceReady,
+    isSyncing,
     signUp,
     signIn,
     signInWithGoogle,

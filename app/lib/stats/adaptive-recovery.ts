@@ -110,9 +110,15 @@ export function updateFitnessFatigueModel(
   const rawPerformance = newFitness - newFatigue;
 
   // Normalize to 0-100 scale for easier interpretation
-  // Formula: map [-100, 200] → [0, 100]
-  // 0 = extremely overtrained, 50 = neutral, 100 = peak readiness
-  const netPerformance = Math.max(0, Math.min(100, ((rawPerformance + 100) / 300) * 100));
+  // The raw performance typically ranges from -50 (very fatigued) to +100 (well-rested with fitness)
+  // Map this to 0-100 where:
+  //   rawPerformance = -50 → 0 (heavily fatigued)
+  //   rawPerformance = 0   → 50 (balanced - fitness equals fatigue)
+  //   rawPerformance = 50  → 83 (good readiness)
+  //   rawPerformance = 100 → 100 (peak readiness)
+  // Formula: sigmoid-like curve centered at 0, clamped to 0-100
+  const normalizedPerformance = 50 + (rawPerformance / 2);
+  const netPerformance = Math.max(0, Math.min(100, normalizedPerformance));
 
   return {
     userId: previousModel?.userId || '',
