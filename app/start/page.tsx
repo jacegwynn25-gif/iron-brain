@@ -351,15 +351,14 @@ export default function StartWorkoutPage() {
     setActiveProgram(selectedProgram);
     setSelectedWeek(suggestedDay.week);
     setSelectedDayIndex(suggestedDay.dayIndex);
-    // Skip readiness check for now - goes straight to workout
-    setStage('workout');
+    setStage('readiness');
   };
 
   const handleQuickStart = () => {
     setActiveProgram(quickStartProgram);
     setSelectedWeek(1);
     setSelectedDayIndex(0);
-    setStage('workout');
+    setStage('readiness');
   };
 
   const handleChooseDay = () => {
