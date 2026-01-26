@@ -49,7 +49,6 @@ export default function NumericKeypad({
   if (typeof document === 'undefined' || !mounted) return null;
 
   const handlePress = (key: string) => {
-    console.log('[Keypad] handlePress', { key, value });
     if (key === '.') {
       if (!allowDecimal || value.includes('.')) return;
       onChange(value ? `${value}.` : '0.');

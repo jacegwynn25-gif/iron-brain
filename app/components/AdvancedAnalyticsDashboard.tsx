@@ -154,17 +154,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     // Skip reset on initial mount (prevUserId is null) or when auth is resolving (undefined → value)
     // Only reset when user explicitly changes or signs out
     if (prevUserId === null) {
-      console.log('[Analytics] Initial mount, user:', currentUserId);
       return;
     }
 
     if (prevUserId === undefined && currentUserId !== undefined) {
-      console.log('[Analytics] Auth resolved, user:', currentUserId);
       return; // Auth just resolved, don't reset - let loadAnalytics handle it
     }
 
     if (prevUserId !== currentUserId) {
-      console.log('[Analytics] User changed from', prevUserId, 'to', currentUserId, '- resetting state');
       setAnalytics({});
       setCompletedWorkouts([]);
       setCloudSyncing(false);
@@ -384,45 +381,36 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     // Check preconditions BEFORE acquiring lock - this allows proper retry when conditions change
     // If we acquire the lock first and then return early, subsequent calls get blocked unnecessarily
     if (authLoading || !namespaceReady) {
-      console.log('[Analytics] Auth not ready, will retry when ready', { authLoading, namespaceReady });
       return;
     }
 
     if (isSyncing) {
-      console.log('[Analytics] Sync in progress, will retry when complete');
       return;
     }
 
     // Now acquire lock - only for actual loading operations
     if (loadingInProgressRef.current) {
-      console.log('[Analytics] Load already in progress, skipping');
       return;
     }
     loadingInProgressRef.current = true;
 
     try {
-      console.log('[Analytics] Starting load...', { userId: user?.id });
-
       setLoading(initialLoadRef.current);
       setCloudSyncing(false);
       setUserNamespace(user?.id || null);
 
       const localWorkouts = getWorkoutHistory();
-      console.log('[Analytics] Local workouts found:', localWorkouts.length);
       const localCompleted = buildCompletedWorkouts(localWorkouts);
-      console.log('[Analytics] Local completed (after filter):', localCompleted.length);
       updateCoreAnalytics(localCompleted);
 
       // If not logged in, show local data only
       if (!user) {
-        console.log('[Analytics] No user, showing local data only');
         setLoading(false);
         initialLoadRef.current = false;
         return;
       }
 
       setCloudSyncing(true);
-      console.log('[Analytics] Fetching from Supabase for user:', user.id);
       try {
         const { data: supabaseWorkouts, error } = await supabase
           .from('workout_sessions')
@@ -449,30 +437,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           .is('deleted_at', null)
           .order('start_time', { ascending: false });
 
-        console.log('[Analytics] Supabase response:', {
-          count: supabaseWorkouts?.length ?? 0,
-          error: error ? {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-          } : null
-        });
-
         if (error) {
-          console.error('[Analytics] Supabase query error details:', JSON.stringify(error, null, 2));
           throw error;
         }
 
         const supabaseRows: SupabaseWorkoutRow[] = supabaseWorkouts ?? [];
-        if (supabaseRows.length > 0) {
-          console.log('[Analytics] Sample Supabase workout:', {
-            id: supabaseRows[0].id,
-            date: supabaseRows[0].date,
-            setCount: supabaseRows[0].set_logs?.length ?? 0,
-            sampleSet: supabaseRows[0].set_logs?.[0],
-          });
-        }
         const converted: WorkoutSession[] = supabaseRows.map((sw) => ({
           id: sw.id,
           startTime: sw.start_time ?? undefined,
@@ -524,23 +493,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             })();
 
         const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
-        console.log('[Analytics] Merged workouts:', mergedWorkouts.length, '→ Completed after filter:', mergedCompleted.length);
-        if (mergedCompleted.length < 3 && mergedWorkouts.length >= 3) {
-          console.log('[Analytics] WARNING: Workouts filtered out! Sample workout:', JSON.stringify(mergedWorkouts[0], null, 2));
-        }
         updateCoreAnalytics(mergedCompleted);
         initialLoadRef.current = false;
       } catch (err) {
-        // Enhanced error logging to diagnose Supabase issues
-        const error = err as { message?: string; code?: string; details?: string; hint?: string; status?: number };
-        console.error('[Analytics] Failed to load from Supabase:', {
-          message: error?.message || 'Unknown error',
-          code: error?.code,
-          details: error?.details,
-          hint: error?.hint,
-          status: error?.status,
-          raw: JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2)
-        });
+        console.error('Failed to load from Supabase:', err);
       } finally {
         setCloudSyncing(false);
         setLoading(false);
@@ -565,14 +521,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         recoveryProfiles: profiles,
       }));
     } catch (err) {
-      // Enhanced error logging for recovery profile issues
-      const error = err as { message?: string; code?: string; details?: string };
-      console.error('[Recovery] Failed to load recovery profiles:', {
-        message: error?.message || 'Unknown error',
-        code: error?.code,
-        details: error?.details,
-        raw: JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2)
-      });
+      console.error('Failed to load recovery profiles:', err);
     } finally {
       setLoadingRecovery(false);
     }

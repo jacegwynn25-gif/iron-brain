@@ -134,12 +134,6 @@ export default function QuickPicker({
     const rounded = Math.round(nextRaw / step) * step;
     const clamped = Math.max(min, rounded);
     const nextStr = formatValue(clamped);
-    console.log('[QP] increment', {
-      control,
-      prev: current,
-      delta: amount,
-      next: clamped,
-    });
     valueRef.current = nextStr;
     onChange(nextStr);
   };
@@ -168,8 +162,9 @@ export default function QuickPicker({
   const incHandlers = useHoldRepeat(() => incrementValue(step), holdConfig);
   const decHandlers = useHoldRepeat(() => incrementValue(-step), holdConfig);
 
-  const logEvent = (btn: 'plus' | 'minus', type: string) => {
-    console.log(`[QP] ${control} ${btn} ${type}`, { value });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const logEvent = (_btn: 'plus' | 'minus', _type: string) => {
+    // Debug logging removed for production
   };
 
   const addLogs = (

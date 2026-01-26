@@ -96,7 +96,7 @@ export function setUserNamespace(userId: string | null) {
 
 const getKey = (base: string) => {
   if (!isNamespaceInitialized && typeof window !== 'undefined') {
-    console.warn('⚠️ Storage accessed before namespace initialized. Using default namespace.');
+    console.warn('Storage accessed before namespace initialized. Using default namespace.');
   }
   return `${base}__${activeUserNamespace}`;
 };
@@ -158,11 +158,11 @@ export function saveActiveSession(
 
     return true;
   } catch (error) {
-    console.error('❌ Failed to save active session:', error);
+    console.error('Failed to save active session:', error);
 
     // If localStorage is full, try to clear old sessions
     if (error instanceof Error && error.name === 'QuotaExceededError') {
-      console.warn('⚠️ Storage quota exceeded, attempting cleanup...');
+      console.warn('Storage quota exceeded, attempting cleanup...');
       clearStaleActiveSessions();
       // Retry once after cleanup
       try {
@@ -177,7 +177,7 @@ export function saveActiveSession(
         logger.debug('✅ Session saved after cleanup');
         return true;
       } catch {
-        console.error('❌ Failed even after cleanup - storage critically full');
+        console.error('Failed even after cleanup - storage critically full');
         return false;
       }
     }
@@ -205,7 +205,7 @@ export function getActiveSession(
 
     // Validate payload structure
     if (!payload.session || !payload.programId || !payload.savedAt) {
-      console.warn('⚠️ Invalid session payload detected, clearing...');
+      console.warn('Invalid session payload detected, clearing...');
       clearActiveSession(namespace);
       return null;
     }
@@ -217,14 +217,14 @@ export function getActiveSession(
     const isStale = ageHours > maxAgeHours;
 
     if (isStale) {
-      console.warn(`⚠️ Active session is ${ageHours.toFixed(1)}h old - marked as stale`);
+      console.warn(`Active session is ${ageHours.toFixed(1)}h old - marked as stale`);
     } else {
       logger.debug(`✅ Active session found: ${ageHours.toFixed(1)}h old`);
     }
 
     return { payload, ageHours, isStale };
   } catch (error) {
-    console.error('❌ Failed to load active session:', error);
+    console.error('Failed to load active session:', error);
     // Clear corrupted session
     if (userNamespace) {
       clearActiveSession(userNamespace);
@@ -247,7 +247,7 @@ export function clearActiveSession(userNamespace?: string): void {
 
     logger.debug('🗑️ Active session cleared for:', namespace);
   } catch (error) {
-    console.error('❌ Failed to clear active session:', error);
+    console.error('Failed to clear active session:', error);
   }
 }
 
@@ -284,7 +284,7 @@ function clearStaleActiveSessions(): void {
       logger.debug(`🧹 Cleaned up ${keysToRemove.length / 2} stale sessions`);
     }
   } catch (error) {
-    console.error('❌ Failed to clean stale sessions:', error);
+    console.error('Failed to clean stale sessions:', error);
   }
 }
 
@@ -293,14 +293,6 @@ function clearStaleActiveSessions(): void {
 // ============================================================
 
 export async function saveWorkout(session: WorkoutSession, providedUserId?: string | null): Promise<void> {
-  console.log('🔵 saveWorkout called with userId:', providedUserId || 'not provided');
-  console.log('📊 Session data:', {
-    id: session.id,
-    sets: session.sets?.length || 0,
-    hasDate: !!session.date,
-    hasProgramName: !!session.programName
-  });
-  console.log('📋 First 3 sets:', session.sets?.slice(0, 3));
   let sessionToQueue = session;
   try {
     // Normalize session ID to always include a valid UUID
@@ -315,7 +307,7 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
         ...session,
         id: `session_${workoutUuid}`,
       };
-      console.warn('⚠️ Invalid workout session ID detected; regenerated UUID.', {
+      console.warn('Invalid workout session ID detected; regenerated UUID.', {
         previousId: session.id,
         regeneratedId: sessionToSave.id,
       });
@@ -339,16 +331,11 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
     }
 
     // Also save to Supabase if user is logged in
-    console.log('🔍 Checking if user is logged in...');
-
-    // Use provided userId if available, otherwise try to get it
     let user: { id: string } | null = null;
 
     if (providedUserId) {
-      console.log('✅ Using provided userId:', providedUserId);
       user = { id: providedUserId };
     } else {
-      console.log('⚠️ No userId provided, attempting auth.getUser()...');
       // Add timeout to prevent hanging
       try {
         const getUserPromise = supabase.auth.getUser();
@@ -364,23 +351,20 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
         const { data: { user: authUser }, error: userError } = authResult;
 
         if (userError) {
-          console.error('❌ Error getting user:', userError);
+          console.error('Error getting user:', userError);
           queueWorkout();
           return;
         }
 
         user = authUser;
       } catch (error) {
-        console.error('❌ Auth check timed out or failed:', error);
+        console.error('Auth check timed out or failed:', error);
         queueWorkout();
         return;
       }
     }
 
-    console.log('👤 User:', user ? user.id : 'NOT LOGGED IN');
-
     if (user) {
-      console.log('💾 Syncing workout to Supabase for user:', user.id);
 
       // Prepare program metadata for storage
       const metadata: WorkoutMetadata = {};
@@ -390,10 +374,6 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
       if (sessionToSave.weekNumber) metadata.weekNumber = sessionToSave.weekNumber;
       if (sessionToSave.dayOfWeek) metadata.dayOfWeek = sessionToSave.dayOfWeek;
       if (sessionToSave.dayName) metadata.dayName = sessionToSave.dayName;
-
-      console.log('📝 Creating workout session:', { id: workoutUuid, sets: sessionToSave.sets?.length });
-
-      console.log('💾 About to call supabase.from(workout_sessions).upsert()...');
 
       // Create workout session in Supabase with timeout
       let sessionData: { id?: string } | null = null;
@@ -430,10 +410,8 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
         const result: UpsertResponse = await Promise.race([upsertPromise, timeoutPromise]);
         sessionData = result.data;
         sessionError = result.error;
-
-        console.log('✅ Upsert completed:', sessionError ? 'ERROR' : 'SUCCESS');
       } catch (error) {
-        console.error('❌ Upsert failed or timed out:', error);
+        console.error('Upsert failed or timed out:', error);
         sessionError = {
           name: 'PostgrestError',
           message: error instanceof Error ? error.message : 'Unknown error',
@@ -451,22 +429,14 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
           code: sessionError.code,
         };
         console.error('Failed to save workout session to Supabase:', errorPayload);
-        console.error('Workout session payload:', {
-          id: workoutUuid,
-          user_id: user.id,
-          date: sessionToSave.date,
-        });
         queueWorkout();
         return; // Don't try to save sets if session failed
       }
 
       const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
-      console.log('✅ Session saved, ID:', sessionId);
 
       // Save each set
       if (sessionToSave.sets && sessionToSave.sets.length > 0) {
-        console.log(`💾 Saving ${sessionToSave.sets.length} sets to Supabase...`);
-        logger.debug('First set data:', JSON.stringify(sessionToSave.sets[0], null, 2));
 
         let setSyncFailed = false;
 
@@ -516,18 +486,6 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
 
           if (setError) {
             console.error(`Failed to save set ${i + 1}:`, setError);
-            console.error(`Set ${i + 1} error details:`, JSON.stringify(setError, null, 2));
-            console.error(`Set ${i + 1} data being sent:`, {
-              workout_session_id: sessionId,
-              exercise_id: set.exerciseId,
-              order_index: i,
-              set_index: set.setIndex || i + 1,
-              actual_weight: set.actualWeight,
-              weight_unit: set.weightUnit,
-              actual_reps: set.actualReps,
-              actual_rpe: set.actualRPE,
-              actual_rir: set.actualRIR,
-            });
             setSyncFailed = true;
           }
         }
@@ -559,12 +517,10 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
               }
 
               // PHASE 2.5: Save to NEW recovery system (fatigue_events table)
-              console.log(`🔄 Calling saveFatigueEventsToNewSystem with ${completedSets.length} sets`);
               try {
                 await saveFatigueEventsToNewSystem(user.id, sessionId, completedSets);
-                console.log(`✅ Saved fatigue events to new recovery system`);
               } catch (newSystemError) {
-                console.error('❌ Could not save to new recovery system:', newSystemError);
+                console.error('Could not save to new recovery system:', newSystemError);
                 // Non-critical - continue
               }
 
@@ -585,7 +541,7 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
           // Non-critical - continue
         }
       } else {
-        console.warn('⚠️ No sets to save or session failed');
+        console.warn('No sets to save or session failed');
       }
 
       logger.debug('✅ Workout synced to Supabase!');
@@ -667,7 +623,7 @@ export async function updateWorkoutDetails(
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError) {
-      console.error('❌ Error getting user for workout update:', userError);
+      console.error('Error getting user for workout update:', userError);
       return updatedSession;
     }
 
@@ -1551,9 +1507,7 @@ async function saveFatigueEventsToNewSystem(
   sessionId: string,
   completedSets: SetLog[]
 ): Promise<void> {
-  console.log(`📊 saveFatigueEventsToNewSystem called with ${completedSets.length} sets for user ${userId}`);
   if (completedSets.length === 0) {
-    console.log('⚠️ No completed sets, skipping');
     return;
   }
 
@@ -1565,7 +1519,6 @@ async function saveFatigueEventsToNewSystem(
     }
     exerciseMap.get(set.exerciseId)!.push(set);
   }
-  console.log(`📋 Grouped into ${exerciseMap.size} unique exercises`);
 
   // Create fatigue events for each exercise
   const fatigueEvents = [];
@@ -1612,21 +1565,13 @@ async function saveFatigueEventsToNewSystem(
 
   // Bulk insert all events
   if (fatigueEvents.length > 0) {
-    console.log(`💾 Inserting ${fatigueEvents.length} fatigue events into database...`);
-    console.log('Sample event:', JSON.stringify(fatigueEvents[0], null, 2));
-
     const { error } = await supabase
       .from('fatigue_events')
       .insert(fatigueEvents);
 
     if (error) {
-      console.error('❌ Failed to save fatigue events:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Failed to save fatigue events:', error);
       throw error;
     }
-
-    console.log(`✅ Successfully saved ${fatigueEvents.length} fatigue events to new system!`);
-  } else {
-    console.log('⚠️ No fatigue events to insert');
   }
 }

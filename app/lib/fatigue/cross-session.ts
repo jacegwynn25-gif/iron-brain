@@ -135,18 +135,12 @@ export function calculateReadinessScore(
     const peakPenalty = Math.max(0, (maxRecentFatigue - 20) / 15);  // 0-2+ scale
 
     chronicPenalty = Math.min(5, avgPenalty + peakPenalty * 0.5);
-
-    // Log for debugging
-    console.log(`[Readiness] ${muscleGroup}: avg fatigue=${avgRecentFatigue.toFixed(1)}, max=${maxRecentFatigue}, chronic penalty=${chronicPenalty.toFixed(2)}`);
   }
 
   // 3. FREQUENCY PENALTY (30% weight)
   // Penalize training the same muscle too soon
   let frequencyPenalty = 0;
   if (hoursSinceLastTraining !== undefined) {
-    // Log the hours for debugging
-    console.log(`[Readiness] ${muscleGroup}: hoursSinceLastTraining=${hoursSinceLastTraining.toFixed(1)}h (${(hoursSinceLastTraining/24).toFixed(1)} days)`);
-
     if (hoursSinceLastTraining < 12) {
       // Same day - heavy penalty
       frequencyPenalty = 3;
@@ -171,9 +165,6 @@ export function calculateReadinessScore(
 
   // Ensure score is in valid range (1-10)
   readiness = Math.max(1, Math.min(10, readiness));
-
-  // Log final calculation
-  console.log(`[Readiness] ${muscleGroup}: base=${baseReadiness.toFixed(1)}, chronicPenalty=${chronicPenalty.toFixed(2)}, freqPenalty=${frequencyPenalty}, final=${readiness.toFixed(1)}`);
 
   return Math.round(readiness * 10) / 10; // Round to 1 decimal
 }
@@ -298,7 +289,6 @@ export async function getRecoveryProfiles(
 
   // If no database data, calculate from workout history as fallback
   if (rows.length === 0) {
-    console.log('[Recovery] No data in recovery_estimates, calculating from workout history...');
     const fallbackProfiles = await calculateRecoveryFromWorkouts(userId);
     if (muscleGroups && muscleGroups.length > 0) {
       return fallbackProfiles.filter(p => muscleGroups.includes(p.muscleGroup));
@@ -333,15 +323,11 @@ export async function getRecoveryProfiles(
 
   // Calculate current recovery percentages from database data
   const now = new Date();
-  console.log(`[Recovery] Current time: ${now.toISOString()}`);
 
   const profiles: RecoveryProfile[] = rows.map((est) => {
     const lastTrained = new Date(est.last_trained_at);
     const hoursSince = (now.getTime() - lastTrained.getTime()) / (1000 * 60 * 60);
     const daysSince = Math.floor(hoursSince / 24);
-
-    // Debug: log the last trained date
-    console.log(`[Recovery] ${est.muscle_group}: last_trained_at=${est.last_trained_at}, hoursSince=${hoursSince.toFixed(1)}h`);
 
     const recoveryPercentage = calculateRecoveryPercentage(
       est.muscle_group,
@@ -351,11 +337,6 @@ export async function getRecoveryProfiles(
 
     // Get recent fatigue history for this muscle (now properly populated!)
     const recentFatigueHistory = fatigueByMuscle.get(est.muscle_group.toLowerCase()) || [];
-
-    // Log for debugging during development
-    if (recentFatigueHistory.length > 0) {
-      console.log(`[Recovery] ${est.muscle_group}: Found ${recentFatigueHistory.length} fatigue records, avg: ${(recentFatigueHistory.reduce((a, b) => a + b, 0) / recentFatigueHistory.length).toFixed(1)}`);
-    }
 
     const readinessScore = calculateReadinessScore(
       est.muscle_group,
@@ -535,7 +516,6 @@ export async function calculateRecoveryFromWorkouts(
     .order('start_time', { ascending: false });
 
   if (error || !workouts || workouts.length === 0) {
-    console.log('[Recovery] No recent workouts found for fallback calculation');
     return [];
   }
 
@@ -660,8 +640,6 @@ export async function calculateRecoveryFromWorkouts(
       lastFatigueScore: data.fatigueScore,
     });
   }
-
-  console.log(`[Recovery] Calculated ${profiles.length} recovery profiles from workout history`);
 
   // Sort by readiness (worst first)
   return profiles.sort((a, b) => a.readinessScore - b.readinessScore);

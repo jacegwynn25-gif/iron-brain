@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateProgram, UserProfile, analyzeProgramVolume } from '../../../lib/intelligence/builder';
+import { generateProgram, UserProfile } from '../../../lib/intelligence/builder';
 
 /**
  * Evidence-Based Program Generation API
@@ -121,17 +121,6 @@ export async function POST(request: NextRequest) {
 
     // Generate program using evidence-based builder
     const program = generateProgram(userProfile);
-
-    // Analyze for validation (optional - for debugging)
-    const analysis = analyzeProgramVolume(program);
-    if (analysis.warnings.length > 0) {
-      console.log('Program generation warnings:', analysis.warnings);
-    }
-
-    // Log volume distribution for debugging
-    console.log('Generated program:', program.name);
-    console.log('Weekly volume by muscle:', Object.fromEntries(analysis.weeklyVolumeByMuscle));
-    console.log('Total sets/week:', analysis.totalSetsPerWeek);
 
     return NextResponse.json({ program });
   } catch (error) {
