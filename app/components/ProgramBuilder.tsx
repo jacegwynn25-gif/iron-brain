@@ -1215,7 +1215,8 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel, user
               <button
                 onClick={handleSave}
                 disabled={!programName || weeks.length === 0}
-                className="w-full sm:w-auto btn-primary rounded-xl px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                title={!programName ? 'Enter a program name' : weeks.length === 0 ? 'Add at least one week' : 'Save program'}
+                className="w-full sm:w-auto btn-primary rounded-xl px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
                 Save Program
               </button>

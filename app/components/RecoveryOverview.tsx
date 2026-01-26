@@ -33,7 +33,10 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
   if (loading) {
     return (
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold text-white mb-4">Muscle Recovery</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-white">Muscle Recovery</h2>
+          <span className="text-xs text-zinc-500">Loading...</span>
+        </div>
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-pulse">
             <div className="h-6 bg-white/10 rounded w-1/3 mb-2"></div>

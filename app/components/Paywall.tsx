@@ -1,6 +1,7 @@
 'use client';
 
-import { X, Zap, TrendingUp, Shield, Brain } from 'lucide-react';
+import { useState } from 'react';
+import { X, Zap, TrendingUp, Shield, Brain, AlertCircle } from 'lucide-react';
 import { useSubscription } from '../lib/auth/subscription';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/supabase/auth-context';
@@ -14,22 +15,28 @@ export default function Paywall({ onClose, feature }: PaywallProps) {
   const { subscription } = useSubscription();
   const { user } = useAuth();
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const slotsRemaining = subscription.lifetimeSlotsRemaining ?? 200;
   const slotsFilled = 200 - slotsRemaining;
 
   const handleUpgrade = () => {
+    setError(null);
     if (!user?.id) {
-      console.error('No user ID available for checkout');
+      setError('Please sign in to upgrade');
       return;
     }
+    setLoading(true);
     router.push(`/api/checkout?tier=lifetime&user_id=${user.id}`);
   };
 
   const handleMonthly = () => {
+    setError(null);
     if (!user?.id) {
-      console.error('No user ID available for checkout');
+      setError('Please sign in to subscribe');
       return;
     }
+    setLoading(true);
     router.push(`/api/checkout?tier=monthly&user_id=${user.id}`);
   };
 
@@ -122,9 +129,10 @@ export default function Paywall({ onClose, feature }: PaywallProps) {
 
               <button
                 onClick={handleUpgrade}
-                className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 font-bold text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]"
+                disabled={loading}
+                className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 font-bold text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Become a Founding Member
+                {loading ? 'Redirecting...' : 'Become a Founding Member'}
               </button>
             </div>
           </div>
@@ -143,11 +151,19 @@ export default function Paywall({ onClose, feature }: PaywallProps) {
             </div>
             <button
               onClick={handleMonthly}
-              className="w-full rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white hover:bg-white/20 transition-all active:scale-[0.98]"
+              disabled={loading}
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white hover:bg-white/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Subscribe Monthly
+              {loading ? 'Redirecting...' : 'Subscribe Monthly'}
             </button>
           </div>
+
+          {error && (
+            <div className="flex items-center justify-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <p className="text-center text-xs text-gray-400">
             Secure payment powered by Stripe • Cancel anytime

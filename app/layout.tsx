@@ -55,14 +55,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="app-gradient">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh safe-top app-gradient`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh app-gradient`}>
         <ErrorBoundary>
           <AuthProvider>
             <ProgramProvider>
               <WorkoutDataProvider>
                 <SyncQueueListener />
                 <OnboardingWrapper>
-                <main className="pb-20">
+                <main className="pb-24">
                   <RouteTransition>{children}</RouteTransition>
                 </main>
                 <BottomNav />

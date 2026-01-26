@@ -30,13 +30,13 @@ export default function PreWorkoutReadiness(props: PreWorkoutReadinessProps) {
   // Check if user needs to upgrade
   const needsUpgrade = !subscription.isPro;
 
-  // Add timeout for loading state (10 seconds)
+  // Add timeout for loading state (5 seconds) - show skip option sooner
   useEffect(() => {
     if (!loading) return;
 
     const timeout = setTimeout(() => {
       setTimedOut(true);
-    }, 10000);
+    }, 5000);
 
     return () => clearTimeout(timeout);
   }, [loading]);
@@ -51,20 +51,22 @@ export default function PreWorkoutReadiness(props: PreWorkoutReadinessProps) {
               <p className="text-lg font-semibold text-white">Analyzing your readiness...</p>
             </div>
             {timedOut && (
-              <div className="space-y-3 mt-6">
-                <p className="text-sm text-amber-400">This is taking longer than expected</p>
-                <button
-                  onClick={onContinue}
-                  className="rounded-xl bg-purple-600 px-6 py-2.5 font-semibold text-white hover:bg-purple-700 transition-colors"
-                >
-                  Skip and Start Workout
-                </button>
-                <button
-                  onClick={onCancel}
-                  className="ml-3 rounded-xl border border-white/20 bg-white/10 px-6 py-2.5 font-semibold text-white hover:bg-white/20 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="space-y-4 mt-6">
+                <p className="text-sm text-zinc-400">Can&apos;t load readiness data right now</p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={onContinue}
+                    className="w-full rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white hover:bg-purple-700 transition-colors"
+                  >
+                    Start Workout Anyway
+                  </button>
+                  <button
+                    onClick={onCancel}
+                    className="w-full rounded-xl border border-white/20 bg-white/5 px-6 py-3 font-semibold text-zinc-300 hover:bg-white/10 transition-colors"
+                  >
+                    Go Back
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -285,24 +287,30 @@ export default function PreWorkoutReadiness(props: PreWorkoutReadinessProps) {
 
         {/* Actions */}
         <div className="fixed bottom-0 left-0 right-0 border-t border-white/10 bg-zinc-950/95 backdrop-blur px-4 safe-bottom pt-4 pb-4">
-          <div className="mx-auto flex max-w-2xl gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 rounded-xl border border-white/10 bg-white/10 px-6 py-4 font-semibold text-white transition-all hover:bg-white/20 active:scale-[0.98]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onContinue}
-              className={`flex-1 rounded-xl px-6 py-4 font-semibold text-white shadow-lg transition-all active:scale-[0.98] ${
-                status === 'red'
-                  ? 'bg-gray-600 opacity-50 cursor-not-allowed'
-                  : 'btn-primary hover:shadow-xl shadow-purple-500/20'
-              }`}
-              disabled={status === 'red'}
-            >
-              {status === 'red' ? 'Rest Today' : 'Start Workout'}
-            </button>
+          <div className="mx-auto max-w-2xl space-y-3">
+            {status === 'red' && (
+              <p className="text-center text-sm text-amber-400">
+                Your body needs rest. Training today increases injury risk.
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                className="flex-1 rounded-xl border border-white/10 bg-white/10 px-6 py-4 font-semibold text-white transition-all hover:bg-white/20 active:scale-[0.98]"
+              >
+                {status === 'red' ? 'Rest Today' : 'Cancel'}
+              </button>
+              <button
+                onClick={onContinue}
+                className={`flex-1 rounded-xl px-6 py-4 font-semibold text-white shadow-lg transition-all active:scale-[0.98] ${
+                  status === 'red'
+                    ? 'border border-red-500/30 bg-red-600/20 hover:bg-red-600/30'
+                    : 'btn-primary hover:shadow-xl shadow-purple-500/20'
+                }`}
+              >
+                {status === 'red' ? 'Train Anyway' : 'Start Workout'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
