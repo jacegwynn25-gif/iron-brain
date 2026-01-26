@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./providers/AuthProvider";
 import { ProgramProvider } from "./providers/ProgramProvider";
+import { WorkoutDataProvider } from "./providers/WorkoutDataProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import BottomNav from "./components/BottomNav";
 import OnboardingWrapper from "./components/onboarding/OnboardingWrapper";
@@ -58,13 +59,15 @@ export default function RootLayout({
         <ErrorBoundary>
           <AuthProvider>
             <ProgramProvider>
-              <SyncQueueListener />
-              <OnboardingWrapper>
+              <WorkoutDataProvider>
+                <SyncQueueListener />
+                <OnboardingWrapper>
                 <main className="pb-20">
                   <RouteTransition>{children}</RouteTransition>
                 </main>
                 <BottomNav />
               </OnboardingWrapper>
+              </WorkoutDataProvider>
             </ProgramProvider>
           </AuthProvider>
         </ErrorBoundary>

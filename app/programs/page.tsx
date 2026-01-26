@@ -602,9 +602,13 @@ export default function ProgramsPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="hidden sm:flex h-8 items-center rounded-full border border-white/10 bg-white/5 px-4 text-xs text-zinc-300">
-                  {user ? <SyncStatusIndicator /> : <span>Local-only storage</span>}
-                </div>
+                {user ? (
+                  <SyncStatusIndicator className="hidden sm:flex h-8 items-center rounded-full border border-white/10 bg-white/5 px-4 text-xs text-zinc-300" />
+                ) : (
+                  <div className="hidden sm:flex h-8 items-center rounded-full border border-white/10 bg-white/5 px-4 text-xs text-zinc-300">
+                    <span>Local-only storage</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleCreateNewFromBuilder}

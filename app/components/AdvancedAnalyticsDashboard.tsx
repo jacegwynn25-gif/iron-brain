@@ -381,7 +381,19 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   }, [buildCoreAnalytics]);
 
   const loadAnalytics = useCallback(async () => {
-    // Prevent parallel loads from multiple triggers (useEffect + visibility + focus)
+    // Check preconditions BEFORE acquiring lock - this allows proper retry when conditions change
+    // If we acquire the lock first and then return early, subsequent calls get blocked unnecessarily
+    if (authLoading || !namespaceReady) {
+      console.log('[Analytics] Auth not ready, will retry when ready', { authLoading, namespaceReady });
+      return;
+    }
+
+    if (isSyncing) {
+      console.log('[Analytics] Sync in progress, will retry when complete');
+      return;
+    }
+
+    // Now acquire lock - only for actual loading operations
     if (loadingInProgressRef.current) {
       console.log('[Analytics] Load already in progress, skipping');
       return;
@@ -389,23 +401,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     loadingInProgressRef.current = true;
 
     try {
-      console.log('[Analytics] Starting load...', { authLoading, namespaceReady, isSyncing, userId: user?.id });
-
-      // Wait for auth to be ready before doing anything
-      // This prevents showing "no data" while auth is still loading
-      if (authLoading || !namespaceReady) {
-        console.log('[Analytics] Waiting for auth to be ready...');
-        setLoading(true);
-        return;
-      }
-
-      // Wait for workout sync to complete before fetching cloud data
-      // This prevents fetching stale data immediately after sign-in
-      if (isSyncing) {
-        console.log('[Analytics] Waiting for workout sync to complete...');
-        setLoading(true);
-        return;
-      }
+      console.log('[Analytics] Starting load...', { userId: user?.id });
 
       setLoading(initialLoadRef.current);
       setCloudSyncing(false);
@@ -551,9 +547,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       }
     } catch (err) {
       console.error('Error loading analytics:', err);
-      setLoading(false);
     } finally {
+      // Always release lock and reset loading states to prevent stuck UI
       loadingInProgressRef.current = false;
+      setLoading(false);
+      initialLoadRef.current = false;
     }
   }, [authLoading, namespaceReady, isSyncing, user, buildCompletedWorkouts, updateCoreAnalytics, normalizeWorkoutId]);
 

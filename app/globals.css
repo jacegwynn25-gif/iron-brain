@@ -59,9 +59,8 @@ html {
   padding: 0;
   width: 100%;
   height: 100%;
-  /* Ensure background extends to notch/status bar area on iOS */
+  /* Fallback color - gradient applied via .app-gradient class */
   background-color: var(--background);
-  background: var(--background);
 }
 
 body {
@@ -70,8 +69,8 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
+  /* Fallback color - gradient applied via .app-gradient class */
   background-color: var(--background);
-  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;

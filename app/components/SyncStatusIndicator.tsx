@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { Cloud, CloudOff, RefreshCw, Check } from 'lucide-react';
 import { getSyncStatus, type SyncStatus } from '../lib/supabase/auto-sync';
 
-export function SyncStatusIndicator() {
+interface SyncStatusIndicatorProps {
+  className?: string;
+}
+
+export function SyncStatusIndicator({ className }: SyncStatusIndicatorProps) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(getSyncStatus());
   const [justSynced, setJustSynced] = useState(false);
 
@@ -36,9 +40,11 @@ export function SyncStatusIndicator() {
   // Show syncing spinner
   if (syncStatus.isSyncing) {
     return (
-      <div className="flex items-center gap-2 text-xs text-blue-400">
-        <RefreshCw className="h-3 w-3 animate-spin" />
-        <span>Syncing {syncStatus.pendingWorkouts} workouts...</span>
+      <div className={className}>
+        <div className="flex items-center gap-2 text-xs text-blue-400">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          <span>Syncing {syncStatus.pendingWorkouts} workouts...</span>
+        </div>
       </div>
     );
   }
@@ -46,9 +52,11 @@ export function SyncStatusIndicator() {
   // Show just synced checkmark
   if (justSynced) {
     return (
-      <div className="flex items-center gap-2 text-xs text-green-400">
-        <Check className="h-3 w-3" />
-        <span>All workouts synced</span>
+      <div className={className}>
+        <div className="flex items-center gap-2 text-xs text-green-400">
+          <Check className="h-3 w-3" />
+          <span>All workouts synced</span>
+        </div>
       </div>
     );
   }
@@ -56,18 +64,22 @@ export function SyncStatusIndicator() {
   // Show pending workouts
   if (syncStatus.pendingWorkouts > 0) {
     return (
-      <div className="flex items-center gap-2 text-xs text-yellow-400">
-        <CloudOff className="h-3 w-3" />
-        <span>{syncStatus.pendingWorkouts} pending sync</span>
+      <div className={className}>
+        <div className="flex items-center gap-2 text-xs text-yellow-400">
+          <CloudOff className="h-3 w-3" />
+          <span>{syncStatus.pendingWorkouts} pending sync</span>
+        </div>
       </div>
     );
   }
 
   // Show synced status
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-500">
-      <Cloud className="h-3 w-3" />
-      <span>Synced</span>
+    <div className={className}>
+      <div className="flex items-center gap-2 text-xs text-gray-500">
+        <Cloud className="h-3 w-3" />
+        <span>Synced</span>
+      </div>
     </div>
   );
 }
