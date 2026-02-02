@@ -10,6 +10,7 @@ import {
   mergeProgramsWithCloud,
 } from '../supabase/program-sync';
 import { normalizePrograms } from '../programs/normalize';
+import { allPrograms as BUILT_IN_TEMPLATES } from '../programs';
 
 // ============================================
 // STORAGE KEYS
@@ -19,15 +20,6 @@ const getStorageKeys = (namespaceId: string) => ({
   USER_PROGRAMS: `iron_brain_user_programs__${namespaceId}`,
   SELECTED_PROGRAM: `iron_brain_selected_program__${namespaceId}`,
 });
-
-// ============================================
-// BUILT-IN TEMPLATES (Stub - to be expanded)
-// ============================================
-
-export const BUILT_IN_TEMPLATES: ProgramTemplate[] = [
-  // Stub: Add built-in templates here
-  // These are read-only and cannot be modified
-];
 
 // ============================================
 // HOOK: usePrograms
@@ -44,6 +36,7 @@ export interface UseProgramsReturn {
   // Computed
   hasUnsavedChanges: boolean;
   allPrograms: ProgramTemplate[]; // userPrograms + built-in
+  builtInProgramIds: Set<string>;
 
   // Actions
   loadPrograms: () => Promise<void>;
@@ -52,6 +45,7 @@ export interface UseProgramsReturn {
   deleteProgram: (programId: string) => Promise<void>;
   discardChanges: () => void;
   updateSelectedProgram: (updates: Partial<ProgramTemplate>) => void;
+  resolveProgramSelection: (program: ProgramTemplate) => ProgramTemplate;
 }
 
 export interface UseProgramsOptions {
@@ -84,6 +78,11 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     if (!selectedProgram || !originalProgram) return false;
     return JSON.stringify(selectedProgram) !== JSON.stringify(originalProgram);
   }, [selectedProgram, originalProgram]);
+
+  const builtInProgramIds = useMemo(
+    () => new Set(BUILT_IN_TEMPLATES.map((p) => p.id)),
+    []
+  );
 
   const allPrograms = useMemo(() => {
     return [...BUILT_IN_TEMPLATES, ...userPrograms];
@@ -296,6 +295,45 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
   }, [selectedProgram]);
 
   // ============================================
+  // RESOLVE PROGRAM SELECTION (clone built-in)
+  // ============================================
+
+  const createId = useCallback((prefix: string) => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
+    return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  }, []);
+
+  const resolveProgramSelection = useCallback((program: ProgramTemplate): ProgramTemplate => {
+    const isBuiltIn = builtInProgramIds.has(program.id);
+    if (!isBuiltIn) return program;
+
+    // Check if user already cloned this built-in program
+    const existingClone = userPrograms.find(
+      (p) => p.name === program.name && p.id.startsWith('userprog_')
+    );
+    if (existingClone) return existingClone;
+
+    // Clone built-in into user programs
+    const clone: ProgramTemplate = {
+      ...program,
+      id: `userprog_${createId('prog')}`,
+    };
+    const updatedPrograms = [...userPrograms, clone];
+    setUserPrograms(updatedPrograms);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(storageKeys.USER_PROGRAMS, JSON.stringify(updatedPrograms));
+    }
+
+    // Sync clone to cloud
+    if (effectiveUserId) {
+      void saveProgramToCloud({ ...clone, isCustom: true }, effectiveUserId);
+    }
+
+    return clone;
+  }, [builtInProgramIds, userPrograms, createId, storageKeys, effectiveUserId]);
+
+  // ============================================
   // LOAD ON MOUNT & NAMESPACE CHANGE
   // ============================================
 
@@ -318,6 +356,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     // Computed
     hasUnsavedChanges,
     allPrograms,
+    builtInProgramIds,
 
     // Actions
     loadPrograms,
@@ -326,6 +365,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     deleteProgram,
     discardChanges,
     updateSelectedProgram,
+    resolveProgramSelection,
   };
 }
 

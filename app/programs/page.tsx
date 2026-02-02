@@ -17,31 +17,34 @@ import ProgramBuilder from '../components/ProgramBuilder';
 import ProgramCreationChoice, { CreationChoice } from '../components/ProgramCreationChoice';
 import IntelligentProgramBuilder from '../components/IntelligentProgramBuilder';
 import { SyncStatusIndicator } from '../components/SyncStatusIndicator';
-import { storage, setUserNamespace } from '../lib/storage';
+import { storage } from '../lib/storage';
 import { useAuth } from '../lib/supabase/auth-context';
 import { supabase } from '../lib/supabase/client';
-import {
-  loadProgramsFromCloudWithCleanup,
-  saveProgramToCloud,
-  mergeProgramsWithCloud,
-  deleteProgramFromCloud,
-} from '../lib/supabase/program-sync';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
-import { normalizePrograms } from '../lib/programs/normalize';
 import ActiveProgramHero from '../components/programs/ActiveProgramHero';
 import ProgramGrid from '../components/programs/ProgramGrid';
 import ProgramCard from '../components/programs/ProgramCard';
 import ProgramDetailModal from '../components/programs/ProgramDetailModal';
 import { flushUiEvents, trackUiEvent } from '../lib/analytics/ui-events';
+import { usePrograms } from '../lib/hooks/usePrograms';
 
 export default function ProgramsPage() {
   const [hydrated, setHydrated] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
-  const namespaceId = user?.id ?? 'guest';
 
-  const [userPrograms, setUserPrograms] = useState<ProgramTemplate[]>([]);
-  const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
+  const programs = usePrograms();
+  const {
+    userPrograms,
+    selectedProgram,
+    builtInProgramIds,
+    loading: programsLoading,
+    saveProgram,
+    deleteProgram: hookDeleteProgram,
+    selectProgram,
+    resolveProgramSelection,
+  } = programs;
+
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [isBuilding, setIsBuilding] = useState(false);
   const [editingProgramForBuilder, setEditingProgramForBuilder] = useState<ProgramTemplate | undefined>(undefined);
@@ -52,19 +55,6 @@ export default function ProgramsPage() {
   const [pendingAction, setPendingAction] = useState<'builder' | 'detail' | null>(null);
   const [todayKey, setTodayKey] = useState<string>(() =>
     typeof window !== 'undefined' ? new Date().toISOString().split('T')[0] : ''
-  );
-  const builtInProgramIds = useMemo(
-    () => new Set(allPrograms.map((program) => program.id)),
-    []
-  );
-
-  const userProgramsKey = useMemo(
-    () => (namespaceId ? `iron_brain_user_programs__${namespaceId}` : 'iron_brain_user_programs_default'),
-    [namespaceId]
-  );
-  const selectedProgramKey = useMemo(
-    () => (namespaceId ? `iron_brain_selected_program__${namespaceId}` : 'iron_brain_selected_program__guest'),
-    [namespaceId]
   );
 
   useEffect(() => {
@@ -200,47 +190,6 @@ export default function ProgramsPage() {
     loadWorkoutsFromBothSources();
   }, [loadWorkoutsFromBothSources]);
 
-  const loadProgramsFromBothSources = useCallback(async () => {
-    const savedPrograms = localStorage.getItem(userProgramsKey);
-    const localPrograms: ProgramTemplate[] = savedPrograms ? JSON.parse(savedPrograms) : [];
-    const localNormalized = normalizePrograms(localPrograms);
-    const normalizedLocalPrograms = localNormalized.programs;
-    if (localNormalized.changedPrograms.length > 0) {
-      localStorage.setItem(userProgramsKey, JSON.stringify(normalizedLocalPrograms));
-    }
-
-    if (!user) {
-      setUserPrograms(normalizedLocalPrograms);
-      return;
-    }
-
-    try {
-      const { programs: cloudPrograms, changedPrograms: cloudChanged } =
-        await loadProgramsFromCloudWithCleanup(user.id);
-
-      const mergedPrograms = mergeProgramsWithCloud(normalizedLocalPrograms, cloudPrograms);
-      const mergedNormalized = normalizePrograms(mergedPrograms);
-      const finalPrograms = mergedNormalized.programs;
-
-      setUserPrograms(finalPrograms);
-      localStorage.setItem(userProgramsKey, JSON.stringify(finalPrograms));
-
-      if (cloudChanged.length > 0) {
-        cloudChanged.forEach((program) => {
-          void saveProgramToCloud(program, user.id);
-        });
-      }
-    } catch (err) {
-      console.error('Error loading programs from cloud:', err);
-      setUserPrograms(normalizedLocalPrograms);
-    }
-  }, [user, userProgramsKey]);
-
-  useEffect(() => {
-    setUserNamespace(user?.id ?? null);
-    loadProgramsFromBothSources();
-  }, [loadProgramsFromBothSources, user]);
-
   const getSuggestedWeekAndDay = useCallback((program: ProgramTemplate, history: WorkoutSession[], todayIso: string) => {
     const dayOrder: DayTemplate['dayOfWeek'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const todayLabel = dayOrder[new Date().getDay()] as DayTemplate['dayOfWeek'];
@@ -300,32 +249,6 @@ export default function ProgramsPage() {
     return { week: nextWeek.weekNumber, dayIndex: dayIdx !== -1 ? dayIdx : 0 };
   }, []);
 
-  const createId = useCallback((prefix: string) => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
-    return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-  }, []);
-
-  const resolveProgramSelection = useCallback((program: ProgramTemplate) => {
-    const isBuiltIn = builtInProgramIds.has(program.id);
-    if (!isBuiltIn) return program;
-
-    const existingClone = userPrograms.find((p) =>
-      p.name === program.name && p.id.startsWith('userprog_')
-    );
-    if (existingClone) {
-      return existingClone;
-    }
-
-    const clone: ProgramTemplate = {
-      ...program,
-      id: `userprog_${createId('prog')}`,
-    };
-    const updatedUserPrograms = [...userPrograms, clone];
-    setUserPrograms(updatedUserPrograms);
-    localStorage.setItem(userProgramsKey, JSON.stringify(updatedUserPrograms));
-    return clone;
-  }, [userPrograms, userProgramsKey, createId, builtInProgramIds]);
-
   const trackProgramEvent = useCallback(
     (name: string, program: ProgramTemplate, origin: string) => {
       void trackUiEvent(
@@ -362,41 +285,15 @@ export default function ProgramsPage() {
 
   const handleSelectProgram = useCallback((program: ProgramTemplate) => {
     const resolved = resolveProgramSelection(program);
-    localStorage.setItem(selectedProgramKey, resolved.id);
-    setSelectedProgram(resolved);
-  }, [resolveProgramSelection, selectedProgramKey]);
-
-  useEffect(() => {
-    if (!hydrated || selectedProgram) return;
-    if (typeof window === 'undefined') return;
-    const storedId = localStorage.getItem(selectedProgramKey);
-    if (!storedId) return;
-    const program =
-      userPrograms.find((p) => p.id === storedId) ||
-      allPrograms.find((p) => p.id === storedId) ||
-      null;
-    if (program) {
-      handleSelectProgram(program);
-    }
-  }, [hydrated, selectedProgram, selectedProgramKey, userPrograms, handleSelectProgram]);
+    selectProgram(resolved);
+  }, [resolveProgramSelection, selectProgram]);
 
   const handleDeleteProgram = useCallback(async (programId: string) => {
-    const updatedUserPrograms = userPrograms.filter((p) => p.id !== programId);
-    setUserPrograms(updatedUserPrograms);
-    localStorage.setItem(userProgramsKey, JSON.stringify(updatedUserPrograms));
-
-    if (user) {
-      await deleteProgramFromCloud(programId, user.id);
-    }
-
-    if (selectedProgram?.id === programId) {
-      setSelectedProgram(null);
-      localStorage.removeItem(selectedProgramKey);
-    }
+    await hookDeleteProgram(programId);
     if (programDetail?.id === programId) {
       setProgramDetail(null);
     }
-  }, [userPrograms, userProgramsKey, user, selectedProgram?.id, selectedProgramKey, programDetail?.id]);
+  }, [hookDeleteProgram, programDetail?.id]);
 
   const handleCreateNewFromBuilder = () => {
     setEditingProgramForBuilder(undefined);
@@ -422,39 +319,15 @@ export default function ProgramsPage() {
 
   const handleIntelligentBuilderComplete = async (program: ProgramTemplate) => {
     setShowIntelligentBuilder(false);
-
-    const updatedUserPrograms = [...userPrograms, program];
-    setUserPrograms(updatedUserPrograms);
-    localStorage.setItem(userProgramsKey, JSON.stringify(updatedUserPrograms));
-
-    if (user) {
-      await saveProgramToCloud(program, user.id);
-      console.log(`Saved generated program "${program.name}" to cloud`);
-    }
-
-    localStorage.setItem(selectedProgramKey, program.id);
-    setSelectedProgram(program);
+    await saveProgram(program);
+    selectProgram(program);
   };
 
   const handleSaveProgramFromBuilder = async (program: ProgramTemplate) => {
-    const isUpdating = userPrograms.some((p) => p.id === program.id);
-
-    const updatedUserPrograms = isUpdating
-      ? userPrograms.map((p) => (p.id === program.id ? program : p))
-      : [...userPrograms, program];
-
-    setUserPrograms(updatedUserPrograms);
-    localStorage.setItem(userProgramsKey, JSON.stringify(updatedUserPrograms));
-
-    if (user) {
-      await saveProgramToCloud(program, user.id);
-      console.log(`Saved program "${program.name}" to cloud`);
-    }
-
+    await saveProgram(program);
     setIsBuilding(false);
     setEditingProgramForBuilder(undefined);
-    localStorage.setItem(selectedProgramKey, program.id);
-    setSelectedProgram(program);
+    selectProgram(program);
   };
 
   const handleOpenProgramDetail = useCallback(
