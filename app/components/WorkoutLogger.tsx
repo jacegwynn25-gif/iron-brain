@@ -28,6 +28,7 @@ import { getWeightForPercentage } from '../lib/maxes/maxes-service';
 import InWorkoutFatigueAlert from './InWorkoutFatigueAlert';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { convertWeight } from '../lib/units';
+import Card from './ui/Card';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -1325,7 +1326,7 @@ function SetLogger({
   const renderSetBody = () => {
     if (isRestPause) {
       return (
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 sm:p-5">
+        <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-semibold text-white">Rest-Pause Rounds</p>
@@ -1376,18 +1377,18 @@ function SetLogger({
               )}
             </div>
           ))}
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+          <Card variant="inline" className="px-4">
             <p className="text-sm font-semibold text-red-300">
               Total reps: {restPauseRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
             </p>
-          </div>
-        </div>
+          </Card>
+        </Card>
       );
     }
 
     if (isCluster) {
       return (
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 sm:p-5">
+        <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-semibold text-white">Cluster Rounds</p>
@@ -1438,18 +1439,18 @@ function SetLogger({
               )}
             </div>
           ))}
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+          <Card variant="inline" className="px-4">
             <p className="text-sm font-semibold text-indigo-300">
               Total reps: {clusterRounds.reduce((sum, r) => sum + (parseInt(r.reps) || 0), 0)}
             </p>
-          </div>
-        </div>
+          </Card>
+        </Card>
       );
     }
 
     if (isDropSet) {
       return (
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4 sm:p-5">
+        <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-semibold text-white">Drop Set Rounds</p>
@@ -1512,7 +1513,7 @@ function SetLogger({
               )}
             </div>
           ))}
-        </div>
+        </Card>
       );
     }
 
@@ -1739,7 +1740,7 @@ function SetLogger({
   if (!exercise) return null;
 
   return (
-    <div className="rounded-2xl bg-white/5 backdrop-blur-xl p-4 sm:p-5 border border-white/10">
+    <Card>
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className={`flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0 ${
@@ -1754,7 +1755,7 @@ function SetLogger({
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 sm:justify-end sm:flex-none">
-          <p className="text-[11px] sm:text-xs font-semibold text-gray-400 sm:text-right">
+          <p className="text-xs font-semibold text-gray-400 sm:text-right">
             {headerLabel}
             {!editingSet && template.prescribedReps && ` • ${template.prescribedReps} reps`}
             {!editingSet && template.targetRPE && ` @ RPE ${template.targetRPE}`}
@@ -1847,7 +1848,7 @@ function SetLogger({
       </div>
 
       {completedSetsForExercise.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <Card className="mt-4">
           <button
             onClick={() => setShowCompletedSets(!showCompletedSets)}
             className="flex w-full items-center justify-between text-sm font-semibold text-gray-300"
@@ -1889,14 +1890,14 @@ function SetLogger({
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       <div className="sticky bottom-4 z-20 mt-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-2xl bg-white/5 backdrop-blur-xl p-3 border border-white/10 shadow-2xl">
+        <Card className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 shadow-2xl">
           <button
             onClick={handleSubmit}
-            className="group relative flex-1 overflow-hidden rounded-xl btn-primary px-5 py-3.5 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
+            className="group relative flex-1 overflow-hidden rounded-xl btn-primary px-6 py-4 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
           >
             <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex items-center justify-center">
@@ -1911,7 +1912,7 @@ function SetLogger({
               Skip Set
             </button>
           )}
-        </div>
+        </Card>
       </div>
 
       <button
@@ -1920,7 +1921,7 @@ function SetLogger({
       >
         Finish workout early
       </button>
-    </div>
+    </Card>
   );
 }
 
@@ -2041,7 +2042,7 @@ interface ConfirmFinishModalProps {
 function ConfirmFinishModal({ onCancel, onConfirm }: ConfirmFinishModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+      <Card variant="dark" className="w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-white mb-2">Finish workout early?</h2>
         <p className="text-sm text-gray-400 mb-6">
           You still have unfinished sets. Are you sure you want to end this workout now?
@@ -2060,7 +2061,7 @@ function ConfirmFinishModal({ onCancel, onConfirm }: ConfirmFinishModalProps) {
             Finish Anyway
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

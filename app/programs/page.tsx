@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
+import { Button } from '../components/ui/Button';
 import { allPrograms } from '../lib/programs';
 import type {
   ProgramTemplate,
@@ -482,14 +483,13 @@ export default function ProgramsPage() {
                     <span>Local-only storage</span>
                   </div>
                 )}
-                <button
-                  type="button"
+                <Button
                   onClick={handleCreateNewFromBuilder}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-black transition-all hover:bg-zinc-200"
+                  className="bg-white text-black hover:bg-zinc-200 shadow-none gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   Create Program
-                </button>
+                </Button>
               </div>
             </div>
           </header>
@@ -529,27 +529,29 @@ export default function ProgramsPage() {
                   placeholder="Filter programs"
                   className="w-full rounded-xl border border-zinc-800 bg-zinc-950/80 px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-purple-500 focus:outline-none"
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleCreateNewFromBuilder}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-white/20"
+                  className="gap-2"
                 >
                   <Plus className="h-4 w-4" />
                   New
-                </button>
+                </Button>
               </div>
             </div>
 
             {!user && (
               <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200 sm:flex-row sm:items-center sm:justify-between">
                 <span>Backup your programs with cloud sync.</span>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
-                  className="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100 transition-all hover:bg-amber-500/30"
+                  className="border border-amber-500/40 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30"
                 >
                   Enable
-                </button>
+                </Button>
               </div>
             )}
 

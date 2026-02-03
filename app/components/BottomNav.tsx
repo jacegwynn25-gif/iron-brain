@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
   { id: 'programs', label: 'Programs', icon: BookOpen, path: '/programs' },
   { id: 'start', label: 'Start', icon: Plus, path: '/start', isCenter: true },
-  { id: 'insights', label: 'Insights', icon: BarChart3, path: '/analytics' },
+  // { id: 'insights', label: 'Insights', icon: BarChart3, path: '/analytics' },
   { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
 ];
 
@@ -73,7 +73,7 @@ export default function BottomNav() {
                 <div className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-fuchsia-500 shadow-lg shadow-purple-500/30 transition-transform active:scale-[0.98]">
                   <Icon className="w-7 h-7 text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-semibold text-gray-400 mt-1">
+                <span className="text-xs font-semibold text-gray-400 mt-1">
                   {item.label}
                 </span>
               </button>
@@ -102,7 +102,7 @@ export default function BottomNav() {
                 }`}
                 strokeWidth={isActive ? 2.5 : 2}
               />
-              <span className={`text-[10px] mt-1 font-medium ${
+              <span className={`text-xs mt-1 font-medium ${
                 isActive ? 'text-purple-400' : 'text-gray-500'
               }`}>
                 {item.label}

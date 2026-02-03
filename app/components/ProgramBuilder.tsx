@@ -14,6 +14,7 @@ import ExerciseCard from './program-builder/ExerciseCard';
 import MaxesManager from './program-builder/MaxesManager';
 import VolumeInsights from './program-builder/VolumeInsights';
 import { analyzeProgramVolume } from '../lib/intelligence/builder';
+import Card from './ui/Card';
 
 interface ProgramBuilderProps {
   existingProgram?: ProgramTemplate;
@@ -1631,7 +1632,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel, user
         {/* Maxes Manager Modal */}
         {showMaxesManager && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="max-w-4xl w-full max-h-[90vh] overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <Card className="max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 p-6 bg-white/5">
                 <h2 className="text-2xl font-semibold text-white">
                   1RM Management
@@ -1648,7 +1649,7 @@ export default function ProgramBuilder({ existingProgram, onSave, onCancel, user
               <div className="overflow-y-auto p-6">
                 <MaxesManager userId={userId} />
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </div>

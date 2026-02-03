@@ -155,22 +155,22 @@ export default function SmartAlert({
       <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${colors.bg} ${colors.border}`}>
         <Icon className={`h-4 w-4 ${colors.icon} flex-shrink-0`} />
         <div className="min-w-0 flex-1">
-          <p className={`text-[11px] font-black leading-tight ${colors.text} truncate`}>
+          <p className={`text-xs font-black leading-tight ${colors.text} truncate`}>
             {title}
           </p>
-          <p className={`text-[11px] leading-tight ${colors.subtext} truncate`}>
+          <p className={`text-xs leading-tight ${colors.subtext} truncate`}>
             {message}
           </p>
         </div>
         {suggestedWeight && (
-          <span className={`flex-shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-[11px] font-black ${colors.text}`}>
+          <span className={`flex-shrink-0 rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-xs font-black ${colors.text}`}>
             {suggestedWeight} {weightUnit}
           </span>
         )}
         {onApply && (
           <button
             onClick={onApply}
-            className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold text-white ${colors.button} transition-all active:scale-[0.98]`}
+            className={`flex-shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold text-white ${colors.button} transition-all active:scale-[0.98]`}
           >
             Apply
           </button>
@@ -264,7 +264,7 @@ export default function SmartAlert({
                 <span className="text-xs font-bold text-purple-400">
                   Personalized Analysis
                 </span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-xs text-gray-500">
                   (Hierarchical Bayesian Model)
                 </span>
               </div>
@@ -308,7 +308,7 @@ export default function SmartAlert({
                     <div className="text-xs font-bold text-red-300 mb-1">
                       Critical Moment Detected
                     </div>
-                    <div className="text-[11px] text-red-400">
+                    <div className="text-xs text-red-400">
                       {metadata.personalizedAssessment.criticalMoment.interpretation}
                     </div>
                   </div>
@@ -319,7 +319,7 @@ export default function SmartAlert({
                  metadata.personalizedAssessment.reasonsToStop.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {metadata.personalizedAssessment.reasonsToStop.map((reason, i) => (
-                      <div key={i} className="text-[11px] text-red-600 dark:text-red-400 flex items-start gap-1">
+                      <div key={i} className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1">
                         <span>•</span>
                         <span>{reason}</span>
                       </div>
@@ -375,7 +375,7 @@ export default function SmartAlert({
 
                 {/* Sets Needed */}
                 {metadata.powerAnalysis.setsNeededForHighPower > 0 && (
-                  <div className="text-[11px] text-blue-600 dark:text-blue-400 font-mono">
+                  <div className="text-xs text-blue-600 dark:text-blue-400 font-mono">
                     +{metadata.powerAnalysis.setsNeededForHighPower} sets needed for 80% power
                   </div>
                 )}
@@ -390,7 +390,7 @@ export default function SmartAlert({
                 <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                   Data Quality Check
                 </span>
-                <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                   metadata.dataQuality.quality === 'excellent'
                     ? 'bg-green-200 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                     : metadata.dataQuality.quality === 'good'
@@ -418,7 +418,7 @@ export default function SmartAlert({
                 </div>
               </div>
 
-              <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+              <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
                 Outlier detection used Modified Z-Score method (Iglewicz & Hoaglin, 1993).
                 Analysis based on cleaned data for reliability.
               </div>
