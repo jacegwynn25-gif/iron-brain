@@ -4,58 +4,38 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../supabase/auth-context';
 import { storage } from '../storage';
 import { supabase } from '../supabase/client';
-import type { WorkoutSession } from '../types';
-import type { Database } from '../supabase/database.types';
+import type {
+  WorkoutSession,
+  SessionMetadata,
+  SupabaseSetLogRow,
+  SupabaseWorkoutSessionRow,
+} from '../types';
 
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  | 'id'
-  | 'exercise_slug'
-  | 'exercise_id'
-  | 'set_index'
-  | 'prescribed_reps'
-  | 'prescribed_rpe'
-  | 'prescribed_rir'
-  | 'prescribed_percentage'
-  | 'actual_weight'
-  | 'weight_unit'
-  | 'actual_reps'
-  | 'actual_rpe'
-  | 'actual_rir'
-  | 'e1rm'
-  | 'volume_load'
-  | 'rest_seconds'
-  | 'actual_seconds'
-  | 'notes'
-  | 'completed'
->;
+// Convert null to undefined for optional fields
+function nullToUndefined<T>(value: T | null): T | undefined {
+  return value === null ? undefined : value;
+}
 
-type SupabaseWorkoutSessionRow = Pick<
-  Database['public']['Tables']['workout_sessions']['Row'],
-  | 'id'
-  | 'user_id'
-  | 'date'
-  | 'start_time'
-  | 'end_time'
-  | 'duration_minutes'
-  | 'bodyweight'
-  | 'notes'
-  | 'name'
-  | 'metadata'
-  | 'created_at'
-  | 'updated_at'
-> & {
-  set_logs?: SupabaseSetLogRow[];
-};
+// Parse weight unit with explicit handling
+function parseWeightUnit(value: string | null): 'lbs' | 'kg' {
+  if (value === 'kg') return 'kg';
+  if (value === 'lbs') return 'lbs';
+  return 'lbs'; // default
+}
 
-type SessionMetadata = {
-  programName?: string;
-  programId?: string;
-  cycleNumber?: number;
-  weekNumber?: number;
-  dayOfWeek?: number;
-  dayName?: string;
-};
+// Safe metadata parsing with validation
+function parseSessionMetadata(raw: unknown): SessionMetadata {
+  if (typeof raw !== 'object' || raw === null) return {};
+  const obj = raw as Record<string, unknown>;
+  return {
+    programName: typeof obj.programName === 'string' ? obj.programName : undefined,
+    programId: typeof obj.programId === 'string' ? obj.programId : undefined,
+    cycleNumber: typeof obj.cycleNumber === 'number' ? obj.cycleNumber : undefined,
+    weekNumber: typeof obj.weekNumber === 'number' ? obj.weekNumber : undefined,
+    dayOfWeek: typeof obj.dayOfWeek === 'number' ? obj.dayOfWeek : undefined,
+    dayName: typeof obj.dayName === 'string' ? obj.dayName : undefined,
+  };
+}
 
 const getSortTime = (session: WorkoutSession) =>
   new Date(session.endTime || session.startTime || session.date).getTime();
@@ -109,7 +89,7 @@ export function useWorkoutData() {
       // Step 4: Transform Supabase sessions to WorkoutSession format
       const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
       const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
-        const metadata = (s.metadata ?? {}) as SessionMetadata;
+        const metadata = parseSessionMetadata(s.metadata);
         const resolvedProgramName = metadata.programName || s.name || 'Workout';
 
         return {
@@ -133,20 +113,20 @@ export function useWorkoutData() {
             exerciseId: set.exercise_slug || set.exercise_id || '',
             setIndex: set.set_index ?? 0,
             prescribedReps: set.prescribed_reps != null ? String(set.prescribed_reps) : '0',
-            prescribedRPE: set.prescribed_rpe,
-            prescribedRIR: set.prescribed_rir,
-            prescribedPercentage: set.prescribed_percentage,
-            actualWeight: set.actual_weight,
-            weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lbs',
-            actualReps: set.actual_reps,
-            actualRPE: set.actual_rpe,
-            actualRIR: set.actual_rir,
-            e1rm: set.e1rm,
-            volumeLoad: set.volume_load,
-            restTakenSeconds: set.rest_seconds,
-            setDurationSeconds: set.actual_seconds,
+            prescribedRPE: nullToUndefined(set.prescribed_rpe),
+            prescribedRIR: nullToUndefined(set.prescribed_rir),
+            prescribedPercentage: nullToUndefined(set.prescribed_percentage),
+            actualWeight: nullToUndefined(set.actual_weight),
+            weightUnit: parseWeightUnit(set.weight_unit),
+            actualReps: nullToUndefined(set.actual_reps),
+            actualRPE: nullToUndefined(set.actual_rpe),
+            actualRIR: nullToUndefined(set.actual_rir),
+            e1rm: nullToUndefined(set.e1rm),
+            volumeLoad: nullToUndefined(set.volume_load),
+            restTakenSeconds: nullToUndefined(set.rest_seconds),
+            setDurationSeconds: nullToUndefined(set.actual_seconds),
             notes: set.notes ?? undefined,
-            completed: set.completed !== false,
+            completed: set.completed === true, // Explicit: only true if actually true
           })),
         };
       });

@@ -190,7 +190,7 @@ export default function ExerciseMatching({
       <button
         onClick={onComplete}
         disabled={isProcessing || needsReviewMatches.some((m) => !m.matchedExerciseId)}
-        className="w-full py-3 btn-primary disabled:opacity-50 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
+        className="w-full py-3 btn-primary disabled:opacity-50 text-white font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
       >
         {isProcessing ? 'Processing...' : 'Continue to Review'}
       </button>

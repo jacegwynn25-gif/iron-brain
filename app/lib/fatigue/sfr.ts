@@ -233,14 +233,17 @@ export function calculateWorkoutSFR(
     setsByExercise.get(set.exerciseId)!.push(set);
   });
 
-  // Calculate SFR for each exercise
+  // Calculate SFR for each exercise with incremental fatigue.
+  // Exercise order matters: later exercises are performed under accumulated
+  // fatigue from earlier ones, so their fatigue cost should reflect that.
+  // Exercise 1 starts with 0 accumulated fatigue, exercise 2 includes
+  // fatigue from exercise 1, and so on.
   const exerciseAnalyses: SFRAnalysis[] = [];
+  let accumulatedFatigue = 0;
 
   setsByExercise.forEach((exerciseSets, exerciseId) => {
-    // Calculate fatigue based on THIS exercise's sets only
-    // This fixes the temporal attribution error where exercises inherited
-    // fatigue from exercises that happened after them
-    const exerciseFatigue = calculateExerciseFatigueCost(exerciseSets);
+    const exerciseOwnFatigue = calculateExerciseFatigueCost(exerciseSets);
+    const totalFatigueForExercise = exerciseOwnFatigue + accumulatedFatigue;
 
     // Look up exercise name
     const exercise = defaultExercises.find(ex => ex.id === exerciseId);
@@ -248,10 +251,13 @@ export function calculateWorkoutSFR(
 
     const analysis = calculateExerciseSFR(
       exerciseSets,
-      exerciseFatigue,
+      totalFatigueForExercise,
       exerciseName
     );
     exerciseAnalyses.push(analysis);
+
+    // Add this exercise's fatigue AFTER its SFR is calculated
+    accumulatedFatigue += exerciseOwnFatigue;
   });
 
   // Calculate overall workout SFR

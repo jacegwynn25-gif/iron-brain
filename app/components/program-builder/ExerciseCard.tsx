@@ -368,7 +368,7 @@ export default function ExerciseCard({
                 <div className="sm:col-span-2 flex items-center justify-end gap-2">
                   <button
                     onClick={applyBulkEdits}
-                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:bg-purple-700"
+                    className="rounded-xl btn-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition-all"
                   >
                     Apply to All Sets
                   </button>

@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
@@ -10,16 +9,13 @@ import {
   Target,
   Zap,
   Check,
+  Loader2,
 } from 'lucide-react';
-import { useAuth } from '../../lib/supabase/auth-context';
-import { supabase } from '../../lib/supabase/client';
+import { useOnboarding, type Goal, type Experience } from '../../lib/hooks/useOnboarding';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
-
-type Goal = 'strength' | 'muscle' | 'fitness' | 'sport';
-type Experience = 'beginner' | 'intermediate' | 'advanced';
 
 const goals = [
   { id: 'strength', label: 'Build Strength', description: 'Lift heavier weights', icon: Dumbbell },
@@ -35,81 +31,37 @@ const experiences = [
 ];
 
 export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
-  const { user } = useAuth();
-  const [step, setStep] = useState(0);
-  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
-  const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
-  const [age, setAge] = useState<number | null>(null);
-  const [sex, setSex] = useState<'male' | 'female' | 'other' | null>(null);
-  const [bodyweight, setBodyweight] = useState<number | null>(null);
+  const {
+    step,
+    formData,
+    error,
+    isSaving,
+    canProceed,
+    advance,
+    back,
+    setGoal,
+    setExperience,
+    setAge,
+    setSex,
+    setBodyweight,
+    save,
+  } = useOnboarding();
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 4) {
-      setStep(step + 1);
+      advance();
       return;
     }
 
-    onComplete();
-    saveOnboardingData().catch(err => {
-      console.error('Failed to persist onboarding data:', err);
-    });
+    // Final step - save and complete
+    const success = await save();
+    if (success) {
+      onComplete();
+    }
   };
 
   const handleBack = () => {
-    if (step > 0) {
-      setStep(step - 1);
-    }
-  };
-
-  const saveOnboardingData = async () => {
-    localStorage.setItem('iron_brain_onboarding_complete', 'true');
-    localStorage.setItem('iron_brain_user_goal', selectedGoal ?? '');
-    localStorage.setItem('iron_brain_user_experience', selectedExperience ?? '');
-
-    if (user) {
-      // Save to auth metadata
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          onboarding_complete: true,
-          user_goal: selectedGoal ?? undefined,
-          experience_level: selectedExperience ?? undefined,
-        },
-      });
-
-      if (authError) {
-        console.error('Failed to update onboarding metadata:', authError);
-      }
-
-      // Save demographics to database
-      if (age && sex) {
-        const { error: demoError } = await supabase
-          .from('user_demographics')
-          .upsert({
-            user_id: user.id,
-            age,
-            sex,
-            training_age: selectedExperience === 'beginner' ? 0.5 : selectedExperience === 'intermediate' ? 2 : 5,
-            athletic_background: selectedExperience === 'beginner' ? 'beginner' : selectedExperience === 'intermediate' ? 'intermediate' : 'advanced',
-            bodyweight,
-            height: null,
-            current_injuries: [],
-            chronic_conditions: []
-          }, {
-            onConflict: 'user_id'
-          });
-
-        if (demoError) {
-          console.error('Failed to save demographics:', demoError);
-        }
-      }
-    }
-  };
-
-  const canProceed = () => {
-    if (step === 1) return selectedGoal !== null;
-    if (step === 2) return selectedExperience !== null;
-    if (step === 3) return age !== null && sex !== null;
-    return true;
+    back();
   };
 
   return (
@@ -171,11 +123,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <div className="space-y-3">
                 {goals.map((goal) => {
                   const Icon = goal.icon;
-                  const isSelected = selectedGoal === goal.id;
+                  const isSelected = formData.goal === goal.id;
                   return (
                     <button
                       key={goal.id}
-                      onClick={() => setSelectedGoal(goal.id as Goal)}
+                      onClick={() => setGoal(goal.id as Goal)}
                       className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4 ${
                         isSelected
                           ? 'bg-purple-500/20 border-purple-500'
@@ -219,11 +171,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </p>
               <div className="space-y-3">
                 {experiences.map((exp) => {
-                  const isSelected = selectedExperience === exp.id;
+                  const isSelected = formData.experience === exp.id;
                   return (
                     <button
                       key={exp.id}
-                      onClick={() => setSelectedExperience(exp.id as Experience)}
+                      onClick={() => setExperience(exp.id as Experience)}
                       className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                         isSelected
                           ? 'bg-purple-500/20 border-purple-500'
@@ -272,7 +224,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     type="number"
                     min="13"
                     max="120"
-                    value={age || ''}
+                    value={formData.age || ''}
                     onChange={(e) => setAge(parseInt(e.target.value) || null)}
                     className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
                     placeholder="Enter your age"
@@ -291,7 +243,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                         type="button"
                         onClick={() => setSex(option)}
                         className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
-                          sex === option
+                          formData.sex === option
                             ? 'border-purple-500 bg-purple-500/20 text-purple-300'
                             : 'border-white/20 bg-white/5 text-gray-400 hover:border-white/30'
                         }`}
@@ -312,7 +264,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     min="30"
                     max="300"
                     step="0.1"
-                    value={bodyweight || ''}
+                    value={formData.bodyweight || ''}
                     onChange={(e) => setBodyweight(parseFloat(e.target.value) || null)}
                     className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
                     placeholder="e.g. 75"
@@ -340,7 +292,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <div className="bg-white/5 rounded-2xl p-4 text-left max-w-xs mx-auto border border-white/10">
                 <div className="text-sm text-gray-400 mb-2">Your profile:</div>
                 <div className="text-white font-medium">
-                  {goals.find(g => g.id === selectedGoal)?.label} • {experiences.find(e => e.id === selectedExperience)?.label}
+                  {goals.find(g => g.id === formData.goal)?.label} • {experiences.find(e => e.id === formData.experience)?.label}
                 </div>
               </div>
             </motion.div>
@@ -349,6 +301,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         </div>
 
         <div className="px-6 pb-8 pt-4 safe-bottom">
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+              {error.message}
+            </div>
+          )}
           <div className="flex gap-3">
           {step > 0 && (
             <button
@@ -360,15 +317,26 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           )}
           <button
             onClick={handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed || isSaving}
             className={`flex-1 py-4 rounded-2xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
-              canProceed()
+              canProceed && !isSaving
                 ? 'btn-primary text-white shadow-lg shadow-purple-500/20'
                 : 'bg-white/10 text-gray-500'
             }`}
           >
-            {step === 4 ? 'Get Started' : 'Continue'}
-            {step < 4 && <ChevronRight className="w-5 h-5" />}
+            {isSaving ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Saving...
+              </>
+            ) : step === 4 ? (
+              'Get Started'
+            ) : (
+              <>
+                Continue
+                <ChevronRight className="w-5 h-5" />
+              </>
+            )}
           </button>
           </div>
         </div>

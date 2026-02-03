@@ -89,13 +89,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex-1 btn-primary text-white px-4 py-2 rounded-xl transition-all"
               >
                 Try Again
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex-1 btn-secondary text-white px-4 py-2 rounded-xl transition-all"
               >
                 Reload Page
               </button>

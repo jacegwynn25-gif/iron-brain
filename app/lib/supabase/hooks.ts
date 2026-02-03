@@ -1,17 +1,63 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './client';
 import { useAuth } from './auth-context';
+import type { Database } from './database.types';
 
-type WorkoutSessionRow = Record<string, unknown>;
-type ExerciseRow = Record<string, unknown>;
-type UserProgramRow = Record<string, unknown>;
-type PersonalRecordRow = Record<string, unknown>;
-type ExerciseStatRow = Record<string, unknown>;
+// Strictly typed row types from the database schema
+type WorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'];
+type SetLogRow = Database['public']['Tables']['set_logs']['Row'];
+type ExerciseRow = Database['public']['Tables']['exercises']['Row'];
+type ExerciseMuscleRow = Database['public']['Tables']['exercise_muscles']['Row'];
+type MuscleGroupRow = Database['public']['Tables']['muscle_groups']['Row'];
+type UserProgramRow = Database['public']['Tables']['user_programs']['Row'];
+type ProgramTemplateRow = Database['public']['Tables']['program_templates']['Row'];
+type ProgramWeekRow = Database['public']['Tables']['program_weeks']['Row'];
+type ProgramDayRow = Database['public']['Tables']['program_days']['Row'];
+type ProgramSetRow = Database['public']['Tables']['program_sets']['Row'];
+type PersonalRecordRow = Database['public']['Tables']['personal_records']['Row'];
+type ExerciseStatRow = Database['public']['Tables']['exercise_stats']['Row'];
+
+// Extended types for queries with relations
+type WorkoutSessionWithSets = WorkoutSessionRow & {
+  set_logs: SetLogRow[];
+};
+
+type ExerciseMuscleWithGroup = ExerciseMuscleRow & {
+  muscle_groups: Pick<MuscleGroupRow, 'name' | 'category'> | null;
+};
+
+type ExerciseWithMuscles = ExerciseRow & {
+  exercise_muscles: ExerciseMuscleWithGroup[];
+};
+
+type ProgramSetWithExercise = ProgramSetRow & {
+  exercises: ExerciseRow | null;
+};
+
+type ProgramDayWithSets = ProgramDayRow & {
+  program_sets: ProgramSetWithExercise[];
+};
+
+type ProgramWeekWithDays = ProgramWeekRow & {
+  program_days: ProgramDayWithSets[];
+};
+
+type ProgramTemplateWithWeeks = ProgramTemplateRow & {
+  program_weeks: ProgramWeekWithDays[];
+};
+
+type UserProgramWithTemplate = UserProgramRow & {
+  program_templates: ProgramTemplateWithWeeks | null;
+};
+
+type ExerciseStatWithExercise = ExerciseStatRow & {
+  exercises: Pick<ExerciseRow, 'name' | 'slug'> | null;
+};
 
 // Hook to fetch user's workout sessions
 export function useWorkoutSessions() {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<WorkoutSessionRow[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSessionWithSets[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -34,7 +80,7 @@ export function useWorkoutSessions() {
           .order('date', { ascending: false });
 
         if (error) throw error;
-        setSessions(data || []);
+        setSessions((data as WorkoutSessionWithSets[]) || []);
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -51,7 +97,7 @@ export function useWorkoutSessions() {
 // Hook to fetch exercises
 export function useExercises() {
   const { user } = useAuth();
-  const [exercises, setExercises] = useState<ExerciseRow[]>([]);
+  const [exercises, setExercises] = useState<ExerciseWithMuscles[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -73,7 +119,7 @@ export function useExercises() {
           .order('name');
 
         if (error) throw error;
-        setExercises(data || []);
+        setExercises((data as ExerciseWithMuscles[]) || []);
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -90,7 +136,7 @@ export function useExercises() {
 // Hook to fetch user's active program
 export function useActiveProgram() {
   const { user } = useAuth();
-  const [program, setProgram] = useState<UserProgramRow | null>(null);
+  const [program, setProgram] = useState<UserProgramWithTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -126,7 +172,7 @@ export function useActiveProgram() {
           .single();
 
         if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-        setProgram(data);
+        setProgram(data as UserProgramWithTemplate | null);
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -186,7 +232,7 @@ export function usePersonalRecords(exerciseId?: string) {
 // Hook to fetch exercise stats
 export function useExerciseStats() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<ExerciseStatRow[]>([]);
+  const [stats, setStats] = useState<ExerciseStatWithExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -208,7 +254,7 @@ export function useExerciseStats() {
           .eq('user_id', user.id);
 
         if (error) throw error;
-        setStats(data || []);
+        setStats((data as ExerciseStatWithExercise[]) || []);
       } catch (err) {
         setError(err as Error);
       } finally {
@@ -221,3 +267,21 @@ export function useExerciseStats() {
 
   return { stats, loading, error };
 }
+
+// Re-export types for consumers
+export type {
+  WorkoutSessionRow,
+  WorkoutSessionWithSets,
+  SetLogRow,
+  ExerciseRow,
+  ExerciseWithMuscles,
+  UserProgramRow,
+  UserProgramWithTemplate,
+  PersonalRecordRow,
+  ExerciseStatRow,
+  ExerciseStatWithExercise,
+  ProgramTemplateRow,
+  ProgramWeekRow,
+  ProgramDayRow,
+  ProgramSetRow,
+};
