@@ -1,55 +1,160 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../supabase/auth-context';
 import {
-  getRecoveryAssessment,
-  type RecoveryAssessment
+  calculateTrainingReadiness,
+  type TrainingReadiness
 } from '../intelligence/recovery-integration-service';
 
 interface UseRecoveryStateOptions {
   autoRefresh?: boolean; // Auto-refresh every N minutes
   refreshIntervalMinutes?: number; // Default 30 minutes
-  useCached?: boolean; // Use cached data if recent enough
 }
 
 interface UseRecoveryStateResult {
-  assessment: RecoveryAssessment | null;
+  readiness: TrainingReadiness | null;
   loading: boolean;
   error: Error | null;
   refresh: () => Promise<void>;
   lastUpdated: Date | null;
 }
 
+type InjuryRiskLevel = 'low' | 'medium' | 'high' | 'very_high' | 'critical';
+
+type BodyRegion = 'upper' | 'lower' | 'unknown';
+
+interface DerivedInjuryRisk {
+  overallRiskLevel: InjuryRiskLevel;
+  warnings: string[];
+  score: number;
+  modifier: number;
+}
+
+interface MuscleRecoveryStatus {
+  muscle: string;
+  status: string;
+  emoji: string;
+  recoveryPercentage: number;
+  modifier: number;
+}
+
+interface RegionRecovery {
+  modifier: number;
+  recoveryPercentage: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function toRecoveryPercentage(modifier: number): number {
+  return clamp(Math.round(modifier * 100), 0, 100);
+}
+
+function classifyExercise(exerciseName: string | null): BodyRegion {
+  if (!exerciseName) return 'unknown';
+
+  const lower = exerciseName.toLowerCase();
+  const isUpper =
+    lower.includes('upper') ||
+    lower.includes('push') ||
+    lower.includes('pull') ||
+    lower.includes('chest') ||
+    lower.includes('back') ||
+    lower.includes('arm') ||
+    lower.includes('shoulder');
+
+  if (isUpper) return 'upper';
+
+  const isLower =
+    lower.includes('lower') ||
+    lower.includes('leg') ||
+    lower.includes('squat') ||
+    lower.includes('glute') ||
+    lower.includes('hamstring') ||
+    lower.includes('quad');
+
+  if (isLower) return 'lower';
+
+  return 'unknown';
+}
+
+function toMuscleStatus(muscle: string, modifier: number): MuscleRecoveryStatus {
+  const recoveryPercentage = toRecoveryPercentage(modifier);
+
+  if (recoveryPercentage >= 95) {
+    return {
+      muscle,
+      status: 'Ready to push',
+      emoji: '💪',
+      recoveryPercentage,
+      modifier: Number(modifier.toFixed(3))
+    };
+  }
+
+  if (recoveryPercentage >= 85) {
+    return {
+      muscle,
+      status: 'Recovering',
+      emoji: '🤔',
+      recoveryPercentage,
+      modifier: Number(modifier.toFixed(3))
+    };
+  }
+
+  return {
+    muscle,
+    status: 'Still fatigued',
+    emoji: '😴',
+    recoveryPercentage,
+    modifier: Number(modifier.toFixed(3))
+  };
+}
+
+function deriveInjuryRisk(readiness: TrainingReadiness): DerivedInjuryRisk {
+  let overallRiskLevel: InjuryRiskLevel = 'low';
+
+  if (readiness.score < 40) overallRiskLevel = 'critical';
+  else if (readiness.score < 50) overallRiskLevel = 'very_high';
+  else if (readiness.score < 65) overallRiskLevel = 'high';
+  else if (readiness.score < 80) overallRiskLevel = 'medium';
+
+  const warningSet = new Set<string>();
+
+  if (overallRiskLevel !== 'low') {
+    warningSet.add(readiness.reason);
+    warningSet.add(readiness.recommendation);
+  }
+
+  return {
+    overallRiskLevel,
+    warnings: Array.from(warningSet),
+    score: readiness.score,
+    modifier: readiness.modifier
+  };
+}
+
 /**
- * React hook to fetch and manage recovery assessment data
- *
- * Usage:
- * ```typescript
- * const { assessment, loading, error, refresh } = useRecoveryState({
- *   useCached: true,
- *   autoRefresh: true,
- *   refreshIntervalMinutes: 30
- * });
- * ```
+ * React hook to fetch and manage training readiness data
  */
 export function useRecoveryState(
   options: UseRecoveryStateOptions = {}
 ): UseRecoveryStateResult {
   const {
     autoRefresh = false,
-    refreshIntervalMinutes = 30,
-    useCached = true
+    refreshIntervalMinutes = 30
   } = options;
 
   const { user } = useAuth();
-  const [assessment, setAssessment] = useState<RecoveryAssessment | null>(null);
+  const [readiness, setReadiness] = useState<TrainingReadiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchAssessment = useCallback(async (forceRefresh: boolean = false) => {
+  const fetchReadiness = useCallback(async () => {
     if (!user?.id) {
+      setReadiness(null);
       setLoading(false);
       return;
     }
@@ -58,25 +163,21 @@ export function useRecoveryState(
       setLoading(true);
       setError(null);
 
-      const result = await getRecoveryAssessment(
-        user.id,
-        forceRefresh ? false : useCached
-      );
-
-      setAssessment(result);
+      const result = await calculateTrainingReadiness(user.id);
+      setReadiness(result);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Error fetching recovery assessment:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch recovery data'));
+      console.error('Error fetching training readiness:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch training readiness data'));
     } finally {
       setLoading(false);
     }
-  }, [user?.id, useCached]);
+  }, [user?.id]);
 
   // Initial fetch
   useEffect(() => {
-    fetchAssessment();
-  }, [fetchAssessment]);
+    void fetchReadiness();
+  }, [fetchReadiness]);
 
   // Auto-refresh interval
   useEffect(() => {
@@ -84,18 +185,18 @@ export function useRecoveryState(
 
     const intervalMs = refreshIntervalMinutes * 60 * 1000;
     const interval = setInterval(() => {
-      fetchAssessment();
+      void fetchReadiness();
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshIntervalMinutes, user?.id, fetchAssessment]);
+  }, [autoRefresh, refreshIntervalMinutes, user?.id, fetchReadiness]);
 
   const refresh = useCallback(async () => {
-    await fetchAssessment(true); // Force refresh (no cache)
-  }, [fetchAssessment]);
+    await fetchReadiness();
+  }, [fetchReadiness]);
 
   return {
-    assessment,
+    readiness,
     loading,
     error,
     refresh,
@@ -104,17 +205,19 @@ export function useRecoveryState(
 }
 
 /**
- * Hook specifically for injury risk data
- * Useful when you only need injury warnings without full recovery state
+ * Hook for readiness-driven injury risk summary
  */
 export function useInjuryRisk() {
-  const { assessment, loading, error, refresh } = useRecoveryState({
-    useCached: true
-  });
+  const { readiness, loading, error, refresh } = useRecoveryState();
+
+  const injuryRisk = useMemo(() => {
+    if (!readiness) return null;
+    return deriveInjuryRisk(readiness);
+  }, [readiness]);
 
   return {
-    injuryRisk: assessment?.injuryRisk ?? null,
-    injuryWarning: assessment?.injuryWarning ?? null,
+    injuryRisk,
+    injuryWarning: injuryRisk?.warnings[0] ?? null,
     loading,
     error,
     refresh
@@ -123,20 +226,30 @@ export function useInjuryRisk() {
 
 /**
  * Hook for pre-workout readiness check
- * Returns simplified readiness data for traffic light UI
  */
 export function usePreWorkoutReadiness() {
-  const { assessment, loading, error, refresh } = useRecoveryState({
-    useCached: true
-  });
+  const { readiness, loading, error, refresh } = useRecoveryState();
+
+  const recommendations = useMemo(() => {
+    if (!readiness) return [];
+
+    const unique = new Set<string>();
+    unique.add(readiness.recommendation);
+    unique.add(readiness.reason);
+
+    return Array.from(unique);
+  }, [readiness]);
 
   return {
-    readinessMessage: assessment?.readinessMessage ?? null,
-    overallRecovery: assessment?.recoveryState?.overallRecoveryScore ?? 0,
-    muscleStatuses: assessment?.muscleStatuses ?? [],
-    injuryWarning: assessment?.injuryWarning ?? null,
-    dataQuality: assessment?.dataQuality ?? 'low',
-    confidence: assessment?.confidence ?? 0,
+    score: readiness?.score ?? 0,
+    modifier: readiness?.modifier ?? 1,
+    recommendation: readiness?.recommendation ?? '',
+    recommendations,
+    reason: readiness?.reason ?? '',
+    focusAdjustments: readiness?.focus_adjustments ?? {
+      upper_body_modifier: 1,
+      lower_body_modifier: 1
+    },
     loading,
     error,
     refresh
@@ -144,41 +257,55 @@ export function usePreWorkoutReadiness() {
 }
 
 /**
- * Hook for muscle-specific recovery data
- * Useful for recovery dashboard
+ * Hook for region-specific readiness data
  */
 export function useMuscleRecovery() {
-  const { assessment, loading, error, refresh } = useRecoveryState({
-    useCached: true,
+  const { readiness, loading, error, refresh } = useRecoveryState({
     autoRefresh: true,
     refreshIntervalMinutes: 30
   });
 
+  const muscleStatuses = useMemo(() => {
+    if (!readiness) return [];
+
+    return [
+      toMuscleStatus('Upper Body', readiness.focus_adjustments.upper_body_modifier),
+      toMuscleStatus('Lower Body', readiness.focus_adjustments.lower_body_modifier)
+    ];
+  }, [readiness]);
+
+  const muscles = useMemo(() => {
+    return new Map<string, RegionRecovery>(
+      muscleStatuses.map((status) => [
+        status.muscle,
+        {
+          modifier: status.modifier,
+          recoveryPercentage: status.recoveryPercentage
+        }
+      ])
+    );
+  }, [muscleStatuses]);
+
   const getMuscleStatus = useCallback((muscleName: string) => {
-    if (!assessment?.recoveryState?.muscles) return null;
-    return assessment.recoveryState.muscles.get(muscleName) ?? null;
-  }, [assessment]);
+    return muscles.get(muscleName) ?? null;
+  }, [muscles]);
 
   const getExerciseStatus = useCallback((exerciseName: string) => {
-    if (!assessment?.recoveryState?.exercises) return null;
-    return assessment.recoveryState.exercises.get(exerciseName) ?? null;
-  }, [assessment]);
-
-  // Enhance muscle statuses with recovery percentages
-  const enhancedMuscleStatuses = (assessment?.muscleStatuses ?? []).map(status => {
-    const muscleState = assessment?.recoveryState?.muscles.get(status.muscle);
-    return {
-      ...status,
-      recoveryPercentage: muscleState?.recoveryPercentage ?? 0
-    };
-  });
+    const region = classifyExercise(exerciseName);
+    if (region === 'upper') return muscles.get('Upper Body') ?? null;
+    if (region === 'lower') return muscles.get('Lower Body') ?? null;
+    return null;
+  }, [muscles]);
 
   return {
-    muscles: assessment?.recoveryState?.muscles ?? new Map(),
-    exercises: assessment?.recoveryState?.exercises ?? new Map(),
-    muscleStatuses: enhancedMuscleStatuses,
+    muscles,
+    exercises: new Map<string, RegionRecovery>(),
+    muscleStatuses,
     getMuscleStatus,
     getExerciseStatus,
+    score: readiness?.score ?? 0,
+    modifier: readiness?.modifier ?? 1,
+    recommendation: readiness?.recommendation ?? '',
     loading,
     error,
     refresh
@@ -186,13 +313,12 @@ export function useMuscleRecovery() {
 }
 
 /**
- * Hook for set recommendations during workout
- * Takes current exercise and provides dynamic weight adjustment
+ * Hook for per-exercise set recommendation during workout
  */
 export function useSetRecommendation(exerciseName: string | null) {
-  const { assessment, loading } = useRecoveryState({ useCached: true });
+  const { readiness, loading } = useRecoveryState();
 
-  if (!exerciseName || !assessment) {
+  if (!exerciseName || !readiness) {
     return {
       recommendation: null,
       muscleReadiness: 0,
@@ -201,25 +327,25 @@ export function useSetRecommendation(exerciseName: string | null) {
     };
   }
 
-  const exerciseState = assessment.recoveryState?.exercises.get(exerciseName);
-  const exerciseReadiness = exerciseState?.recoveryPercentage ?? 100;
+  const region = classifyExercise(exerciseName);
+  const suggestedWeightMultiplier =
+    region === 'upper'
+      ? readiness.focus_adjustments.upper_body_modifier
+      : region === 'lower'
+        ? readiness.focus_adjustments.lower_body_modifier
+        : readiness.modifier;
 
-  // Find primary muscles for this exercise
-  // TODO: Import EXERCISE_PATTERNS to get muscle involvement
-  const muscleReadiness = assessment.recoveryState?.overallRecoveryScore ?? 100;
+  const exerciseReadiness = toRecoveryPercentage(suggestedWeightMultiplier);
 
   return {
     recommendation: {
       exerciseName,
       readiness: exerciseReadiness,
-      suggestedWeightMultiplier: exerciseReadiness >= 85 ? 1.0 :
-                                  exerciseReadiness >= 60 ? 0.85 :
-                                  0.70,
-      message: exerciseReadiness >= 85 ? 'Fully recovered - train normally' :
-               exerciseReadiness >= 60 ? 'Partially recovered - reduce weight 15%' :
-               'Still fatigued - reduce weight 30% or skip'
+      suggestedWeightMultiplier: Number(suggestedWeightMultiplier.toFixed(3)),
+      message: readiness.recommendation,
+      reason: readiness.reason
     },
-    muscleReadiness,
+    muscleReadiness: readiness.score,
     exerciseReadiness,
     loading
   };

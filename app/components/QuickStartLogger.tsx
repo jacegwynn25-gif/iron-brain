@@ -22,6 +22,8 @@ import { getCustomExercises } from '../lib/exercises/custom-exercises';
 import CreateExerciseModal from './program-builder/CreateExerciseModal';
 import WorkoutSummary from './WorkoutSummary';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
+import { Button } from './ui/Button';
+import Card from './ui/Card';
 
 interface QuickStartSet {
   id: string;
@@ -419,7 +421,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
 
   return (
     <div className="min-h-screen app-gradient safe-top pb-32">
-      <div className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur-xl border-b border-white/10">
+      <div className="sticky top-0 z-30 bg-black/20 backdrop-blur-xl border-b border-white/10">
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-white">{workoutName.trim() || 'Quick Workout'}</h1>
@@ -442,17 +444,19 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
               )}
             </div>
           </div>
-          <button
+          <Button
             onClick={onCancel}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+            variant="ghost"
+            size="sm"
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        <div className="bg-white/5 rounded-2xl border border-white/10 p-4">
+        <Card>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Workout Name
           </label>
@@ -462,7 +466,7 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
             placeholder="Quick Workout"
             className="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-white text-sm font-medium focus:border-purple-500 focus:outline-none"
           />
-        </div>
+        </Card>
 
         {exercises.map((exercise) => {
           const totalLoggedSets = exercise.sets.filter(
@@ -472,14 +476,16 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
           const progressText = totalLoggedSets > 0 ? `${completedSets}/${totalLoggedSets} sets` : '0 sets';
 
           return (
-            <div
+            <Card
               key={exercise.id}
-              className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden"
+              className="overflow-hidden p-0"
             >
               <div className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
-                <button
+                <Button
                   onClick={() => toggleExercise(exercise.id)}
-                  className="flex items-center gap-3 flex-1 text-left"
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 justify-start gap-3 text-left px-0 py-0 hover:bg-transparent"
                 >
                   <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
                     <Dumbbell className="w-4 h-4 text-purple-400" />
@@ -488,63 +494,69 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
                     <h3 className="text-white font-semibold">{exercise.exerciseName}</h3>
                     <p className="text-xs text-gray-500">{progressText}</p>
                   </div>
-                </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => deleteExercise(exercise.id)}
-                  className="p-2 text-gray-500 hover:text-red-400 transition-colors"
-                  aria-label="Remove exercise"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => toggleExercise(exercise.id)}
-                  className="p-2 text-gray-500 hover:text-white transition-colors"
-                  aria-label={exercise.isExpanded ? 'Collapse exercise' : 'Expand exercise'}
-                >
-                  <ChevronDown
-                    className={`w-5 h-5 transition-transform ${
-                      exercise.isExpanded ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => deleteExercise(exercise.id)}
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-red-400"
+                    aria-label="Remove exercise"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={() => toggleExercise(exercise.id)}
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-white"
+                    aria-label={exercise.isExpanded ? 'Collapse exercise' : 'Expand exercise'}
+                  >
+                    <ChevronDown
+                      className={`w-5 h-5 transition-transform ${
+                        exercise.isExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            {exercise.isExpanded && (
-              <div className="px-4 pb-4 space-y-2">
-                {exercise.sets.map((set, setIndex) => (
-                  <SetRow
-                    key={set.id}
-                    set={set}
-                    setNumber={setIndex + 1}
-                    onUpdate={(updates) => updateSet(exercise.id, set.id, updates)}
-                    onLog={() => logSet(exercise.id, set.id)}
-                    onDelete={() => deleteSet(exercise.id, set.id)}
-                    showDelete={exercise.sets.length > 1}
-                  />
-                ))}
+              {exercise.isExpanded && (
+                <div className="px-4 pb-4 space-y-2">
+                  {exercise.sets.map((set, setIndex) => (
+                    <SetRow
+                      key={set.id}
+                      set={set}
+                      setNumber={setIndex + 1}
+                      onUpdate={(updates) => updateSet(exercise.id, set.id, updates)}
+                      onLog={() => logSet(exercise.id, set.id)}
+                      onDelete={() => deleteSet(exercise.id, set.id)}
+                      showDelete={exercise.sets.length > 1}
+                    />
+                  ))}
 
-                <button
-                  onClick={() => addSet(exercise.id)}
-                  className="w-full py-2 rounded-xl border border-dashed border-white/20 text-gray-400 text-sm font-medium hover:border-purple-500/50 hover:text-purple-400 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Set
-                </button>
-              </div>
-            )}
-            </div>
+                  <Button
+                    onClick={() => addSet(exercise.id)}
+                    variant="outline"
+                    className="w-full py-2 border-dashed border-white/20 text-gray-400 text-sm font-medium hover:border-purple-500/50 hover:text-purple-400 gap-2 bg-transparent hover:bg-transparent"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Set
+                  </Button>
+                </div>
+              )}
+            </Card>
           );
         })}
 
-        <button
+        <Button
           onClick={() => setShowExercisePicker(true)}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-white/20 text-gray-400 font-semibold hover:border-purple-500/50 hover:text-purple-400 transition-colors flex items-center justify-center gap-2"
+          variant="outline"
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-white/20 text-gray-400 font-semibold hover:border-purple-500/50 hover:text-purple-400 gap-2 bg-transparent hover:bg-transparent"
         >
           <Plus className="w-5 h-5" />
           Add Exercise
-        </button>
+        </Button>
 
         {exercises.length === 0 && (
           <div className="text-center py-12">
@@ -553,31 +565,33 @@ export default function QuickStartLogger({ onComplete, onCancel }: QuickStartLog
             <p className="text-gray-400 text-sm mb-4">
               Add exercises and log sets as you go
             </p>
-            <button
+            <Button
               onClick={() => setShowExercisePicker(true)}
-              className="px-6 py-3 btn-primary rounded-xl text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+              className="px-6 py-3 font-semibold shadow-lg shadow-purple-500/20"
             >
               Add First Exercise
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent safe-bottom">
-        <button
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black/20 backdrop-blur-xl border-t border-white/5 safe-bottom">
+        <Button
           onClick={finishWorkout}
           disabled={stats.totalSets === 0}
-          className={`w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${
+          size="lg"
+          variant={stats.totalSets === 0 ? 'outline' : 'default'}
+          className={`w-full rounded-2xl text-lg font-bold gap-2 ${
             stats.totalSets === 0
-              ? 'bg-white/10 text-gray-500'
-              : 'bg-gradient-to-r from-emerald-600 to-green-500 shadow-emerald-500/20 active:scale-[0.98]'
+              ? 'bg-white/10 text-gray-500 border-white/10'
+              : 'from-emerald-600 to-green-500 shadow-emerald-500/20'
           }`}
         >
           <Check className="w-5 h-5" />
           {stats.totalSets === 0
             ? 'Log a set to finish'
             : `Finish Workout (${stats.totalSets} sets)`}
-        </button>
+        </Button>
       </div>
 
       {showExercisePicker && (
@@ -684,12 +698,14 @@ function SetRow({ set, setNumber, onUpdate, onLog, onDelete, showDelete }: SetRo
         </span>
         <span className="text-sm text-gray-400 flex-1">Set {setNumber}</span>
         {showDelete && (
-          <button
+          <Button
             onClick={onDelete}
-            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-500 hover:text-red-400"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -759,18 +775,19 @@ function SetRow({ set, setNumber, onUpdate, onLog, onDelete, showDelete }: SetRo
         </div>
       </div>
 
-      <button
+      <Button
         onClick={onLog}
         disabled={!canLog}
-        className={`w-full py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+        variant={canLog ? 'default' : 'outline'}
+        className={`w-full py-2.5 font-semibold gap-2 ${
           canLog
-            ? 'btn-primary text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]'
-            : 'bg-white/10 text-gray-500'
+            ? 'shadow-lg shadow-purple-500/20'
+            : 'bg-white/10 text-gray-500 border-white/10'
         }`}
       >
         <Check className="w-4 h-4" />
         Log Set
-      </button>
+      </Button>
     </div>
   );
 }
@@ -796,11 +813,16 @@ function ExercisePicker({
 }: ExercisePickerProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm">
-      <div className="h-full flex flex-col bg-zinc-950 safe-top">
+      <div className="h-full flex flex-col bg-black/80 backdrop-blur-xl safe-top">
         <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white">
+          <Button
+            onClick={onClose}
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-white"
+          >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
@@ -822,13 +844,15 @@ function ExercisePicker({
               </h3>
               <div className="flex flex-wrap gap-2">
                 {recentExercises.map((ex) => (
-                  <button
+                  <Button
                     key={ex.id}
                     onClick={() => onSelect(ex)}
-                    className="px-3 py-1.5 bg-white/10 rounded-full text-sm text-white hover:bg-purple-500/20 hover:text-purple-300 transition-colors"
+                    variant="ghost"
+                    size="sm"
+                    className="px-3 py-1.5 rounded-full bg-white/10 text-sm text-white hover:bg-purple-500/20 hover:text-purple-300"
                   >
                     {ex.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -841,10 +865,11 @@ function ExercisePicker({
             {exercises.length > 0 ? (
               <div className="space-y-1">
                 {exercises.map((ex) => (
-                  <button
+                  <Button
                     key={ex.id}
                     onClick={() => onSelect(ex)}
-                    className="w-full px-4 py-3 bg-white/5 rounded-xl flex items-center gap-3 hover:bg-white/10 transition-colors text-left"
+                    variant="ghost"
+                    className="w-full px-4 py-3 bg-white/5 rounded-xl justify-start gap-3 hover:bg-white/10 text-left"
                   >
                     <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
                       <Dumbbell className="w-5 h-5 text-purple-400" />
@@ -855,7 +880,7 @@ function ExercisePicker({
                         {ex.muscleGroups?.join(', ') || 'No muscles specified'}
                       </div>
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : searchQuery ? (
@@ -867,15 +892,16 @@ function ExercisePicker({
 
           {searchQuery && !exercises.some(ex => ex.name.toLowerCase() === searchQuery.toLowerCase()) && (
             <div className="mt-4 pt-4 border-t border-white/10">
-              <button
+              <Button
                 onClick={onCreateCustom}
-                className="w-full px-4 py-3 bg-purple-500/20 rounded-xl text-purple-400 font-medium hover:bg-purple-500/30 transition-colors"
+                variant="ghost"
+                className="w-full px-4 py-3 bg-purple-500/20 rounded-xl text-purple-400 font-medium hover:bg-purple-500/30"
               >
                 {exercises.length === 0
                   ? `No results - Create "${searchQuery}" as custom exercise`
                   : `+ Create "${searchQuery}" as custom exercise`
                 }
-              </button>
+              </Button>
             </div>
           )}
         </div>

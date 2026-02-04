@@ -29,6 +29,7 @@ import InWorkoutFatigueAlert from './InWorkoutFatigueAlert';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { convertWeight } from '../lib/units';
 import Card from './ui/Card';
+import { Button } from './ui/Button';
 
 interface WorkoutLoggerProps {
   program: ProgramTemplate;
@@ -936,7 +937,7 @@ export default function WorkoutLogger({
     const setPositionForExercise = Math.min(activeSetIndex + 1, totalSetsForExercise);
 
     return (
-      <div className="min-h-screen safe-top app-gradient">
+      <div className="min-h-screen pb-40 safe-top app-gradient">
         <div className="w-full max-w-none px-4 py-6 sm:mx-auto sm:max-w-4xl sm:px-6 sm:py-8">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -1893,34 +1894,33 @@ function SetLogger({
         </Card>
       )}
 
-      <div className="sticky bottom-4 z-20 mt-5">
+      <div className="sticky bottom-28 z-30 mt-5">
         <Card className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 shadow-2xl">
-          <button
+          <Button
             onClick={handleSubmit}
-            className="group relative flex-1 overflow-hidden rounded-xl btn-primary px-6 py-4 text-base font-black text-white shadow-lg transition transform hover:shadow-xl active:scale-[0.98]"
+            size="lg"
+            className="flex-1 shadow-lg data-[state=active]:scale-95"
           >
-            <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition group-hover:opacity-100" />
-            <span className="relative flex items-center justify-center">
-              {editingSet ? 'Update Set' : 'Log Set'}
-            </span>
-          </button>
+            {editingSet ? 'Update Set' : 'Log Set'}
+          </Button>
           {!editingSet && (
-            <button
+            <Button
               onClick={onSkip}
-              className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-xs sm:text-sm font-semibold text-white transition-all active:scale-[0.98]"
+              variant="secondary"
             >
               Skip Set
-            </button>
+            </Button>
           )}
         </Card>
       </div>
 
-      <button
+      <Button
         onClick={onFinishWorkout}
-        className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs sm:text-sm font-semibold text-gray-300 transition-all active:scale-[0.98]"
+        variant="ghost"
+        className="mt-4 w-full text-gray-400"
       >
         Finish workout early
-      </button>
+      </Button>
     </Card>
   );
 }
@@ -1946,7 +1946,7 @@ function ExercisePicker({
 }: ExercisePickerProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm">
-      <div className="h-full flex flex-col bg-zinc-950 safe-top">
+      <div className="h-full flex flex-col bg-black/80 backdrop-blur-xl safe-top">
         <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
