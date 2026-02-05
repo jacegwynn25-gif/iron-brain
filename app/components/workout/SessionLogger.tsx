@@ -305,14 +305,9 @@ export default function SessionLogger() {
     : null;
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
 
-  const containerClasses =
-    viewMode === 'cockpit' || viewMode === 'rest'
-      ? 'relative min-h-[calc(100dvh-10rem)]'
-      : 'relative min-h-[calc(100dvh-10rem)] overflow-y-auto';
-
   return (
     <>
-      <div className={containerClasses}>
+      <div className="relative w-full h-[100dvh] bg-zinc-950 text-white flex flex-col overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           {viewMode === 'overview' && (
             <motion.div
@@ -321,9 +316,9 @@ export default function SessionLogger() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="space-y-8"
+              className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
             >
-              <div className="px-4 pt-6 pb-4">
+              <div className="px-4 pt-12 pb-4">
                 <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
                 <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
               </div>
@@ -382,7 +377,7 @@ export default function SessionLogger() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="flex h-full flex-col overflow-hidden"
+              className="flex-1 w-full flex flex-col overflow-hidden relative select-none touch-none pb-32"
             >
             <header className="mb-6 flex items-center gap-4 px-4">
               <button
@@ -412,114 +407,122 @@ export default function SessionLogger() {
               </div>
             </header>
 
-            <div className="flex-1">
-              <div className="flex h-full flex-col px-4">
+            <div className="px-4 mt-6">
+              <div className="flex flex-col justify-center gap-6">
                 <div className="flex items-center justify-between">
                   <p className="text-zinc-500 text-xs uppercase">Current Set</p>
                   <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                 </div>
 
-                <div className="flex-1 flex flex-col justify-center gap-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    <HardyStepper
-                      layout="vertical"
-                      value={weightValue}
-                      onChange={handleWeightChange}
-                      step={0.5}
-                      label="LBS"
-                      onLabelClick={() => {
-                        if (!focusContext) return;
-                        setActiveCell({
-                          blockId: focusContext.blockId,
-                          exerciseId: focusContext.exerciseId,
-                          setId: focusContext.setId,
-                          field: 'weight',
-                        });
-                        setIsKeypadOpen(true);
-                      }}
-                    />
+                <div className="grid grid-cols-2 gap-6">
+                  <HardyStepper
+                    layout="vertical"
+                    value={weightValue}
+                    onChange={handleWeightChange}
+                    step={0.5}
+                    label="LBS"
+                    onLabelClick={() => {
+                      if (!focusContext) return;
+                      setActiveCell({
+                        blockId: focusContext.blockId,
+                        exerciseId: focusContext.exerciseId,
+                        setId: focusContext.setId,
+                        field: 'weight',
+                      });
+                      setIsKeypadOpen(true);
+                    }}
+                  />
 
-                    <HardyStepper
-                      layout="vertical"
-                      value={repsValue}
-                      onChange={handleRepsChange}
-                      step={1}
-                      label="REPS"
-                      onLabelClick={() => {
-                        if (!focusContext) return;
-                        setActiveCell({
-                          blockId: focusContext.blockId,
-                          exerciseId: focusContext.exerciseId,
-                          setId: focusContext.setId,
-                          field: 'reps',
-                        });
-                        setIsKeypadOpen(true);
-                      }}
-                      />
-                    </div>
+                  <HardyStepper
+                    layout="vertical"
+                    value={repsValue}
+                    onChange={handleRepsChange}
+                    step={1}
+                    label="REPS"
+                    onLabelClick={() => {
+                      if (!focusContext) return;
+                      setActiveCell({
+                        blockId: focusContext.blockId,
+                        exerciseId: focusContext.exerciseId,
+                        setId: focusContext.setId,
+                        field: 'reps',
+                      });
+                      setIsKeypadOpen(true);
+                    }}
+                  />
+                </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
-                      <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
-                    </div>
-                    <div>
-                      <RpeSlider value={rpeValue} onChange={handleRpeChange} />
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
+                    <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
+                  </div>
+                  <div>
+                    <RpeSlider value={rpeValue} onChange={handleRpeChange} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <footer className="mt-auto grid grid-cols-[3.5rem_1fr_3.5rem] gap-3 pb-2">
-              <button
-                type="button"
-                onClick={() => setIsHistoryOpen(true)}
-                className="flex h-14 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400 transition-colors hover:text-zinc-200"
-              >
-                <History className="h-5 w-5" />
-              </button>
+            <footer className="w-full px-4 mt-12">
+              <div className="w-full h-20 bg-zinc-900/80 rounded-[2.5rem] flex items-center p-2 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                >
+                  <History className="w-7 h-7" />
+                </button>
 
-              <button
-                type="button"
-                onClick={handleLogSet}
-                disabled={!focusContext}
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-zinc-950 font-bold disabled:opacity-40"
-              >
-                <CheckCircle2 className="h-5 w-5" />
-                Log Set
-              </button>
+                <button
+                  type="button"
+                  onClick={handleLogSet}
+                  disabled={!focusContext}
+                  className="flex-[2] mx-2 h-full bg-emerald-500 hover:bg-emerald-400 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40"
+                >
+                  LOG SET
+                </button>
 
-              <button
-                type="button"
-                onClick={handleOpenNotes}
-                className="flex h-14 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400 transition-colors hover:text-zinc-200"
-              >
-                <FileText className="h-5 w-5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={handleOpenNotes}
+                  className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                >
+                  <FileText className="w-7 h-7" />
+                </button>
+              </div>
             </footer>
           </motion.div>
         )}
 
           {viewMode === 'rest' && (
-            <RestTimer
-              isActive={viewMode === 'rest'}
-              duration={REST_DURATION_SECONDS}
-              onComplete={(addExtra) => {
-                if (addExtra) {
-                  handleAddBonusSet();
-                } else {
-                  handleContinue();
-                }
-              }}
-              nextSetInfo={{
-                exerciseName: nextSetContext?.exercise.name,
-                setNumber: nextSetNumber,
-                weight: nextSetContext?.set.weight ?? undefined,
-                reps: nextSetContext?.set.reps ?? undefined,
-              }}
-              isLastSetOfExercise={Boolean(restContext?.wasLastSet)}
-            />
+            <motion.div
+              key="rest"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 w-full flex flex-col overflow-hidden"
+            >
+              <RestTimer
+                isActive={viewMode === 'rest'}
+                duration={REST_DURATION_SECONDS}
+                onComplete={(addExtra) => {
+                  if (addExtra) {
+                    handleAddBonusSet();
+                  } else {
+                    handleContinue();
+                  }
+                }}
+                nextSetInfo={{
+                  exerciseName: nextSetContext?.exercise.name,
+                  setNumber: nextSetNumber,
+                  weight: nextSetContext?.set.weight ?? undefined,
+                  reps: nextSetContext?.set.reps ?? undefined,
+                }}
+                isLastSetOfExercise={Boolean(restContext?.wasLastSet)}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -528,34 +531,28 @@ export default function SessionLogger() {
         {isHistoryOpen && (
           <motion.div
             key="history"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            className="fixed inset-0 z-40"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed inset-0 z-50 bg-zinc-950 p-6"
           >
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setIsHistoryOpen(false)}
-            />
-            <div className="absolute right-0 top-0 h-full w-full max-w-sm border-l border-white/10 bg-zinc-950/80 p-6 backdrop-blur-2xl">
-              <div className="flex items-center justify-between">
-                <p className="text-zinc-100 font-bold">History</p>
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(false)}
-                  className="text-zinc-400"
-                >
-                  Close
-                </button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {(focusedRef?.exercise.sets ?? []).map((set) => (
-                  <div key={set.id} className="rounded-xl border border-white/10 bg-zinc-900/50 p-3 text-zinc-100">
-                    <p className="text-sm font-bold">{set.previous ?? 'No history'}</p>
-                    <p className="text-xs text-zinc-400">Type: {set.type}</p>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-between">
+              <p className="text-white text-xl font-black">History</p>
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-6">
+              {(focusedRef?.exercise.sets ?? []).map((set, index) => (
+                <div key={set.id} className="border-b border-zinc-900 py-4">
+                  <p className="text-white font-bold">{set.previous ?? `Set ${index + 1}`}</p>
+                  <p className="text-zinc-400 text-sm uppercase tracking-[0.2em]">Type: {set.type}</p>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -568,29 +565,31 @@ export default function SessionLogger() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50"
+            className="fixed inset-0 z-50 bg-zinc-950 p-6 flex flex-col justify-center"
           >
-            <div className="absolute inset-0 bg-black/40" onClick={() => setIsNotesOpen(false)} />
-            <div className="absolute left-1/2 top-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-white/10 bg-zinc-950/90 p-6 backdrop-blur-2xl">
-              <h3 className="text-zinc-100 text-lg font-bold">Session Notes</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-white text-xl font-black">Session Notes</h3>
+              <button
+                type="button"
+                onClick={() => setIsNotesOpen(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-6">
               <textarea
                 value={notesDraft}
                 onChange={(event) => setNotesDraft(event.target.value)}
-                className="mt-4 min-h-[140px] w-full rounded-2xl border border-white/10 bg-zinc-900/60 p-4 text-sm text-zinc-100 focus:outline-none"
+                className="w-full resize-none rounded-2xl bg-zinc-900 p-4 text-lg text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
                 placeholder="Add notes for this exercise..."
+                rows={8}
               />
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNotesOpen(false)}
-                  className="rounded-xl border border-white/10 bg-zinc-900/40 px-4 py-2 text-sm text-zinc-100"
-                >
-                  Cancel
-                </button>
+              <div className="mt-4 flex justify-end">
                 <button
                   type="button"
                   onClick={handleSaveNotes}
-                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-sm text-zinc-100"
+                  className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-white"
                 >
                   Save
                 </button>
