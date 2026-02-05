@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { ArrowRight, Delete, Minus, Plus, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowRight, Check, Delete, Minus, Plus, X } from 'lucide-react';
 import { useLongPress } from '@/app/lib/hooks/useLongPress';
 
 interface GlassKeypadProps {
@@ -23,7 +24,12 @@ export default function GlassKeypad({
   onNext,
   type,
 }: GlassKeypadProps) {
+  const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const increments = useMemo(() => {
     if (type === 'weight') return { primary: 2.5, secondary: 5 };
@@ -57,13 +63,15 @@ export default function GlassKeypad({
 
   const nextLabel = value.trim().length > 0 ? 'Next Set' : 'Finish';
 
-  return (
-    <div className={`fixed inset-0 z-50 ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+  if (!mounted || !isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999]">
       <button
         type="button"
         aria-label="Close keypad backdrop"
         onClick={onClose}
-        className={`absolute inset-0 bg-black/35 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        className="absolute inset-0 bg-black/35 transition-opacity duration-300"
       />
 
       <div
@@ -140,13 +148,22 @@ export default function GlassKeypad({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-zinc-800/50 text-zinc-100"
+              >
+                <Check className="h-6 w-6" />
+                <span className="text-sm font-bold">Enter</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   onNext();
                 }}
-                className="flex h-full min-h-[240px] flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-zinc-100"
+                className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
               >
                 <ArrowRight className="h-6 w-6" />
                 <span className="text-sm font-bold">{nextLabel}</span>
@@ -155,6 +172,7 @@ export default function GlassKeypad({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

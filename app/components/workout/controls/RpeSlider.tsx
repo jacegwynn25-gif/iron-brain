@@ -10,8 +10,8 @@ export default function RpeSlider({ value, onChange }: RpeSliderProps) {
   const isEmpty = value == null;
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-4 backdrop-blur-xl">
-      <div className="mb-3 flex items-end justify-between">
+    <div className="space-y-3">
+      <div className="flex items-end justify-between">
         <div>
           <p className="text-zinc-400 text-xs uppercase tracking-[0.18em]">Intensity</p>
           <p className="text-zinc-100 text-3xl font-bold">{isEmpty ? '--' : sliderValue.toFixed(1)}</p>
@@ -29,7 +29,7 @@ export default function RpeSlider({ value, onChange }: RpeSliderProps) {
         className={`rpe-slider h-10 w-full appearance-none bg-transparent ${isEmpty ? 'opacity-75' : ''}`}
       />
 
-      <div className="mt-2 flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-zinc-400">
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.15em] text-zinc-400">
         <span>Warmup (1-4)</span>
         <span>Failure (10)</span>
       </div>

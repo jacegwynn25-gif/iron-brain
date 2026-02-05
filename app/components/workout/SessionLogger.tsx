@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Activity,
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
+  Dumbbell,
+  FileText,
   History,
-  StickyNote,
-  Timer,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ProgramTemplate } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
@@ -16,6 +20,7 @@ import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import GlassKeypad from '@/app/components/workout/controls/GlassKeypad';
+import RestTimer from '@/app/components/RestTimer';
 import { getLastWeight } from '@/app/lib/workout/mock-last-weight';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
@@ -77,6 +82,26 @@ function getExerciseProgress(exercise: Exercise): { done: number; total: number 
   return { done, total };
 }
 
+type ExerciseStyle = {
+  icon: LucideIcon;
+  color: string;
+  label: string;
+};
+
+const getExerciseStyle = (name: string): ExerciseStyle => {
+  const lower = name.toLowerCase();
+  if (['bench', 'press', 'push'].some((keyword) => lower.includes(keyword))) {
+    return { icon: ArrowUp, color: 'text-sky-400', label: 'PUSH' };
+  }
+  if (['row', 'pull', 'chin', 'curl'].some((keyword) => lower.includes(keyword))) {
+    return { icon: ArrowDown, color: 'text-indigo-400', label: 'PULL' };
+  }
+  if (['squat', 'leg', 'lunge', 'deadlift'].some((keyword) => lower.includes(keyword))) {
+    return { icon: Activity, color: 'text-emerald-400', label: 'LEGS' };
+  }
+  return { icon: Dumbbell, color: 'text-zinc-400', label: 'LIFT' };
+};
+
 function findSetByActiveCell(blocks: Block[], activeCell: ActiveCell | null) {
   if (!activeCell) return null;
   const block = blocks.find((entry) => entry.id === activeCell.blockId);
@@ -122,8 +147,7 @@ export default function SessionLogger() {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
-  const [restSeconds, setRestSeconds] = useState(REST_DURATION_SECONDS);
-  const [lastCompleted, setLastCompleted] = useState<{
+  const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
     setId: string;
@@ -164,25 +188,8 @@ export default function SessionLogger() {
   const nextSetContext = useMemo(() => findSetByActiveCell(session.blocks, session.activeCell), [session.blocks, session.activeCell]);
 
   useEffect(() => {
-    if (viewMode === 'rest') {
-      setRestSeconds(REST_DURATION_SECONDS);
-    }
-  }, [viewMode]);
-
-  useEffect(() => {
     setIsKeypadOpen(false);
   }, [viewMode]);
-
-  useEffect(() => {
-    if (viewMode !== 'rest') return;
-    if (restSeconds <= 0) return;
-
-    const timer = setInterval(() => {
-      setRestSeconds((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [restSeconds, viewMode]);
 
   useEffect(() => {
     if (!focusedRef || viewMode !== 'cockpit') return;
@@ -236,7 +243,7 @@ export default function SessionLogger() {
   };
 
   const handleWeightChange = (nextValue: number) => {
-    applySetUpdate('weight', Math.max(0, roundToFive(nextValue)));
+    applySetUpdate('weight', Math.max(0, nextValue));
   };
 
   const handleRepsChange = (nextValue: number) => {
@@ -253,7 +260,7 @@ export default function SessionLogger() {
     const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
     const wasLastSet = setIndex === focusContext.exercise.sets.length - 1;
 
-    setLastCompleted({
+    setRestContext({
       blockId: focusContext.blockId,
       exerciseId: focusContext.exerciseId,
       setId: focusContext.setId,
@@ -269,10 +276,10 @@ export default function SessionLogger() {
   };
 
   const handleAddBonusSet = () => {
-    if (!lastCompleted) return;
-    addSet(lastCompleted.blockId, lastCompleted.exerciseId);
+    if (!restContext) return;
+    addSet(restContext.blockId, restContext.exerciseId);
+    setRestContext((current) => (current ? { ...current, wasLastSet: false } : current));
     setViewMode('cockpit');
-    setLastCompleted(null);
   };
 
   const handleOpenNotes = () => {
@@ -289,22 +296,23 @@ export default function SessionLogger() {
   const lastWeight = focusContext
     ? parsePreviousWeight(focusContext.set.previous) ?? getLastWeight(focusContext.exerciseId)
     : 200;
-  const suggestedWeight = roundToFive(lastWeight * readinessModifier);
-  const weightValue = focusContext?.set.weight ?? suggestedWeight;
+  const weightValue = focusContext?.set.weight ?? 0;
   const repsValue = focusContext?.set.reps ?? 8;
   const rpeValue = focusContext?.set.rpe ?? null;
 
-  const nextWeight = nextSetContext
-    ? nextSetContext.set.weight ?? roundToFive((parsePreviousWeight(nextSetContext.set.previous) ?? getLastWeight(nextSetContext.exercise.id)) * readinessModifier)
-    : null;
-  const nextReps = nextSetContext?.set.reps ?? null;
   const nextSetIndex = nextSetContext
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
     : null;
+  const nextSetNumber = (nextSetIndex ?? 0) + 1;
+
+  const containerClasses =
+    viewMode === 'cockpit' || viewMode === 'rest'
+      ? 'relative min-h-[calc(100dvh-10rem)]'
+      : 'relative min-h-[calc(100dvh-10rem)] overflow-y-auto';
 
   return (
     <>
-      <div className="relative min-h-[calc(100dvh-10rem)] overflow-y-auto">
+      <div className={containerClasses}>
         <AnimatePresence mode="wait" initial={false}>
           {viewMode === 'overview' && (
             <motion.div
@@ -313,35 +321,41 @@ export default function SessionLogger() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="space-y-4"
+              className="space-y-8"
             >
-              <div className="rounded-2xl border border-white/10 bg-zinc-900/40 p-4 backdrop-blur-xl">
-                <p className="text-zinc-400 text-xs uppercase">Daily Readiness</p>
-                <div className="mt-1 flex items-end justify-between">
-                  <p className="text-zinc-100 text-3xl font-bold">{Math.round(readinessScore)}</p>
-                  <p className="text-zinc-400 text-sm">Modifier {readinessModifier.toFixed(2)}x</p>
-                </div>
+              <div className="px-4 pt-6 pb-4">
+                <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
+                <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-6 px-4">
                 {exerciseRefs.map((entry) => {
                   const progress = getExerciseProgress(entry.exercise);
+                  const style = getExerciseStyle(entry.exercise.name);
+                  const StyleIcon = style.icon;
 
                   return (
                     <button
                       key={entry.exercise.id}
                       type="button"
                       onClick={() => handleOpenFocus(entry)}
-                      className="w-full rounded-2xl border border-white/10 bg-zinc-900/40 p-4 text-left backdrop-blur-xl transition-colors hover:bg-white/5"
+                      className="group relative w-full text-left"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-zinc-100 text-lg font-bold">{entry.exercise.name}</p>
-                          <p className="text-zinc-400 text-xs uppercase">{entry.blockType === 'superset' ? 'Superset Block' : 'Single Block'}</p>
+                          <div className="mb-1 flex items-center gap-2">
+                            <StyleIcon className={`h-4 w-4 ${style.color}`} />
+                            <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                          </div>
+                          <p className="text-3xl font-black italic text-white">{entry.exercise.name}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-zinc-100 text-sm font-bold">{progress.done}/{progress.total} Sets Done</p>
-                          <p className="text-zinc-500 text-xs">Tap to enter Focus Mode</p>
+                        <div className="flex gap-1.5">
+                          {Array.from({ length: progress.total }).map((_, index) => (
+                            <span
+                              key={`${entry.exercise.id}-dot-${index}`}
+                              className={`h-2 w-2 rounded-full ${index < progress.done ? 'bg-emerald-500' : 'bg-zinc-800'}`}
+                            />
+                          ))}
                         </div>
                       </div>
                     </button>
@@ -349,13 +363,15 @@ export default function SessionLogger() {
                 })}
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="w-full rounded-2xl border border-white/10 bg-zinc-900/40 px-4 py-4 text-zinc-500 backdrop-blur-xl"
-              >
-                Finish Workout
-              </button>
+              <div className="px-4 pb-6">
+                <button
+                  type="button"
+                  disabled
+                  className="w-full text-zinc-600 font-bold tracking-widest uppercase"
+                >
+                  Finish Workout
+                </button>
+              </div>
             </motion.div>
           )}
 
@@ -366,44 +382,47 @@ export default function SessionLogger() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="flex min-h-[calc(100dvh-10rem)] flex-col"
+              className="flex h-full flex-col overflow-hidden"
             >
-              <header className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/40 p-3 backdrop-blur-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewMode('overview');
-                    setFocusedExerciseId(null);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-zinc-100"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </button>
+            <header className="mb-6 flex items-center gap-4 px-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('overview');
+                  setFocusedExerciseId(null);
+                }}
+                className="inline-flex items-center text-zinc-400 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </button>
 
-                <div>
-                  <p className="text-zinc-400 text-xs uppercase">Focus Mode</p>
-                  <h2 className="text-zinc-100 text-xl font-bold">{focusedRef?.exercise.name ?? 'Exercise'}</h2>
+              <div>
+                {focusedRef && (() => {
+                  const style = getExerciseStyle(focusedRef.exercise.name);
+                  const StyleIcon = style.icon;
+                  return (
+                    <div className="mb-1 flex items-center gap-2">
+                      <StyleIcon className={`h-4 w-4 ${style.color}`} />
+                      <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                    </div>
+                  );
+                })()}
+                <h2 className="text-4xl font-black text-white">{focusedRef?.exercise.name ?? 'Exercise'}</h2>
+              </div>
+            </header>
+
+            <div className="flex-1">
+              <div className="flex h-full flex-col px-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-zinc-500 text-xs uppercase">Current Set</p>
+                  <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(true)}
-                  className="rounded-xl border border-white/10 bg-zinc-950/60 p-2 text-zinc-100"
-                >
-                  <History className="h-4 w-4" />
-                </button>
-              </header>
-
-              <div className="flex-1 space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/40 p-4 backdrop-blur-xl">
-                  <div className="flex items-center justify-between">
-                    <p className="text-zinc-400 text-xs uppercase">Current Set</p>
-                    <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
-                  </div>
-
-                  <div className="mt-3 space-y-4">
+                <div className="flex-1 flex flex-col justify-center gap-6">
+                  <div className="grid grid-cols-2 gap-3">
                     <HardyStepper
+                      layout="vertical"
                       value={weightValue}
                       onChange={handleWeightChange}
                       step={0.5}
@@ -421,6 +440,7 @@ export default function SessionLogger() {
                     />
 
                     <HardyStepper
+                      layout="vertical"
                       value={repsValue}
                       onChange={handleRepsChange}
                       step={1}
@@ -435,98 +455,71 @@ export default function SessionLogger() {
                         });
                         setIsKeypadOpen(true);
                       }}
-                    />
+                      />
+                    </div>
 
-                    <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-4 backdrop-blur-xl">
-                      <div className="flex items-center justify-between">
-                        <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
-                        <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
-                      </div>
-                      <div className="mt-3">
-                        <RpeSlider value={rpeValue} onChange={handleRpeChange} />
-                      </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
+                      <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
+                    </div>
+                    <div>
+                      <RpeSlider value={rpeValue} onChange={handleRpeChange} />
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <footer className="mt-4 flex flex-col gap-3 pb-2">
-                <button
-                  type="button"
-                  onClick={handleOpenNotes}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-zinc-900/40 px-4 py-3 text-zinc-100 backdrop-blur-xl"
-                >
-                  <StickyNote className="h-4 w-4" />
-                  Notes
-                </button>
+            <footer className="mt-auto grid grid-cols-[3.5rem_1fr_3.5rem] gap-3 pb-2">
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex h-14 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400 transition-colors hover:text-zinc-200"
+              >
+                <History className="h-5 w-5" />
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleLogSet}
-                  disabled={!focusContext}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/20 px-4 py-4 text-zinc-100 disabled:opacity-40"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Log Set
-                </button>
-              </footer>
-            </motion.div>
-          )}
+              <button
+                type="button"
+                onClick={handleLogSet}
+                disabled={!focusContext}
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-zinc-950 font-bold disabled:opacity-40"
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                Log Set
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenNotes}
+                className="flex h-14 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400 transition-colors hover:text-zinc-200"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            </footer>
+          </motion.div>
+        )}
 
           {viewMode === 'rest' && (
-            <motion.div
-              key="rest"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24 }}
-              transition={{ duration: 0.2 }}
-              className="flex min-h-[calc(100dvh-10rem)] flex-col justify-between"
-            >
-              <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-6 backdrop-blur-xl">
-                <div className="flex items-center justify-between">
-                  <p className="text-zinc-400 text-xs uppercase">Rest Mode</p>
-                  <Timer className="h-5 w-5 text-zinc-300" />
-                </div>
-                <p className="mt-4 text-5xl font-bold text-zinc-100">{restSeconds}s</p>
-                <p className="mt-2 text-zinc-400 text-sm">Auto-countdown started.</p>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-zinc-900/40 p-6 backdrop-blur-xl">
-                <p className="text-zinc-400 text-xs uppercase">Up Next</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-zinc-100 text-lg font-bold">{nextSetContext?.exercise.name ?? 'Next Exercise'}</p>
-                    <p className="text-zinc-400 text-sm">
-                      Set {nextSetIndex != null && nextSetIndex >= 0 ? nextSetIndex + 1 : '--'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-zinc-100 text-lg font-bold">{nextWeight ?? '--'} lbs</p>
-                    <p className="text-zinc-400 text-sm">{nextReps ?? '--'} reps</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {lastCompleted?.wasLastSet && (
-                  <button
-                    type="button"
-                    onClick={handleAddBonusSet}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/20 px-4 py-4 text-zinc-100"
-                  >
-                    Add Bonus Set
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleContinue}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/20 px-4 py-4 text-zinc-100"
-                >
-                  Continue
-                </button>
-              </div>
-            </motion.div>
+            <RestTimer
+              isActive={viewMode === 'rest'}
+              duration={REST_DURATION_SECONDS}
+              onComplete={(addExtra) => {
+                if (addExtra) {
+                  handleAddBonusSet();
+                } else {
+                  handleContinue();
+                }
+              }}
+              nextSetInfo={{
+                exerciseName: nextSetContext?.exercise.name,
+                setNumber: nextSetNumber,
+                weight: nextSetContext?.set.weight ?? undefined,
+                reps: nextSetContext?.set.reps ?? undefined,
+              }}
+              isLastSetOfExercise={Boolean(restContext?.wasLastSet)}
+            />
           )}
         </AnimatePresence>
       </div>
