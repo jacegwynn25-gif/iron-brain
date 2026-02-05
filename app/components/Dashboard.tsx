@@ -1,6 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 
 function getTone(score: number) {
@@ -43,6 +45,16 @@ function DashboardSkeleton() {
       <div className="rounded-3xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-6 animate-pulse">
         <div className="mb-4 h-4 w-16 rounded bg-white/10" />
         <div className="h-5 w-full rounded bg-white/10" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-3xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-6 animate-pulse">
+          <div className="mb-3 h-4 w-32 rounded bg-white/10" />
+          <div className="h-6 w-48 rounded bg-white/10" />
+        </div>
+        <div className="rounded-3xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-6 animate-pulse">
+          <div className="mb-3 h-4 w-32 rounded bg-white/10" />
+          <div className="h-6 w-48 rounded bg-white/10" />
+        </div>
       </div>
     </div>
   );
@@ -110,6 +122,42 @@ export default function Dashboard() {
         <p className="mt-3 text-zinc-100 font-bold text-lg leading-relaxed">
           {readiness?.reason ?? 'No readiness explanation available.'}
         </p>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-zinc-400 text-xs uppercase tracking-[0.18em]">Training Intelligence</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Link
+            href="/start"
+            className="group rounded-3xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-6"
+          >
+            <p className="text-zinc-400 text-sm">Current Focus</p>
+            <div className="mt-2 flex items-center justify-between">
+              <h3 className="text-zinc-100 font-bold text-xl">Power Hypertrophy UL</h3>
+              <span className="inline-flex items-center gap-1 text-zinc-400 group-hover:text-zinc-200">
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/programs"
+            className="group rounded-3xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-6"
+          >
+            <p className="text-zinc-400 text-sm">Program Manager</p>
+            <div className="mt-2 flex items-center justify-between">
+              <h3 className="text-zinc-100 font-bold text-xl">Builder &amp; Library</h3>
+              <span className="inline-flex items-center gap-1 text-zinc-400 group-hover:text-zinc-200">
+                Open
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+        </div>
       </section>
     </div>
   );
