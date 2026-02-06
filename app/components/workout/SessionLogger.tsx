@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
   ArrowLeft,
   ArrowDown,
   ArrowUp,
-  CheckCircle2,
   Dumbbell,
   FileText,
   History,
+  Plus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ProgramTemplate } from '@/app/lib/types';
@@ -33,33 +34,44 @@ type ExerciseRef = {
 
 const REST_DURATION_SECONDS = 90;
 
-function buildMockProgram(): ProgramTemplate {
+type CommonExercise = {
+  id: string;
+  name: string;
+  target: 'push' | 'pull' | 'legs' | 'core';
+};
+
+const COMMON_EXERCISES: CommonExercise[] = [
+  { id: 'back_squat', name: 'Back Squat', target: 'legs' },
+  { id: 'deadlift', name: 'Deadlift', target: 'legs' },
+  { id: 'bench_press', name: 'Bench Press', target: 'push' },
+  { id: 'overhead_press', name: 'Overhead Press', target: 'push' },
+  { id: 'pull_up', name: 'Pull-up', target: 'pull' },
+  { id: 'chin_up', name: 'Chin-up', target: 'pull' },
+  { id: 'barbell_row', name: 'Barbell Row', target: 'pull' },
+  { id: 'dumbbell_row', name: 'Dumbbell Row', target: 'pull' },
+  { id: 'lat_pulldown', name: 'Lat Pulldown', target: 'pull' },
+  { id: 'dips', name: 'Dip', target: 'push' },
+  { id: 'tricep_extension', name: 'Tricep Extension', target: 'push' },
+  { id: 'bicep_curl', name: 'Bicep Curl', target: 'pull' },
+  { id: 'leg_press', name: 'Leg Press', target: 'legs' },
+  { id: 'lunges', name: 'Lunge', target: 'legs' },
+  { id: 'split_squat', name: 'Split Squat', target: 'legs' },
+  { id: 'calf_raise', name: 'Calf Raise', target: 'legs' },
+  { id: 'hip_thrust', name: 'Hip Thrust', target: 'legs' },
+  { id: 'leg_extension', name: 'Leg Extension', target: 'legs' },
+  { id: 'leg_curl', name: 'Leg Curl', target: 'legs' },
+  { id: 'face_pull', name: 'Face Pull', target: 'pull' },
+  { id: 'lateral_raise', name: 'Lateral Raise', target: 'push' },
+  { id: 'plank', name: 'Plank', target: 'core' },
+  { id: 'ab_wheel', name: 'Ab Wheel', target: 'core' },
+];
+
+function createQuickStartProgram(): ProgramTemplate {
   return {
-    id: 'focus_mode_program',
-    name: 'Focus Mode Session',
+    id: 'qs',
+    name: 'Quick Start',
     isCustom: true,
-    weeks: [
-      {
-        weekNumber: 1,
-        days: [
-          {
-            dayOfWeek: 'Mon',
-            name: 'Full Body Focus',
-            sets: [
-              { exerciseId: 'bench_press', setIndex: 1, prescribedReps: '10', setType: 'warmup' },
-              { exerciseId: 'bench_press', setIndex: 2, prescribedReps: '8', setType: 'straight' },
-              { exerciseId: 'bench_press', setIndex: 3, prescribedReps: '8', setType: 'straight' },
-              { exerciseId: 'squat', setIndex: 1, prescribedReps: '8', setType: 'warmup' },
-              { exerciseId: 'squat', setIndex: 2, prescribedReps: '6', setType: 'straight' },
-              { exerciseId: 'squat', setIndex: 3, prescribedReps: '6', setType: 'straight' },
-              { exerciseId: 'row', setIndex: 1, prescribedReps: '12', setType: 'warmup' },
-              { exerciseId: 'row', setIndex: 2, prescribedReps: '10', setType: 'straight' },
-              { exerciseId: 'row', setIndex: 3, prescribedReps: '10', setType: 'straight' },
-            ],
-          },
-        ],
-      },
-    ],
+    weeks: [],
   };
 }
 
@@ -74,12 +86,6 @@ function parsePreviousWeight(previous: string | null): number | null {
 
   const parsed = Number(match[0]);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getExerciseProgress(exercise: Exercise): { done: number; total: number } {
-  const total = exercise.sets.length;
-  const done = exercise.sets.filter((set) => set.completed).length;
-  return { done, total };
 }
 
 type ExerciseStyle = {
@@ -100,6 +106,20 @@ const getExerciseStyle = (name: string): ExerciseStyle => {
     return { icon: Activity, color: 'text-emerald-400', label: 'LEGS' };
   }
   return { icon: Dumbbell, color: 'text-zinc-400', label: 'LIFT' };
+};
+
+const isBodyweight = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return [
+    'bodyweight',
+    'pull-up',
+    'pull up',
+    'chin-up',
+    'chin up',
+    'dip',
+    'plank',
+    'ab wheel',
+  ].some((keyword) => lower.includes(keyword));
 };
 
 function findSetByActiveCell(blocks: Block[], activeCell: ActiveCell | null) {
@@ -126,26 +146,35 @@ function getFocusSet(exercise: Exercise, activeCell: ActiveCell | null, blockId:
   return exercise.sets.find((set) => !set.completed) ?? exercise.sets[exercise.sets.length - 1] ?? null;
 }
 
-export default function SessionLogger() {
+type SessionLoggerProps = {
+  initialData?: ProgramTemplate;
+};
+
+export default function SessionLogger({ initialData }: SessionLoggerProps) {
+  const router = useRouter();
   const { readiness } = useRecoveryState();
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
 
-  const mockProgram = useMemo(() => buildMockProgram(), []);
+  const initialProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
   const {
     state: session,
     dispatch,
     toggleComplete,
     addSet,
     updateNote,
+    addExercise,
     setActiveCell,
-  } = useWorkoutSession(mockProgram, readinessModifier);
+  } = useWorkoutSession(initialProgram, readinessModifier);
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isKeypadOpen, setIsKeypadOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isAddMovementOpen, setIsAddMovementOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
   const [restContext, setRestContext] = useState<{
     blockId: string;
@@ -153,6 +182,54 @@ export default function SessionLogger() {
     setId: string;
     wasLastSet: boolean;
   } | null>(null);
+  const overviewScrollRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const completedSets = useMemo(() => {
+    return session.blocks.flatMap((block) =>
+      block.exercises.flatMap((exercise) => exercise.sets.filter((set) => set.completed))
+    );
+  }, [session.blocks]);
+
+  const completedSetCount = completedSets.length;
+
+  const totalVolume = useMemo(() => {
+    return completedSets.reduce((sum, set) => sum + (set.weight ?? 0) * (set.reps ?? 0), 0);
+  }, [completedSets]);
+
+  const volumeDisplay = useMemo(() => {
+    return new Intl.NumberFormat('en-US').format(Math.round(totalVolume));
+  }, [totalVolume]);
+
+  const pulseVolumes = useMemo(() => {
+    return completedSets.map((set) => ({
+      set,
+      volume: (set.weight ?? 0) * (set.reps ?? 0),
+    }));
+  }, [completedSets]);
+
+  const maxPulseVolume = useMemo(() => {
+    return Math.max(1, ...pulseVolumes.map((entry) => entry.volume));
+  }, [pulseVolumes]);
+
+  const prCount = useMemo(() => {
+    return completedSets.filter((set) => (set.rpe ?? 0) >= 9).length;
+  }, [completedSets]);
+
+  const durationMinutes = Math.max(
+    1,
+    Math.round((Date.now() - session.startTime.getTime()) / 60000)
+  );
+
+  const completedExercises = useMemo(() => {
+    return session.blocks
+      .flatMap((block) => block.exercises)
+      .map((exercise) => ({
+        name: exercise.name,
+        count: exercise.sets.filter((set) => set.completed).length,
+      }))
+      .filter((exercise) => exercise.count > 0);
+  }, [session.blocks]);
 
   const exerciseRefs = useMemo<ExerciseRef[]>(() => {
     return session.blocks.flatMap((block) =>
@@ -192,6 +269,14 @@ export default function SessionLogger() {
   }, [viewMode]);
 
   useEffect(() => {
+    if (!isAddMovementOpen) return;
+    const focusTimer = setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(focusTimer);
+  }, [isAddMovementOpen]);
+
+  useEffect(() => {
     if (!focusedRef || viewMode !== 'cockpit') return;
 
     const hasIncomplete = focusedRef.exercise.sets.some((set) => !set.completed);
@@ -217,6 +302,8 @@ export default function SessionLogger() {
         setId: targetSet.id,
         field: 'weight',
       });
+    } else {
+      addSet(entry.blockId, entry.exercise.id);
     }
 
     setFocusedExerciseId(entry.exercise.id);
@@ -272,7 +359,12 @@ export default function SessionLogger() {
   };
 
   const handleContinue = () => {
-    setViewMode('cockpit');
+    if (nextSetContext && restContext && nextSetContext.exercise.id === restContext.exerciseId) {
+      setViewMode('cockpit');
+    } else {
+      setViewMode('overview');
+      setFocusedExerciseId(null);
+    }
   };
 
   const handleAddBonusSet = () => {
@@ -293,17 +385,72 @@ export default function SessionLogger() {
     setIsNotesOpen(false);
   };
 
+  const handleFinishWorkout = () => {
+    if (completedSetCount === 0) {
+      const confirmExit = window.confirm('Exit without saving this session?');
+      if (confirmExit) {
+        router.push('/');
+      }
+      return;
+    }
+    setIsSummaryOpen(true);
+  };
+
+  const handleShare = async () => {
+    const text = `IRON BRAIN SESSION\nVolume: ${volumeDisplay}lbs\nDuration: ${durationMinutes}min\n\nCompleted with Iron Brain app.`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Iron Brain Session', text });
+      } catch {
+        // no-op
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // no-op
+    }
+  };
+
+  const formattedDate = useMemo(() => {
+    return new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+  }, []);
+
+  const handleAddMovement = (name: string) => {
+    addExercise(name);
+    setIsAddMovementOpen(false);
+    setSearchQuery('');
+    setTimeout(() => {
+      overviewScrollRef.current?.scrollTo({
+        top: overviewScrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }, 50);
+  };
+
   const lastWeight = focusContext
     ? parsePreviousWeight(focusContext.set.previous) ?? getLastWeight(focusContext.exerciseId)
     : 200;
   const weightValue = focusContext?.set.weight ?? 0;
   const repsValue = focusContext?.set.reps ?? 8;
   const rpeValue = focusContext?.set.rpe ?? null;
+  const bodyweightExercise = focusedRef ? isBodyweight(focusedRef.exercise.name) : false;
 
   const nextSetIndex = nextSetContext
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
     : null;
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
+
+  const filteredExercises = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return COMMON_EXERCISES;
+    return COMMON_EXERCISES.filter((exercise) => exercise.name.toLowerCase().includes(query));
+  }, [searchQuery]);
 
   return (
     <>
@@ -317,6 +464,7 @@ export default function SessionLogger() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
               className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
+              ref={overviewScrollRef}
             >
               <div className="px-4 pt-12 pb-4">
                 <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
@@ -325,7 +473,6 @@ export default function SessionLogger() {
 
               <div className="space-y-6 px-4">
                 {exerciseRefs.map((entry) => {
-                  const progress = getExerciseProgress(entry.exercise);
                   const style = getExerciseStyle(entry.exercise.name);
                   const StyleIcon = style.icon;
 
@@ -345,10 +492,10 @@ export default function SessionLogger() {
                           <p className="text-3xl font-black italic text-white">{entry.exercise.name}</p>
                         </div>
                         <div className="flex gap-1.5">
-                          {Array.from({ length: progress.total }).map((_, index) => (
+                          {entry.exercise.sets.map((set) => (
                             <span
-                              key={`${entry.exercise.id}-dot-${index}`}
-                              className={`h-2 w-2 rounded-full ${index < progress.done ? 'bg-emerald-500' : 'bg-zinc-800'}`}
+                              key={set.id}
+                              className={`h-2 w-2 rounded-full ${set.completed ? 'bg-emerald-500' : 'bg-zinc-800'}`}
                             />
                           ))}
                         </div>
@@ -356,13 +503,22 @@ export default function SessionLogger() {
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddMovementOpen(true)}
+                  className="w-full py-6 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold hover:border-emerald-500 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-5 w-5" />
+                  Add Exercise
+                </button>
               </div>
 
               <div className="px-4 pb-6">
                 <button
                   type="button"
-                  disabled
-                  className="w-full text-zinc-600 font-bold tracking-widest uppercase"
+                  onClick={handleFinishWorkout}
+                  className="w-full bg-emerald-500 text-zinc-950 font-black tracking-widest uppercase py-4 rounded-2xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all"
                 >
                   Finish Workout
                 </button>
@@ -414,24 +570,26 @@ export default function SessionLogger() {
                   <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <HardyStepper
-                    layout="vertical"
-                    value={weightValue}
-                    onChange={handleWeightChange}
-                    step={0.5}
-                    label="LBS"
-                    onLabelClick={() => {
-                      if (!focusContext) return;
-                      setActiveCell({
-                        blockId: focusContext.blockId,
-                        exerciseId: focusContext.exerciseId,
-                        setId: focusContext.setId,
-                        field: 'weight',
-                      });
-                      setIsKeypadOpen(true);
-                    }}
-                  />
+                <div className={`grid gap-6 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {!bodyweightExercise && (
+                    <HardyStepper
+                      layout="vertical"
+                      value={weightValue}
+                      onChange={handleWeightChange}
+                      step={0.5}
+                      label="LBS"
+                      onLabelClick={() => {
+                        if (!focusContext) return;
+                        setActiveCell({
+                          blockId: focusContext.blockId,
+                          exerciseId: focusContext.exerciseId,
+                          setId: focusContext.setId,
+                          field: 'weight',
+                        });
+                        setIsKeypadOpen(true);
+                      }}
+                    />
+                  )}
 
                   <HardyStepper
                     layout="vertical"
@@ -592,6 +750,163 @@ export default function SessionLogger() {
                   className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-white"
                 >
                   Save
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAddMovementOpen && (
+          <motion.div
+            key="add-movement"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-zinc-950 p-6 flex flex-col"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black text-white">ADD MOVEMENT</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddMovementOpen(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-6">
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search"
+                className="w-full bg-transparent text-3xl text-white placeholder:text-zinc-800 focus:outline-none"
+              />
+            </div>
+
+            <div className="mt-8 flex-1 overflow-y-auto">
+              {filteredExercises.map((exercise) => {
+                const style = getExerciseStyle(exercise.name);
+                const StyleIcon = style.icon;
+                return (
+                  <button
+                    key={exercise.id}
+                    type="button"
+                  onClick={() => handleAddMovement(exercise.name)}
+                    className="w-full py-4 border-b border-zinc-900 text-left"
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <StyleIcon className={`h-4 w-4 ${style.color}`} />
+                      <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                    </div>
+                    <p className="text-white text-xl font-bold">{exercise.name}</p>
+                  </button>
+                );
+              })}
+
+              {searchQuery.trim().length > 0 && filteredExercises.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleAddMovement(searchQuery.trim())}
+                  className="mt-6 text-emerald-400 text-lg font-semibold"
+                >
+                  Create &quot;{searchQuery.trim()}&quot;
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSummaryOpen && (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-zinc-950 overflow-y-auto text-white"
+          >
+            <div className="pt-[calc(env(safe-area-inset-top)+3rem)] px-6 pb-48">
+              <div className="mx-auto w-full max-w-xl">
+                <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500 text-center">
+                  SESSION COMPLETE
+                </p>
+                <p className="mt-3 text-xs font-mono text-zinc-500 text-center">{formattedDate}</p>
+
+                <div className="mt-8 text-center">
+                  <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">Total Volume</p>
+                  <p className="mt-4 text-6xl font-black italic text-white">{volumeDisplay} LBS</p>
+                </div>
+
+                <div className="h-48 w-full flex items-end justify-center gap-1 my-8">
+                  {pulseVolumes.map((entry) => {
+                    const rpe = entry.set.rpe ?? null;
+                    const color =
+                      rpe == null
+                        ? 'bg-zinc-700'
+                        : rpe < 7
+                          ? 'bg-sky-500'
+                          : rpe < 9
+                            ? 'bg-violet-500'
+                            : 'bg-rose-500';
+
+                    return (
+                      <div
+                        key={entry.set.id}
+                        className={`flex-1 w-full max-w-4 rounded-t-sm ${color}`}
+                        style={{ height: `${(entry.volume / maxPulseVolume) * 100}%` }}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">Volume</p>
+                    <p className="mt-2 text-2xl font-black text-white">{volumeDisplay}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">Time</p>
+                    <p className="mt-2 text-2xl font-black text-white">{durationMinutes}M</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">PRs</p>
+                    <p className="mt-2 text-2xl font-black text-white">{prCount}</p>
+                  </div>
+                </div>
+
+                <div className="mt-10 border-t border-dashed border-zinc-800 pt-4 space-y-2 text-sm text-zinc-400 font-mono">
+                  {completedExercises.length === 0 && <p>NO SETS LOGGED.</p>}
+                  {completedExercises.map((exercise) => (
+                    <div key={exercise.name} className="flex items-center gap-3">
+                      <span className="uppercase">{exercise.name}</span>
+                      <span className="flex-1 border-b border-dashed border-zinc-800" />
+                      <span className="uppercase">{exercise.count} sets</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 z-[110] bg-zinc-950 border-t border-zinc-900 px-6 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="w-full rounded-2xl bg-zinc-900 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 hover:bg-zinc-800 transition-colors"
+                >
+                  Share
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all"
+                >
+                  Finish & Exit
                 </button>
               </div>
             </div>

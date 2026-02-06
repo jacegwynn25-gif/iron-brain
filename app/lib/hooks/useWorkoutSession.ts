@@ -50,6 +50,12 @@ type WorkoutSessionAction =
       };
     }
   | {
+      type: 'ADD_EXERCISE';
+      payload: {
+        name: string;
+      };
+    }
+  | {
       type: 'REMOVE_SET';
       payload: {
         blockId: string;
@@ -462,6 +468,41 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
       };
     }
 
+    case 'ADD_EXERCISE': {
+      const blocks = cloneBlocks(state.blocks);
+      const blockId = createId('block');
+      const exerciseId = createId('exercise');
+      const setId = createId('set');
+      const newSet: SessionSet = {
+        id: setId,
+        type: 'working',
+        weight: null,
+        reps: null,
+        rpe: null,
+        completed: false,
+        previous: null,
+      };
+      const newExercise: Exercise = {
+        id: exerciseId,
+        name: action.payload.name,
+        notes: '',
+        historyNote: null,
+        sets: [newSet],
+      };
+      const newBlock: Block = {
+        id: blockId,
+        type: 'single',
+        exercises: [newExercise],
+      };
+
+      blocks.push(newBlock);
+
+      return {
+        ...state,
+        blocks,
+      };
+    }
+
     case 'REMOVE_SET': {
       const blocks = cloneBlocks(state.blocks);
       const exercise = exerciseByIds(blocks, action.payload.blockId, action.payload.exerciseId);
@@ -594,6 +635,13 @@ export function useWorkoutSession(program: ProgramTemplate, readinessModifier: n
     });
   }, []);
 
+  const addExercise = useCallback((name: string) => {
+    dispatch({
+      type: 'ADD_EXERCISE',
+      payload: { name },
+    });
+  }, []);
+
   const setActiveCell = useCallback((cell: ActiveCell | null) => {
     dispatch({
       type: 'SET_ACTIVE_CELL',
@@ -618,6 +666,7 @@ export function useWorkoutSession(program: ProgramTemplate, readinessModifier: n
     addSet,
     removeSet,
     updateNote,
+    addExercise,
     setActiveCell,
     finishSession,
   };
