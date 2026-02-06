@@ -12,6 +12,7 @@ interface HardyStepperProps {
   label: string;
   layout?: 'horizontal' | 'vertical';
   onLabelClick?: () => void;
+  valueClassName?: string;
 }
 
 function decimalsForStep(step: number): number {
@@ -38,6 +39,7 @@ export default function HardyStepper({
   label,
   layout = 'horizontal',
   onLabelClick,
+  valueClassName,
 }: HardyStepperProps) {
   const isVertical = layout === 'vertical';
   const valueRef = useRef(value);
@@ -151,6 +153,7 @@ export default function HardyStepper({
   const valueButtonClasses = `text-center transition-colors ${centerClasses} ${
     onLabelClick ? 'cursor-pointer' : 'cursor-default'
   }`;
+  const valueTextClasses = `text-5xl font-black leading-none sm:text-6xl ${valueClassName ?? 'text-zinc-100'}`;
 
   return (
     <div className={containerClasses}>
@@ -163,7 +166,7 @@ export default function HardyStepper({
             className={`${valueButtonClasses} w-full py-1 select-none touch-none`}
           >
             <div>
-              <p className="text-5xl font-black leading-none text-zinc-100 sm:text-6xl">{formatValue(value, step)}</p>
+              <p className={valueTextClasses}>{formatValue(value, step)}</p>
               <p className="text-zinc-500 text-xs uppercase tracking-[0.18em]">{label}</p>
             </div>
           </button>
@@ -227,7 +230,7 @@ export default function HardyStepper({
             className={`${valueButtonClasses} flex flex-1 items-center justify-center px-4 py-2 select-none touch-none`}
           >
             <div>
-              <p className="text-5xl font-black leading-none text-zinc-100 sm:text-6xl">{formatValue(value, step)}</p>
+              <p className={valueTextClasses}>{formatValue(value, step)}</p>
               <p className="text-zinc-500 text-xs uppercase tracking-[0.18em]">{label}</p>
             </div>
           </button>

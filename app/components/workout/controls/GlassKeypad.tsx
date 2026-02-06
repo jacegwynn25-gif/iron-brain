@@ -47,9 +47,7 @@ export default function GlassKeypad({
       applyValue(value.slice(0, -1));
       return;
     }
-
     if (key === '.' && value.includes('.')) return;
-
     applyValue(`${value}${key}`);
   };
 
@@ -61,77 +59,62 @@ export default function GlassKeypad({
     onIncrement(-increments.primary);
   });
 
-  const nextLabel = value.trim().length > 0 ? 'Next Set' : 'Finish';
-
   if (!mounted || !isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] flex flex-col justify-end pointer-events-auto">
+      {/* Backdrop */}
       <button
         type="button"
-        aria-label="Close keypad backdrop"
+        aria-label="Close keypad"
         onClick={onClose}
-        className="absolute inset-0 bg-black/35 transition-opacity duration-300"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
       />
 
+      {/* Keypad Panel */}
       <div
-        className={`fixed bottom-0 left-0 right-0 border-t border-white/10 bg-zinc-950/80 backdrop-blur-2xl transition-transform duration-300 ${
+        className={`relative z-[10000] w-full border-t border-white/10 bg-zinc-950/95 backdrop-blur-2xl transition-transform duration-300 pb-[calc(env(safe-area-inset-bottom)+2rem)] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
-        <div className="mx-auto w-full max-w-5xl px-3 pb-4 pt-3 sm:px-4">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-zinc-100 text-sm font-bold uppercase tracking-[0.16em]">Input Console</p>
+        <div className="mx-auto w-full max-w-lg px-4 pt-4">
+          {/* Header */}
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">
+              {type === 'weight' ? 'LOAD (LBS)' : type === 'reps' ? 'REPS' : 'INTENSITY (RPE)'}
+            </p>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-white/10 bg-zinc-900/50 p-2 text-zinc-200"
+              className="rounded-full bg-zinc-900/80 p-2 text-zinc-400 hover:text-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-[104px_1fr_132px] gap-3 sm:grid-cols-[124px_1fr_152px]">
+          <div className="grid grid-cols-[104px_1fr_104px] gap-3">
+            {/* Left Col: Adjusters */}
             <div className="flex flex-col gap-3">
               <button
                 type="button"
                 {...positivePressHandlers}
-                className="h-28 rounded-2xl border border-white/10 bg-zinc-900/50 text-zinc-100"
+                className="flex-1 rounded-2xl border border-white/5 bg-zinc-900/50 text-zinc-100 hover:bg-zinc-800"
               >
                 <Plus className="mx-auto h-8 w-8" />
               </button>
-
               <button
                 type="button"
                 {...negativePressHandlers}
-                className="h-28 rounded-2xl border border-white/10 bg-zinc-900/50 text-zinc-100"
+                className="flex-1 rounded-2xl border border-white/5 bg-zinc-900/50 text-zinc-100 hover:bg-zinc-800"
               >
                 <Minus className="mx-auto h-8 w-8" />
               </button>
-
-              {type === 'weight' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onIncrement(increments.secondary)}
-                    className="rounded-xl border border-white/10 bg-zinc-900/50 py-2 text-xs font-bold text-zinc-100"
-                  >
-                    +5
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onIncrement(-increments.secondary)}
-                    className="rounded-xl border border-white/10 bg-zinc-900/50 py-2 text-xs font-bold text-zinc-100"
-                  >
-                    -5
-                  </button>
-                </div>
-              )}
             </div>
 
-            <div className="space-y-2">
-              <div className="h-12 rounded-xl border border-white/10 bg-zinc-900/50 px-4 text-right text-2xl font-bold leading-[3rem] text-zinc-100">
-                {value || '0'}
+            {/* Middle Col: Display & Numpad */}
+            <div className="space-y-3">
+              <div className="flex h-16 items-center justify-end rounded-2xl border border-white/5 bg-black/40 px-6 text-4xl font-black tracking-tight text-white shadow-inner">
+                {value || <span className="text-zinc-700">0</span>}
               </div>
 
               <div className="grid grid-cols-3 gap-2">
@@ -140,7 +123,7 @@ export default function GlassKeypad({
                     key={key}
                     type="button"
                     onClick={() => handleKeypadPress(key)}
-                    className="h-14 rounded-xl border border-white/10 bg-zinc-900/50 text-lg font-bold text-zinc-100 transition-colors hover:bg-white/5"
+                    className="h-14 rounded-xl bg-zinc-800/40 text-xl font-bold text-white hover:bg-zinc-700/60 active:scale-95 transition-all"
                   >
                     {key === 'backspace' ? <Delete className="mx-auto h-5 w-5" /> : key}
                   </button>
@@ -148,25 +131,24 @@ export default function GlassKeypad({
               </div>
             </div>
 
+            {/* Right Col: Actions */}
             <div className="flex flex-col gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-zinc-800/50 text-zinc-100"
+                className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border border-white/5 bg-zinc-900/50 text-zinc-400 hover:text-white"
               >
                 <Check className="h-6 w-6" />
-                <span className="text-sm font-bold">Enter</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider">Enter</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  onNext();
-                }}
-                className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
+                onClick={onNext}
+                className="flex-[2] flex flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
               >
-                <ArrowRight className="h-6 w-6" />
-                <span className="text-sm font-bold">{nextLabel}</span>
+                <ArrowRight className="h-8 w-8" />
+                <span className="text-[10px] uppercase font-black tracking-wider">Next</span>
               </button>
             </div>
           </div>
