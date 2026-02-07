@@ -35,6 +35,10 @@
 - Filters + drill-in
 - PR markers
 
+### Phase 4.5: Dashboard + Log Screen Refresh
+- Align home + log list UI to logger aesthetic
+- Reduce clutter, emphasize session entry
+
 ### Phase 5: Program Progress Tracking
 - Track program day index + last completed
 - Use history to auto-suggest weights/reps
