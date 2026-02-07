@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -12,15 +12,20 @@ import {
   FileText,
   History,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ProgramTemplate } from '@/app/lib/types';
+import type { SetLog, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
+import { saveWorkout } from '@/app/lib/storage';
+import { createUuid } from '@/app/lib/uuid';
+import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -30,7 +35,11 @@ type ExerciseRef = {
   exercise: Exercise;
 };
 
-const REST_DURATION_SECONDS = 90;
+const DEFAULT_REST_SECONDS = 90;
+const COMPOUND_REST_SECONDS = 180;
+const ISOLATION_REST_SECONDS = 90;
+const SMALL_ISO_REST_SECONDS = 75;
+const CORE_REST_SECONDS = 60;
 
 type CommonExercise = {
   id: string;
@@ -50,6 +59,8 @@ type MuscleGroup =
   | 'calves'
   | 'core'
   | 'other';
+
+type ExerciseIdentity = Pick<Exercise, 'id' | 'name'>;
 
 const COMMON_EXERCISES: CommonExercise[] = [
   { id: 'back_squat', name: 'Back Squat', target: 'legs' },
@@ -91,6 +102,20 @@ const MUSCLE_COLORS: Record<MuscleGroup, { color: string; glow: string }> = {
   calves: { color: '#bef264', glow: 'rgba(190,242,100,0.5)' },
   core: { color: '#22d3ee', glow: 'rgba(34,211,238,0.5)' },
   other: { color: '#71717a', glow: 'rgba(113,113,122,0.35)' },
+};
+
+const MUSCLE_LABELS: Record<MuscleGroup, string> = {
+  chest: 'CHEST',
+  shoulders: 'SHOULDERS',
+  triceps: 'TRICEPS',
+  biceps: 'BICEPS',
+  back: 'BACK',
+  quads: 'QUADS',
+  hamstrings: 'HAMS',
+  glutes: 'GLUTES',
+  calves: 'CALVES',
+  core: 'CORE',
+  other: 'LIFT',
 };
 
 const LEGEND_ITEMS: Array<{ key: MuscleGroup; label: string }> = [
@@ -195,22 +220,58 @@ function createQuickStartProgram(): ProgramTemplate {
 
 type ExerciseStyle = {
   icon: LucideIcon;
-  color: string;
   label: string;
+  primaryColor: string;
+  secondaryColor: string;
+  isCompound: boolean;
 };
 
-const getExerciseStyle = (name: string): ExerciseStyle => {
-  const lower = name.toLowerCase();
-  if (['bench', 'press', 'push'].some((keyword) => lower.includes(keyword))) {
-    return { icon: ArrowUp, color: 'text-sky-400', label: 'PUSH' };
-  }
-  if (['row', 'pull', 'chin', 'curl'].some((keyword) => lower.includes(keyword))) {
-    return { icon: ArrowDown, color: 'text-indigo-400', label: 'PULL' };
-  }
-  if (['squat', 'leg', 'lunge', 'deadlift'].some((keyword) => lower.includes(keyword))) {
-    return { icon: Activity, color: 'text-emerald-400', label: 'LEGS' };
-  }
-  return { icon: Dumbbell, color: 'text-zinc-400', label: 'LIFT' };
+const ExerciseBadge = ({ icon: Icon, style }: { icon: LucideIcon; style: ExerciseStyle }) => {
+  const ringStyle = style.isCompound
+    ? { backgroundImage: `linear-gradient(135deg, ${style.primaryColor}, ${style.secondaryColor})` }
+    : { backgroundColor: style.primaryColor };
+  const glowColor = style.isCompound ? style.secondaryColor : style.primaryColor;
+
+  return (
+    <span className="inline-flex rounded-full p-[1px]" style={ringStyle}>
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950"
+        style={{ boxShadow: `0 0 10px ${glowColor}55` }}
+      >
+        <Icon className="h-3.5 w-3.5" style={{ color: style.primaryColor }} />
+      </span>
+    </span>
+  );
+};
+
+const MUSCLE_ICONS: Record<MuscleGroup, LucideIcon> = {
+  chest: ArrowUp,
+  shoulders: ArrowUp,
+  triceps: ArrowUp,
+  biceps: ArrowDown,
+  back: ArrowDown,
+  quads: Activity,
+  hamstrings: Activity,
+  glutes: Activity,
+  calves: Activity,
+  core: Activity,
+  other: Dumbbell,
+};
+
+const getExerciseStyle = (exercise: ExerciseIdentity): ExerciseStyle => {
+  const { primary, secondary } = resolveMuscleBlend(exercise as Exercise);
+  const primaryKey = MUSCLE_COLORS[primary] ? primary : 'other';
+  const secondaryKey = secondary && MUSCLE_COLORS[secondary] ? secondary : primaryKey;
+  const primaryPalette = MUSCLE_COLORS[primaryKey];
+  const secondaryPalette = MUSCLE_COLORS[secondaryKey];
+  const isCompound = secondaryKey !== primaryKey;
+  return {
+    icon: MUSCLE_ICONS[primaryKey] ?? Dumbbell,
+    label: MUSCLE_LABELS[primaryKey] ?? 'LIFT',
+    primaryColor: primaryPalette.color,
+    secondaryColor: secondaryPalette.color,
+    isCompound,
+  };
 };
 
 const isBodyweight = (name: string): boolean => {
@@ -225,6 +286,24 @@ const isBodyweight = (name: string): boolean => {
     'plank',
     'ab wheel',
   ].some((keyword) => lower.includes(keyword));
+};
+
+const getRestDurationSeconds = (exercise: Exercise): number => {
+  const { primary, secondary } = resolveMuscleBlend(exercise);
+  const isCompound = Boolean(secondary);
+  if (isCompound) return COMPOUND_REST_SECONDS;
+  if (primary === 'core') return CORE_REST_SECONDS;
+  if (primary === 'calves' || primary === 'biceps' || primary === 'triceps' || primary === 'shoulders') {
+    return SMALL_ISO_REST_SECONDS;
+  }
+  return ISOLATION_REST_SECONDS;
+};
+
+const mapSetType = (setType: SessionSet['type']): SetLog['setType'] => {
+  if (setType === 'warmup') return 'warmup';
+  if (setType === 'drop') return 'drop';
+  if (setType === 'failure') return 'amrap';
+  return 'straight';
 };
 
 function findSetByActiveCell(blocks: Block[], activeCell: ActiveCell | null) {
@@ -269,6 +348,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     addSet,
     updateNote,
     addExercise,
+    removeExercise,
     setActiveCell,
   } = useWorkoutSession(initialProgram, readinessModifier);
 
@@ -286,15 +366,22 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
   const [, setKeypadValue] = useState('');
+  const [keypadArmed, setKeypadArmed] = useState(false);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
   const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
     setId: string;
     wasLastSet: boolean;
+    wasEditing: boolean;
   } | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const viewHistoryRef = useRef<ViewMode[]>(['overview']);
+  const isBackNavRef = useRef(false);
+  const saveInFlightRef = useRef(false);
 
   const calculateSessionStats = (blocks: Block[]) => {
     let totalVolume = 0;
@@ -462,6 +549,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   useEffect(() => {
     setActiveInput(null);
     setKeypadValue('');
+    setKeypadArmed(false);
   }, [viewMode]);
 
   useEffect(() => {
@@ -513,6 +601,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     if (!focusContext) return;
     const currentValue = field === 'weight' ? focusContext.set.weight : focusContext.set.reps;
     setKeypadValue(currentValue == null ? '' : String(currentValue));
+    setKeypadArmed(true);
     setActiveInput({ blockId: focusContext.blockId, setId: focusContext.setId, field });
     setActiveCell({
       blockId: focusContext.blockId,
@@ -548,16 +637,22 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const handleKeypadPress = (key: string) => {
     if (!activeInput) return;
 
+    const clearExisting = keypadArmed && key !== 'del';
+    if (keypadArmed) {
+      setKeypadArmed(false);
+    }
+
     setKeypadValue((current) => {
-      let next = current;
+      const base = clearExisting ? '' : current;
+      let next = base;
       if (key === 'del') {
         next = current.slice(0, -1);
       } else if (key === '.') {
         if (activeInput.field === 'reps') return current;
-        if (current.includes('.')) return current;
-        next = current === '' ? '0.' : `${current}.`;
+        if (base.includes('.')) return current;
+        next = base === '' ? '0.' : `${base}.`;
       } else {
-        next = current === '0' ? key : `${current}${key}`;
+        next = base === '0' ? key : `${base}${key}`;
       }
 
       const parsed = next === '' || next === '.' ? null : Number(next);
@@ -571,8 +666,13 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     });
   };
 
-  const handleOpenFocus = (entry: ExerciseRef) => {
-    const targetSet = entry.exercise.sets.find((set) => !set.completed) ?? entry.exercise.sets[0] ?? null;
+  const handleOpenFocus = (entry: ExerciseRef, targetSetId?: string) => {
+    const targetSet =
+      (targetSetId
+        ? entry.exercise.sets.find((set) => set.id === targetSetId)
+        : entry.exercise.sets.find((set) => !set.completed)) ??
+      entry.exercise.sets[0] ??
+      null;
 
     if (targetSet) {
       setActiveCell({
@@ -625,23 +725,76 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
 
     const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
     const wasLastSet = setIndex === focusContext.exercise.sets.length - 1;
+    const wasEditing = focusContext.set.completed;
 
     setRestContext({
       blockId: focusContext.blockId,
       exerciseId: focusContext.exerciseId,
       setId: focusContext.setId,
       wasLastSet,
+      wasEditing,
     });
 
-    toggleComplete(focusContext.blockId, focusContext.exerciseId, focusContext.setId);
+    if (!wasEditing) {
+      toggleComplete(focusContext.blockId, focusContext.exerciseId, focusContext.setId);
+    }
     setViewMode('rest');
   };
 
-  const handleContinue = () => {
+  const handleContinue = (forceOverview = false) => {
+    if (restContext?.wasEditing) {
+      setViewMode('overview');
+      setFocusedExerciseId(null);
+      return;
+    }
+    if (forceOverview) {
+      setViewMode('overview');
+      setFocusedExerciseId(null);
+      return;
+    }
     if (nextSetContext && restContext && nextSetContext.exercise.id === restContext.exerciseId) {
       setViewMode('cockpit');
     } else {
       setViewMode('overview');
+      setFocusedExerciseId(null);
+    }
+  };
+
+  const handleBackNavigation = () => {
+    if (isSummaryOpen) {
+      setIsSummaryOpen(false);
+      return;
+    }
+    if (isNotesOpen) {
+      setIsNotesOpen(false);
+      return;
+    }
+    if (isHistoryOpen) {
+      setIsHistoryOpen(false);
+      return;
+    }
+    if (isAddMovementOpen) {
+      setIsAddMovementOpen(false);
+      return;
+    }
+    if (activeInput) {
+      setActiveInput(null);
+      setKeypadValue('');
+      setKeypadArmed(false);
+      return;
+    }
+    if (revealedId) {
+      setRevealedId(null);
+      return;
+    }
+
+    const history = viewHistoryRef.current;
+    if (history.length <= 1) return;
+    history.pop();
+    const previous = history[history.length - 1];
+    isBackNavRef.current = true;
+    setViewMode(previous);
+    if (previous === 'overview') {
       setFocusedExerciseId(null);
     }
   };
@@ -662,6 +815,88 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
       updateNote(focusContext.blockId, focusContext.exerciseId, notesDraft);
     }
     setIsNotesOpen(false);
+  };
+
+  const buildWorkoutSession = (): WorkoutSession => {
+    const now = new Date();
+    const startTime = session.startTime ?? now;
+    const date = startTime.toISOString().split('T')[0];
+    const sessionId = `session_${createUuid()}`;
+    const programId = initialProgram?.id ?? 'quick_start';
+    const programName = initialProgram?.name ?? 'Quick Start';
+
+    const sets: SetLog[] = [];
+    session.blocks.forEach((block) => {
+      block.exercises.forEach((exercise) => {
+        const bodyweightExercise = isBodyweight(exercise.name);
+        exercise.sets.forEach((set, index) => {
+          const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
+          const weight = Number(set.weight) || 0;
+          const volumeLoad = weight > 0 && reps > 0 ? weight * reps : null;
+          const e1rm =
+            weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
+
+          sets.push({
+            id: set.id,
+            exerciseId: exercise.id,
+            exerciseName: exercise.name,
+            setIndex: index + 1,
+            prescribedReps: String(reps),
+            prescribedRPE: set.rpe ?? null,
+            actualWeight: weight || null,
+            weightUnit: 'lbs',
+            loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
+            actualReps: reps,
+            actualRPE: set.rpe ?? null,
+            completed: set.completed === true,
+            e1rm: e1rm ? Math.round(e1rm) : null,
+            volumeLoad,
+            setType: mapSetType(set.type),
+            timestamp: now.toISOString(),
+          });
+        });
+      });
+    });
+
+    const completedSets = sets.filter((set) => set.completed);
+    const totalVolumeLoad = completedSets.reduce((sum, set) => sum + (set.volumeLoad ?? 0), 0);
+    const totalReps = completedSets.reduce((sum, set) => sum + (set.actualReps ?? 0), 0);
+    const averageRPE =
+      completedSets.length > 0
+        ? completedSets.reduce((sum, set) => sum + (set.actualRPE ?? 0), 0) / completedSets.length
+        : undefined;
+
+    return {
+      id: sessionId,
+      programId,
+      programName,
+      cycleNumber: 1,
+      weekNumber: 1,
+      dayOfWeek: '',
+      dayName: programName,
+      date,
+      startTime: startTime.toISOString(),
+      endTime: now.toISOString(),
+      durationMinutes: Math.max(1, Math.round((now.getTime() - startTime.getTime()) / 60000)),
+      sets,
+      totalVolumeLoad,
+      averageRPE,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+  };
+
+  const handleFinishWorkout = () => {
+    if (saveInFlightRef.current) {
+      router.push('/');
+      return;
+    }
+    saveInFlightRef.current = true;
+    const payload = buildWorkoutSession();
+    void saveWorkout(payload).finally(() => {
+      saveInFlightRef.current = false;
+    });
+    router.push('/');
   };
 
   const handleShare = async () => {
@@ -695,17 +930,29 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     }, 50);
   };
 
+  const handleRemoveExercise = (blockId: string, exerciseId: string) => {
+    removeExercise(blockId, exerciseId);
+  };
+
   const weightValue = focusContext?.set.weight ?? 0;
   const repsValue = focusContext?.set.reps ?? 8;
   const rpeValue = focusContext?.set.rpe ?? null;
   const bodyweightExercise = focusedRef ? isBodyweight(focusedRef.exercise.name) : false;
   const isWeightActive = activeInput?.field === 'weight';
   const isRepsActive = activeInput?.field === 'reps';
+  const isEditingSet = Boolean(focusContext?.set.completed);
 
   const nextSetIndex = nextSetContext
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
     : null;
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
+  const restDurationSeconds = useMemo(() => {
+    if (!restContext) return DEFAULT_REST_SECONDS;
+    const block = session.blocks.find((entry) => entry.id === restContext.blockId);
+    const exercise = block?.exercises.find((entry) => entry.id === restContext.exerciseId);
+    if (!exercise) return DEFAULT_REST_SECONDS;
+    return getRestDurationSeconds(exercise);
+  }, [restContext, session.blocks]);
 
   const filteredExercises = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -713,55 +960,217 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     return COMMON_EXERCISES.filter((exercise) => exercise.name.toLowerCase().includes(query));
   }, [searchQuery]);
 
+  useEffect(() => {
+    if (isBackNavRef.current) {
+      isBackNavRef.current = false;
+      return;
+    }
+    const history = viewHistoryRef.current;
+    if (history[history.length - 1] !== viewMode) {
+      history.push(viewMode);
+      if (history.length > 20) {
+        history.shift();
+      }
+    }
+  }, [viewMode]);
+
+  const shouldIgnoreSwipe = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('[data-swipe-ignore="true"]')) return true;
+    if (target.closest('input, textarea, select')) return true;
+    return false;
+  };
+
+  const handleSwipeStart = (event: TouchEvent) => {
+    if (shouldIgnoreSwipe(event.target)) {
+      swipeStartRef.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch) return;
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleSwipeEnd = (event: TouchEvent) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      handleBackNavigation();
+    }
+  };
+
   return (
     <>
-      <div className="relative w-full h-[100dvh] bg-zinc-950 text-white flex flex-col overflow-hidden">
+      <div
+        className="relative w-full h-[100dvh] bg-zinc-950 text-white flex flex-col overflow-hidden"
+        onTouchStart={handleSwipeStart}
+        onTouchEnd={handleSwipeEnd}
+        data-swipe-scope="local"
+      >
         <AnimatePresence mode="wait" initial={false}>
           {viewMode === 'overview' && (
-            <motion.div
-              key="overview"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
-              ref={overviewScrollRef}
-            >
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
+            ref={overviewScrollRef}
+          >
               <div className="px-4 pt-12 pb-4">
                 <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
                 <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
               </div>
 
-              <div className="space-y-6 px-4">
+              <div
+                className="space-y-6 px-4"
+                onClick={() => setRevealedId(null)}
+              >
                 {exerciseRefs.map((entry) => {
-                  const style = getExerciseStyle(entry.exercise.name);
+                  const style = getExerciseStyle(entry.exercise);
                   const StyleIcon = style.icon;
+                  const isRevealed = revealedId === entry.exercise.id;
+                  const bodyweightExercise = isBodyweight(entry.exercise.name);
 
                   return (
-                    <button
-                      key={entry.exercise.id}
-                      type="button"
-                      onClick={() => handleOpenFocus(entry)}
-                      className="group relative w-full text-left"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="mb-1 flex items-center gap-2">
-                            <StyleIcon className={`h-4 w-4 ${style.color}`} />
-                            <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                    <div key={entry.exercise.id} className="relative overflow-hidden rounded-2xl">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExercise(entry.blockId, entry.exercise.id)}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-rose-600/90"
+                        aria-label={`Delete ${entry.exercise.name}`}
+                      >
+                        <Trash2 className="h-5 w-5 text-white" />
+                      </button>
+                      <motion.div
+                        drag="x"
+                        dragConstraints={{ left: -80, right: 0 }}
+                        dragElastic={0.08}
+                        dragSnapToOrigin
+                        dragMomentum={false}
+                        animate={{ x: isRevealed ? -80 : 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        onDragEnd={(_, info) => {
+                          const threshold = 36;
+                          if (!isRevealed && info.offset.x < -threshold) {
+                            setRevealedId(entry.exercise.id);
+                          } else if (isRevealed && info.offset.x > threshold) {
+                            setRevealedId(null);
+                          }
+                        }}
+                        className="relative z-10 rounded-2xl bg-zinc-950"
+                        data-swipe-ignore="true"
+                      >
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setRevealedId(null);
+                            handleOpenFocus(entry);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setRevealedId(null);
+                              handleOpenFocus(entry);
+                            }
+                          }}
+                          className="group relative w-full text-left rounded-2xl bg-zinc-950"
+                        >
+                          <div className="flex flex-col gap-3 p-1">
+                            <div>
+                              <div className="mb-1 flex items-center gap-2">
+                                <ExerciseBadge icon={StyleIcon} style={style} />
+                                <span
+                                  className={`text-xs font-bold tracking-[0.2em] ${
+                                    style.isCompound ? 'bg-clip-text text-transparent' : ''
+                                  }`}
+                                  style={{
+                                    color: style.isCompound ? undefined : style.primaryColor,
+                                    backgroundImage: style.isCompound
+                                      ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                                      : undefined,
+                                  }}
+                                >
+                                  {style.label}
+                                </span>
+                                <span
+                                  className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                                  style={{ color: style.secondaryColor }}
+                                >
+                                  {style.isCompound ? 'COMP' : 'ISO'}
+                                </span>
+                              </div>
+                              <p className="text-3xl font-black italic text-white">{entry.exercise.name}</p>
+                            </div>
+                            <div
+                              className="data-stream flex gap-2 overflow-x-auto pr-8 pb-1"
+                              data-swipe-ignore="true"
+                              style={{
+                                WebkitMaskImage:
+                                  'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
+                                maskImage:
+                                  'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
+                                scrollbarWidth: 'none',
+                                msOverflowStyle: 'none',
+                              }}
+                            >
+                              {entry.exercise.sets.map((set, index) => {
+                                const repsValue =
+                                  set.reps === null || set.reps === undefined
+                                    ? 8
+                                    : Number(set.reps);
+                                const weightValue = Number(set.weight) || 0;
+                                const displayWeight = Number.isInteger(weightValue)
+                                  ? `${weightValue}`
+                                  : weightValue.toFixed(1);
+                                const displayReps = Number.isInteger(repsValue)
+                                  ? `${repsValue}`
+                                  : repsValue.toFixed(1);
+                                let label = `Set ${index + 1}`;
+                                if (set.completed) {
+                                  if (bodyweightExercise && weightValue === 0) {
+                                    label = repsValue > 0 ? `BW × ${displayReps}` : 'BW';
+                                  } else if (weightValue > 0) {
+                                    label = repsValue > 0 ? `${displayWeight} × ${displayReps}` : displayWeight;
+                                  } else {
+                                    label = repsValue > 0 ? `BW × ${displayReps}` : '--';
+                                  }
+                                }
+
+                                return (
+                                  <button
+                                    key={set.id}
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setRevealedId(null);
+                                      handleOpenFocus(entry, set.id);
+                                    }}
+                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${
+                                      set.completed
+                                        ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                        : 'border-zinc-800 bg-zinc-900 text-zinc-600'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <p className="text-3xl font-black italic text-white">{entry.exercise.name}</p>
                         </div>
-                        <div className="flex gap-1.5">
-                          {entry.exercise.sets.map((set) => (
-                            <span
-                              key={set.id}
-                              className={`h-2 w-2 rounded-full ${set.completed ? 'bg-emerald-500' : 'bg-zinc-800'}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </button>
+                      </motion.div>
+                    </div>
                   );
                 })}
 
@@ -814,12 +1223,30 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
 
               <div>
                 {focusedRef && (() => {
-                  const style = getExerciseStyle(focusedRef.exercise.name);
+                  const style = getExerciseStyle(focusedRef.exercise);
                   const StyleIcon = style.icon;
                   return (
                     <div className="mb-1 flex items-center gap-2">
-                      <StyleIcon className={`h-4 w-4 ${style.color}`} />
-                      <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                      <ExerciseBadge icon={StyleIcon} style={style} />
+                      <span
+                        className={`text-xs font-bold tracking-[0.2em] ${
+                          style.isCompound ? 'bg-clip-text text-transparent' : ''
+                        }`}
+                        style={{
+                          color: style.isCompound ? undefined : style.primaryColor,
+                          backgroundImage: style.isCompound
+                            ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                            : undefined,
+                        }}
+                      >
+                        {style.label}
+                      </span>
+                      <span
+                        className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                        style={{ color: style.secondaryColor }}
+                      >
+                        {style.isCompound ? 'COMP' : 'ISO'}
+                      </span>
                     </div>
                   );
                 })()}
@@ -886,7 +1313,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                   disabled={!focusContext}
                   className="flex-[2] mx-2 h-full bg-emerald-500 hover:bg-emerald-400 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40"
                 >
-                  LOG SET
+                  {isEditingSet ? 'SAVE CHANGES' : 'LOG SET'}
                 </button>
 
                 <button
@@ -912,7 +1339,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
             >
               <RestTimer
                 isActive={viewMode === 'rest'}
-                duration={REST_DURATION_SECONDS}
+                duration={restDurationSeconds}
                 onComplete={(addExtra) => {
                   if (addExtra) {
                     handleAddBonusSet();
@@ -920,13 +1347,21 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                     handleContinue();
                   }
                 }}
+                onSkip={(addExtra) => {
+                  if (addExtra && !restContext?.wasEditing) {
+                    handleAddBonusSet();
+                  } else {
+                    handleContinue();
+                  }
+                }}
+                showUpNext={!restContext?.wasEditing}
                 nextSetInfo={{
                   exerciseName: nextSetContext?.exercise.name,
                   setNumber: nextSetNumber,
                   weight: nextSetContext?.set.weight ?? undefined,
                   reps: nextSetContext?.set.reps ?? undefined,
                 }}
-                isLastSetOfExercise={Boolean(restContext?.wasLastSet)}
+                isLastSetOfExercise={Boolean(restContext?.wasLastSet && !restContext?.wasEditing)}
               />
             </motion.div>
           )}
@@ -940,7 +1375,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-0 z-50 bg-zinc-950 p-6"
+            className="fixed inset-0 z-50 bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)]"
           >
             <div className="flex items-center justify-between">
               <p className="text-white text-xl font-black">History</p>
@@ -971,7 +1406,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-zinc-950 p-6 flex flex-col justify-center"
+            className="fixed inset-0 z-50 bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)] flex flex-col"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-white text-xl font-black">Session Notes</h3>
@@ -1012,7 +1447,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-zinc-950 p-6 flex flex-col"
+            className="fixed inset-0 z-[60] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+4rem)] flex flex-col"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-black text-white">ADD MOVEMENT</h3>
@@ -1037,7 +1472,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
 
             <div className="mt-8 flex-1 overflow-y-auto">
               {filteredExercises.map((exercise) => {
-                const style = getExerciseStyle(exercise.name);
+                const style = getExerciseStyle(exercise);
                 const StyleIcon = style.icon;
                 return (
                   <button
@@ -1047,8 +1482,26 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                     className="w-full py-4 border-b border-zinc-900 text-left"
                   >
                     <div className="flex items-center gap-3 mb-1">
-                      <StyleIcon className={`h-4 w-4 ${style.color}`} />
-                      <span className={`text-xs font-bold tracking-[0.2em] ${style.color}`}>{style.label}</span>
+                      <ExerciseBadge icon={StyleIcon} style={style} />
+                      <span
+                        className={`text-xs font-bold tracking-[0.2em] ${
+                          style.isCompound ? 'bg-clip-text text-transparent' : ''
+                        }`}
+                        style={{
+                          color: style.isCompound ? undefined : style.primaryColor,
+                          backgroundImage: style.isCompound
+                            ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                            : undefined,
+                        }}
+                      >
+                        {style.label}
+                      </span>
+                      <span
+                        className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                        style={{ color: style.secondaryColor }}
+                      >
+                        {style.isCompound ? 'COMP' : 'ISO'}
+                      </span>
                     </div>
                     <p className="text-white text-xl font-bold">{exercise.name}</p>
                   </button>
@@ -1208,7 +1661,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push('/')}
+                  onClick={handleFinishWorkout}
                   className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all"
                 >
                   Finish
@@ -1239,6 +1692,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                   onClick={() => {
                     setActiveInput(null);
                     setKeypadValue('');
+                    setKeypadArmed(false);
                   }}
                   className="rounded-full bg-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-zinc-200 hover:bg-zinc-700 transition-colors"
                 >
@@ -1262,6 +1716,12 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <style jsx>{`
+        .data-stream::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </>
   );
 }

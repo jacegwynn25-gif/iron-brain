@@ -56,6 +56,13 @@ type WorkoutSessionAction =
       };
     }
   | {
+      type: 'REMOVE_EXERCISE';
+      payload: {
+        blockId: string;
+        exerciseId: string;
+      };
+    }
+  | {
       type: 'REMOVE_SET';
       payload: {
         blockId: string;
@@ -477,7 +484,7 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
         id: setId,
         type: 'working',
         weight: null,
-        reps: null,
+        reps: 8,
         rpe: null,
         completed: false,
         previous: null,
@@ -500,6 +507,36 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
       return {
         ...state,
         blocks,
+      };
+    }
+
+    case 'REMOVE_EXERCISE': {
+      const blocks = cloneBlocks(state.blocks);
+      const blockIndex = blocks.findIndex((block) => block.id === action.payload.blockId);
+      if (blockIndex === -1) return state;
+      const block = blocks[blockIndex];
+      const exerciseIndex = block.exercises.findIndex(
+        (exercise) => exercise.id === action.payload.exerciseId
+      );
+      if (exerciseIndex === -1) return state;
+
+      if (block.exercises.length > 1) {
+        block.exercises.splice(exerciseIndex, 1);
+      } else {
+        blocks.splice(blockIndex, 1);
+      }
+
+      let activeCell = state.activeCell;
+      if (activeCell && activeCell.blockId === action.payload.blockId) {
+        if (activeCell.exerciseId === action.payload.exerciseId) {
+          activeCell = null;
+        }
+      }
+
+      return {
+        ...state,
+        blocks,
+        activeCell,
       };
     }
 
@@ -642,6 +679,13 @@ export function useWorkoutSession(program: ProgramTemplate, readinessModifier: n
     });
   }, []);
 
+  const removeExercise = useCallback((blockId: string, exerciseId: string) => {
+    dispatch({
+      type: 'REMOVE_EXERCISE',
+      payload: { blockId, exerciseId },
+    });
+  }, []);
+
   const setActiveCell = useCallback((cell: ActiveCell | null) => {
     dispatch({
       type: 'SET_ACTIVE_CELL',
@@ -667,6 +711,7 @@ export function useWorkoutSession(program: ProgramTemplate, readinessModifier: n
     removeSet,
     updateNote,
     addExercise,
+    removeExercise,
     setActiveCell,
     finishSession,
   };

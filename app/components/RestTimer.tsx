@@ -18,6 +18,7 @@ interface RestTimerProps {
   onComplete: (addExtraSet: boolean) => void;
   onSkip?: (addExtraSet: boolean) => void;
   nextSetInfo?: NextSetInfo;
+  showUpNext?: boolean;
   currentSessionSets?: WorkoutSession['sets'];
   onApplyWeightSuggestion?: (weight: number) => void;
   onReduceReps?: (amount: number) => void;
@@ -33,6 +34,7 @@ export default function RestTimer({
   onComplete,
   onSkip,
   nextSetInfo,
+  showUpNext = true,
   isLastSetOfExercise = false,
   exerciseName,
 }: RestTimerProps) {
@@ -128,9 +130,11 @@ export default function RestTimer({
           {minutes}:{seconds.toString().padStart(2, '0')}
         </p>
 
-        <p className="text-2xl font-medium text-zinc-400">
-          {upNextTextParts.join(' \u2022 ')}
-        </p>
+        {showUpNext && (
+          <p className="text-2xl font-medium text-zinc-400">
+            {upNextTextParts.join(' \u2022 ')}
+          </p>
+        )}
 
         <div className="flex items-center gap-6">
           {isLastSetOfExercise && (

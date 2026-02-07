@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   NotebookPen,
@@ -9,6 +9,7 @@ import {
   Settings,
   type LucideIcon,
 } from 'lucide-react';
+import { useEffect, useRef, type TouchEvent } from 'react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -36,14 +37,72 @@ function isActivePath(pathname: string, href: string): boolean {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const router = useRouter();
   const pathname = usePathname() ?? '/';
   const hideBottomNav =
     pathname.includes('/workout/active') ||
     pathname === '/workout/readiness' ||
     pathname === '/workout/summary';
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const routeHistoryRef = useRef<string[]>([pathname]);
+  const isBackNavRef = useRef(false);
+
+  useEffect(() => {
+    if (isBackNavRef.current) {
+      isBackNavRef.current = false;
+      return;
+    }
+    const history = routeHistoryRef.current;
+    if (history[history.length - 1] !== pathname) {
+      history.push(pathname);
+      if (history.length > 30) {
+        history.shift();
+      }
+    }
+  }, [pathname]);
+
+  const shouldIgnoreSwipe = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('[data-swipe-ignore="true"]')) return true;
+    if (target.closest('[data-swipe-scope="local"]')) return true;
+    if (target.closest('input, textarea, select, [contenteditable="true"]')) return true;
+    return false;
+  };
+
+  const handleSwipeStart = (event: TouchEvent) => {
+    if (shouldIgnoreSwipe(event.target)) {
+      swipeStartRef.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch) return;
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleSwipeEnd = (event: TouchEvent) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      const history = routeHistoryRef.current;
+      if (history.length <= 1) return;
+      history.pop();
+      const previous = history[history.length - 1];
+      isBackNavRef.current = true;
+      router.push(previous);
+    }
+  };
 
   return (
-    <div className="relative min-h-dvh bg-zinc-950 text-zinc-100">
+    <div
+      className="relative min-h-dvh bg-zinc-950 text-zinc-100"
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+    >
       <div className="pointer-events-none fixed inset-0 -z-20 bg-zinc-950" />
       <div
         className="pointer-events-none fixed inset-0 -z-20 opacity-70"
