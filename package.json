@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "qa:workout": "node scripts/qa-workout-session.js",
     "seed:dev": "tsx scripts/seed-dev-data.ts",
     "verify-supabase": "tsx scripts/verify-supabase.ts"
   },
