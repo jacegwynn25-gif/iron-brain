@@ -292,7 +292,11 @@ function clearStaleActiveSessions(): void {
 // WORKOUT HISTORY STORAGE
 // ============================================================
 
-export async function saveWorkout(session: WorkoutSession, providedUserId?: string | null): Promise<void> {
+export async function saveWorkout(
+  session: WorkoutSession,
+  providedUserId?: string | null,
+  options?: { skipAnalytics?: boolean }
+): Promise<void> {
   let sessionToQueue = session;
   try {
     // Normalize session ID to always include a valid UUID
@@ -435,31 +439,16 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
 
       const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
 
-      // Save each set
+      // Save each set (batched for speed)
       if (sessionToSave.sets && sessionToSave.sets.length > 0) {
-
-        let setSyncFailed = false;
-
-        for (let i = 0; i < sessionToSave.sets.length; i++) {
-          const set = sessionToSave.sets[i];
-
-          logger.debug(`Set ${i + 1} raw data:`, {
-            exerciseId: set.exerciseId,
-            actualWeight: set.actualWeight,
-            actualReps: set.actualReps,
-            actualRPE: set.actualRPE,
-            actualRIR: set.actualRIR,
-            e1rm: set.e1rm,
-          });
-
-          const { error: setError } = await supabase.from('set_logs').insert({
-            id: set.id && isValidUuid(set.id) ? set.id : undefined,
+        const setPayloads = sessionToSave.sets.map((set, index) => {
+          const payload: Record<string, unknown> = {
             workout_session_id: workoutUuid,
             exercise_id: null, // Set to NULL - we use exercise_slug instead
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
             program_set_id: null,
-            order_index: i,
-            set_index: set.setIndex ? Math.round(Number(set.setIndex)) : i + 1,
+            order_index: index,
+            set_index: set.setIndex ? Math.round(Number(set.setIndex)) : index + 1,
             // Prescribed values (what the program said to do)
             prescribed_reps: set.prescribedReps != null ? Math.round(Number(set.prescribedReps)).toString() : null,
             prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
@@ -473,7 +462,10 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
             actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
             // Performance metrics
             e1rm: set.e1rm,
-            volume_load: set.actualWeight && set.actualReps ? Math.round(Number(set.actualWeight) * Number(set.actualReps)) : null,
+            volume_load:
+              set.actualWeight && set.actualReps
+                ? Math.round(Number(set.actualWeight) * Number(set.actualReps))
+                : null,
             // Set metadata
             set_type: set.setType || 'straight',
             tempo: set.tempo,
@@ -482,63 +474,67 @@ export async function saveWorkout(session: WorkoutSession, providedUserId?: stri
             notes: set.notes,
             completed: set.completed !== false,
             skipped: set.completed === false,
-          });
+          };
 
-          if (setError) {
-            console.error(`Failed to save set ${i + 1}:`, setError);
-            setSyncFailed = true;
+          if (set.id && isValidUuid(set.id)) {
+            payload.id = set.id;
           }
-        }
 
-        logger.debug(`✅ Saved ${sessionToSave.sets.length} sets to Supabase`);
+          return payload;
+        });
 
-        if (setSyncFailed) {
-          logger.debug('⚠️ Set sync failed - queued workout for retry');
+        const { error: setError } = await supabase.from('set_logs').insert(setPayloads);
+        if (setError) {
+          console.error('Failed to save set logs:', setError);
           queueWorkout();
+        } else {
+          logger.debug(`✅ Saved ${sessionToSave.sets.length} sets to Supabase`);
         }
 
-        // PHASE 2: Save fatigue snapshot for cross-session tracking
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && sessionToSave.sets.length > 0) {
-            // Calculate fatigue for all trained muscles
-            const completedSets = sessionToSave.sets.filter(s => s.completed && s.setType !== 'warmup');
-            if (completedSets.length > 0) {
-              // Track fatigue for all major muscle groups
-              const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
-              const fatigueScores = calculateMuscleFatigue(completedSets, muscleGroupsToTrack);
+        if (!options?.skipAnalytics) {
+          // PHASE 2: Save fatigue snapshot for cross-session tracking
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && sessionToSave.sets.length > 0) {
+              // Calculate fatigue for all trained muscles
+              const completedSets = sessionToSave.sets.filter(s => s.completed && s.setType !== 'warmup');
+              if (completedSets.length > 0) {
+                // Track fatigue for all major muscle groups
+                const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
+                const fatigueScores = calculateMuscleFatigue(completedSets, muscleGroupsToTrack);
 
-              // Filter to only muscles with meaningful fatigue (>5)
-              const significantFatigue = fatigueScores.filter(f => f.fatigueLevel > 5);
+                // Filter to only muscles with meaningful fatigue (>5)
+                const significantFatigue = fatigueScores.filter(f => f.fatigueLevel > 5);
 
-              if (significantFatigue.length > 0) {
-                await saveFatigueSnapshot(user.id, sessionId, significantFatigue);
-                logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
-              }
-
-              // PHASE 2.5: Save to NEW recovery system (fatigue_events table)
-              try {
-                await saveFatigueEventsToNewSystem(user.id, sessionId, completedSets);
-              } catch (newSystemError) {
-                console.error('Could not save to new recovery system:', newSystemError);
-                // Non-critical - continue
-              }
-
-              // PHASE 3: Calculate and save SFR analysis
-              try {
-                const sfrSummary = calculateWorkoutSFR(completedSets);
-                if (sfrSummary.exerciseAnalyses.length > 0) {
-                  await saveSFRAnalysis(user.id, sessionId, sfrSummary);
+                if (significantFatigue.length > 0) {
+                  await saveFatigueSnapshot(user.id, sessionId, significantFatigue);
+                  logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
                 }
-              } catch (sfrError) {
-                console.warn('Could not save SFR analysis:', sfrError);
-                // Non-critical - continue
+
+                // PHASE 2.5: Save to NEW recovery system (fatigue_events table)
+                try {
+                  await saveFatigueEventsToNewSystem(user.id, sessionId, completedSets);
+                } catch (newSystemError) {
+                  console.error('Could not save to new recovery system:', newSystemError);
+                  // Non-critical - continue
+                }
+
+                // PHASE 3: Calculate and save SFR analysis
+                try {
+                  const sfrSummary = calculateWorkoutSFR(completedSets);
+                  if (sfrSummary.exerciseAnalyses.length > 0) {
+                    await saveSFRAnalysis(user.id, sessionId, sfrSummary);
+                  }
+                } catch (sfrError) {
+                  console.warn('Could not save SFR analysis:', sfrError);
+                  // Non-critical - continue
+                }
               }
             }
+          } catch (fatigueError) {
+            console.warn('Could not save fatigue snapshot:', fatigueError);
+            // Non-critical - continue
           }
-        } catch (fatigueError) {
-          console.warn('Could not save fatigue snapshot:', fatigueError);
-          // Non-critical - continue
         }
       } else {
         console.warn('No sets to save or session failed');

@@ -893,7 +893,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     }
     saveInFlightRef.current = true;
     const payload = buildWorkoutSession();
-    void saveWorkout(payload).finally(() => {
+    void saveWorkout(payload, undefined, { skipAnalytics: true }).finally(() => {
       saveInFlightRef.current = false;
     });
     router.push('/');
