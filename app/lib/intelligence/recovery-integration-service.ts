@@ -25,7 +25,7 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
 
   // --- STEP 1: SYSTEMIC RECOVERY (The Foundation) ---
   let systemicScore = 100;
-  let systemicReasons: string[] = [];
+  const systemicReasons: string[] = [];
 
   // Sleep Logic
   if (context.sleep_hours) {

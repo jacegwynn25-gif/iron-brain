@@ -7,7 +7,6 @@ import { supabase } from '../supabase/client';
 import type {
   WorkoutSession,
   SessionMetadata,
-  SupabaseSetLogRow,
   SupabaseWorkoutSessionRow,
 } from '../types';
 

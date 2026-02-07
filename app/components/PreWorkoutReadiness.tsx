@@ -25,9 +25,6 @@ export default function PreWorkoutReadiness(props: PreWorkoutReadinessProps) {
   };
   const muscleStatuses: { muscle: string; status: string; detail: string; emoji: string }[] = [];
   const injuryWarning = null as { severity: 'critical' | 'warning'; message: string; emoji: string; title: string; actions?: string[] } | null;
-  const loading = false;
-  const error = null;
-
   const { subscription } = useSubscription();
   const [showPaywall, setShowPaywall] = useState(false);
 

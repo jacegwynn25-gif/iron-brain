@@ -860,7 +860,6 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
 
     const completedSets = sets.filter((set) => set.completed);
     const totalVolumeLoad = completedSets.reduce((sum, set) => sum + (set.volumeLoad ?? 0), 0);
-    const totalReps = completedSets.reduce((sum, set) => sum + (set.actualReps ?? 0), 0);
     const averageRPE =
       completedSets.length > 0
         ? completedSets.reduce((sum, set) => sum + (set.actualRPE ?? 0), 0) / completedSets.length

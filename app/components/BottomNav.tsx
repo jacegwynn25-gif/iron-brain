@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, BookOpen, Plus, BarChart3, User } from 'lucide-react';
+import { Home, BookOpen, Plus, User } from 'lucide-react';
 
 interface NavItem {
   id: string;
