@@ -138,15 +138,26 @@ const syncWorkoutToCloud = async (
       notes: session.notes,
       metadata,
       status: 'completed',
-      total_sets: session.sets?.length || 0,
-      total_reps: session.sets?.reduce((sum, s) => sum + (s.actualReps || 0), 0) || 0,
-      total_volume_load: session.sets?.reduce(
-        (sum, s) => sum + ((s.actualWeight || 0) * (s.actualReps || 0)),
-        0
-      ) || 0,
-      average_rpe: session.sets?.length
-        ? session.sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / session.sets.length
-        : null,
+      total_sets: session.sets?.filter((set) => set.completed !== false).length || 0,
+      total_reps:
+        session.sets?.reduce(
+          (sum, s) => sum + (s.completed === false ? 0 : (s.actualReps || 0)),
+          0
+        ) || 0,
+      total_volume_load:
+        session.sets?.reduce(
+          (sum, s) =>
+            sum +
+            (s.completed === false ? 0 : ((s.actualWeight || 0) * (s.actualReps || 0))),
+          0
+        ) || 0,
+      average_rpe: (() => {
+        const completed = session.sets?.filter((set) => set.completed !== false) ?? [];
+        if (completed.length === 0) return null;
+        return (
+          completed.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / completed.length
+        );
+      })(),
     });
 
   if (sessionError) {

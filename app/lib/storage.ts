@@ -384,6 +384,17 @@ export async function saveWorkout(
       let sessionError: PostgrestError | null = null;
 
       try {
+        const completedSets = sessionToSave.sets?.filter((set) => set.completed !== false) ?? [];
+        const totalReps = completedSets.reduce((sum, set) => sum + (Number(set.actualReps) || 0), 0);
+        const totalVolume = completedSets.reduce(
+          (sum, set) => sum + (Number(set.actualWeight) || 0) * (Number(set.actualReps) || 0),
+          0
+        );
+        const averageRpe =
+          completedSets.length > 0
+            ? completedSets.reduce((sum, set) => sum + (Number(set.actualRPE) || 0), 0) / completedSets.length
+            : null;
+
         const upsertPromise = supabase
           .from('workout_sessions')
           .upsert({
@@ -398,10 +409,10 @@ export async function saveWorkout(
           notes: sessionToSave.notes,
           metadata: metadata,
           status: 'completed',
-          total_sets: sessionToSave.sets?.length || 0,
-          total_reps: Math.round(sessionToSave.sets?.reduce((sum, s) => sum + (Number(s.actualReps) || 0), 0) || 0),
-          total_volume_load: Math.round(sessionToSave.sets?.reduce((sum, s) => sum + ((Number(s.actualWeight) || 0) * (Number(s.actualReps) || 0)), 0) || 0),
-          average_rpe: sessionToSave.sets?.length ? sessionToSave.sets.reduce((sum, s) => sum + (Number(s.actualRPE) || 0), 0) / sessionToSave.sets.length : null,
+          total_sets: completedSets.length,
+          total_reps: Math.round(totalReps),
+          total_volume_load: Math.round(totalVolume),
+          average_rpe: averageRpe,
         })
         .select()
         .single();
