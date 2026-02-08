@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   NotebookPen,
+  BookOpen,
   History,
   Settings,
   type LucideIcon,
@@ -26,9 +27,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { id: 'log', label: 'Log', href: '/start', icon: NotebookPen, coach: 'start-button' },
+  { id: 'programs', label: 'Programs', href: '/programs', icon: BookOpen, coach: 'programs-tab' },
   { id: 'history', label: 'History', href: '/history', icon: History },
-  // Keep Settings as the 4th primary tab.
-  { id: 'settings', label: 'Settings', href: '/profile/settings', icon: Settings },
+  { id: 'settings', label: 'Settings', href: '/profile/settings', icon: Settings, coach: 'settings-tab' },
 ];
 
 function isActivePath(pathname: string, href: string): boolean {
@@ -125,8 +126,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </main>
 
       {!hideBottomNav && (
-        <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-md -translate-x-1/2 border-t border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-          <div className="flex items-center justify-around px-3 py-2 safe-bottom">
+        <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 border-t border-white/10 bg-zinc-900/40 backdrop-blur-xl">
+          <div className="flex items-center justify-between px-2 py-2 safe-bottom">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -136,12 +137,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.id}
                   href={item.href}
                   data-coach={item.coach}
-                  className={`flex min-w-[68px] flex-col items-center gap-1 rounded-xl px-3 py-2 transition-colors ${
+                  className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors ${
                     active ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? 'stroke-[2.4]' : 'stroke-[2]'} `} />
-                  <span className="text-[11px] font-medium">{item.label}</span>
+                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
                 </Link>
               );
             })}

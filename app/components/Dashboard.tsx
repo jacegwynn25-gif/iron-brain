@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { Activity, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { Activity, BookOpen, History as HistoryIcon, RotateCcw, Sparkles } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 
 type Tone = {
@@ -38,16 +38,22 @@ export default function Dashboard() {
 
   const quickActions = [
     {
-      label: 'Start Session',
-      href: '/start',
-      icon: Play,
-      description: 'Jump into today’s flow.',
+      label: 'Programs',
+      href: '/programs',
+      icon: BookOpen,
+      description: 'Build, edit, and select plans.',
     },
     {
       label: 'Quick Start',
       href: '/workout/new?type=empty',
       icon: RotateCcw,
       description: 'Freeform workout builder.',
+    },
+    {
+      label: 'History',
+      href: '/history',
+      icon: HistoryIcon,
+      description: 'Review completed sessions.',
     },
   ];
 
@@ -118,10 +124,10 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              href="/history"
+              href="/programs"
               className="flex-1 rounded-2xl border border-zinc-800 px-6 py-4 text-left text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-zinc-600"
             >
-              Review History
+              Programs
             </Link>
           </div>
         </section>

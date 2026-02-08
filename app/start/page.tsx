@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Play, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, BookOpen, Play, Sparkles, Zap } from 'lucide-react';
 import type { ProgramTemplate } from '../lib/types';
 import { normalizePrograms } from '../lib/programs/normalize';
 import { useAuth } from '../lib/supabase/auth-context';
@@ -66,6 +66,10 @@ export default function StartWorkoutPage() {
   }, [selectedProgram]);
 
   const handleStartSession = () => {
+    if (selectedProgram?.id) {
+      router.push(`/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}`);
+      return;
+    }
     router.push('/workout/new');
   };
 
@@ -99,6 +103,22 @@ export default function StartWorkoutPage() {
             </div>
           </div>
 
+          <div className="mt-4 flex items-center justify-between border-b border-t border-zinc-900 py-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Current Program</p>
+              <p className="text-sm font-semibold text-zinc-100">
+                {selectedProgram?.name ?? 'No Program Selected'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/programs')}
+              className="rounded-xl border border-zinc-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-200 transition-colors hover:border-zinc-600"
+            >
+              Manage
+            </button>
+          </div>
+
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
@@ -119,6 +139,20 @@ export default function StartWorkoutPage() {
 
         <section className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Quick Actions</p>
+          <button
+            type="button"
+            onClick={() => router.push('/programs')}
+            className="flex w-full items-center justify-between border-b border-zinc-900 py-4 text-left transition-colors hover:text-white"
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Programs</p>
+              <p className="mt-2 text-lg font-semibold text-zinc-100">
+                Build, edit, and switch templates.
+              </p>
+            </div>
+            <BookOpen className="h-5 w-5 text-zinc-500" />
+          </button>
+
           <button
             type="button"
             onClick={handleQuickStart}
