@@ -7,7 +7,6 @@ import {
   NotebookPen,
   BookOpen,
   History,
-  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, type TouchEvent } from 'react';
@@ -28,8 +27,7 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { id: 'log', label: 'Log', href: '/start', icon: NotebookPen, coach: 'start-button' },
   { id: 'programs', label: 'Programs', href: '/programs', icon: BookOpen, coach: 'programs-tab' },
-  { id: 'history', label: 'History', href: '/history', icon: History },
-  { id: 'settings', label: 'Settings', href: '/profile/settings', icon: Settings, coach: 'settings-tab' },
+  { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
 ];
 
 function isActivePath(pathname: string, href: string): boolean {

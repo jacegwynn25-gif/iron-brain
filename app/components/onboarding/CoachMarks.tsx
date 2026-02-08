@@ -30,10 +30,10 @@ const coachMarks: CoachMark[] = [
     position: 'top',
   },
   {
-    id: 'settings',
-    targetSelector: '[data-coach="settings-tab"]',
-    title: 'Settings',
-    description: 'Adjust profile, preferences, and app behavior here.',
+    id: 'history',
+    targetSelector: '[data-coach="history-tab"]',
+    title: 'History',
+    description: 'Review finished sessions, trends, and PR progress.',
     position: 'top',
   },
 ];
