@@ -321,17 +321,17 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
   if (sortedHistory.length === 0) {
     return (
-      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-8 text-center shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
-        <History className="mx-auto mb-4 h-12 w-12 text-zinc-500" />
+      <div className="py-16 text-center">
+        <History className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
         <h3 className="mb-2 text-2xl font-black text-white">
           No Workouts Yet
         </h3>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-500">
           Complete your first workout to see it here with detailed analytics and PR tracking.
         </p>
         <button
           onClick={() => router.push('/start')}
-          className="mt-5 rounded-2xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+          className="mt-6 rounded-2xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
         >
           Start a Workout
         </button>
@@ -342,29 +342,27 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
   return (
     <>
       <div className="space-y-6">
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-5 shadow-[0_25px_60px_rgba(0,0,0,0.45)]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
-                Session Totals
-              </p>
-              <h2 className="mt-2 text-3xl font-black text-white">Workout History</h2>
-              <p className="mt-2 text-sm text-zinc-400">
-                {sortedHistory.length} {sortedHistory.length === 1 ? 'session' : 'sessions'} completed
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
-                {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
-              </p>
-              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                {weightUnit} total volume
-              </p>
-            </div>
+        <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
+              Session Totals
+            </p>
+            <h2 className="mt-2 text-3xl font-black text-white">Workout History</h2>
+            <p className="mt-2 text-sm text-zinc-500">
+              {sortedHistory.length} {sortedHistory.length === 1 ? 'session' : 'sessions'} completed
+            </p>
+          </div>
+          <div className="text-left sm:text-right">
+            <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+              {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
+            </p>
+            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+              {weightUnit} total volume
+            </p>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
         {sortedHistory.map((session, sessionIdx) => {
           const isExpanded = expandedSessions.has(session.id);
           const stats = calculateSessionStats(session);
@@ -374,12 +372,12 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
           return (
             <div
               key={session.id}
-              className="group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/60 shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition-all"
+              className="group border-b border-zinc-900 pb-6"
               style={{ animationDelay: `${sessionIdx * 50}ms` }}
             >
               {/* Session Header */}
               <div
-                className="cursor-pointer border-b border-zinc-800 bg-zinc-950/70 p-4 sm:p-5 transition-all hover:bg-zinc-900/70"
+                className="cursor-pointer py-4"
                 onClick={() => toggleSession(session.id)}
               >
                 <div className="flex items-start justify-between">
@@ -406,10 +404,10 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                       })}
                     </div>
 
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-3">
-                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-sky-400">
+                    {/* Stats */}
+                    <div className="mt-4 flex flex-wrap gap-6 text-sm">
+                      <div>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                           Sets
                         </p>
                         <p className="mt-1 text-2xl font-black text-white">
@@ -417,8 +415,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                         </p>
                       </div>
 
-                      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-3">
-                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-violet-400">
+                      <div>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                           Volume
                         </p>
                         <p className="mt-1 text-2xl font-black text-white">
@@ -427,8 +425,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                       </div>
 
                       {stats.avgRPE > 0 && (
-                        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-3">
-                          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-amber-400">
+                        <div>
+                          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                             Avg RPE
                           </p>
                           <p className="mt-1 text-2xl font-black text-white">
@@ -445,7 +443,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                         e.stopPropagation();
                         openEditSession(session);
                       }}
-                      className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-2.5 text-zinc-300 transition-all hover:bg-zinc-800/80 active:scale-[0.98]"
+                      className="p-2 text-zinc-500 transition-colors hover:text-white active:scale-[0.98]"
                       title="Edit workout details"
                     >
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -457,14 +455,14 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                         e.stopPropagation();
                         deleteSession(session.id);
                       }}
-                      className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-rose-300 transition-all hover:bg-rose-500/20 active:scale-[0.98]"
+                      className="p-2 text-rose-400 transition-colors hover:text-rose-300 active:scale-[0.98]"
                       title="Delete workout"
                     >
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
-                    <div className="rounded-full border border-zinc-800 bg-zinc-900/60 p-2 shadow-sm">
+                    <div className="p-2">
                       <svg
                         className={`h-6 w-6 text-zinc-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                         fill="none"
@@ -480,8 +478,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
               {/* Expanded Details */}
               {isExpanded && (
-                <div className="border-t border-zinc-800 bg-zinc-950/60 p-4 sm:p-5">
-                  <div className="space-y-5">
+                <div className="border-t border-zinc-900 pt-5">
+                  <div className="space-y-6">
                     {exerciseIds.map((exerciseId, exIdx) => {
                       const exerciseSets = groupedSets[exerciseId];
                       const completedSets = exerciseSets.filter(s => s.completed);
@@ -504,15 +502,15 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                       return (
                         <div
                           key={exerciseId}
-                          className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-4 sm:p-5 shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+                          className="border-b border-zinc-900 pb-6"
                           style={{ animationDelay: `${exIdx * 100}ms` }}
                         >
-                          <div className="mb-4 flex items-center justify-between">
+                          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                             <h4 className="text-lg font-bold text-white">
                               {exerciseName}
                             </h4>
-                            <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-2">
-                              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-violet-300">
+                            <div>
+                              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                                 Volume
                               </p>
                               <p className="text-lg font-black text-white">
@@ -535,10 +533,10 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                               return (
                                 <div
                                   key={`${exerciseId}-${set.setIndex}-${idx}-${set.timestamp || idx}`}
-                                  className="group flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 transition-all hover:bg-zinc-900/70 sm:flex-row sm:items-center sm:justify-between"
+                                  className="group flex flex-col gap-3 border-b border-zinc-900 py-3 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                   <div className="flex min-w-0 flex-1 items-center gap-4">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-zinc-200">
                                       {set.setIndex}
                                     </span>
                                     <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
@@ -554,9 +552,9 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                                       {set.actualRPE && (
                                         <>
                                           <span className="text-zinc-500">@</span>
-                                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
-                                            RPE {set.actualRPE}
-                                          </span>
+                                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                                          RPE {set.actualRPE}
+                                        </span>
                                         </>
                                       )}
                                     </div>
@@ -564,7 +562,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
 
                                   <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                                     {set.e1rm && (
-                                      <span className="rounded-full border border-sky-500/30 bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-300">
+                                      <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
                                         {displayE1RM != null && Number.isFinite(displayE1RM)
                                           ? `${Math.round(displayE1RM)} E1RM`
                                           : 'E1RM'}
@@ -572,7 +570,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                                     )}
                                     {pr && (
                                       <span
-                                        className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300"
+                                        className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
                                         title={pr.type}
                                       >
                                         <span className="text-base leading-none">{pr.icon}</span>
@@ -590,8 +588,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                   </div>
 
                   {session.notes && (
-                    <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
-                      <p className="text-sm font-medium text-zinc-300">
+                    <div className="mt-4 border-t border-zinc-900 pt-4">
+                      <p className="text-sm font-medium text-zinc-400">
                         Notes: {session.notes}
                       </p>
                     </div>
