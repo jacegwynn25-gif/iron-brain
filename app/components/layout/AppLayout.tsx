@@ -121,13 +121,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
-      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-8' : 'pb-28'}`}>
+      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-8' : 'pb-32'}`}>
         {children}
       </main>
 
       {!hideBottomNav && (
-        <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 border-t border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-          <div className="flex items-center justify-between px-2 py-2 safe-bottom">
+        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)]">
+          <div className="relative mx-auto w-full max-w-2xl rounded-[26px] border border-white/10 bg-zinc-900/75 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+            <div className="pointer-events-none absolute inset-0 rounded-[26px] opacity-70" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0))' }} />
+            <div className="relative flex items-center justify-between px-2 py-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -137,15 +139,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.id}
                   href={item.href}
                   data-coach={item.coach}
-                  className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors ${
-                    active ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
+                  className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2.5 transition-all ${
+                    active
+                      ? 'bg-gradient-to-b from-emerald-400/20 to-emerald-500/5 text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.35)]'
+                      : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 ${active ? 'stroke-[2.4]' : 'stroke-[2]'} `} />
-                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
+                  <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'} ${active ? 'drop-shadow-[0_0_10px_rgba(52,211,153,0.45)]' : ''}`} />
+                  <span className={`text-[10px] font-semibold leading-none ${active ? 'tracking-[0.02em]' : 'tracking-normal'}`}>
+                    {item.label}
+                  </span>
+                  {active && <span className="absolute -top-1.5 h-1.5 w-6 rounded-full bg-emerald-400/80 shadow-[0_0_16px_rgba(52,211,153,0.75)]" />}
                 </Link>
               );
             })}
+          </div>
           </div>
         </nav>
       )}
