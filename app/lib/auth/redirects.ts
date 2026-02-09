@@ -6,5 +6,6 @@ export function getReturnToFromLocation(): string | null {
 export function buildLoginUrl(returnTo?: string | null): string {
   if (!returnTo) return '/login';
   if (!returnTo.startsWith('/')) return '/login';
+  if (returnTo.startsWith('//')) return '/login';
   return `/login?returnTo=${encodeURIComponent(returnTo)}`;
 }

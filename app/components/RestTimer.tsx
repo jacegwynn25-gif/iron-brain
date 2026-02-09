@@ -19,6 +19,7 @@ interface RestTimerProps {
   onSkip?: (addExtraSet: boolean) => void;
   nextSetInfo?: NextSetInfo;
   showUpNext?: boolean;
+  weightUnit?: 'lbs' | 'kg';
   currentSessionSets?: WorkoutSession['sets'];
   onApplyWeightSuggestion?: (weight: number) => void;
   onReduceReps?: (amount: number) => void;
@@ -35,6 +36,7 @@ export default function RestTimer({
   onSkip,
   nextSetInfo,
   showUpNext = true,
+  weightUnit = 'lbs',
   isLastSetOfExercise = false,
   exerciseName,
 }: RestTimerProps) {
@@ -119,7 +121,7 @@ export default function RestTimer({
   const nextExercise = nextSetInfo?.exerciseName ?? exerciseName;
   const upNextTextParts = [
     nextExercise ? `Up Next: ${nextExercise}` : 'Up Next',
-    nextWeight != null ? `${nextWeight}lbs` : null,
+    nextWeight != null ? `${nextWeight}${weightUnit}` : null,
     nextReps != null ? `${nextReps} reps` : null,
   ].filter(Boolean);
 

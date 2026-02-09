@@ -83,16 +83,14 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
   }, [currentMark]);
 
   const persistCoachMarksComplete = async () => {
-    localStorage.setItem('iron_brain_coach_marks_complete', 'true');
-    if (user) {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          coach_marks_complete: true,
-        },
-      });
-      if (error) {
-        console.error('Failed to update coach marks metadata:', error);
-      }
+    if (!user) return;
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        coach_marks_complete: true,
+      },
+    });
+    if (error) {
+      console.error('Failed to update coach marks metadata:', error);
     }
   };
 
@@ -134,10 +132,10 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
     : window.innerHeight / 2 - tooltipHeight / 2;
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
+    <div className="fixed inset-0 z-[90] pointer-events-none">
       {hasTarget && targetRect && (
         <div
-          className="absolute rounded-2xl ring-4 ring-purple-400/90 shadow-[0_0_35px_rgba(168,85,247,0.6)] pointer-events-none"
+          className="absolute rounded-2xl ring-4 ring-emerald-400/90 shadow-[0_0_35px_rgba(52,211,153,0.55)] pointer-events-none"
           style={{
             left: targetRect.left - 8,
             top: targetRect.top - 8,
@@ -150,7 +148,7 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute bg-white rounded-2xl p-4 shadow-xl max-w-xs pointer-events-auto"
+        className="absolute max-w-xs rounded-2xl border border-emerald-500/20 bg-zinc-950/95 p-4 text-white shadow-2xl backdrop-blur pointer-events-auto"
         style={{
           left,
           top,
@@ -158,21 +156,21 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
       >
         <button
           onClick={handleSkip}
-          className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+          className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-200"
         >
           <X className="w-5 h-5" />
         </button>
-        <h3 className="font-bold text-gray-900 mb-1">{currentMark.title}</h3>
-        <p className="text-sm text-gray-600 mb-4">
+        <h3 className="font-bold text-white mb-1">{currentMark.title}</h3>
+        <p className="text-sm text-zinc-400 mb-4">
           {hasTarget ? currentMark.description : 'We could not find this control yet. You can still continue.'}
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-zinc-500">
             {currentIndex + 1} of {coachMarks.length}
           </span>
           <button
             onClick={handleNext}
-            className="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg"
+            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950"
           >
             {currentIndex < coachMarks.length - 1 ? 'Next' : 'Got it!'}
           </button>

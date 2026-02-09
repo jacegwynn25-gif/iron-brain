@@ -10,6 +10,7 @@
 import { supabase } from '../supabase/client';
 import { FatigueScore, calculateMuscleFatigue } from '../fatigueModel';
 import { SetLog } from '../types';
+import { convertWeight } from '../units';
 import type { Database } from '../supabase/database.types';
 
 // ============================================================
@@ -475,9 +476,13 @@ export function calculateFatigueMetrics(sets: SetLog[]): {
   return {
     formBreakdownCount: sets.filter(s => s.formBreakdown === true).length,
     failureCount: sets.filter(s => s.reachedFailure === true).length,
-    totalVolumeLoad: sets.reduce((sum, s) =>
-      sum + ((s.actualWeight || 0) * (s.actualReps || 0)), 0
-    ),
+    totalVolumeLoad: sets.reduce((sum, s) => {
+      const reps = s.actualReps || 0;
+      const weight = s.actualWeight || 0;
+      if (!reps || !weight) return sum;
+      const weightLbs = convertWeight(weight, s.weightUnit ?? 'lbs', 'lbs');
+      return sum + (weightLbs * reps);
+    }, 0),
   };
 }
 

@@ -1,6 +1,7 @@
 import { supabase } from './client';
 import type { Database, TablesInsert } from './database.types';
 import { isValidUuid } from '../uuid';
+import { convertWeight } from '../units';
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
@@ -9,7 +10,7 @@ type SupabaseSetLogRow = Pick<
 
 type SupabaseSetLogSummaryRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'actual_reps' | 'volume_load' | 'actual_rpe' | 'actual_weight' | 'e1rm' | 'performed_at'
+  'actual_reps' | 'volume_load' | 'actual_rpe' | 'actual_weight' | 'weight_unit' | 'e1rm' | 'performed_at'
 >;
 
 type PersonalRecordRow = Pick<
@@ -21,7 +22,7 @@ type PersonalRecordType = 'max_weight' | 'max_reps' | 'max_e1rm' | 'max_volume';
 
 type SetLogPrCandidate = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'actual_weight' | 'actual_reps' | 'e1rm' | 'volume_load' | 'completed' | 'performed_at'
+  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'e1rm' | 'volume_load' | 'completed' | 'performed_at'
 >;
 
 const PERSONAL_RECORD_TYPES: PersonalRecordType[] = ['max_weight', 'max_reps', 'max_e1rm', 'max_volume'];
@@ -121,10 +122,13 @@ function getRecordValueForType(
 }
 
 function buildSetRecordTypes(setLog: SetLogPrCandidate): Array<{ type: PersonalRecordType; value: number }> {
-  const weight = Number(setLog.actual_weight) || 0;
+  const weightRaw = Number(setLog.actual_weight) || 0;
   const reps = Number(setLog.actual_reps) || 0;
-  const e1rm = Number(setLog.e1rm) || 0;
-  const volume = Number(setLog.volume_load) || 0;
+  const e1rmRaw = Number(setLog.e1rm) || 0;
+  const unit = setLog.weight_unit ?? 'lbs';
+  const weight = weightRaw > 0 ? convertWeight(weightRaw, unit, 'lbs') : 0;
+  const e1rm = e1rmRaw > 0 ? convertWeight(e1rmRaw, unit, 'lbs') : 0;
+  const volume = weight > 0 && reps > 0 ? weight * reps : 0;
   const entries: Array<{ type: PersonalRecordType; value: number }> = [];
 
   if (weight > 0) entries.push({ type: 'max_weight', value: weight });
@@ -194,14 +198,27 @@ export async function upsertPersonalRecordsForSetLogs(
       if (deactivateError) throw deactivateError;
     }
 
+    const unit = best.setLog.weight_unit ?? 'lbs';
+    const weight = best.setLog.actual_weight != null
+      ? convertWeight(best.setLog.actual_weight, unit, 'lbs')
+      : null;
+    const e1rm = best.setLog.e1rm != null
+      ? convertWeight(best.setLog.e1rm, unit, 'lbs')
+      : null;
+    const volume = best.setLog.volume_load != null
+      ? Number(best.setLog.volume_load)
+      : weight != null && best.setLog.actual_reps != null
+        ? weight * Number(best.setLog.actual_reps)
+        : null;
+
     const insertPayload: TablesInsert<'personal_records'> = {
       user_id: userId,
       exercise_id: best.setLog.exercise_id,
       record_type: best.type,
-      weight: best.setLog.actual_weight ?? null,
+      weight,
       reps: best.setLog.actual_reps ?? null,
-      e1rm: best.setLog.e1rm ?? null,
-      volume: best.setLog.volume_load ?? null,
+      e1rm,
+      volume,
       set_log_id: best.setLog.id ?? null,
       achieved_at: best.setLog.performed_at ?? new Date().toISOString(),
       is_current: true,
@@ -326,6 +343,7 @@ export async function createSetLog(data: CreateSetLogData) {
           id: setLogRow.id,
           exercise_id: setLogRow.exercise_id,
           actual_weight: setLogRow.actual_weight,
+          weight_unit: setLogRow.weight_unit,
           actual_reps: setLogRow.actual_reps,
           e1rm: setLogRow.e1rm,
           volume_load: setLogRow.volume_load,
@@ -365,6 +383,7 @@ export async function updateSetLog(
           id: updatedSetLog.id,
           exercise_id: updatedSetLog.exercise_id,
           actual_weight: updatedSetLog.actual_weight,
+          weight_unit: updatedSetLog.weight_unit,
           actual_reps: updatedSetLog.actual_reps,
           e1rm: updatedSetLog.e1rm,
           volume_load: updatedSetLog.volume_load,
@@ -393,7 +412,7 @@ export async function updateExerciseStats(exerciseId: string) {
   // Get all sets for this exercise
   const { data: sets } = await supabase
     .from('set_logs')
-    .select('actual_weight, actual_reps, actual_rpe, e1rm, volume_load, performed_at')
+    .select('actual_weight, weight_unit, actual_reps, actual_rpe, e1rm, volume_load, performed_at')
     .eq('exercise_id', exerciseId)
     .eq('completed', true);
 
@@ -404,15 +423,25 @@ export async function updateExerciseStats(exerciseId: string) {
   const totalReps = setsTyped.reduce((sum, set) => sum + (set.actual_reps || 0), 0);
   const totalVolume = setsTyped.reduce((sum, set) => sum + (set.volume_load || 0), 0);
 
-  const avgWeight =
-    setsTyped.reduce((sum, set) => sum + (set.actual_weight || 0), 0) / totalSets;
+  const weightValues = setsTyped.map((set) => {
+    const weight = set.actual_weight || 0;
+    if (!weight) return 0;
+    return convertWeight(weight, set.weight_unit ?? 'lbs', 'lbs');
+  });
+  const e1rmValues = setsTyped.map((set) => {
+    const e1rm = set.e1rm || 0;
+    if (!e1rm) return 0;
+    return convertWeight(e1rm, set.weight_unit ?? 'lbs', 'lbs');
+  });
+
+  const avgWeight = weightValues.reduce((sum, weight) => sum + weight, 0) / totalSets;
   const avgReps = totalReps / totalSets;
   const avgRpe =
     setsTyped.reduce((sum, set) => sum + (set.actual_rpe || 0), 0) / totalSets;
 
-  const bestWeight = Math.max(...setsTyped.map((s) => s.actual_weight || 0));
+  const bestWeight = Math.max(...weightValues);
   const bestReps = Math.max(...setsTyped.map((s) => s.actual_reps || 0));
-  const bestE1rm = Math.max(...setsTyped.map((s) => s.e1rm || 0));
+  const bestE1rm = Math.max(...e1rmValues);
 
   const lastPerformed = setsTyped
     .map((set) => set.performed_at)

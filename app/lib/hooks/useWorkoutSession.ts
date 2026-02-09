@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import type { ProgramTemplate, SetTemplate } from '../types';
+import type { ProgramTemplate, SetTemplate, WeightUnit } from '../types';
+import { KG_TO_LBS } from '../units';
 import type {
   ActiveCell,
   Block,
@@ -101,8 +102,12 @@ function createId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function roundToNearestFive(value: number): number {
-  return Math.round(value / 5) * 5;
+const LBS_INCREMENT = 5;
+const KG_INCREMENT = 0.25;
+
+function roundToIncrement(value: number, unit: WeightUnit): number {
+  const increment = unit === 'kg' ? KG_INCREMENT : LBS_INCREMENT;
+  return Math.round(value / increment) * increment;
 }
 
 function clampRpe(value: number | null | undefined): number | null {
@@ -177,24 +182,31 @@ function getBlockIdentity(templateSet: SetTemplate): { key: string; type: 'singl
   };
 }
 
-function getMockHistory(exerciseId: string): number {
+function getMockHistory(exerciseId: string, unit: WeightUnit): number {
   void exerciseId;
   const mockPool = [185, 195, 205, 215, 225, 235, 245];
   const index = Math.floor(Math.random() * mockPool.length);
-  return mockPool[index] ?? 225;
+  const valueLbs = mockPool[index] ?? 225;
+  const converted = unit === 'lbs' ? valueLbs : valueLbs / KG_TO_LBS;
+  return roundToIncrement(converted, unit);
 }
 
-function getLastWeightForExercise(historyMap: Map<string, number>, exerciseId: string): number {
+function getLastWeightForExercise(
+  historyMap: Map<string, number>,
+  exerciseId: string,
+  unit: WeightUnit
+): number {
   if (!historyMap.has(exerciseId)) {
-    historyMap.set(exerciseId, getMockHistory(exerciseId));
+    historyMap.set(exerciseId, getMockHistory(exerciseId, unit));
   }
-  return historyMap.get(exerciseId) ?? 225;
+  return historyMap.get(exerciseId) ?? roundToIncrement(unit === 'lbs' ? 225 : 225 / KG_TO_LBS, unit);
 }
 
 function buildSessionSetFromTemplate(
   templateSet: SetTemplate,
   lastWeight: number,
   readinessModifier: number,
+  weightUnit: WeightUnit,
   defaults?: {
     supersetGroup?: string | null;
   }
@@ -209,7 +221,7 @@ function buildSessionSetFromTemplate(
     type: mappedSetType,
     weight:
       mappedSetType === 'working'
-        ? roundToNearestFive(lastWeight * readinessModifier)
+        ? roundToIncrement(lastWeight * readinessModifier, weightUnit)
         : null,
     reps: effectiveReps,
     rpe: clampRpe(templateSet.targetRPE ?? null),
@@ -340,7 +352,11 @@ function findNextIncompleteSetRef(blocks: Block[], current: SetRef): SetRef | nu
   return null;
 }
 
-function buildBlocksFromProgram(program: ProgramTemplate, readinessModifier: number): Block[] {
+function buildBlocksFromProgram(
+  program: ProgramTemplate,
+  readinessModifier: number,
+  weightUnit: WeightUnit
+): Block[] {
   const sortedWeeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const day = sortedWeeks[0]?.days[0];
   if (!day) return [];
@@ -362,12 +378,13 @@ function buildBlocksFromProgram(program: ProgramTemplate, readinessModifier: num
 
       for (const templateExercise of templateBlock.exercises ?? []) {
         const exerciseId = templateExercise.exerciseId || createId('exercise');
-        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId);
+        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit);
         const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
           buildSessionSetFromTemplate(
             templateSet,
             lastWeight,
             readinessModifier,
+            weightUnit,
             templateBlock.type === 'superset'
               ? {
                   supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
@@ -403,8 +420,8 @@ function buildBlocksFromProgram(program: ProgramTemplate, readinessModifier: num
 
   for (const templateSet of day.sets) {
     const exerciseId = templateSet.exerciseId || createId('exercise');
-    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId);
-    const sessionSet = buildSessionSetFromTemplate(templateSet, lastWeight, readinessModifier);
+    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit);
+    const sessionSet = buildSessionSetFromTemplate(templateSet, lastWeight, readinessModifier, weightUnit);
     const repsTarget = sessionSet.reps;
 
     const blockIdentity = getBlockIdentity(templateSet);
@@ -441,8 +458,12 @@ function buildBlocksFromProgram(program: ProgramTemplate, readinessModifier: num
   return blocks;
 }
 
-function createInitialSessionState(program: ProgramTemplate, readinessModifier: number): SessionState {
-  const blocks = buildBlocksFromProgram(program, readinessModifier);
+function createInitialSessionState(
+  program: ProgramTemplate,
+  readinessModifier: number,
+  weightUnit: WeightUnit
+): SessionState {
+  const blocks = buildBlocksFromProgram(program, readinessModifier, weightUnit);
   const firstSetRef = findFirstSetRef(blocks);
 
   return {
@@ -473,10 +494,14 @@ function buildSessionPayload(state: SessionState): SessionPayload | null {
   };
 }
 
-function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction): SessionState {
+function workoutSessionReducer(
+  state: SessionState,
+  action: WorkoutSessionAction,
+  weightUnit: WeightUnit
+): SessionState {
   switch (action.type) {
     case 'INITIALIZE_SESSION': {
-      return createInitialSessionState(action.payload.program, action.payload.readinessModifier);
+      return createInitialSessionState(action.payload.program, action.payload.readinessModifier, weightUnit);
     }
 
     case 'UPDATE_SET': {
@@ -720,11 +745,16 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
   }
 }
 
-export function useWorkoutSession(program: ProgramTemplate, readinessModifier: number) {
+export function useWorkoutSession(
+  program: ProgramTemplate,
+  readinessModifier: number,
+  weightUnit: WeightUnit = 'lbs'
+) {
   const [state, dispatch] = useReducer(
-    workoutSessionReducer,
-    undefined,
-    () => createInitialSessionState(program, readinessModifier)
+    (stateValue: SessionState, action: WorkoutSessionAction) =>
+      workoutSessionReducer(stateValue, action, weightUnit),
+    program,
+    () => createInitialSessionState(program, readinessModifier, weightUnit)
   );
 
   useEffect(() => {

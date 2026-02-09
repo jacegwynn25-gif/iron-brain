@@ -17,6 +17,7 @@
  */
 
 import { SetLog } from '../types';
+import { convertWeight } from '../units';
 import {
   calculateDescriptiveStats
 } from './statistical-utils';
@@ -135,7 +136,8 @@ export function calculateTrainingLoad(sets: SetLog[]): number {
   for (const set of sets) {
     if (!set.completed || !set.actualReps || !set.actualWeight) continue;
 
-    const volume = set.actualReps * set.actualWeight;
+    const weightLbs = convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs');
+    const volume = set.actualReps * weightLbs;
     const intensity = (set.actualRPE || 7) / 10; // Default RPE 7
     const effortMultiplier = set.reachedFailure ? 1.5 : 1.0;
 

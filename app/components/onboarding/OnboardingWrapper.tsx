@@ -1,96 +1,120 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/supabase/auth-context';
-import OnboardingFlow from './OnboardingFlow';
+import { supabase } from '../../lib/supabase/client';
 import CoachMarks from './CoachMarks';
 
-// Check onboarding status synchronously to prevent flash
-const getInitialOnboardingState = () => {
-  if (typeof window === 'undefined') {
-    return { onboarding: false, coach: false };
-  }
+const EXCLUDED_PATHS = ['/login', '/onboarding', '/reset-auth'];
 
-  // Check URL params first
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('onboarding') === '1') {
-    return { onboarding: true, coach: false };
-  }
-  if (params.get('coach') === '1') {
-    return { onboarding: false, coach: true };
-  }
+const isExcludedPath = (pathname: string) =>
+  EXCLUDED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
-  // Device-specific flags (localStorage only - never check Supabase user_metadata)
-  const onboardingDone = localStorage.getItem('iron_brain_onboarding_complete') === 'true';
-  const coachDone = localStorage.getItem('iron_brain_coach_marks_complete') === 'true';
-
-  if (!onboardingDone) {
-    return { onboarding: true, coach: false };
-  } else if (!coachDone) {
-    return { onboarding: false, coach: true };
-  } else {
-    return { onboarding: false, coach: false };
-  }
+const getSafeReturnTo = (value: string) => {
+  if (!value.startsWith('/')) return '/';
+  if (value.startsWith('//')) return '/';
+  if (value.startsWith('/login') || value.startsWith('/onboarding')) return '/';
+  return value;
 };
 
 export default function OnboardingWrapper({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const [hydrated, setHydrated] = useState(false);
-
-  // Initialize to false to prevent hydration mismatch
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname() ?? '/';
   const [showCoachMarks, setShowCoachMarks] = useState(false);
+  const legacyCheckRef = useRef<string | null>(null);
+  const legacyCompletionRef = useRef<{ userId: string | null; complete: boolean }>({
+    userId: null,
+    complete: false,
+  });
 
-  // Check onboarding status after hydration
   useEffect(() => {
-    setHydrated(true);
-  }, []);
+    if (!user?.id) {
+      legacyCompletionRef.current = { userId: null, complete: false };
+      legacyCheckRef.current = null;
+      return;
+    }
+    if (legacyCompletionRef.current.userId !== user.id) {
+      legacyCompletionRef.current = { userId: user.id, complete: false };
+      legacyCheckRef.current = null;
+    }
+  }, [user?.id]);
 
-  // Resolve onboarding visibility once auth is known.
-  // We only show onboarding for signed-in users, and we trust cloud metadata
-  // as a fallback when local flags are missing (new device/localStorage cleared).
   useEffect(() => {
-    if (loading || !hydrated) return;
+    if (loading) return;
 
     if (!user) {
-      setShowOnboarding(false);
       setShowCoachMarks(false);
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const forceOnboarding = params.get('onboarding') === '1';
-    const forceCoachMarks = params.get('coach') === '1';
+    const excluded = isExcludedPath(pathname);
+    const onboardingComplete =
+      user.user_metadata?.onboarding_complete === true || legacyCompletionRef.current.complete;
+    const coachComplete = user.user_metadata?.coach_marks_complete === true;
 
-    if (forceOnboarding) {
-      setShowOnboarding(true);
-      setShowCoachMarks(false);
+    if (onboardingComplete) {
+      setShowCoachMarks(!excluded && !coachComplete);
       return;
     }
 
-    if (forceCoachMarks) {
-      setShowOnboarding(false);
-      setShowCoachMarks(true);
+    setShowCoachMarks(false);
+
+    if (excluded) {
       return;
     }
 
-    const localState = getInitialOnboardingState();
-    const cloudOnboardingComplete = user.user_metadata?.onboarding_complete === true;
+    const fullPath = typeof window === 'undefined'
+      ? pathname
+      : `${window.location.pathname}${window.location.search}`;
 
-    let onboardingComplete = !localState.onboarding;
-    if (!onboardingComplete && cloudOnboardingComplete) {
-      onboardingComplete = true;
-      localStorage.setItem('iron_brain_onboarding_complete', 'true');
+    if (legacyCheckRef.current === user.id) {
+      const returnTo = getSafeReturnTo(fullPath);
+      router.replace(`/onboarding?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
     }
 
-    setShowOnboarding(!onboardingComplete);
-    setShowCoachMarks(onboardingComplete && localState.coach);
-  }, [loading, hydrated, user]);
+    legacyCheckRef.current = user.id;
+    let cancelled = false;
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    setShowCoachMarks(true);
-  };
+    const resolveLegacyOnboarding = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_demographics')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (error) throw error;
+
+        if (data?.user_id) {
+          legacyCompletionRef.current = { userId: user.id, complete: true };
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: { onboarding_complete: true },
+          });
+          if (updateError) {
+            console.error('Failed to sync onboarding metadata:', updateError);
+          }
+          return;
+        }
+
+        const returnTo = getSafeReturnTo(fullPath);
+        router.replace(`/onboarding?returnTo=${encodeURIComponent(returnTo)}`);
+      } catch (err) {
+        console.error('Failed to resolve onboarding state:', err);
+        const returnTo = getSafeReturnTo(fullPath);
+        router.replace(`/onboarding?returnTo=${encodeURIComponent(returnTo)}`);
+      }
+    };
+
+    resolveLegacyOnboarding();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user, pathname, router]);
 
   const handleCoachMarksComplete = () => {
     setShowCoachMarks(false);
@@ -100,11 +124,7 @@ export default function OnboardingWrapper({ children }: { children: React.ReactN
     <>
       {children}
 
-      {showOnboarding && (
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
-      )}
-
-      {showCoachMarks && !showOnboarding && (
+      {showCoachMarks && (
         <CoachMarks onComplete={handleCoachMarksComplete} />
       )}
     </>

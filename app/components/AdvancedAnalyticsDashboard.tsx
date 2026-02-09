@@ -68,7 +68,7 @@ function getExerciseName(exerciseId: string, providedName?: string): string {
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'exercise_slug' | 'actual_weight' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
+  'id' | 'exercise_id' | 'exercise_slug' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
 >;
 
 const normalizeSetType = (value?: string | null): SetType => {
@@ -219,9 +219,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       return fromUnit === 'lbs' ? lbsToKg(value) : kgToLbs(value);
     };
 
-    const resolveWorkoutWeightUnit = (workout: WorkoutSession): 'lbs' | 'kg' =>
-      workout.sets.find((set) => set.weightUnit === 'lbs' || set.weightUnit === 'kg')?.weightUnit ?? 'lbs';
-
     const resolveSetWeight = (set: WorkoutSession['sets'][number]) => {
       const raw = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
       if (!Number.isFinite(raw)) return 0;
@@ -234,8 +231,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         ? workout.totalVolumeLoad
         : Number(workout.totalVolumeLoad ?? 0);
       if (!Number.isFinite(fallback)) return 0;
-      const fromUnit = resolveWorkoutWeightUnit(workout);
-      return convertWeight(fallback, fromUnit, weightUnit);
+      return convertWeight(fallback, 'lbs', weightUnit);
     };
 
     const resolveWorkoutVolumeLoad = (workout: WorkoutSession) => {
@@ -430,6 +426,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               exercise_id,
               exercise_slug,
               actual_weight,
+              weight_unit,
               actual_reps,
               actual_rpe,
               completed,
@@ -470,7 +467,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               setIndex: idx + 1,
               prescribedReps: '0',
               actualWeight: sl.actual_weight ?? undefined,
-              weightUnit: 'lbs',
+              weightUnit: sl.weight_unit === 'kg' ? 'kg' : 'lbs',
               actualReps: sl.actual_reps ?? undefined,
               actualRPE: sl.actual_rpe ?? undefined,
               completed: sl.completed !== false,

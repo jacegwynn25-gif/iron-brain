@@ -36,13 +36,12 @@ export default function ResetAuthPage() {
         addLog('   ⚠️  Sign out failed or timed out (continuing anyway)');
       }
 
-      // Step 2: Clear auth-related localStorage (preserve onboarding/coach marks)
+      // Step 2: Clear auth-related localStorage (preserve preferences)
       addLog('2️⃣  Clearing auth-related localStorage...');
 
-      // Preserve these device-specific flags
+      // Preserve user preferences
       const preserveKeys = [
-        'iron_brain_onboarding_complete',
-        'iron_brain_coach_marks_complete'
+        'iron_brain_unit_system'
       ];
       const preserved: Record<string, string> = {};
       preserveKeys.forEach(key => {

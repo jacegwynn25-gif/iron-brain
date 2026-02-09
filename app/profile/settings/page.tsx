@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Apple, ChevronRight, LogOut, MoonStar, Wrench, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../lib/supabase/auth-context';
+import { useUnitPreference } from '../../lib/hooks/useUnitPreference';
 
 interface IntegrationToggleProps {
   icon: LucideIcon;
@@ -76,6 +77,7 @@ function SettingsLinkRow({ href, label, description }: SettingsLinkRowProps) {
 export default function ProfileSettingsPage() {
   const router = useRouter();
   const { signOut } = useAuth();
+  const { unitSystem, setUnitSystem } = useUnitPreference();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [appleHealthEnabled, setAppleHealthEnabled] = useState(false);
   const [ouraEnabled, setOuraEnabled] = useState(false);
@@ -121,6 +123,30 @@ export default function ProfileSettingsPage() {
       <section className="pt-8">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Preferences</p>
         <div className="mt-2">
+          <div className="rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-4">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Units</p>
+            <p className="mt-1 text-xs text-zinc-500">Controls weight and measurement display.</p>
+            <div className="mt-3 inline-flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
+                className={`rounded-full px-3 py-1 transition-colors ${
+                  unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                }`}
+              >
+                lbs
+              </button>
+              <button
+                type="button"
+                onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
+                className={`rounded-full px-3 py-1 transition-colors ${
+                  unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                }`}
+              >
+                kg
+              </button>
+            </div>
+          </div>
           <SettingsLinkRow
             href="/profile/appearance"
             label="Appearance"

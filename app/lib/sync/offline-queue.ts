@@ -6,6 +6,7 @@ import type { Json } from '../supabase/database.types';
 import { logger } from '../logger';
 import { isValidUuid } from '../uuid';
 import { resolveExerciseIds, upsertPersonalRecordsForSetLogs } from '../supabase/workouts';
+import { convertWeight } from '../units';
 
 const QUEUE_KEY = 'iron_brain_sync_queue';
 const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
@@ -146,12 +147,14 @@ const syncWorkoutToCloud = async (
           0
         ) || 0,
       total_volume_load:
-        session.sets?.reduce(
-          (sum, s) =>
-            sum +
-            (s.completed === false ? 0 : ((s.actualWeight || 0) * (s.actualReps || 0))),
-          0
-        ) || 0,
+        session.sets?.reduce((sum, s) => {
+          if (s.completed === false) return sum;
+          const reps = s.actualReps || 0;
+          const weight = s.actualWeight || 0;
+          if (!reps || !weight) return sum;
+          const weightLbs = convertWeight(weight, s.weightUnit ?? 'lbs', 'lbs');
+          return sum + (weightLbs * reps);
+        }, 0) || 0,
       average_rpe: (() => {
         const completed = session.sets?.filter((set) => set.completed !== false) ?? [];
         if (completed.length === 0) return null;
@@ -194,7 +197,13 @@ const syncWorkoutToCloud = async (
       actual_rpe: set.actualRPE,
       actual_rir: set.actualRIR,
       e1rm: set.e1rm,
-      volume_load: set.actualWeight && set.actualReps ? set.actualWeight * set.actualReps : null,
+      volume_load: (() => {
+        const reps = set.actualReps || 0;
+        const weight = set.actualWeight || 0;
+        if (!reps || !weight) return null;
+        const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+        return weightLbs * reps;
+      })(),
       set_type: set.setType || 'straight',
       tempo: set.tempo,
       rest_seconds: set.restTakenSeconds,
@@ -208,7 +217,7 @@ const syncWorkoutToCloud = async (
     const { data: insertedSetRows, error: setsError } = await client
       .from('set_logs')
       .insert(setLogs)
-      .select('id, exercise_id, actual_weight, actual_reps, e1rm, volume_load, completed, performed_at');
+      .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
 
     if (setsError) {
       throw setsError;

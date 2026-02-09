@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { WorkoutSession, SetLog } from './types';
+import { WorkoutSession, SetLog, type WeightUnit } from './types';
 import { shouldTriggerAutoReduction, calculateAdjustedWeight, calculateMuscleFatigue } from './fatigueModel';
 import { supabase } from './supabase/client';
 import { saveFatigueSnapshot, getRecoveryProfiles } from './fatigue/cross-session';
@@ -406,10 +406,13 @@ export async function saveWorkout(
       try {
         const completedSets = sessionToSave.sets?.filter((set) => set.completed !== false) ?? [];
         const totalReps = completedSets.reduce((sum, set) => sum + (Number(set.actualReps) || 0), 0);
-        const totalVolume = completedSets.reduce(
-          (sum, set) => sum + (Number(set.actualWeight) || 0) * (Number(set.actualReps) || 0),
-          0
-        );
+        const totalVolume = completedSets.reduce((sum, set) => {
+          const reps = Number(set.actualReps) || 0;
+          const weight = Number(set.actualWeight) || 0;
+          if (reps <= 0 || weight <= 0) return sum;
+          const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+          return sum + (weightLbs * reps);
+        }, 0);
         const averageRpe =
           completedSets.length > 0
             ? completedSets.reduce((sum, set) => sum + (Number(set.actualRPE) || 0), 0) / completedSets.length
@@ -499,10 +502,13 @@ export async function saveWorkout(
             actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
             // Performance metrics
             e1rm: set.e1rm,
-            volume_load:
-              set.actualWeight && set.actualReps
-                ? Math.round(Number(set.actualWeight) * Number(set.actualReps))
-                : null,
+            volume_load: (() => {
+              const reps = Number(set.actualReps) || 0;
+              const weight = Number(set.actualWeight) || 0;
+              if (reps <= 0 || weight <= 0) return null;
+              const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+              return Math.round(weightLbs * reps);
+            })(),
             // Set metadata
             set_type: set.setType || 'straight',
             tempo: set.tempo,
@@ -524,7 +530,7 @@ export async function saveWorkout(
         const { data: insertedSetRows, error: setError } = await supabase
           .from('set_logs')
           .insert(setPayloads)
-          .select('id, exercise_id, actual_weight, actual_reps, e1rm, volume_load, completed, performed_at');
+          .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
 
         if (setError) {
           setLogsSynced = false;
@@ -956,12 +962,14 @@ export async function suggestWeight(
         .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
       let referenceWeight: number | null = recentSetsSameExercise[0]?.actualWeight || null;
+      let referenceUnit: WeightUnit | null = recentSetsSameExercise[0]?.weightUnit ?? null;
       // logger.debug('   🏋️ Reference weight from current session:', referenceWeight);
 
       // Option 2: If no current session data for this exercise, try history
       if (!referenceWeight) {
         const lastWorkout = getLastWorkoutForExercise(exerciseId);
         referenceWeight = lastWorkout?.bestSet.actualWeight || null;
+        referenceUnit = lastWorkout?.bestSet.weightUnit ?? referenceUnit;
         // logger.debug('   📚 Reference weight from history:', referenceWeight);
       }
 
@@ -974,6 +982,7 @@ export async function suggestWeight(
         if (anyRecentSet) {
           // Use 80% of recent weight as starting point for new exercise
           referenceWeight = Math.round(anyRecentSet.actualWeight! * 0.8);
+          referenceUnit = anyRecentSet.weightUnit ?? referenceUnit;
           // logger.debug('   🎯 Estimated reference weight:', referenceWeight);
         }
       }
@@ -995,8 +1004,9 @@ export async function suggestWeight(
           detailedExplanation += ` Contributing sets: ${contributorList}.`;
         }
 
+        const unitLabel = referenceUnit ?? 'lbs';
         const reductionPercent = Math.round(fatigueAlert.suggestedReduction * 100);
-        detailedExplanation += ` Recommended: reduce by ${reductionPercent}% to ${adjustedWeight}lbs.`;
+        detailedExplanation += ` Recommended: reduce by ${reductionPercent}% to ${adjustedWeight}${unitLabel}.`;
 
         // logger.debug('   ✅ Returning fatigue-based suggestion:', adjustedWeight, 'lbs');
 
@@ -1037,6 +1047,7 @@ export async function suggestWeight(
   const lastWeight = bestSet.actualWeight || 0;
   const lastReps = bestSet.actualReps || 0;
   const lastRPE = bestSet.actualRPE || null;
+  const unitLabel = bestSet.weightUnit ?? 'lbs';
 
   // If same reps, suggest small progression
   if (targetReps === lastReps && lastRPE && targetRPE) {
@@ -1045,7 +1056,7 @@ export async function suggestWeight(
       const increase = Math.round(lastWeight * 0.025); // 2.5% increase
       return {
         suggestedWeight: lastWeight + increase,
-        reasoning: `Last time: ${lastWeight}lbs x${lastReps} @ RPE ${lastRPE}. You can handle more.`,
+        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. You can handle more.`,
         confidence: 'high',
         basedOn: 'previous_performance',
       };
@@ -1054,7 +1065,7 @@ export async function suggestWeight(
       const decrease = Math.round(lastWeight * 0.025); // 2.5% decrease
       return {
         suggestedWeight: lastWeight - decrease,
-        reasoning: `Last time: ${lastWeight}lbs x${lastReps} @ RPE ${lastRPE}. Reducing slightly.`,
+        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. Reducing slightly.`,
         confidence: 'high',
         basedOn: 'previous_performance',
       };
@@ -1062,7 +1073,7 @@ export async function suggestWeight(
       // RPE was on target, use same weight
       return {
         suggestedWeight: lastWeight,
-        reasoning: `Last time: ${lastWeight}lbs x${lastReps} @ RPE ${lastRPE}. Good match.`,
+        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. Good match.`,
         confidence: 'high',
         basedOn: 'previous_performance',
       };
@@ -1074,7 +1085,7 @@ export async function suggestWeight(
     const estimatedWeight = Math.round(bestSet.e1rm / (1 + targetReps / 30)); // Reverse Epley formula
     return {
       suggestedWeight: estimatedWeight,
-      reasoning: `Based on your E1RM of ${bestSet.e1rm}lbs, estimated for ${targetReps} reps.`,
+      reasoning: `Based on your E1RM of ${bestSet.e1rm}${unitLabel}, estimated for ${targetReps} reps.`,
       confidence: 'medium',
       basedOn: 'previous_performance',
     };
@@ -1083,7 +1094,7 @@ export async function suggestWeight(
   // Fallback: use last weight
   return {
     suggestedWeight: lastWeight,
-    reasoning: `Last time: ${lastWeight}lbs x${lastReps}`,
+    reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps}`,
     confidence: 'low',
     basedOn: 'previous_performance',
   };
@@ -1612,15 +1623,30 @@ async function saveFatigueEventsToNewSystem(
     // Calculate aggregates for this exercise
     const totalSets = sets.length;
     const totalReps = sets.reduce((sum, s) => sum + (s.actualReps || 0), 0);
-    const avgWeight = sets.reduce((sum, s) => sum + (s.actualWeight || 0), 0) / totalSets;
+    const totalWeightLbs = sets.reduce((sum, s) => {
+      const weight = s.actualWeight ?? 0;
+      if (!weight) return sum;
+      return sum + convertWeight(weight, s.weightUnit ?? 'lbs', 'lbs');
+    }, 0);
+    const avgWeight = totalWeightLbs / totalSets;
     const avgRpe = sets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / totalSets;
-    const totalVolume = sets.reduce((sum, s) => (s.actualWeight || 0) * (s.actualReps || 0) + sum, 0);
+    const totalVolume = sets.reduce((sum, s) => {
+      const reps = s.actualReps || 0;
+      const weight = s.actualWeight ?? 0;
+      if (!reps || !weight) return sum;
+      const weightLbs = convertWeight(weight, s.weightUnit ?? 'lbs', 'lbs');
+      return sum + (weightLbs * reps);
+    }, 0);
 
     // Calculate effective volume (RPE-weighted)
     const effectiveVolume = sets.reduce((sum, s) => {
       const rpe = s.actualRPE || 7;
       const rpeMultiplier = rpe >= 9 ? 1.0 : rpe >= 7 ? 0.7 : 0.4;
-      return sum + (s.actualWeight || 0) * (s.actualReps || 0) * rpeMultiplier;
+      const reps = s.actualReps || 0;
+      const weight = s.actualWeight ?? 0;
+      if (!reps || !weight) return sum;
+      const weightLbs = convertWeight(weight, s.weightUnit ?? 'lbs', 'lbs');
+      return sum + (weightLbs * reps) * rpeMultiplier;
     }, 0);
 
     // Estimate initial fatigue from RPE

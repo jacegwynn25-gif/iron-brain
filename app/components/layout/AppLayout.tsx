@@ -41,7 +41,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const hideBottomNav =
     pathname.includes('/workout/active') ||
     pathname === '/workout/readiness' ||
-    pathname === '/workout/summary';
+    pathname === '/workout/summary' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/reset-auth');
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const routeHistoryRef = useRef<string[]>([pathname]);
   const isBackNavRef = useRef(false);

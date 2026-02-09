@@ -17,6 +17,7 @@ import { logger } from '../logger';
 import { SetLog } from '../types';
 import { supabase } from '../supabase/client';
 import { defaultExercises } from '../programs';
+import { convertWeight } from '../units';
 
 // ============================================================
 // INTERFACES
@@ -63,7 +64,9 @@ interface WorkoutSFRSummary {
  * - RPE <6: 0.2x - very low effectiveness (warm-up territory)
  */
 function calculateEffectiveVolume(set: SetLog): number {
-  const volumeLoad = (set.actualWeight || 0) * (set.actualReps || 0);
+  const weight = set.actualWeight ?? 0;
+  const weightLbs = weight > 0 ? convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs') : 0;
+  const volumeLoad = weightLbs * (set.actualReps || 0);
   const rpe = set.actualRPE || set.prescribedRPE || 7;
 
   let effectivenessMultiplier: number;
@@ -124,10 +127,13 @@ function calculateExerciseSFR(
   );
 
   // Calculate raw volume load
-  const totalVolumeLoad = exerciseSets.reduce(
-    (sum, set) => sum + ((set.actualWeight || 0) * (set.actualReps || 0)),
-    0
-  );
+  const totalVolumeLoad = exerciseSets.reduce((sum, set) => {
+    const weight = set.actualWeight ?? 0;
+    const reps = set.actualReps || 0;
+    if (!weight || !reps) return sum;
+    const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+    return sum + (weightLbs * reps);
+  }, 0);
 
   // Calculate average RPE
   const rpeValues = exerciseSets.map(s => s.actualRPE || s.prescribedRPE || 7);
@@ -190,7 +196,8 @@ function calculateExerciseFatigueCost(sets: SetLog[]): number {
     if (!set.completed || !set.actualWeight || !set.actualReps) return;
 
     // Base fatigue from volume and intensity
-    const volumeFatigue = (set.actualWeight * set.actualReps) / 100; // Normalize volume
+    const weightLbs = convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs');
+    const volumeFatigue = (weightLbs * set.actualReps) / 100; // Normalize volume
     const rpe = set.actualRPE || 7; // Default to RPE 7 if not specified
     const intensityMultiplier = rpe / 10; // RPE 7 = 0.7x, RPE 10 = 1.0x
 

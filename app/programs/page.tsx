@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -218,18 +218,6 @@ function getProgramSetCount(program: ProgramTemplate): number {
   }, 0);
 }
 
-function getProgramExerciseCount(program: ProgramTemplate): number {
-  const exerciseIds = new Set<string>();
-  program.weeks.forEach((week) => {
-    week.days.forEach((day) => {
-      day.sets.forEach((set) => {
-        if (set.exerciseId) exerciseIds.add(set.exerciseId);
-      });
-    });
-  });
-  return exerciseIds.size;
-}
-
 function getFrequencyLabel(program: ProgramTemplate): string {
   const days = program.daysPerWeek ?? program.weeks[0]?.days.length ?? 0;
   const weeks = program.weekCount ?? program.weeks.length;
@@ -306,7 +294,6 @@ export default function ProgramsPage() {
   const [editorFocusSetIndex, setEditorFocusSetIndex] = useState<number | null>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
-  const programRowRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const exerciseNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -343,47 +330,7 @@ export default function ProgramsPage() {
     if (currentDay.blocks && currentDay.blocks.length > 0) return currentDay.blocks;
     return setsToProgramBlocks(currentDay.sets ?? []);
   }, [currentDay]);
-  const hasDetailsOpen = detailsProgramId !== null;
   const hasEditorSetFocus = editorFocusSetIndex !== null;
-
-  useEffect(() => {
-    if (!detailsProgramId) return;
-
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const centerRow = () => {
-      const row = programRowRefs.current[detailsProgramId];
-      if (!row) return;
-
-      const rect = row.getBoundingClientRect();
-      const centeredTop = window.scrollY + rect.top + rect.height / 2 - window.innerHeight / 2;
-      window.scrollTo({
-        top: Math.max(0, centeredTop),
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      });
-    };
-
-    const settleCenter = () => {
-      const row = programRowRefs.current[detailsProgramId];
-      if (!row) return;
-
-      const rect = row.getBoundingClientRect();
-      const rowCenter = rect.top + rect.height / 2;
-      const viewportCenter = window.innerHeight / 2;
-      if (Math.abs(rowCenter - viewportCenter) < 8) return;
-
-      const centeredTop = window.scrollY + rect.top + rect.height / 2 - window.innerHeight / 2;
-      window.scrollTo({ top: Math.max(0, centeredTop), behavior: 'auto' });
-    };
-
-    const rafId = window.requestAnimationFrame(centerRow);
-    const timeoutId = window.setTimeout(settleCenter, 220);
-
-    return () => {
-      window.cancelAnimationFrame(rafId);
-      window.clearTimeout(timeoutId);
-    };
-  }, [detailsProgramId]);
 
   const filteredExercises = useMemo(() => {
     const term = exerciseQuery.trim().toLowerCase();
@@ -722,7 +669,7 @@ export default function ProgramsPage() {
           </div>
         </section>
 
-        <section className="py-4">
+        <section className="py-4 [overflow-anchor:none]">
           {loading && (
             <div className="py-6 text-xs uppercase tracking-[0.25em] text-zinc-500">Loading Programs...</div>
           )}
@@ -744,35 +691,20 @@ export default function ProgramsPage() {
           {!loading &&
             programList.map((program) => {
               const isSelected = selectedProgram?.id === program.id;
-              const builtIn = builtInProgramIds.has(program.id);
               const detailsOpen = detailsProgramId === program.id;
               const detailTokens = [
-                builtIn ? 'Built-In' : 'Mine',
                 program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
-                program.intensityMethod
-                  ? INTENSITY_LABELS[program.intensityMethod] ?? formatTokenLabel(program.intensityMethod)
-                  : null,
                 program.experienceLevel
                   ? EXPERIENCE_LABELS[program.experienceLevel] ?? formatTokenLabel(program.experienceLevel)
                   : null,
               ].filter(Boolean) as string[];
-
               return (
                 <motion.article
                   key={program.id}
-                  layout
-                  transition={{ layout: { type: 'spring', stiffness: 320, damping: 32 } }}
-                  ref={(node) => {
-                    programRowRefs.current[program.id] = node;
-                  }}
-                  className={`relative transition-[opacity,filter,border-color,box-shadow] duration-200 ${
+                  className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${
                     detailsOpen
-                      ? 'z-[90] border-b border-cyan-400/35 py-4 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
-                      : 'z-[30] border-b border-zinc-900 py-4'
-                  } ${
-                    hasDetailsOpen && !detailsOpen
-                      ? 'opacity-35 blur-[1px] saturate-50'
-                      : ''
+                      ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
+                      : 'z-[30] border-b border-zinc-900'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -817,101 +749,222 @@ export default function ProgramsPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    {isSelected && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                      {builtIn ? 'Built-In' : 'Mine'}
-                    </p>
-                  </div>
+                  {isSelected && (
+                    <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-emerald-300">
+                      <Check className="h-3.5 w-3.5" />
+                      Selected
+                    </div>
+                  )}
 
                   <AnimatePresence initial={false} mode="wait">
                     {detailsOpen && (
                       <motion.div
                         key={`details-${program.id}`}
-                        layout
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 28, mass: 0.9 }}
-                        className="mt-4 border-t border-cyan-400/20 pt-4 will-change-transform"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{
+                          opacity: { duration: 0.18 },
+                          height: { duration: 0.28, ease: [0.25, 0.8, 0.2, 1] },
+                        }}
+                        className="mt-4 overflow-hidden"
                       >
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
-                        {getFrequencyLabel(program)} • {getProgramExerciseCount(program)} exercises • {getProgramSetCount(program)} sets
-                      </p>
+                        <motion.div
+                          initial={{ y: 10 }}
+                          animate={{ y: 0 }}
+                          exit={{ y: 6 }}
+                          transition={{ duration: 0.22, ease: [0.25, 0.8, 0.2, 1] }}
+                          className="border-t border-cyan-400/20 pt-4"
+                        >
+                          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
 
-                      {program.description && (
-                        <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
-                      )}
+                          {program.description && (
+                            <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
+                          )}
 
-                      <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                        {detailTokens.join(' • ')}
-                      </p>
+                          {detailTokens.length > 0 && (
+                            <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                              {detailTokens.join(' • ')}
+                            </p>
+                          )}
 
-                      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleStartProgram(program);
-                            setDetailsProgramId(null);
-                          }}
-                          className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
-                        >
-                          Start
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openEditEditor(program);
-                            setDetailsProgramId(null);
-                          }}
-                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleDuplicateProgram(program);
-                            setDetailsProgramId(null);
-                          }}
-                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                        >
-                          Duplicate
-                        </button>
-                        <button
-                          type="button"
-                          disabled={builtIn}
-                          onClick={() => {
-                            void handleDeleteProgram(program);
-                            setDetailsProgramId(null);
-                          }}
-                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleStartProgram(program);
+                                setDetailsProgramId(null);
+                              }}
+                              className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                            >
+                              Start
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openEditEditor(program);
+                                setDetailsProgramId(null);
+                              }}
+                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleDuplicateProgram(program);
+                                setDetailsProgramId(null);
+                              }}
+                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                            >
+                              Duplicate
+                            </button>
+                            <button
+                              type="button"
+                              disabled={builtInProgramIds.has(program.id)}
+                              onClick={() => {
+                                void handleDeleteProgram(program);
+                                setDetailsProgramId(null);
+                              }}
+                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </motion.div>
                       </motion.div>
                     )}
                   </AnimatePresence>
+
                 </motion.article>
               );
             })}
         </section>
 
+        <AnimatePresence>
+          {detailsProgram && (
+            <motion.div
+              key="program-details-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[95]"
+            >
+              <motion.button
+                type="button"
+                aria-label="Close program details"
+                onClick={() => setDetailsProgramId(null)}
+                className="absolute inset-0 bg-black/55 backdrop-blur-[28px]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              />
+              <div className="relative z-[1] flex h-full items-center justify-center px-4 py-8 sm:px-6">
+                <motion.div
+                  initial={{ y: 12, scale: 0.98 }}
+                  animate={{ y: 0, scale: 1 }}
+                  exit={{ y: 8, scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 240, damping: 26, mass: 0.9 }}
+                  className="w-full max-w-xl rounded-3xl border border-cyan-400/20 bg-zinc-950/85 px-6 py-6 shadow-[0_25px_90px_-60px_rgba(6,182,212,0.8)] backdrop-blur-2xl sm:px-8 sm:py-7"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Program details"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
+                      <p className="mt-3 text-2xl font-black text-zinc-100 sm:text-3xl">
+                        {detailsProgram.name}
+                      </p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                        {getFrequencyLabel(detailsProgram)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsProgramId(null)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-100"
+                      aria-label="Close program details"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {detailsProgram.description && (
+                    <p className="mt-5 text-sm text-zinc-300">{detailsProgram.description}</p>
+                  )}
+
+                  {(() => {
+                    const tokens = [
+                      detailsProgram.goal
+                        ? GOAL_LABELS[detailsProgram.goal] ?? formatTokenLabel(detailsProgram.goal)
+                        : null,
+                      detailsProgram.experienceLevel
+                        ? EXPERIENCE_LABELS[detailsProgram.experienceLevel] ??
+                          formatTokenLabel(detailsProgram.experienceLevel)
+                        : null,
+                    ].filter(Boolean) as string[];
+
+                    return tokens.length > 0 ? (
+                      <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                        {tokens.join(' • ')}
+                      </p>
+                    ) : null;
+                  })()}
+
+                  <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleStartProgram(detailsProgram);
+                        setDetailsProgramId(null);
+                      }}
+                      className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                    >
+                      Start
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openEditEditor(detailsProgram);
+                        setDetailsProgramId(null);
+                      }}
+                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleDuplicateProgram(detailsProgram);
+                        setDetailsProgramId(null);
+                      }}
+                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                    >
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      disabled={builtInProgramIds.has(detailsProgram.id)}
+                      onClick={() => {
+                        void handleDeleteProgram(detailsProgram);
+                        setDetailsProgramId(null);
+                      }}
+                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
       </div>
-
-      <button
-        type="button"
-        aria-label="Close program details"
-        onClick={() => setDetailsProgramId(null)}
-        className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
-          hasDetailsOpen
-            ? 'pointer-events-auto bg-black/60 opacity-100'
-            : 'pointer-events-none bg-black/0 opacity-0'
-        }`}
-      />
 
       {editorMode && draft && (
         <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">

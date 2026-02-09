@@ -162,6 +162,7 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         prescribed_percentage: set.prescribedPercentage,
         // Actual values - reps is integer, RPE/RIR are decimals
         actual_weight: set.actualWeight,
+        weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
         actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
         actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
         actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,

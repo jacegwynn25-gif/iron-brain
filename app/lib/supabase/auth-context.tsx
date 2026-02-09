@@ -38,8 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const applySessionState = (nextSession: Session | null) => {
       if (!active) return;
 
-      // Deduplicate: Don't re-apply if same session user
-      const sessionKey = nextSession?.user?.id ?? 'null';
+      // Deduplicate: Don't re-apply if same session state
+      const metadataKey = nextSession?.user
+        ? `${nextSession.user.user_metadata?.onboarding_complete ? '1' : '0'}:${nextSession.user.user_metadata?.coach_marks_complete ? '1' : '0'}`
+        : '';
+      const sessionKey = nextSession?.user
+        ? `${nextSession.user.id}:${nextSession.user.updated_at ?? ''}:${metadataKey}`
+        : 'null';
       if (sessionKey === lastAppliedSessionRef.current) {
         console.log('[Auth] Session already applied, skipping:', sessionKey);
         return;
