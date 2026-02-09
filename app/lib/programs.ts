@@ -2709,16 +2709,3 @@ export const allPrograms: ProgramTemplate[] = [
   broSplit,
   gzclp,
 ];
-
-// Get all exercises including custom ones from localStorage
-export function getAllExercises(): Exercise[] {
-  const customExercisesJson = typeof window !== 'undefined'
-    ? localStorage.getItem('iron_brain_custom_exercises')
-    : null;
-
-  const customExercises: Exercise[] = customExercisesJson
-    ? JSON.parse(customExercisesJson)
-    : [];
-
-  return [...defaultExercises, ...customExercises];
-}

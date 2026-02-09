@@ -53,7 +53,7 @@ export async function getUserMaxes(userId: string | null): Promise<UserMax[]> {
 /**
  * Get specific 1RM for exercise
  */
-export async function getUserMax(userId: string | null, exerciseId: string): Promise<UserMax | null> {
+async function getUserMax(userId: string | null, exerciseId: string): Promise<UserMax | null> {
   const allMaxes = await getUserMaxes(userId);
   return allMaxes.find(m => m.exerciseId === exerciseId) || null;
 }
@@ -122,7 +122,7 @@ export async function saveUserMax(
 /**
  * Update existing 1RM record
  */
-export async function updateUserMax(
+async function updateUserMax(
   userId: string | null,
   maxId: string,
   updates: Partial<Omit<UserMax, 'id' | 'userId' | 'createdAt'>>

@@ -15,7 +15,7 @@ import type { WorkoutSession } from '../types';
  * - Conflict resolution (Supabase wins)
  */
 
-export interface SyncStatus {
+interface SyncStatus {
   totalWorkouts: number;
   syncedWorkouts: number;
   pendingWorkouts: number;
@@ -30,7 +30,7 @@ const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
 /**
  * Get current sync status
  */
-export function getSyncStatus(): SyncStatus {
+function getSyncStatus(): SyncStatus {
   try {
     const stored = localStorage.getItem(SYNC_STATUS_KEY);
     if (stored) {
@@ -262,15 +262,4 @@ export async function syncPendingWorkouts(userId: string): Promise<void> {
   });
 
   logger.debug(`✅ Sync complete: ${successCount}/${pendingWorkouts.length} successful`);
-}
-
-/**
- * Force re-sync of all workouts
- * Useful for data migration or fixing sync issues
- */
-export async function forceSyncAllWorkouts(userId: string): Promise<void> {
-  // Clear synced IDs to force re-upload
-  localStorage.removeItem(SYNCED_WORKOUT_IDS_KEY);
-
-  await syncPendingWorkouts(userId);
 }

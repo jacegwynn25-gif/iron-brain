@@ -73,7 +73,7 @@ const buildQueuedEvent = (payload: UiEventPayload): QueuedUiEvent => {
   };
 };
 
-export const flushUiEvents = async (userId?: string | null) => {
+const flushUiEvents = async (userId?: string | null) => {
   if (!userId || typeof window === 'undefined') return;
   const queue = readQueue();
   if (queue.length === 0) return;

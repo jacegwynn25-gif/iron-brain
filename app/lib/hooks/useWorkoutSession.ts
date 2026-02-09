@@ -86,7 +86,7 @@ type WorkoutSessionAction =
       type: 'FINISH_SESSION';
     };
 
-export interface SessionPayload {
+interface SessionPayload {
   status: 'finished';
   startTime: string;
   endTime: string;
@@ -716,5 +716,3 @@ export function useWorkoutSession(program: ProgramTemplate, readinessModifier: n
     finishSession,
   };
 }
-
-export { buildSessionPayload };

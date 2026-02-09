@@ -16,7 +16,7 @@ interface OnboardingFormData {
   bodyweight: number | null;
 }
 
-export interface UseOnboardingReturn {
+interface UseOnboardingReturn {
   // Navigation state
   step: number;
   totalSteps: number;
@@ -222,5 +222,3 @@ export function useOnboarding(): UseOnboardingReturn {
     reset,
   };
 }
-
-export default useOnboarding;

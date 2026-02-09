@@ -34,7 +34,7 @@ export interface Range {
 
 type MovementCategory = 'compound' | 'isolation';
 
-export interface MovementRangePreference {
+interface MovementRangePreference {
   compound?: Partial<Range>;
   isolation?: Partial<Range>;
 }
@@ -51,7 +51,7 @@ interface WeeklyRangeAdjustment {
 // VOLUME LANDMARKS
 // ============================================
 
-export interface VolumeLandmark {
+interface VolumeLandmark {
   muscle: string;
   /** Maintenance Volume - minimum to prevent atrophy */
   MV: number;
@@ -750,15 +750,6 @@ export function getExercisesForMuscle(
 }
 
 /**
- * Get stretch-focused exercises (priority for hypertrophy)
- */
-export function getStretchFocusedExercises(muscle: string): ExerciseConfig[] {
-  return EXERCISE_TIER_LIST.filter(
-    ex => (ex.primaryMuscle === muscle || ex.secondaryMuscles.includes(muscle)) && ex.stretchFocused
-  );
-}
-
-/**
  * Calculate recommended weekly volume based on experience level
  */
 export function getRecommendedVolume(
@@ -802,14 +793,6 @@ export function getRecommendedVolume(
   }
 
   return { min, max, frequency };
-}
-
-/**
- * Check if a session has too many sets for a single muscle (junk volume)
- */
-export function isJunkVolume(setsPerSession: number): boolean {
-  // Research suggests >10 sets/muscle/session leads to diminishing returns
-  return setsPerSession > 10;
 }
 
 const BASE_REP_RANGE_BY_GOAL: Record<TrainingGoal, Record<MovementCategory, Range>> = {
@@ -920,18 +903,6 @@ export function getWeekProgress(weekNumber?: number, totalWeeks?: number): numbe
 
   const clampedWeek = Math.min(Math.max(1, weekNumber), totalWeeks);
   return (clampedWeek - 1) / (totalWeeks - 1);
-}
-
-/**
- * Get intensity recommendation (RIR) based on movement type
- */
-export function getIntensityRecommendation(
-  movementType: 'compound' | 'isolation'
-): { minRIR: number; maxRIR: number } {
-  if (movementType === 'compound') {
-    return { minRIR: 2, maxRIR: 3 }; // Safety buffer for heavy compounds
-  }
-  return { minRIR: 0, maxRIR: 1 }; // Can push closer to failure on isolations
 }
 
 /**

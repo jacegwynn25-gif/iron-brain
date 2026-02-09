@@ -4,14 +4,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../supabase/auth-context';
 
-export interface RequireAuthOptions {
+interface RequireAuthOptions {
   redirectTo?: string;
   replace?: boolean;
   withReturnTo?: boolean;
   returnToParam?: string;
 }
 
-export interface RequireAuthResult {
+interface RequireAuthResult {
   user: ReturnType<typeof useAuth>['user'];
   loading: boolean;
   ready: boolean;

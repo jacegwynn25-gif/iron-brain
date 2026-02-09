@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 
-export interface AsyncLock {
+interface AsyncLock {
   /** Whether the lock is currently held */
   isLocked: boolean;
   /** Execute a function with the lock held - guarantees cleanup even on errors */

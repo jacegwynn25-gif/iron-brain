@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../supabase/auth-context';
 import { setUserNamespace } from '../storage';
 
-export interface DataReadyState {
+interface DataReadyState {
   /** Whether it's safe to access user data (auth loaded, namespace set, sync complete) */
   isReady: boolean;
   /** Whether we're still initializing (auth loading, namespace not set, or syncing) */

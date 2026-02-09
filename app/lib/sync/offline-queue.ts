@@ -20,10 +20,10 @@ type WorkoutMetadata = {
   dayName?: string;
 };
 
-export type QueueOperation = 'create' | 'update' | 'delete';
-export type QueueTable = 'workout_sessions' | 'custom_programs';
+type QueueOperation = 'create' | 'update' | 'delete';
+type QueueTable = 'workout_sessions' | 'custom_programs';
 
-export interface QueueItem {
+interface QueueItem {
   id: string;
   operation: QueueOperation;
   table: QueueTable;
@@ -55,7 +55,7 @@ export function queueOperation(operation: QueueOperation, table: QueueItem['tabl
   }
 }
 
-export function getQueue(): QueueItem[] {
+function getQueue(): QueueItem[] {
   try {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(QUEUE_KEY);
@@ -65,7 +65,7 @@ export function getQueue(): QueueItem[] {
   }
 }
 
-export function removeFromQueue(itemId: string): void {
+function removeFromQueue(itemId: string): void {
   try {
     const queue = getQueue();
     const filtered = queue.filter(item => item.id !== itemId);

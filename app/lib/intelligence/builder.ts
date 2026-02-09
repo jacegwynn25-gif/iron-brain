@@ -672,5 +672,3 @@ export function generateProgram(profile: UserProfile): ProgramTemplate {
 
   return program;
 }
-
-export default generateProgram;

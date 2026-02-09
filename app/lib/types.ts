@@ -54,7 +54,7 @@ export interface CustomExercise {
 export type SetType = 'straight' | 'superset' | 'giant' | 'drop' | 'rest-pause' | 'cluster' | 'warmup' | 'amrap' | 'backoff';
 
 // Prescription method options
-export type PrescriptionMethod =
+type PrescriptionMethod =
   | 'rpe'
   | 'rir'
   | 'percentage_1rm'
@@ -125,7 +125,7 @@ export interface ProgramTemplate {
 // ============================================================
 
 export type WeightUnit = 'lbs' | 'kg';
-export type LoadType = 'absolute' | 'bodyweight' | 'assisted' | 'percentage';
+type LoadType = 'absolute' | 'bodyweight' | 'assisted' | 'percentage';
 
 export interface SetLog {
   id?: string;
@@ -194,7 +194,7 @@ export interface SetLog {
   timestamp?: string;               // When this set was logged (ISO)
 }
 
-export interface ExerciseSwap {
+interface ExerciseSwap {
   originalExerciseId: string;
   swappedToExerciseId: string;
   reason?: string;                  // 'equipment unavailable', 'injury', 'preference'
@@ -246,44 +246,6 @@ export interface WorkoutSession {
 }
 
 // ============================================================
-// USER PREFERENCES & SETTINGS
-// ============================================================
-
-export interface UserSettings {
-  // Units
-  defaultWeightUnit: WeightUnit;
-
-  // Tracking preferences
-  trackRPE: boolean;
-  trackRIR: boolean;
-  trackPercentage: boolean;
-  trackTempo: boolean;
-  trackRestTime: boolean;
-  trackBodyweight: boolean;
-
-  // Rest timer
-  restTimerEnabled: boolean;
-  restTimerSound: boolean;
-  restTimerVibrate: boolean;
-  autoStartRestTimer: boolean;
-
-  // Default rest times by exercise type
-  defaultRestCompound: number;      // seconds
-  defaultRestAccessory: number;
-  defaultRestIsolation: number;
-
-  // Display
-  showE1RM: boolean;
-  showVolumeLoad: boolean;
-  showProgressComparison: boolean;
-
-  // Integrations
-  ouraRingConnected?: boolean;
-  appleHealthConnected?: boolean;
-  appleWatchConnected?: boolean;
-}
-
-// ============================================================
 // USER MAX (1RM) TYPES
 // ============================================================
 
@@ -299,35 +261,6 @@ export interface UserMax {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-}
-
-// ============================================================
-// ANALYTICS & HISTORY TYPES
-// ============================================================
-
-export interface ExerciseHistory {
-  exerciseId: string;
-  sessions: {
-    date: string;
-    bestSet: SetLog;                // Best set from that session
-    totalVolume: number;
-    averageRPE: number;
-  }[];
-  personalRecords: {
-    maxWeight: { weight: number; reps: number; date: string };
-    maxReps: { weight: number; reps: number; date: string };
-    maxE1RM: { e1rm: number; date: string };
-    maxVolume: { volume: number; date: string };
-  };
-}
-
-export interface ProgressData {
-  exerciseId: string;
-  metric: 'weight' | 'reps' | 'e1rm' | 'volume';
-  dataPoints: {
-    date: string;
-    value: number;
-  }[];
 }
 
 // ============================================================
@@ -356,7 +289,7 @@ export type SessionMetadata = {
 
 import type { Database } from './supabase/database.types';
 
-export type SupabaseSetLogRow = Pick<
+type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
   | 'id'
   | 'exercise_slug'

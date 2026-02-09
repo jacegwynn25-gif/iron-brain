@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CM_TO_INCHES, KG_TO_LBS } from '../units';
 
-export type UnitSystem = 'metric' | 'imperial';
+type UnitSystem = 'metric' | 'imperial';
 
 const STORAGE_KEY = 'iron_brain_unit_system';
 const STORAGE_EVENT = 'iron_brain_unit_system_change';
 
-export interface UnitConversions {
+interface UnitConversions {
   // Weight conversions
   kgToLbs: (kg: number) => number;
   lbsToKg: (lbs: number) => number;
@@ -26,7 +26,7 @@ export interface UnitConversions {
   heightRange: { min: number; max: number };
 }
 
-export interface UseUnitPreferenceReturn extends UnitConversions {
+interface UseUnitPreferenceReturn extends UnitConversions {
   unitSystem: UnitSystem;
   setUnitSystem: (system: UnitSystem) => void;
   // Parse user input to metric for storage
@@ -138,11 +138,3 @@ export function useUnitPreference(): UseUnitPreferenceReturn {
     heightRange,
   };
 }
-
-// Standalone conversion functions for use outside React components
-export const conversions = {
-  kgToLbs: (kg: number) => kg * KG_TO_LBS,
-  lbsToKg: (lbs: number) => lbs / KG_TO_LBS,
-  cmToInches: (cm: number) => cm * CM_TO_INCHES,
-  inchesToCm: (inches: number) => inches / CM_TO_INCHES,
-};

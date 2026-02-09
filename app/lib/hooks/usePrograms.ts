@@ -48,7 +48,7 @@ export interface UseProgramsReturn {
   resolveProgramSelection: (program: ProgramTemplate) => ProgramTemplate;
 }
 
-export interface UseProgramsOptions {
+interface UseProgramsOptions {
   namespaceId?: string;
   userId?: string | null;
 }
@@ -368,5 +368,3 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     resolveProgramSelection,
   };
 }
-
-export default usePrograms;
