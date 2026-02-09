@@ -119,7 +119,7 @@ export function detectChangePoints(values: number[]): ChangePoint[] {
  * Prevents false conclusions from insufficient data
  * Research: Cohen (1988) - Statistical power analysis
  */
-export interface PowerAnalysis {
+interface PowerAnalysis {
   sampleSize: number;
   minimumDetectableEffect: number; // Cohen's d
   power: number; // 0-1, typically want >0.8
@@ -180,7 +180,7 @@ export function analyzeSampleSizePower(
  * Stage 3: Check for data entry errors
  * Stage 4: Validate against physiological limits
  */
-export interface DataQualityReport {
+interface DataQualityReport {
   originalCount: number;
   cleanedCount: number;
   removedCount: number;

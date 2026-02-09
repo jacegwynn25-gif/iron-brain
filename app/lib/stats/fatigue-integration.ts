@@ -34,7 +34,7 @@ import {
  * - Provides confidence intervals on predictions
  * - Updates in real-time during workout (online learning)
  */
-export interface EnhancedFatigueAssessment {
+interface EnhancedFatigueAssessment {
   // Current state
   currentFatigue: number; // 0-100
   fatigueLevel: 'minimal' | 'low' | 'moderate' | 'high' | 'critical';
@@ -70,7 +70,7 @@ export interface EnhancedFatigueAssessment {
  * In production, this would load from database.
  * For now, builds from historical workout data.
  */
-export function getOrBuildHierarchicalModel(
+function getOrBuildHierarchicalModel(
   userId: string,
   allWorkouts: Array<{
     date: Date;
@@ -101,7 +101,7 @@ export function getOrBuildHierarchicalModel(
  * - Need to detect critical moments (change points)
  * - Want real-time updating during workout
  */
-export function assessFatigueWithHierarchicalModel(
+function assessFatigueWithHierarchicalModel(
   currentExerciseId: string,
   completedSets: SetLog[],
   hierarchicalModel: HierarchicalFatigueModel

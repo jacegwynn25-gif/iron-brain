@@ -38,7 +38,7 @@ import {
 // INTERFACES
 // ============================================================
 
-export interface RPECalibrationProfile {
+interface RPECalibrationProfile {
   exerciseId: string;
   historicalBias: number; // Positive = tends to overshoot, negative = undershoot
   biasStdDev: number;

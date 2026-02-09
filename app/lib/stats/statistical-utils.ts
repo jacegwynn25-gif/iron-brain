@@ -15,7 +15,7 @@
 // DESCRIPTIVE STATISTICS
 // ============================================================
 
-export interface DescriptiveStats {
+interface DescriptiveStats {
   mean: number;
   median: number;
   stdDev: number;
@@ -75,7 +75,7 @@ export function calculateDescriptiveStats(values: number[]): DescriptiveStats {
  * @param sortedValues - Array sorted in ascending order
  * @param p - Percentile (0-1)
  */
-export function percentile(sortedValues: number[], p: number): number {
+function percentile(sortedValues: number[], p: number): number {
   if (sortedValues.length === 0) return 0;
   if (p <= 0) return sortedValues[0];
   if (p >= 1) return sortedValues[sortedValues.length - 1];
@@ -92,7 +92,7 @@ export function percentile(sortedValues: number[], p: number): number {
 // OUTLIER DETECTION
 // ============================================================
 
-export interface OutlierAnalysis {
+interface OutlierAnalysis {
   value: number;
   isOutlier: boolean;
   method: 'iqr' | 'modified_z' | 'zscore';

@@ -15,7 +15,7 @@
  * RPE 8 = 2 RIR
  * etc.
  */
-export function rpeToRir(rpe: number): number {
+function rpeToRir(rpe: number): number {
   return Math.max(0, 10 - rpe);
 }
 
@@ -25,7 +25,7 @@ export function rpeToRir(rpe: number): number {
  *
  * Accurate for rep ranges 1-10, less reliable for higher reps
  */
-export function epley1RM(weight: number, reps: number): number {
+function epley1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;
   return weight * (1 + reps / 30);
@@ -37,7 +37,7 @@ export function epley1RM(weight: number, reps: number): number {
  *
  * Slightly more conservative than Epley for higher rep ranges
  */
-export function brzycki1RM(weight: number, reps: number): number {
+function brzycki1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;
   if (reps >= 37) return weight * 2; // Cap at ~2x for very high reps
@@ -87,7 +87,7 @@ export function rpeAdjusted1RM(
 /**
  * Calculate estimated 1RM from a set, with optional RPE adjustment
  */
-export interface SetData {
+interface SetData {
   weight: number;
   reps: number;
   rpe?: number | null;
