@@ -20,11 +20,14 @@ import type { SetLog, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
+import { useAuth } from '@/app/lib/supabase/auth-context';
+import { supabase } from '@/app/lib/supabase/client';
+import { resolveExerciseIds } from '@/app/lib/supabase/workouts';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
 import { saveWorkout, storage } from '@/app/lib/storage';
-import { createUuid } from '@/app/lib/uuid';
+import { createUuid, isValidUuid } from '@/app/lib/uuid';
 import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
 import { convertWeight } from '@/app/lib/units';
 
@@ -237,6 +240,13 @@ type ProjectedPrHit = {
   previous: number;
 };
 
+type PrBaseline = {
+  maxWeight: number;
+  maxReps: number;
+  maxE1RM: number;
+  maxVolume: number;
+};
+
 const PR_METRIC_LABEL: Record<PrMetric, string> = {
   max_weight: 'WEIGHT',
   max_reps: 'REPS',
@@ -360,6 +370,7 @@ type SessionLoggerProps = {
 
 export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const { readiness } = useRecoveryState();
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
@@ -393,6 +404,8 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const [keypadArmed, setKeypadArmed] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
+  const [cloudPrBaseline, setCloudPrBaseline] = useState<Record<string, PrBaseline>>({});
+  const [isPrBaselineSyncing, setIsPrBaselineSyncing] = useState(false);
   const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
@@ -476,6 +489,117 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     () => Math.max(1, ...sessionStats.pulseMap.map((entry) => entry.volume)),
     [sessionStats.pulseMap]
   );
+  useEffect(() => {
+    let active = true;
+    const emptyBaseline: Record<string, PrBaseline> = {};
+
+    const loadCloudPrBaseline = async () => {
+      if (!isSummaryOpen || !user?.id) {
+        if (active) {
+          setCloudPrBaseline(emptyBaseline);
+          setIsPrBaselineSyncing(false);
+        }
+        return;
+      }
+
+      const exerciseRefs = Array.from(
+        new Set(
+          session.blocks.flatMap((block) => block.exercises.map((exercise) => exercise.id).filter(Boolean))
+        )
+      );
+
+      if (exerciseRefs.length === 0) {
+        if (active) {
+          setCloudPrBaseline(emptyBaseline);
+          setIsPrBaselineSyncing(false);
+        }
+        return;
+      }
+
+      setIsPrBaselineSyncing(true);
+      try {
+        const resolvedIds = await resolveExerciseIds(supabase, exerciseRefs);
+        const lookupByResolvedId = new Map<string, PrBaseline>();
+
+        const exerciseUuidIds = Array.from(
+          new Set(
+            exerciseRefs
+              .map((ref) => resolvedIds.get(ref) ?? (isValidUuid(ref) ? ref : null))
+              .filter((value): value is string => Boolean(value))
+          )
+        );
+
+        if (exerciseUuidIds.length === 0) {
+          if (active) {
+            setCloudPrBaseline(emptyBaseline);
+          }
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('personal_records')
+          .select('exercise_id, record_type, weight, reps, e1rm, volume')
+          .eq('user_id', user.id)
+          .eq('is_current', true)
+          .in('exercise_id', exerciseUuidIds)
+          .in('record_type', ['max_weight', 'max_reps', 'max_e1rm', 'max_volume']);
+
+        if (error) {
+          console.error('Failed to load cloud PR baseline:', error);
+          if (active) {
+            setCloudPrBaseline(emptyBaseline);
+          }
+          return;
+        }
+
+        for (const row of data ?? []) {
+          const exerciseId = row.exercise_id ?? '';
+          if (!exerciseId) continue;
+          const baseline = lookupByResolvedId.get(exerciseId) ?? {
+            maxWeight: 0,
+            maxReps: 0,
+            maxE1RM: 0,
+            maxVolume: 0,
+          };
+          const recordType = row.record_type;
+          if (recordType === 'max_weight') baseline.maxWeight = Math.max(baseline.maxWeight, Number(row.weight) || 0);
+          if (recordType === 'max_reps') baseline.maxReps = Math.max(baseline.maxReps, Number(row.reps) || 0);
+          if (recordType === 'max_e1rm') baseline.maxE1RM = Math.max(baseline.maxE1RM, Number(row.e1rm) || 0);
+          if (recordType === 'max_volume') baseline.maxVolume = Math.max(baseline.maxVolume, Number(row.volume) || 0);
+          lookupByResolvedId.set(exerciseId, baseline);
+        }
+
+        const byExerciseRef: Record<string, PrBaseline> = {};
+        exerciseRefs.forEach((ref) => {
+          const resolved = resolvedIds.get(ref) ?? (isValidUuid(ref) ? ref : null);
+          if (!resolved) return;
+          const baseline = lookupByResolvedId.get(resolved);
+          if (!baseline) return;
+          byExerciseRef[ref] = baseline;
+        });
+
+        if (active) {
+          setCloudPrBaseline(byExerciseRef);
+        }
+      } catch (error) {
+        console.error('Unexpected PR baseline sync error:', error);
+        if (active) {
+          setCloudPrBaseline(emptyBaseline);
+        }
+      } finally {
+        if (active) {
+          setIsPrBaselineSyncing(false);
+        }
+      }
+    };
+
+    void loadCloudPrBaseline();
+
+    return () => {
+      active = false;
+    };
+  }, [isSummaryOpen, session.blocks, user?.id]);
+
   const projectedPrHits = useMemo<ProjectedPrHit[]>(() => {
     if (!isSummaryOpen || typeof window === 'undefined') {
       return [];
@@ -512,6 +636,20 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
         baseline.maxVolume = Math.max(baseline.maxVolume, volume);
         baselineByExercise.set(exerciseId, baseline);
       });
+    });
+
+    Object.entries(cloudPrBaseline).forEach(([exerciseId, cloud]) => {
+      const baseline = baselineByExercise.get(exerciseId) ?? {
+        maxWeight: 0,
+        maxReps: 0,
+        maxE1RM: 0,
+        maxVolume: 0,
+      };
+      baseline.maxWeight = Math.max(baseline.maxWeight, cloud.maxWeight);
+      baseline.maxReps = Math.max(baseline.maxReps, cloud.maxReps);
+      baseline.maxE1RM = Math.max(baseline.maxE1RM, cloud.maxE1RM);
+      baseline.maxVolume = Math.max(baseline.maxVolume, cloud.maxVolume);
+      baselineByExercise.set(exerciseId, baseline);
     });
 
     const currentByExercise = new Map<
@@ -603,7 +741,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     return hits
       .sort((a, b) => (b.current - b.previous) - (a.current - a.previous))
       .slice(0, 8);
-  }, [isSummaryOpen, session.blocks]);
+  }, [cloudPrBaseline, isSummaryOpen, session.blocks]);
   const legendItems = useMemo(() => {
     const activeGroups = new Set<MuscleGroup>();
     const groupCounts = new Map<MuscleGroup, number>();
@@ -1040,29 +1178,27 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     };
   };
 
-  const handleFinishWorkout = () => {
+  const handleFinishWorkout = async () => {
     if (saveInFlightRef.current) {
-      router.push('/');
       return;
     }
     saveInFlightRef.current = true;
-    const payload = buildWorkoutSession();
-    void saveWorkout(payload, undefined, { skipAnalytics: true })
-      .then((saveResult) => {
-        if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
-          localStorage.setItem(
-            'iron_brain_last_pr_hits',
-            JSON.stringify({
-              createdAt: new Date().toISOString(),
-              hits: saveResult.newPersonalRecords,
-            })
-          );
-        }
-      })
-      .finally(() => {
-        saveInFlightRef.current = false;
-      });
-    router.push('/');
+    try {
+      const payload = buildWorkoutSession();
+      const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
+      if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
+        localStorage.setItem(
+          'iron_brain_last_pr_hits',
+          JSON.stringify({
+            createdAt: new Date().toISOString(),
+            hits: saveResult.newPersonalRecords,
+          })
+        );
+      }
+    } finally {
+      saveInFlightRef.current = false;
+      router.push('/');
+    }
   };
 
   const handleShare = async () => {
@@ -1810,6 +1946,11 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                     <p className="text-center text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
                       Projected PRs
                     </p>
+                    {isPrBaselineSyncing && (
+                      <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-[0.24em] text-zinc-500">
+                        Syncing cloud baseline
+                      </p>
+                    )}
                     <div
                       className="mt-3 flex gap-2 overflow-x-auto pb-2 pr-6"
                       data-swipe-ignore="true"

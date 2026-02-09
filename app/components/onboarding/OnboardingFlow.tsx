@@ -65,9 +65,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0d14]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.35),transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(13,17,30,0.95)_0%,rgba(15,10,28,0.98)_55%,rgba(10,12,20,1)_100%)]" />
+    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.22),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(9,13,22,0.95)_0%,rgba(10,14,24,0.98)_55%,rgba(9,10,16,1)_100%)]" />
 
       <div className="relative z-10 flex flex-col flex-1">
         <div className="flex justify-center gap-2 pt-12 pb-6">
@@ -76,10 +76,10 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
                 i === step
-                  ? 'w-8 bg-purple-500'
+                  ? 'w-8 bg-emerald-400'
                   : i < step
-                    ? 'w-2 bg-purple-500/50'
-                    : 'w-2 bg-white/20'
+                    ? 'w-2 bg-emerald-400/50'
+                    : 'w-2 bg-zinc-700'
               }`}
             />
           ))}
@@ -95,12 +95,12 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               exit={{ opacity: 0, x: -20 }}
               className="text-center py-12"
             >
-              <div className="w-24 h-24 mx-auto mb-8 rounded-3xl bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
+              <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl border border-cyan-400/40 bg-gradient-to-br from-cyan-500 to-emerald-500 shadow-xl shadow-cyan-500/20">
                 <Dumbbell className="w-12 h-12 text-white" />
               </div>
               <h1 className="text-4xl font-bold text-white mb-4">Iron Brain</h1>
-              <p className="text-xl text-gray-300 mb-2">Train better.</p>
-              <p className="text-gray-500 max-w-xs mx-auto">
+              <p className="mb-2 text-xl text-zinc-300">Train better.</p>
+              <p className="mx-auto max-w-xs text-zinc-500">
                 Evidence-based training guidance that adapts to you.
               </p>
             </motion.div>
@@ -117,7 +117,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <h2 className="text-2xl font-bold text-white mb-2 text-center">
                 What&apos;s your main goal?
               </h2>
-              <p className="text-gray-400 text-center mb-8">
+              <p className="text-center text-zinc-400 mb-8">
                 We&apos;ll tailor recommendations to match.
               </p>
               <div className="space-y-3">
@@ -128,25 +128,25 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     <button
                       key={goal.id}
                       onClick={() => setGoal(goal.id as Goal)}
-                      className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4 ${
+                        className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4 ${
                         isSelected
-                          ? 'bg-purple-500/20 border-purple-500'
-                          : 'bg-white/5 border-white/10 hover:border-white/20'
+                          ? 'border-emerald-400/50 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'
                       }`}
                     >
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        isSelected ? 'bg-purple-500' : 'bg-white/10'
+                        isSelected ? 'bg-emerald-500/80' : 'bg-zinc-900'
                       }`}>
-                        <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-gray-400'}`} />
+                        <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-zinc-400'}`} />
                       </div>
                       <div className="text-left flex-1">
-                        <div className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                        <div className={`font-semibold ${isSelected ? 'text-white' : 'text-zinc-200'}`}>
                           {goal.label}
                         </div>
-                        <div className="text-sm text-gray-500">{goal.description}</div>
+                        <div className="text-sm text-zinc-500">{goal.description}</div>
                       </div>
                       {isSelected && (
-                        <Check className="w-6 h-6 text-purple-400" />
+                        <Check className="w-6 h-6 text-emerald-300" />
                       )}
                     </button>
                   );
@@ -166,7 +166,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <h2 className="text-2xl font-bold text-white mb-2 text-center">
                 Your experience level?
               </h2>
-              <p className="text-gray-400 text-center mb-8">
+              <p className="text-zinc-400 text-center mb-8">
                 This helps us calibrate volume recommendations.
               </p>
               <div className="space-y-3">
@@ -178,19 +178,19 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                       onClick={() => setExperience(exp.id as Experience)}
                       className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                         isSelected
-                          ? 'bg-purple-500/20 border-purple-500'
-                          : 'bg-white/5 border-white/10 hover:border-white/20'
+                          ? 'border-emerald-400/50 bg-emerald-500/10'
+                          : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-200'}`}>
+                          <div className={`font-semibold ${isSelected ? 'text-white' : 'text-zinc-200'}`}>
                             {exp.label}
                           </div>
-                          <div className="text-sm text-gray-500">{exp.description}</div>
+                          <div className="text-sm text-zinc-500">{exp.description}</div>
                         </div>
                         {isSelected && (
-                          <Check className="w-6 h-6 text-purple-400" />
+                          <Check className="w-6 h-6 text-emerald-300" />
                         )}
                       </div>
                     </button>
@@ -211,13 +211,13 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               <h2 className="text-2xl font-bold text-white mb-2 text-center">
                 A few more details
               </h2>
-              <p className="text-gray-400 text-center mb-8">
+              <p className="text-zinc-400 text-center mb-8">
                 This enables accurate recovery tracking.
               </p>
               <div className="space-y-4">
                 {/* Age */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
                     Age <span className="text-red-400">*</span>
                   </label>
                   <input
@@ -226,14 +226,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     max="120"
                     value={formData.age || ''}
                     onChange={(e) => setAge(parseInt(e.target.value) || null)}
-                    className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
                     placeholder="Enter your age"
                   />
                 </div>
 
                 {/* Sex */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
                     Sex <span className="text-red-400">*</span>
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -244,8 +244,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                         onClick={() => setSex(option)}
                         className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
                           formData.sex === option
-                            ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                            : 'border-white/20 bg-white/5 text-gray-400 hover:border-white/30'
+                            ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                            : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
                         }`}
                       >
                         {option.charAt(0).toUpperCase() + option.slice(1)}
@@ -256,8 +256,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
                 {/* Bodyweight (Optional) */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Bodyweight (kg) <span className="text-gray-500 text-xs">(optional)</span>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Bodyweight (kg) <span className="text-zinc-500 text-xs">(optional)</span>
                   </label>
                   <input
                     type="number"
@@ -266,7 +266,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                     step="0.1"
                     value={formData.bodyweight || ''}
                     onChange={(e) => setBodyweight(parseFloat(e.target.value) || null)}
-                    className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
                     placeholder="e.g. 75"
                   />
                 </div>
@@ -286,11 +286,11 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 <Check className="w-10 h-10 text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">You&apos;re All Set!</h2>
-              <p className="text-gray-400 max-w-xs mx-auto mb-8">
+              <p className="text-zinc-400 max-w-xs mx-auto mb-8">
                 Let&apos;s build something great together. Your gains start now.
               </p>
-              <div className="bg-white/5 rounded-2xl p-4 text-left max-w-xs mx-auto border border-white/10">
-                <div className="text-sm text-gray-400 mb-2">Your profile:</div>
+              <div className="mx-auto max-w-xs rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4 text-left">
+                <div className="text-sm text-zinc-400 mb-2">Your profile:</div>
                 <div className="text-white font-medium">
                   {goals.find(g => g.id === formData.goal)?.label} • {experiences.find(e => e.id === formData.experience)?.label}
                 </div>
@@ -310,7 +310,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           {step > 0 && (
             <button
               onClick={handleBack}
-              className="px-6 py-4 rounded-2xl bg-white/10 text-white font-semibold transition-all active:scale-[0.98]"
+              className="rounded-2xl border border-zinc-800 bg-zinc-950/50 px-6 py-4 font-semibold text-zinc-200 transition-all active:scale-[0.98]"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -320,8 +320,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             disabled={!canProceed || isSaving}
             className={`flex-1 py-4 rounded-2xl font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
               canProceed && !isSaving
-                ? 'btn-primary text-white shadow-lg shadow-purple-500/20'
-                : 'bg-white/10 text-gray-500'
+                ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20'
+                : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
             }`}
           >
             {isSaving ? (

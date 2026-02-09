@@ -128,6 +128,9 @@ const VIEW_OPTIONS: ViewType[] = ['overview', 'recovery', 'strength', 'profile']
 const resolveInitialView = (value?: string): ViewType =>
   VIEW_OPTIONS.includes(value as ViewType) ? (value as ViewType) : 'overview';
 
+const SECTION_CLASS = 'border-b border-zinc-900 pb-6';
+const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900/80 bg-zinc-950/45 p-3';
+
 export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnalyticsDashboardProps) {
   const { user, loading: authLoading, namespaceReady, isSyncing } = useAuth();
   const { unitSystem, setUnitSystem, weightUnit, lbsToKg, kgToLbs } = useUnitPreference();
@@ -625,11 +628,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="flex min-h-dvh items-center justify-center app-gradient safe-top pb-24 p-6">
         <div className="space-y-4 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full btn-primary flex items-center justify-center animate-pulse">
-            <BarChart3 className="h-8 w-8 text-white" />
+          <div className="mx-auto flex h-16 w-16 animate-pulse items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+            <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
-          <div className="text-white text-lg font-semibold">Loading insights...</div>
-          <div className="text-zinc-400 text-sm">Calculating your stats</div>
+          <div className="text-lg font-semibold text-white">Loading insights...</div>
+          <div className="text-sm text-zinc-400">Calculating your stats</div>
         </div>
       </div>
     );
@@ -638,21 +641,21 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   if (!hasMinimumData) {
     const awaitingSync = cloudSyncing && completedWorkouts.length === 0;
     return (
-      <div className="flex min-h-dvh items-center justify-center app-gradient safe-top pb-24 p-6">
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-5 max-w-md text-center border border-white/10">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-600 to-fuchsia-500 flex items-center justify-center">
-            <BarChart3 className="h-10 w-10 text-white" />
+      <div className="min-h-dvh app-gradient safe-top px-6 pb-24 pt-10">
+        <div className="mx-auto max-w-md border-b border-zinc-900 pb-8 text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10">
+            <BarChart3 className="h-10 w-10 text-cyan-300" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">
+          <h2 className="mb-2 text-xl font-bold text-white">
             {awaitingSync ? 'Syncing workouts...' : 'Not enough data yet'}
           </h2>
-          <p className="text-zinc-300 text-sm mb-6">
+          <p className="mb-6 text-sm text-zinc-400">
             {awaitingSync
               ? 'Pulling your workout history from the cloud.'
               : 'Complete at least 3 workouts to unlock Insights.'}
           </p>
           {cloudSyncing && (
-            <div className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-400">
               Syncing...
             </div>
           )}
@@ -662,28 +665,28 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   }
 
   return (
-    <div className="min-h-dvh app-gradient px-4 py-6 pb-24 safe-top">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-dvh app-gradient px-4 pb-28 pt-6 safe-top">
+      <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl mb-6">
+        <header className="mb-6 border-b border-zinc-900 pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="section-label">Insights</p>
-              <h1 className="mt-3 text-3xl font-black text-white">Analytics</h1>
-              <p className="mt-2 text-sm text-zinc-400">Your training at a glance.</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Insights</p>
+              <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Analytics</h1>
+              <p className="mt-3 text-sm text-zinc-500">Your training at a glance.</p>
             </div>
             <div className="flex items-center gap-2">
               {cloudSyncing && (
-                <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-zinc-300">
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
                   Syncing...
                 </span>
               )}
-              <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-xs font-medium">
+              <div className="flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
                 <button
                   type="button"
                   onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
                   className={`rounded-full px-3 py-1 transition-colors ${
-                    unitSystem === 'imperial' ? 'bg-white/20 text-white' : 'text-zinc-400'
+                    unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
                   }`}
                 >
                   lbs
@@ -692,7 +695,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   type="button"
                   onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
                   className={`rounded-full px-3 py-1 transition-colors ${
-                    unitSystem === 'metric' ? 'bg-white/20 text-white' : 'text-zinc-400'
+                    unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
                   }`}
                 >
                   kg
@@ -703,7 +706,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         </header>
 
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-2 px-2">
+        <div
+          className="mb-6 flex gap-2 overflow-x-auto pb-1 -mx-2 px-2"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {([
             { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
             { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
@@ -722,8 +728,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all text-sm ${
                 selectedView === id
-                  ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow-lg'
-                  : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                  ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  : 'border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -737,7 +743,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className="space-y-6">
             {/* Readiness Score - Hero Card */}
             {(analytics.fitnessFatigue || (analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0)) && (
-              <div className="surface-card p-4 sm:p-5">
+              <div className={SECTION_CLASS}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-white">Readiness</h2>
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -762,14 +768,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 {analytics.fitnessFatigue && (
                   <div className="mt-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white/5 rounded-xl p-3">
+                      <div className={SUBSECTION_CARD_CLASS}>
                         <div className="text-xs text-zinc-400 mb-1">Fitness</div>
                         <div className="text-lg font-semibold text-green-400">
                           {Math.round(analytics.fitnessFatigue.currentFitness)}
                         </div>
                         <div className="text-[10px] text-zinc-500 mt-1">Training adaptations</div>
                       </div>
-                      <div className="bg-white/5 rounded-xl p-3">
+                      <div className={SUBSECTION_CARD_CLASS}>
                         <div className="text-xs text-zinc-400 mb-1">Fatigue</div>
                         <div className="text-lg font-semibold text-red-400">
                           {Math.round(analytics.fitnessFatigue.currentFatigue)}
@@ -777,7 +783,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                         <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
                       </div>
                     </div>
-                    <div className="text-[10px] text-zinc-500 bg-white/5 rounded-lg p-2 text-center">
+                    <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
                       Readiness = how much fitness exceeds fatigue. Train when Fitness &gt; Fatigue.
                     </div>
                   </div>
@@ -787,7 +793,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
             {/* Injury Risk Card */}
             {analytics.acwr && (
-              <div className="surface-card p-4 sm:p-5">
+              <div className={SECTION_CLASS}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className={`h-5 w-5 ${
@@ -829,12 +835,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
             {/* Quick Recovery Status */}
             {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
-              <div className="surface-card p-4 sm:p-5">
+              <div className={SECTION_CLASS}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-white">Muscle Recovery</h2>
                   <button
                     onClick={() => setSelectedView('recovery')}
-                    className="text-xs text-purple-400 hover:text-purple-300"
+                    className="text-xs text-emerald-300 hover:text-emerald-200"
                   >
                     View all →
                   </button>
@@ -843,7 +849,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   {analytics.recoveryProfiles.slice(0, 4).map((profile) => (
                     <div
                       key={profile.muscleGroup}
-                      className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                     >
                       <span className="text-sm text-zinc-300 capitalize">{profile.muscleGroup}</span>
                       <div className={`w-3 h-3 rounded-full ${
@@ -859,12 +865,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
             {/* Top Lifts Preview */}
             {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 && (
-              <div className="surface-card p-4 sm:p-5">
+              <div className={SECTION_CLASS}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-white">Top Lifts</h2>
                   <button
                     onClick={() => setSelectedView('strength')}
-                    className="text-xs text-purple-400 hover:text-purple-300"
+                    className="text-xs text-emerald-300 hover:text-emerald-200"
                   >
                     View all →
                   </button>
@@ -873,7 +879,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   {analytics.strengthLeaderboard.slice(0, 3).map((lift, i) => (
                     <div
                       key={lift.exerciseId}
-                      className="flex items-center justify-between bg-white/5 rounded-lg p-3"
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                     >
                       <div className="flex items-center gap-3">
                         <span className={`text-sm font-bold ${
@@ -883,7 +889,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                         </span>
                         <span className="text-sm text-white truncate max-w-[150px]">{lift.exerciseName}</span>
                       </div>
-                      <span className="text-sm font-semibold text-purple-400">
+                      <span className="text-sm font-semibold text-cyan-300">
                         {lift.estimated1RM} {weightUnit}
                       </span>
                     </div>
@@ -906,9 +912,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         {selectedView === 'strength' && (
           <div className="space-y-6">
             {/* Estimated 1RMs */}
-            <div className="surface-card p-4 sm:p-5">
+            <div className={SECTION_CLASS}>
               <div className="flex items-center gap-2 mb-4">
-                <Award className="h-5 w-5 text-yellow-400" />
+                <Award className="h-5 w-5 text-amber-300" />
                 <h2 className="text-xl font-bold text-white">Estimated 1RMs</h2>
               </div>
               <p className="text-xs text-zinc-400 mb-4">
@@ -919,7 +925,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   {analytics.strengthLeaderboard.slice(0, 10).map((lift, i) => (
                     <div
                       key={lift.exerciseId}
-                      className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5"
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`text-sm font-bold w-6 ${
@@ -939,7 +945,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
-                        <div className="text-lg font-bold text-purple-400">
+                        <div className="text-lg font-bold text-cyan-300">
                           {lift.estimated1RM}
                         </div>
                         <div className="text-xs text-zinc-500">{weightUnit}</div>
@@ -953,9 +959,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             </div>
 
             {/* Volume Leaders */}
-            <div className="surface-card p-4 sm:p-5">
+            <div className={SECTION_CLASS}>
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-green-400" />
+                <TrendingUp className="h-5 w-5 text-emerald-300" />
                 <h2 className="text-xl font-bold text-white">Volume Leaders</h2>
               </div>
               <p className="text-xs text-zinc-400 mb-4">
@@ -966,7 +972,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   {analytics.volumeLeaderboard.slice(0, 10).map((exercise, i) => (
                     <div
                       key={exercise.exerciseId}
-                      className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5"
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`text-sm font-bold w-6 ${
@@ -1003,28 +1009,28 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         {/* Profile Tab */}
         {selectedView === 'profile' && (
           <div className="space-y-6">
-            <div className="surface-card p-4 sm:p-5">
+            <div className={SECTION_CLASS}>
               <h2 className="text-xl font-bold text-white mb-4">Your Stats</h2>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-xl p-4 text-center">
+                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
                   <div className="text-3xl font-bold text-white">
                     {analytics.personalStats?.totalWorkouts || 0}
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">Workouts</div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4 text-center">
+                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
                   <div className="text-3xl font-bold text-white">
                     {analytics.personalStats?.totalSets || 0}
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">Total Sets</div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4 text-center">
+                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
                   <div className="text-3xl font-bold text-white">
                     {analytics.strengthLeaderboard?.length || 0}
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">Exercises</div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4 text-center">
+                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
                   <div className="text-3xl font-bold text-white">
                     {analytics.acwr ? analytics.acwr.ratio.toFixed(1) : '—'}
                   </div>
@@ -1035,7 +1041,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
             {/* Training Load Details */}
             {analytics.acwr && (
-              <div className="surface-card p-4 sm:p-5">
+              <div className={SECTION_CLASS}>
                 <h2 className="text-xl font-bold text-white mb-4">Training Load</h2>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
@@ -1055,12 +1061,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             )}
 
             {/* Tips */}
-            <div className="bg-gradient-to-r from-purple-900/20 to-fuchsia-900/20 rounded-2xl p-5 border border-purple-500/20">
-              <h3 className="text-sm font-semibold text-purple-300 mb-3">How This Works</h3>
+            <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 to-emerald-950/20 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-cyan-200">How This Works</h3>
               <ul className="text-xs text-zinc-400 space-y-2">
-                <li><span className="text-purple-400">Readiness</span> - Based on your fitness vs fatigue balance</li>
-                <li><span className="text-purple-400">Injury Risk</span> - Compares recent load to your baseline</li>
-                <li><span className="text-purple-400">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
+                <li><span className="text-cyan-300">Readiness</span> - Based on your fitness vs fatigue balance</li>
+                <li><span className="text-cyan-300">Injury Risk</span> - Compares recent load to your baseline</li>
+                <li><span className="text-cyan-300">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
               </ul>
             </div>
           </div>

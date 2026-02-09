@@ -200,25 +200,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      // Try Supabase signout with timeout
-      const signOutPromise = supabase.auth.signOut();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Sign out timeout')), 5000)
+    const signOutWithTimeout = async (scope: 'default' | 'local', timeoutMs: number) => {
+      const signOutPromise =
+        scope === 'local'
+          ? supabase.auth.signOut({ scope: 'local' })
+          : supabase.auth.signOut();
+
+      const timeoutPromise = new Promise<{ error: Error | null }>((resolve) =>
+        setTimeout(() => resolve({ error: new Error(`${scope} sign out timeout`) }), timeoutMs)
       );
 
       try {
-        const result = await Promise.race([signOutPromise, timeoutPromise]) as { error: Error | null };
-        if (result?.error) {
-          console.error('❌ Supabase signOut error:', result.error);
-        }
-      } catch (timeoutError) {
-        console.warn('⚠️ Supabase signOut timed out, forcing local sign out:', timeoutError);
-        // Don't await - fire and forget to prevent hanging
-        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        return await Promise.race([signOutPromise, timeoutPromise]);
+      } catch (error) {
+        return { error: error as Error };
       }
-    } catch (error) {
-      console.error('❌ Error during signout:', error);
+    };
+
+    const globalResult = await signOutWithTimeout('default', 5000);
+    if (globalResult?.error) {
+      console.warn('⚠️ Supabase signOut fallback path:', globalResult.error);
+      const localResult = await signOutWithTimeout('local', 3000);
+      if (localResult?.error) {
+        console.error('❌ Local Supabase signOut error:', localResult.error);
+      }
     }
 
     // ALWAYS clear state, regardless of Supabase call success

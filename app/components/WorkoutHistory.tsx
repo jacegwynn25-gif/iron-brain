@@ -16,12 +16,14 @@ interface WorkoutHistoryProps {
   workoutHistory: WorkoutSession[];
   onHistoryUpdate: () => void;
   compactHeader?: boolean;
+  isLoading?: boolean;
 }
 
 export default function WorkoutHistory({
   workoutHistory,
   onHistoryUpdate,
   compactHeader = false,
+  isLoading = false,
 }: WorkoutHistoryProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -323,6 +325,17 @@ export default function WorkoutHistory({
       new Date(session.endTime || session.startTime || session.date).getTime();
     return [...workoutHistory].sort((a, b) => getSortTime(b) - getSortTime(a));
   }, [workoutHistory]);
+
+  if (isLoading) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-[11px] font-mono uppercase tracking-[0.35em] text-zinc-500">Loading History</p>
+        <div className="mx-auto mt-5 h-1.5 w-32 overflow-hidden rounded-full bg-zinc-900">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-500/70" />
+        </div>
+      </div>
+    );
+  }
 
   if (sortedHistory.length === 0) {
     return (

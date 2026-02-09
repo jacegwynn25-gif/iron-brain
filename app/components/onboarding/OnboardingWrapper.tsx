@@ -34,7 +34,7 @@ const getInitialOnboardingState = () => {
 };
 
 export default function OnboardingWrapper({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   const [hydrated, setHydrated] = useState(false);
 
   // Initialize to false to prevent hydration mismatch
@@ -44,14 +44,19 @@ export default function OnboardingWrapper({ children }: { children: React.ReactN
   // Check onboarding status after hydration
   useEffect(() => {
     setHydrated(true);
-    const state = getInitialOnboardingState();
-    setShowOnboarding(state.onboarding);
-    setShowCoachMarks(state.coach);
   }, []);
 
-  // Only re-check if URL params change (not on auth changes)
+  // Resolve onboarding visibility once auth is known.
+  // We only show onboarding for signed-in users, and we trust cloud metadata
+  // as a fallback when local flags are missing (new device/localStorage cleared).
   useEffect(() => {
     if (loading || !hydrated) return;
+
+    if (!user) {
+      setShowOnboarding(false);
+      setShowCoachMarks(false);
+      return;
+    }
 
     const params = new URLSearchParams(window.location.search);
     const forceOnboarding = params.get('onboarding') === '1';
@@ -60,11 +65,27 @@ export default function OnboardingWrapper({ children }: { children: React.ReactN
     if (forceOnboarding) {
       setShowOnboarding(true);
       setShowCoachMarks(false);
-    } else if (forceCoachMarks) {
+      return;
+    }
+
+    if (forceCoachMarks) {
       setShowOnboarding(false);
       setShowCoachMarks(true);
+      return;
     }
-  }, [loading, hydrated]);
+
+    const localState = getInitialOnboardingState();
+    const cloudOnboardingComplete = user.user_metadata?.onboarding_complete === true;
+
+    let onboardingComplete = !localState.onboarding;
+    if (!onboardingComplete && cloudOnboardingComplete) {
+      onboardingComplete = true;
+      localStorage.setItem('iron_brain_onboarding_complete', 'true');
+    }
+
+    setShowOnboarding(!onboardingComplete);
+    setShowCoachMarks(onboardingComplete && localState.coach);
+  }, [loading, hydrated, user]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);

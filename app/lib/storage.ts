@@ -608,17 +608,45 @@ export async function saveWorkout(
   return result;
 }
 
-export function getWorkoutHistory(): WorkoutSession[] {
+const normalizeWorkoutSessionId = (id: string) =>
+  id.startsWith('session_') ? id.substring(8) : id;
+
+const readWorkoutHistoryFromKey = (key: string): WorkoutSession[] => {
+  if (typeof window === 'undefined') return [];
   try {
-    if (typeof window === 'undefined') {
-      return [];
-    }
-    const data = localStorage.getItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY));
-    return data ? JSON.parse(data) : [];
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as WorkoutSession[]) : [];
   } catch (error) {
-    console.error('Failed to load workout history:', error);
+    console.error('Failed to parse workout history key:', key, error);
     return [];
   }
+};
+
+const mergeWorkoutHistory = (primary: WorkoutSession[], fallback: WorkoutSession[]) => {
+  if (fallback.length === 0) return primary;
+  const seen = new Set(primary.map((session) => normalizeWorkoutSessionId(session.id)));
+  const merged = [...primary];
+  fallback.forEach((session) => {
+    const normalizedId = normalizeWorkoutSessionId(session.id);
+    if (seen.has(normalizedId)) return;
+    seen.add(normalizedId);
+    merged.push(session);
+  });
+  return merged;
+};
+
+export function getWorkoutHistoryForNamespace(userId: string | null): WorkoutSession[] {
+  const namespace = normalizeNamespace(userId);
+  const primary = readWorkoutHistoryFromKey(`${STORAGE_KEYS.WORKOUT_HISTORY}__${namespace}`);
+  if (namespace === 'default') return primary;
+  const fallbackDefault = readWorkoutHistoryFromKey(`${STORAGE_KEYS.WORKOUT_HISTORY}__default`);
+  return mergeWorkoutHistory(primary, fallbackDefault);
+}
+
+export function getWorkoutHistory(): WorkoutSession[] {
+  return getWorkoutHistoryForNamespace(activeUserNamespace);
 }
 
 export function setWorkoutHistory(sessions: WorkoutSession[]): void {
@@ -1244,6 +1272,7 @@ export const storage = {
   // Workout history
   saveWorkout,
   getWorkoutHistory,
+  getWorkoutHistoryForNamespace,
   setWorkoutHistory,
   getWorkoutById,
   updateWorkoutDetails,

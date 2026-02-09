@@ -8,43 +8,28 @@ import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
 import type {
   WorkoutSession,
-  UserProfile,
   SessionMetadata,
   SupabaseWorkoutSessionRow
 } from '../lib/types';
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [profile] = useState<UserProfile | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const saved = localStorage.getItem('iron_brain_profile');
-    if (saved) {
-      try {
-        const parsed: UserProfile = JSON.parse(saved);
-        if (parsed.rememberUntil && parsed.rememberUntil < Date.now()) {
-          localStorage.removeItem('iron_brain_profile');
-          return null;
-        }
-        return parsed;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const { user, loading: authLoading, namespaceReady } = useAuth();
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
-  const namespaceId = user?.id ?? profile?.id ?? null;
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const namespaceId = user?.id ?? null;
 
   useEffect(() => {
+    if (!namespaceReady) return;
     setUserNamespace(namespaceId);
-  }, [namespaceId]);
+  }, [namespaceId, namespaceReady]);
 
   const loadWorkoutsFromBothSources = useCallback(async () => {
-    const localWorkouts = storage.getWorkoutHistory();
+    if (!namespaceReady || authLoading) return;
+    setHistoryLoading(true);
+
     const getSortTime = (session: WorkoutSession) =>
       new Date(session.endTime || session.startTime || session.date).getTime();
-    const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
     const resolveUserId = async () => {
       // If we have a user from context, use it
@@ -61,13 +46,16 @@ export default function HistoryPage() {
       return data.user?.id ?? null;
     };
 
-    const resolvedUserId = await resolveUserId();
-    if (!resolvedUserId) {
-      setWorkoutHistory(sortedLocalWorkouts);
-      return;
-    }
-
     try {
+      const resolvedUserId = await resolveUserId();
+      const localWorkouts = storage.getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId);
+      const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
+
+      if (!resolvedUserId) {
+        setWorkoutHistory(sortedLocalWorkouts);
+        return;
+      }
+
       const { data: sessions, error } = await supabase
         .from('workout_sessions')
         .select(`
@@ -139,13 +127,19 @@ export default function HistoryPage() {
       setWorkoutHistory(mergedWorkouts);
     } catch (err) {
       console.error('Error loading workouts:', err);
-      setWorkoutHistory(sortedLocalWorkouts);
+      const fallbackLocal = storage
+        .getWorkoutHistoryForNamespace(namespaceId)
+        .sort((a, b) => getSortTime(b) - getSortTime(a));
+      setWorkoutHistory(fallbackLocal);
+    } finally {
+      setHistoryLoading(false);
     }
-  }, [user]);
+  }, [authLoading, namespaceId, namespaceReady, user]);
 
   useEffect(() => {
-    loadWorkoutsFromBothSources();
-  }, [loadWorkoutsFromBothSources, profile?.id]);
+    if (!namespaceReady || authLoading) return;
+    void loadWorkoutsFromBothSources();
+  }, [authLoading, loadWorkoutsFromBothSources, namespaceReady]);
 
   return (
     <div className="min-h-dvh">
@@ -169,6 +163,7 @@ export default function HistoryPage() {
           workoutHistory={workoutHistory}
           onHistoryUpdate={loadWorkoutsFromBothSources}
           compactHeader
+          isLoading={historyLoading}
         />
       </div>
     </div>

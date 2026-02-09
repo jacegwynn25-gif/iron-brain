@@ -94,24 +94,24 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
-      <div className="rounded-xl bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-500/30 p-6">
+    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-7 pb-16">
+      <div className="border-b border-zinc-900 pb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Welcome to Iron Brain</h2>
-        <p className="text-purple-200">
+        <p className="text-zinc-400">
           Help us personalize your training by providing some basic information.
           This enables accurate recovery tracking and injury prevention.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-4">
-          <p className="text-red-300 text-sm">{error}</p>
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4">
+          <p className="text-sm text-rose-300">{error}</p>
         </div>
       )}
 
       {/* Age */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
           Age <span className="text-red-400">*</span>
         </label>
         <input
@@ -120,14 +120,14 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
           max="120"
           value={formData.age || ''}
           onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || null })}
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none"
           required
         />
       </div>
 
       {/* Sex */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
           Sex <span className="text-red-400">*</span>
         </label>
         <div className="grid grid-cols-3 gap-3">
@@ -138,8 +138,8 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
               onClick={() => setFormData({ ...formData, sex: option })}
               className={`rounded-lg border px-4 py-3 font-medium transition-all ${
                 formData.sex === option
-                  ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                  : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                  ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                  : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
               }`}
             >
               {option.charAt(0).toUpperCase() + option.slice(1)}
@@ -150,10 +150,10 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
 
       {/* Training Age */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
           Training Age (years) <span className="text-red-400">*</span>
         </label>
-        <p className="text-xs text-gray-500 mb-2">
+        <p className="text-xs text-zinc-500 mb-2">
           How many years have you been training consistently?
         </p>
         <input
@@ -163,14 +163,14 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
           step="0.5"
           value={formData.trainingAge || ''}
           onChange={(e) => setFormData({ ...formData, trainingAge: parseFloat(e.target.value) || null })}
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none"
           required
         />
       </div>
 
       {/* Athletic Background */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
           Athletic Background <span className="text-red-400">*</span>
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -181,8 +181,8 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
               onClick={() => setFormData({ ...formData, athleticBackground: level })}
               className={`rounded-lg border px-4 py-3 font-medium transition-all ${
                 formData.athleticBackground === level
-                  ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                  : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                  ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                  : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
               }`}
             >
               {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -193,7 +193,7 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
 
       {/* Unit System Toggle */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
           Measurement System
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -202,8 +202,8 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
             onClick={() => setUnitSystem('metric')}
             className={`rounded-lg border px-4 py-3 font-medium transition-all ${
               unitSystem === 'metric'
-                ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
             }`}
           >
             Metric (kg, cm)
@@ -213,8 +213,8 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
             onClick={() => setUnitSystem('imperial')}
             className={`rounded-lg border px-4 py-3 font-medium transition-all ${
               unitSystem === 'imperial'
-                ? 'border-purple-500 bg-purple-500/20 text-purple-300'
-                : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
+                : 'border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-700'
             }`}
           >
             Imperial (lbs, in)
@@ -224,8 +224,8 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
 
       {/* Bodyweight (Optional) */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Bodyweight ({weightUnit}) <span className="text-gray-500 text-xs">(optional)</span>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Bodyweight ({weightUnit}) <span className="text-zinc-500 text-xs">(optional)</span>
         </label>
         <input
           type="number"
@@ -241,17 +241,17 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
               setFormData({ ...formData, bodyweight: parseWeightInput(value) });
             }
           }}
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none"
         />
       </div>
 
       {/* Height (Optional) */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Height ({heightUnit}) <span className="text-gray-500 text-xs">(optional)</span>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Height ({heightUnit}) <span className="text-zinc-500 text-xs">(optional)</span>
         </label>
         {unitSystem === 'imperial' && (
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-zinc-500 mb-2">
             Tip: 5 feet = 60 inches, 6 feet = 72 inches
           </p>
         )}
@@ -269,16 +269,16 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
               setFormData({ ...formData, height: parseHeightInput(value) });
             }
           }}
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none"
         />
       </div>
 
       {/* Current Injuries (Optional) */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Current Injuries <span className="text-gray-500 text-xs">(optional)</span>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Current Injuries <span className="text-zinc-500 text-xs">(optional)</span>
         </label>
-        <p className="text-xs text-gray-500 mb-2">
+        <p className="text-xs text-zinc-500 mb-2">
           List any active injuries (e.g., &quot;Left shoulder impingement&quot;)
         </p>
         <textarea
@@ -289,16 +289,16 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
             currentInjuries: e.target.value.split('\n').filter(s => s.trim())
           })}
           placeholder="One injury per line"
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none resize-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none resize-none"
         />
       </div>
 
       {/* Chronic Conditions (Optional) */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Chronic Health Conditions <span className="text-gray-500 text-xs">(optional)</span>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Chronic Health Conditions <span className="text-zinc-500 text-xs">(optional)</span>
         </label>
-        <p className="text-xs text-gray-500 mb-2">
+        <p className="text-xs text-zinc-500 mb-2">
           Any chronic conditions that affect training (e.g., &quot;Type 2 Diabetes&quot;)
         </p>
         <textarea
@@ -309,7 +309,7 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
             chronicConditions: e.target.value.split('\n').filter(s => s.trim())
           })}
           placeholder="One condition per line"
-          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:border-purple-500 focus:outline-none resize-none"
+          className="w-full rounded-lg bg-zinc-950/50 border border-zinc-800 px-4 py-2 text-white focus:border-emerald-400 focus:outline-none resize-none"
         />
       </div>
 
@@ -317,7 +317,7 @@ export default function DemographicsForm({ onComplete }: DemographicsFormProps) 
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-xl btn-primary px-6 py-4 font-bold text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-emerald-500 px-6 py-4 font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Saving...' : 'Complete Setup'}
       </button>
