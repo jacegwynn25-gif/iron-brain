@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, BookOpen, ChevronRight, Play, RotateCcw } from 'lucide-react';
-import type { ProgramTemplate } from '../lib/types';
-import { normalizePrograms } from '../lib/programs/normalize';
+import { getProgramProgress, resolveProgramDay } from '../lib/programs/progress';
 import { useAuth } from '../lib/supabase/auth-context';
+import { useProgramContext } from '../providers/ProgramProvider';
 
 type RecentProgram = {
   id: string;
@@ -15,59 +15,40 @@ type RecentProgram = {
 export default function StartWorkoutPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [selectedProgram, setSelectedProgram] = useState<ProgramTemplate | null>(null);
-
+  const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
   const namespaceId = user?.id ?? 'guest';
-  const userProgramsKey = useMemo(
-    () => `iron_brain_user_programs__${namespaceId}`,
-    [namespaceId]
-  );
-  const selectedProgramKey = useMemo(
-    () => `iron_brain_selected_program__${namespaceId}`,
-    [namespaceId]
-  );
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const selectedProgramProgress = useMemo(() => {
+    if (!selectedProgram) return null;
+    return getProgramProgress(selectedProgram, namespaceId);
+  }, [namespaceId, selectedProgram]);
 
-    const storedPrograms = localStorage.getItem(userProgramsKey);
-    const localPrograms: ProgramTemplate[] = storedPrograms ? JSON.parse(storedPrograms) : [];
-    const normalized = normalizePrograms(localPrograms);
-
-    if (normalized.changedPrograms.length > 0) {
-      localStorage.setItem(userProgramsKey, JSON.stringify(normalized.programs));
-    }
-
-    const storedId = localStorage.getItem(selectedProgramKey);
-    const resolvedProgram =
-      normalized.programs.find((program) => program.id === storedId) ?? normalized.programs[0] ?? null;
-    setSelectedProgram(resolvedProgram);
-  }, [selectedProgramKey, userProgramsKey]);
+  const selectedProgramDay = useMemo(() => {
+    if (!selectedProgram || !selectedProgramProgress) return null;
+    return resolveProgramDay(selectedProgram, selectedProgramProgress);
+  }, [selectedProgram, selectedProgramProgress]);
 
   const recentPrograms = useMemo<RecentProgram[]>(() => {
-    const placeholders: RecentProgram[] = [
-      { id: 'power-hypertrophy-ul', name: 'Power Hypertrophy UL' },
-      { id: 'athletic-full-body', name: 'Athletic Full Body' },
-      { id: 'push-pull-legs', name: 'Push Pull Legs' },
-    ];
-
-    const selected: RecentProgram[] = selectedProgram
-      ? [{ id: selectedProgram.id, name: selectedProgram.name }]
-      : [];
-
-    const merged = [...selected, ...placeholders];
+    const selected = selectedProgram ? [{ id: selectedProgram.id, name: selectedProgram.name }] : [];
+    const fromLibrary = allPrograms.map((program) => ({ id: program.id, name: program.name }));
+    const merged = [...selected, ...fromLibrary];
     const seen = new Set<string>();
 
-    return merged.filter((program) => {
-      if (seen.has(program.id)) return false;
-      seen.add(program.id);
-      return true;
-    }).slice(0, 3);
-  }, [selectedProgram]);
+    return merged
+      .filter((program) => {
+        if (seen.has(program.id)) return false;
+        seen.add(program.id);
+        return true;
+      })
+      .slice(0, 5);
+  }, [allPrograms, selectedProgram]);
 
   const handleStartSession = () => {
     if (selectedProgram?.id) {
-      router.push(`/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}`);
+      const progress = getProgramProgress(selectedProgram, namespaceId);
+      router.push(
+        `/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`
+      );
       return;
     }
     router.push('/workout/new');
@@ -78,6 +59,15 @@ export default function StartWorkoutPage() {
   };
 
   const handleRecentProgramStart = (programId: string) => {
+    const matched = allPrograms.find((program) => program.id === programId) ?? null;
+    if (matched) {
+      selectProgram(matched);
+      const progress = getProgramProgress(matched, namespaceId);
+      router.push(
+        `/workout/new?program_id=${encodeURIComponent(programId)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`
+      );
+      return;
+    }
     router.push(`/workout/new?program_id=${encodeURIComponent(programId)}`);
   };
 
@@ -92,7 +82,9 @@ export default function StartWorkoutPage() {
           <Play className="mt-1 h-6 w-6 text-zinc-300" />
         </div>
         <p className="mt-3 text-sm text-zinc-500">
-          {selectedProgram
+          {loading
+            ? 'Loading your program library...'
+            : selectedProgram
             ? `Current Program: ${selectedProgram.name}`
             : 'No program selected. Launch now and build in-session.'}
         </p>
@@ -107,7 +99,11 @@ export default function StartWorkoutPage() {
         >
           <div>
             <p className="text-sm font-semibold text-zinc-100">{selectedProgram?.name ?? 'No Program Selected'}</p>
-            <p className="mt-1 text-xs text-zinc-500">Manage templates and schedule.</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {selectedProgramDay?.day
+                ? `Cycle ${selectedProgramDay.cycleNumber} • Week ${selectedProgramDay.weekNumber} • ${selectedProgramDay.day.dayOfWeek} ${selectedProgramDay.day.name}`
+                : 'Manage templates and schedule.'}
+            </p>
           </div>
           <ChevronRight className="h-4 w-4 text-zinc-600" />
         </button>

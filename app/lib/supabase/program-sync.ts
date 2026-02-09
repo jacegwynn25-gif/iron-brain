@@ -91,6 +91,9 @@ function parseProgramTemplate(value: Json): ProgramTemplate | null {
 
   return {
     id: record.id,
+    schemaVersion: typeof record.schemaVersion === 'number'
+      ? (record.schemaVersion as ProgramTemplate['schemaVersion'])
+      : undefined,
     name: record.name,
     description: typeof record.description === 'string' ? record.description : undefined,
     author: typeof record.author === 'string' ? record.author : undefined,

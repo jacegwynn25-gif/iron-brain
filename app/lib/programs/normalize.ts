@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProgramTemplate } from '../types';
+import { normalizeProgramStructure } from './structure';
 
 const LEGACY_GENERATED_PATTERN = /\bA\.?I\.?\s*-?\s*generated\b/gi;
 const LEGACY_AI_PATTERN = /\bA\.?I\.?\b/gi;
@@ -28,18 +29,21 @@ export function normalizeProgramMetadata(program: ProgramTemplate): {
   program: ProgramTemplate;
   changed: boolean;
 } {
-  const cleanedName = cleanText(program.name);
-  const cleanedDescription = program.description ? cleanText(program.description) : undefined;
-  const cleanedAuthor = normalizeAuthor(program.author);
+  const structureNormalized = normalizeProgramStructure(program);
+  const baseProgram = structureNormalized.program;
+  const cleanedName = cleanText(baseProgram.name);
+  const cleanedDescription = baseProgram.description ? cleanText(baseProgram.description) : undefined;
+  const cleanedAuthor = normalizeAuthor(baseProgram.author);
 
   const normalized: ProgramTemplate = {
-    ...program,
+    ...baseProgram,
     name: cleanedName || 'Training Program',
     description: cleanedDescription || undefined,
     author: cleanedAuthor,
   };
 
   const changed =
+    structureNormalized.changed ||
     normalized.name !== program.name ||
     normalized.description !== program.description ||
     normalized.author !== program.author;

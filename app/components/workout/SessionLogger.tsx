@@ -15,11 +15,18 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { ProgramTemplate } from '@/app/lib/types';
+import type { DayTemplate, ProgramTemplate } from '@/app/lib/types';
 import type { SetLog, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
+import {
+  advanceProgramProgress,
+  getProgramProgress,
+  resolveProgramDay,
+  syncProgramProgressToCloud,
+  type ProgramProgress,
+} from '@/app/lib/programs/progress';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { supabase } from '@/app/lib/supabase/client';
 import { resolveExerciseIds } from '@/app/lib/supabase/workouts';
@@ -44,6 +51,7 @@ const COMPOUND_REST_SECONDS = 180;
 const ISOLATION_REST_SECONDS = 90;
 const SMALL_ISO_REST_SECONDS = 75;
 const CORE_REST_SECONDS = 60;
+const METRONOME_BEAT_MS = 600;
 
 type CommonExercise = {
   id: string;
@@ -222,6 +230,38 @@ function createQuickStartProgram(): ProgramTemplate {
   };
 }
 
+type ProgramDayContext = {
+  cycleNumber: number;
+  weekIndex: number;
+  dayIndex: number;
+  weekNumber: number;
+  day: DayTemplate;
+};
+
+function createProgramSliceForDay(program: ProgramTemplate, context: ProgramDayContext): ProgramTemplate {
+  const clonedDay: DayTemplate = {
+    ...context.day,
+    sets: context.day.sets.map((set) => ({ ...set })),
+    blocks: context.day.blocks?.map((block) => ({
+      ...block,
+      exercises: block.exercises.map((exercise) => ({
+        ...exercise,
+        sets: exercise.sets.map((set) => ({ ...set })),
+      })),
+    })),
+  };
+
+  return {
+    ...program,
+    weeks: [
+      {
+        weekNumber: context.weekNumber,
+        days: [clonedDay],
+      },
+    ],
+  };
+}
+
 type ExerciseStyle = {
   icon: LucideIcon;
   label: string;
@@ -333,6 +373,14 @@ const getRestDurationSeconds = (exercise: Exercise): number => {
   return ISOLATION_REST_SECONDS;
 };
 
+const parseTempoSteps = (tempo: string | null | undefined): number[] => {
+  if (!tempo) return [];
+  return tempo
+    .split('-')
+    .map((entry) => Number(entry.trim()))
+    .filter((entry) => Number.isFinite(entry) && entry >= 0);
+};
+
 const mapSetType = (setType: SessionSet['type']): SetLog['setType'] => {
   if (setType === 'warmup') return 'warmup';
   if (setType === 'drop') return 'drop';
@@ -366,16 +414,34 @@ function getFocusSet(exercise: Exercise, activeCell: ActiveCell | null, blockId:
 
 type SessionLoggerProps = {
   initialData?: ProgramTemplate;
+  initialProgress?: ProgramProgress | null;
 };
 
-export default function SessionLogger({ initialData }: SessionLoggerProps) {
+export default function SessionLogger({ initialData, initialProgress }: SessionLoggerProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { readiness } = useRecoveryState();
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
-
-  const initialProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
+  const namespaceId = user?.id ?? 'guest';
+  const baseProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
+  const programDayContext = useMemo<ProgramDayContext | null>(() => {
+    if (!initialData || initialData.weeks.length === 0) return null;
+    const progress = initialProgress ?? getProgramProgress(initialData, namespaceId);
+    const day = resolveProgramDay(initialData, progress);
+    if (!day.day) return null;
+    return {
+      cycleNumber: day.cycleNumber,
+      weekIndex: day.weekIndex,
+      dayIndex: day.dayIndex,
+      weekNumber: day.weekNumber,
+      day: day.day,
+    };
+  }, [initialData, initialProgress, namespaceId]);
+  const sessionProgram = useMemo(() => {
+    if (!initialData || !programDayContext) return baseProgram;
+    return createProgramSliceForDay(initialData, programDayContext);
+  }, [baseProgram, initialData, programDayContext]);
   const {
     state: session,
     dispatch,
@@ -385,7 +451,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     addExercise,
     removeExercise,
     setActiveCell,
-  } = useWorkoutSession(initialProgram, readinessModifier);
+  } = useWorkoutSession(sessionProgram, readinessModifier);
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -406,12 +472,18 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
   const [cloudPrBaseline, setCloudPrBaseline] = useState<Record<string, PrBaseline>>({});
   const [isPrBaselineSyncing, setIsPrBaselineSyncing] = useState(false);
+  const [clusterProgressBySetId, setClusterProgressBySetId] = useState<Record<string, number>>({});
+  const [tempoMetronomeEnabled, setTempoMetronomeEnabled] = useState(false);
   const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
     setId: string;
     wasLastSet: boolean;
     wasEditing: boolean;
+    clusterTransition?: boolean;
+    clusterRestSeconds?: number;
+    nextClusterRound?: number;
+    clusterTotalRounds?: number;
   } | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -419,6 +491,7 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const viewHistoryRef = useRef<ViewMode[]>(['overview']);
   const isBackNavRef = useRef(false);
   const saveInFlightRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const calculateSessionStats = (blocks: Block[]) => {
     let totalVolume = 0;
@@ -870,6 +943,63 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   }, [focusContext]);
 
   useEffect(() => {
+    if (viewMode !== 'cockpit' || !focusContext?.set.tempo) {
+      setTempoMetronomeEnabled(false);
+    }
+  }, [focusContext?.set.id, focusContext?.set.tempo, viewMode]);
+
+  useEffect(() => {
+    if (!tempoMetronomeEnabled || viewMode !== 'cockpit' || !focusContext?.set.tempo) return;
+
+    const audioCtor =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!audioCtor) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new audioCtor();
+    }
+
+    const audioCtx = audioContextRef.current;
+    if (audioCtx.state === 'suspended') {
+      void audioCtx.resume();
+    }
+
+    const tick = () => {
+      const now = audioCtx.currentTime;
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(880, now);
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.09);
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, METRONOME_BEAT_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [focusContext?.set.id, focusContext?.set.tempo, tempoMetronomeEnabled, viewMode]);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!pendingExerciseName) return;
     const lastBlock = session.blocks[session.blocks.length - 1];
     const lastExercise = lastBlock?.exercises[lastBlock.exercises.length - 1];
@@ -1019,6 +1149,43 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
     const wasLastSet = setIndex === focusContext.exercise.sets.length - 1;
     const wasEditing = focusContext.set.completed;
+    const cluster = focusContext.set.cluster;
+    const completedRounds = clusterProgressBySetId[focusContext.setId] ?? 0;
+    const clusterTotal = cluster?.reps.length ?? 0;
+    const hasClusterTransition = !wasEditing && Boolean(cluster && completedRounds + 1 < clusterTotal);
+
+    if (hasClusterTransition && cluster) {
+      const nextCompletedRounds = completedRounds + 1;
+      const nextTargetReps = cluster.reps[nextCompletedRounds] ?? null;
+      setClusterProgressBySetId((current) => ({
+        ...current,
+        [focusContext.setId]: nextCompletedRounds,
+      }));
+      if (nextTargetReps != null) {
+        dispatch({
+          type: 'UPDATE_SET',
+          payload: {
+            blockId: focusContext.blockId,
+            exerciseId: focusContext.exerciseId,
+            setId: focusContext.setId,
+            updates: { reps: nextTargetReps },
+          },
+        });
+      }
+      setRestContext({
+        blockId: focusContext.blockId,
+        exerciseId: focusContext.exerciseId,
+        setId: focusContext.setId,
+        wasLastSet: false,
+        wasEditing,
+        clusterTransition: true,
+        clusterRestSeconds: cluster.restSeconds,
+        nextClusterRound: nextCompletedRounds + 1,
+        clusterTotalRounds: clusterTotal,
+      });
+      setViewMode('rest');
+      return;
+    }
 
     setRestContext({
       blockId: focusContext.blockId,
@@ -1028,6 +1195,15 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
       wasEditing,
     });
 
+    if (clusterTotal > 0) {
+      setClusterProgressBySetId((current) => {
+        if (!(focusContext.setId in current)) return current;
+        const next = { ...current };
+        delete next[focusContext.setId];
+        return next;
+      });
+    }
+
     if (!wasEditing) {
       toggleComplete(focusContext.blockId, focusContext.exerciseId, focusContext.setId);
     }
@@ -1035,6 +1211,10 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   };
 
   const handleContinue = (forceOverview = false) => {
+    if (restContext?.clusterTransition) {
+      setViewMode('cockpit');
+      return;
+    }
     if (restContext?.wasEditing) {
       setViewMode('overview');
       setFocusedExerciseId(null);
@@ -1115,8 +1295,12 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     const startTime = session.startTime ?? now;
     const date = startTime.toISOString().split('T')[0];
     const sessionId = `session_${createUuid()}`;
-    const programId = initialProgram?.id ?? 'quick_start';
-    const programName = initialProgram?.name ?? 'Quick Start';
+    const programId = baseProgram?.id ?? 'quick_start';
+    const programName = baseProgram?.name ?? 'Quick Start';
+    const activeCycleNumber = programDayContext?.cycleNumber ?? 1;
+    const activeWeekNumber = programDayContext?.weekNumber ?? 1;
+    const activeDayOfWeek = programDayContext?.day.dayOfWeek ?? '';
+    const activeDayName = programDayContext?.day.name ?? programName;
 
     const sets: SetLog[] = [];
     session.blocks.forEach((block) => {
@@ -1144,7 +1328,15 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
             completed: set.completed === true,
             e1rm: e1rm ? Math.round(e1rm) : null,
             volumeLoad,
-            setType: mapSetType(set.type),
+            setType: set.cluster ? 'cluster' : mapSetType(set.type),
+            tempo: set.tempo ?? undefined,
+            supersetGroup: set.supersetGroup ?? (block.type === 'superset' ? block.id : undefined),
+            clusterRounds: set.cluster
+              ? set.cluster.reps.map((clusterReps) => ({
+                  reps: clusterReps,
+                  restSeconds: set.cluster?.restSeconds ?? 20,
+                }))
+              : undefined,
             timestamp: now.toISOString(),
           });
         });
@@ -1162,10 +1354,10 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
       id: sessionId,
       programId,
       programName,
-      cycleNumber: 1,
-      weekNumber: 1,
-      dayOfWeek: '',
-      dayName: programName,
+      cycleNumber: activeCycleNumber,
+      weekNumber: activeWeekNumber,
+      dayOfWeek: activeDayOfWeek,
+      dayName: activeDayName,
       date,
       startTime: startTime.toISOString(),
       endTime: now.toISOString(),
@@ -1173,6 +1365,15 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
       sets,
       totalVolumeLoad,
       averageRPE,
+      metadata: programDayContext
+        ? {
+            dayIndex: programDayContext.dayIndex,
+            weekIndex: programDayContext.weekIndex,
+            cycleNumber: programDayContext.cycleNumber,
+            dayOfWeek: programDayContext.day.dayOfWeek,
+            dayName: programDayContext.day.name,
+          }
+        : undefined,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -1186,6 +1387,21 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     try {
       const payload = buildWorkoutSession();
       const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
+      const hasCompletedSets = payload.sets.some((set) => set.completed);
+      if (hasCompletedSets && initialData && programDayContext) {
+        const nextProgress = advanceProgramProgress(
+          initialData,
+          {
+            cycleNumber: programDayContext.cycleNumber,
+            weekIndex: programDayContext.weekIndex,
+            dayIndex: programDayContext.dayIndex,
+          },
+          namespaceId
+        );
+        if (user?.id) {
+          await syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId);
+        }
+      }
       if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
         localStorage.setItem(
           'iron_brain_last_pr_hits',
@@ -1239,10 +1455,27 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const weightValue = focusContext?.set.weight ?? 0;
   const repsValue = focusContext?.set.reps ?? 8;
   const rpeValue = focusContext?.set.rpe ?? null;
+  const isEditingSet = Boolean(focusContext?.set.completed);
+  const focusTempo = focusContext?.set.tempo ?? null;
+  const focusTempoSteps = useMemo(() => parseTempoSteps(focusTempo), [focusTempo]);
+  const focusCluster = focusContext?.set.cluster ?? null;
+  const completedClusterRounds = focusContext ? clusterProgressBySetId[focusContext.setId] ?? 0 : 0;
+  const clusterTotalRounds = focusCluster?.reps.length ?? 0;
+  const isClusterSet = Boolean(focusCluster && clusterTotalRounds > 0 && !isEditingSet);
+  const activeClusterRoundIndex = isClusterSet
+    ? Math.min(completedClusterRounds, Math.max(0, clusterTotalRounds - 1))
+    : -1;
+  const activeClusterRepTarget =
+    isClusterSet && activeClusterRoundIndex >= 0
+      ? focusCluster?.reps[activeClusterRoundIndex] ?? null
+      : null;
+  const supersetSlotLabel =
+    focusedRef?.blockType === 'superset' && focusContext?.exercise.slot
+      ? focusContext.exercise.slot
+      : null;
   const bodyweightExercise = focusedRef ? isBodyweight(focusedRef.exercise.name) : false;
   const isWeightActive = activeInput?.field === 'weight';
   const isRepsActive = activeInput?.field === 'reps';
-  const isEditingSet = Boolean(focusContext?.set.completed);
 
   const nextSetIndex = nextSetContext
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
@@ -1250,6 +1483,9 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
   const restDurationSeconds = useMemo(() => {
     if (!restContext) return DEFAULT_REST_SECONDS;
+    if (restContext.clusterTransition && restContext.clusterRestSeconds) {
+      return restContext.clusterRestSeconds;
+    }
     const block = session.blocks.find((entry) => entry.id === restContext.blockId);
     const exercise = block?.exercises.find((entry) => entry.id === restContext.exerciseId);
     if (!exercise) return DEFAULT_REST_SECONDS;
@@ -1563,6 +1799,26 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                   <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                 </div>
 
+                {(supersetSlotLabel || focusTempo || isClusterSet) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {supersetSlotLabel && (
+                      <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
+                        Superset {supersetSlotLabel}
+                      </span>
+                    )}
+                    {focusTempo && (
+                      <span className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                        Tempo {focusTempo}
+                      </span>
+                    )}
+                    {isClusterSet && (
+                      <span className="rounded-full border border-amber-400/35 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
+                        Cluster {Math.min(completedClusterRounds + 1, clusterTotalRounds)}/{clusterTotalRounds}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className={`grid gap-6 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   {!bodyweightExercise && (
                     <HardyStepper
@@ -1581,11 +1837,35 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                     value={repsValue}
                     onChange={handleRepsChange}
                     step={1}
-                    label="REPS"
+                    label={isClusterSet && activeClusterRepTarget != null ? `REPS (TARGET ${activeClusterRepTarget})` : 'REPS'}
                     valueClassName={isRepsActive ? 'text-emerald-400' : undefined}
                     onLabelClick={() => openKeypad('reps')}
                   />
                 </div>
+
+                {focusTempo && (
+                  <div className="space-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">Tempo Cue</p>
+                      <button
+                        type="button"
+                        onClick={() => setTempoMetronomeEnabled((current) => !current)}
+                        className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                          tempoMetronomeEnabled
+                            ? 'bg-cyan-500/20 text-cyan-200'
+                            : 'bg-zinc-900/70 text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        {tempoMetronomeEnabled ? 'Metronome On' : 'Metronome Off'}
+                      </button>
+                    </div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">
+                      {focusTempoSteps.length > 0
+                        ? `Eccentric ${focusTempoSteps[0] ?? 0} • Pause ${focusTempoSteps[1] ?? 0} • Concentric ${focusTempoSteps[2] ?? 0} • Top ${focusTempoSteps[3] ?? 0}`
+                        : `Tempo ${focusTempo}`}
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1658,12 +1938,20 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                 }}
                 showUpNext={!restContext?.wasEditing}
                 nextSetInfo={{
-                  exerciseName: nextSetContext?.exercise.name,
-                  setNumber: nextSetNumber,
-                  weight: nextSetContext?.set.weight ?? undefined,
-                  reps: nextSetContext?.set.reps ?? undefined,
+                  exerciseName: restContext?.clusterTransition
+                    ? nextSetContext?.exercise.name ?? focusedRef?.exercise.name
+                    : nextSetContext?.exercise.name,
+                  setNumber: restContext?.clusterTransition ? undefined : nextSetNumber,
+                  weight: restContext?.clusterTransition ? undefined : nextSetContext?.set.weight ?? undefined,
+                  reps: restContext?.clusterTransition
+                    ? `Cluster ${restContext?.nextClusterRound ?? 1}/${restContext?.clusterTotalRounds ?? 1}`
+                    : nextSetContext?.set.reps ?? undefined,
                 }}
-                isLastSetOfExercise={Boolean(restContext?.wasLastSet && !restContext?.wasEditing)}
+                isLastSetOfExercise={Boolean(
+                  restContext?.wasLastSet &&
+                  !restContext?.wasEditing &&
+                  !restContext?.clusterTransition
+                )}
               />
             </motion.div>
           )}

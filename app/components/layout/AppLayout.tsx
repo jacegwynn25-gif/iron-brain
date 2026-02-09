@@ -124,9 +124,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </main>
 
       {!hideBottomNav && (
-        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-800/90 bg-zinc-950/92 backdrop-blur-xl">
+        <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2">
+          <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.12rem)] pt-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);

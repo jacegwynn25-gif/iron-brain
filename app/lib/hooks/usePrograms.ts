@@ -11,6 +11,7 @@ import {
 } from '../supabase/program-sync';
 import { normalizePrograms } from '../programs/normalize';
 import { allPrograms as BUILT_IN_TEMPLATES } from '../programs';
+import { hydrateProgramProgressFromCloud } from '../programs/progress';
 
 // ============================================
 // STORAGE KEYS
@@ -132,6 +133,8 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
           if (changedPrograms.length > 0) {
             await Promise.all(changedPrograms.map((program) => saveProgramToCloud(program, effectiveUserId)));
           }
+
+          await hydrateProgramProgressFromCloud(effectiveUserId, namespaceId);
         } catch (e) {
           console.error('Failed to load cloud programs:', e);
           // Continue with local programs
@@ -159,7 +162,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     } finally {
       setLoading(false);
     }
-  }, [effectiveUserId, storageKeys]);
+  }, [effectiveUserId, namespaceId, storageKeys]);
 
   // ============================================
   // SELECT PROGRAM
@@ -191,13 +194,16 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
   // ============================================
 
   const saveProgram = useCallback(async (program: ProgramTemplate) => {
+    const normalizedSaveResult = normalizePrograms([program]);
+    const normalizedProgram = normalizedSaveResult.programs[0] ?? program;
+
     // Check if updating existing or creating new
-    const existingIndex = userPrograms.findIndex(p => p.id === program.id);
+    const existingIndex = userPrograms.findIndex(p => p.id === normalizedProgram.id);
     const isNew = existingIndex === -1;
 
     // Mark as custom
     const programToSave: ProgramTemplate = {
-      ...program,
+      ...normalizedProgram,
       isCustom: true,
     };
 
@@ -221,7 +227,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     if (effectiveUserId) {
       try {
         await saveProgramToCloud(programToSave, effectiveUserId);
-        console.log(`✅ Saved program "${program.name}" to cloud`);
+        console.log(`✅ Saved program "${programToSave.name}" to cloud`);
       } catch (e) {
         console.error('Failed to save program to cloud:', e);
         // Local save succeeded, cloud failed - acceptable for offline-first
@@ -229,7 +235,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     }
 
     // Update original to match saved state
-    if (selectedProgram?.id === program.id) {
+    if (selectedProgram?.id === programToSave.id) {
       setOriginalProgram(JSON.parse(JSON.stringify(programToSave)));
       setSelectedProgram(programToSave);
     }

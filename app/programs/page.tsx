@@ -1,105 +1,1632 @@
 'use client';
 
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CirclePlus,
+  Play,
+  Save,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { defaultExercises } from '@/app/lib/programs';
+import { getProgramProgress } from '@/app/lib/programs/progress';
+import { setsToProgramBlocks } from '@/app/lib/programs/structure';
+import type { DayTemplate, ProgramTemplate, SetTemplate, WeekTemplate } from '@/app/lib/types';
+import { createUuid } from '@/app/lib/uuid';
+import { useAuth } from '@/app/lib/supabase/auth-context';
+import { useProgramContext } from '@/app/providers/ProgramProvider';
 
-type WeekPreviewItem = {
-  day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-  focus: string;
-};
+type ProgramFilter = 'all' | 'mine' | 'built-in';
+type EditorMode = 'create' | 'edit' | null;
+type ExercisePickerTarget = { mode: 'append' } | { mode: 'replace'; setIndex: number } | null;
+type GoalOption = NonNullable<ProgramTemplate['goal']>;
+type IntensityOption = NonNullable<ProgramTemplate['intensityMethod']>;
+type ExperienceOption = NonNullable<ProgramTemplate['experienceLevel']>;
 
-type ProgramCardItem = {
-  id: string;
-  title: string;
-  frequency: string;
-};
+const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const weekPreview: WeekPreviewItem[] = [
-  { day: 'Mon', focus: 'Push' },
-  { day: 'Tue', focus: 'Legs' },
-  { day: 'Wed', focus: 'Rest' },
-  { day: 'Thu', focus: 'Pull' },
-  { day: 'Fri', focus: 'Push' },
-  { day: 'Sat', focus: 'Legs' },
-  { day: 'Sun', focus: 'Rest' },
+const GOAL_OPTIONS: GoalOption[] = ['strength', 'hypertrophy', 'powerlifting', 'general', 'peaking'];
+const INTENSITY_OPTIONS: IntensityOption[] = ['rpe', 'rir', 'percentage', 'amrap', 'custom'];
+const EXPERIENCE_OPTIONS: ExperienceOption[] = ['beginner', 'intermediate', 'advanced'];
+const PRESCRIPTION_OPTIONS: Array<NonNullable<SetTemplate['prescriptionMethod']>> = [
+  'rpe',
+  'rir',
+  'percentage_1rm',
+  'percentage_tm',
+  'fixed_weight',
+  'amrap',
+  'time_based',
+];
+const ADVANCED_SET_TYPE_OPTIONS: Array<NonNullable<SetTemplate['setType']>> = [
+  'straight',
+  'cluster',
+  'superset',
+  'drop',
+  'rest-pause',
+  'amrap',
+  'warmup',
+  'backoff',
 ];
 
-const programs: ProgramCardItem[] = [
-  { id: 'arnold-split', title: 'Arnold Split', frequency: '6 days/week' },
-  { id: 'ppl-hypertrophy', title: 'PPL Hypertrophy', frequency: '6 days/week' },
-  { id: 'upper-lower-strength', title: 'Upper / Lower Strength', frequency: '4 days/week' },
-  { id: 'power-hypertrophy-ul', title: 'Power Hypertrophy UL', frequency: '4 days/week' },
-];
+const GOAL_LABELS: Record<GoalOption, string> = {
+  strength: 'Strength',
+  hypertrophy: 'Hypertrophy',
+  powerlifting: 'Powerlifting',
+  general: 'General',
+  peaking: 'Peaking',
+};
+
+const EXPERIENCE_LABELS: Record<ExperienceOption, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+};
+
+const INTENSITY_LABELS: Record<IntensityOption, string> = {
+  rpe: 'RPE',
+  rir: 'RIR',
+  percentage: 'Percentage',
+  amrap: 'AMRAP',
+  custom: 'Custom',
+};
+
+const PRESCRIPTION_LABELS: Record<NonNullable<SetTemplate['prescriptionMethod']>, string> = {
+  rpe: 'RPE',
+  rir: 'RIR',
+  percentage_1rm: '% 1RM',
+  percentage_tm: '% TM',
+  fixed_weight: 'Fixed Weight',
+  amrap: 'AMRAP',
+  time_based: 'Time',
+};
+
+function formatTokenLabel(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function humanizeExerciseId(exerciseId: string): string {
+  return exerciseId
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function slugifyExerciseName(name: string): string {
+  const base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return base || `custom_${createUuid().slice(0, 8)}`;
+}
+
+function createDayTemplate(dayOfWeek: DayTemplate['dayOfWeek'], index: number): DayTemplate {
+  return {
+    dayOfWeek,
+    name: `Session ${index + 1}`,
+    sets: [],
+  };
+}
+
+function createWeekTemplate(weekNumber: number, daysPerWeek: number): WeekTemplate {
+  const validDays = Math.min(7, Math.max(1, daysPerWeek));
+  return {
+    weekNumber,
+    days: DAYS.slice(0, validDays).map((day, index) => createDayTemplate(day, index)),
+  };
+}
+
+function createBlankProgram(): ProgramTemplate {
+  const weekCount = 4;
+  const daysPerWeek = 4;
+
+  return {
+    id: `userprog_${createUuid()}`,
+    name: 'Untitled Program',
+    description: '',
+    goal: 'hypertrophy',
+    experienceLevel: 'intermediate',
+    daysPerWeek,
+    weekCount,
+    intensityMethod: 'rpe',
+    isCustom: true,
+    weeks: Array.from({ length: weekCount }, (_, index) => createWeekTemplate(index + 1, daysPerWeek)),
+  };
+}
+
+function resizeProgramStructure(program: ProgramTemplate, weekCount: number, daysPerWeek: number): ProgramTemplate {
+  const safeWeeks = Math.min(24, Math.max(1, weekCount));
+  const safeDays = Math.min(7, Math.max(1, daysPerWeek));
+  const existing = program.weeks ?? [];
+
+  const nextWeeks: WeekTemplate[] = Array.from({ length: safeWeeks }, (_, weekIndex) => {
+    const sourceWeek = existing[weekIndex];
+    const sourceDays = sourceWeek?.days ?? [];
+
+    const nextDays: DayTemplate[] = DAYS.slice(0, safeDays).map((dayOfWeek, dayIndex) => {
+      const sourceDay = sourceDays[dayIndex];
+      return {
+        dayOfWeek,
+        name: sourceDay?.name?.trim() || `Session ${dayIndex + 1}`,
+        sets: sourceDay?.sets ? sourceDay.sets.map((set) => ({ ...set })) : [],
+      };
+    });
+
+    return {
+      weekNumber: weekIndex + 1,
+      days: nextDays,
+    };
+  });
+
+  return {
+    ...program,
+    weekCount: safeWeeks,
+    daysPerWeek: safeDays,
+    weeks: nextWeeks,
+  };
+}
+
+function normalizeProgramForSave(program: ProgramTemplate): ProgramTemplate {
+  const normalized = resizeProgramStructure(
+    {
+      ...program,
+      name: program.name.trim() || 'Untitled Program',
+      description: program.description?.trim() || undefined,
+      isCustom: true,
+    },
+    program.weekCount ?? program.weeks.length ?? 1,
+    program.daysPerWeek ?? program.weeks[0]?.days.length ?? 1
+  );
+
+  const cleanedWeeks = normalized.weeks.map((week, weekIndex) => ({
+    weekNumber: weekIndex + 1,
+    days: week.days.map((day, dayIndex) => ({
+      dayOfWeek: DAYS[dayIndex] ?? day.dayOfWeek,
+      name: day.name?.trim() || `Session ${dayIndex + 1}`,
+      sets: day.sets
+        .filter((set) => set.exerciseId && set.prescribedReps)
+        .map((set, setIndex) => ({
+          ...set,
+          exerciseId: set.exerciseId.trim(),
+          prescribedReps: set.prescribedReps.trim(),
+          setIndex: setIndex + 1,
+        })),
+    })),
+  }));
+
+  return {
+    ...normalized,
+    weeks: cleanedWeeks,
+  };
+}
+
+function getProgramSetCount(program: ProgramTemplate): number {
+  return program.weeks.reduce((weekAcc, week) => {
+    return weekAcc + week.days.reduce((dayAcc, day) => dayAcc + day.sets.length, 0);
+  }, 0);
+}
+
+function getProgramExerciseCount(program: ProgramTemplate): number {
+  const exerciseIds = new Set<string>();
+  program.weeks.forEach((week) => {
+    week.days.forEach((day) => {
+      day.sets.forEach((set) => {
+        if (set.exerciseId) exerciseIds.add(set.exerciseId);
+      });
+    });
+  });
+  return exerciseIds.size;
+}
+
+function getFrequencyLabel(program: ProgramTemplate): string {
+  const days = program.daysPerWeek ?? program.weeks[0]?.days.length ?? 0;
+  const weeks = program.weekCount ?? program.weeks.length;
+  return `${days} sessions/wk • ${weeks} wk`;
+}
+
+function getRpeOrRirValue(set: SetTemplate): string {
+  if (set.prescriptionMethod === 'rpe') return set.targetRPE == null ? '' : String(set.targetRPE);
+  if (set.prescriptionMethod === 'rir') return set.targetRIR == null ? '' : String(set.targetRIR);
+  if (set.prescriptionMethod === 'percentage_1rm' || set.prescriptionMethod === 'percentage_tm') {
+    return set.targetPercentage == null ? '' : String(set.targetPercentage);
+  }
+  if (set.prescriptionMethod === 'fixed_weight') return set.fixedWeight == null ? '' : String(set.fixedWeight);
+  if (set.prescriptionMethod === 'time_based') return set.targetSeconds == null ? '' : String(set.targetSeconds);
+  return '';
+}
+
+function getTargetLabel(method: SetTemplate['prescriptionMethod'] | undefined): string {
+  if (method === 'rpe') return 'RPE';
+  if (method === 'rir') return 'RIR';
+  if (method === 'percentage_1rm' || method === 'percentage_tm') return '%';
+  if (method === 'fixed_weight') return 'Weight';
+  if (method === 'time_based') return 'Seconds';
+  return 'Target';
+}
+
+function getSetSummaryLine(set: SetTemplate): string {
+  const method = set.prescriptionMethod ?? 'rpe';
+  const methodLabel = PRESCRIPTION_LABELS[method];
+  const targetValue = getRpeOrRirValue(set);
+  const targetLabel = targetValue ? `${getTargetLabel(method)} ${targetValue}` : 'No target';
+  const reps = set.prescribedReps?.trim() || '--';
+  const rest = `${set.restSeconds ?? 120}s rest`;
+  const modeLabel = set.setType ? formatTokenLabel(set.setType) : null;
+  const tempoLabel = set.tempo?.trim() ? `Tempo ${set.tempo.trim()}` : null;
+  const clusterLabel =
+    set.setType === 'cluster' && set.clusterReps && set.clusterReps.length > 0
+      ? `${set.clusterReps.length} clusters`
+      : null;
+  return [reps + ' reps', methodLabel, targetLabel, rest, modeLabel, tempoLabel, clusterLabel]
+    .filter(Boolean)
+    .join(' • ');
+}
 
 export default function ProgramsPage() {
-  return (
-    <div className="mx-auto w-full max-w-7xl space-y-8 py-6">
-      <header>
-        <h1 className="text-3xl font-bold text-zinc-100">Program Library</h1>
-      </header>
+  const router = useRouter();
+  const { user } = useAuth();
+  const {
+    selectedProgram,
+    allPrograms,
+    builtInProgramIds,
+    loading,
+    error,
+    selectProgram,
+    saveProgram,
+    deleteProgram,
+    resolveProgramSelection,
+  } = useProgramContext();
+  const namespaceId = user?.id ?? 'guest';
 
-      <section className="space-y-4">
-        <p className="text-zinc-400 text-xs uppercase tracking-[0.18em]">Current Blueprint</p>
-        <article className="rounded-3xl border border-green-500/30 bg-zinc-900/60 p-6 shadow-[0_0_0_1px_rgba(34,197,94,0.18),0_20px_50px_rgba(34,197,94,0.12)] backdrop-blur-xl">
-          <div className="space-y-1">
-            <p className="text-zinc-400 text-xs uppercase">Active Program</p>
-            <h2 className="text-zinc-100 text-2xl font-bold">5/3/1 BBB</h2>
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ProgramFilter>('all');
+  const [editorMode, setEditorMode] = useState<EditorMode>(null);
+  const [draft, setDraft] = useState<ProgramTemplate | null>(null);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [editorNotice, setEditorNotice] = useState<string | null>(null);
+  const [activeWeekIndex, setActiveWeekIndex] = useState(0);
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [detailsProgramId, setDetailsProgramId] = useState<string | null>(null);
+  const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+  const [exercisePickerTarget, setExercisePickerTarget] = useState<ExercisePickerTarget>(null);
+  const [exerciseQuery, setExerciseQuery] = useState('');
+  const [editorFocusSetIndex, setEditorFocusSetIndex] = useState<number | null>(null);
+  const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
+  const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
+  const programRowRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const exerciseNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    defaultExercises.forEach((exercise) => {
+      map.set(exercise.id, exercise.name);
+    });
+    return map;
+  }, []);
+
+  const programList = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const base = allPrograms.filter((program) => {
+      if (filter === 'mine') return !builtInProgramIds.has(program.id);
+      if (filter === 'built-in') return builtInProgramIds.has(program.id);
+      return true;
+    });
+
+    if (!term) return base;
+
+    return base.filter((program) => {
+      return (
+        program.name.toLowerCase().includes(term) ||
+        program.description?.toLowerCase().includes(term) ||
+        program.goal?.toLowerCase().includes(term)
+      );
+    });
+  }, [allPrograms, builtInProgramIds, filter, query]);
+
+  const activeProgram = selectedProgram ?? null;
+  const currentWeek = draft?.weeks[activeWeekIndex] ?? null;
+  const currentDay = currentWeek?.days[activeDayIndex] ?? null;
+  const currentDayBlocks = useMemo(() => {
+    if (!currentDay) return [];
+    if (currentDay.blocks && currentDay.blocks.length > 0) return currentDay.blocks;
+    return setsToProgramBlocks(currentDay.sets ?? []);
+  }, [currentDay]);
+  const hasDetailsOpen = detailsProgramId !== null;
+  const hasEditorSetFocus = editorFocusSetIndex !== null;
+
+  useEffect(() => {
+    if (!detailsProgramId) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const centerRow = () => {
+      const row = programRowRefs.current[detailsProgramId];
+      if (!row) return;
+
+      const rect = row.getBoundingClientRect();
+      const centeredTop = window.scrollY + rect.top + rect.height / 2 - window.innerHeight / 2;
+      window.scrollTo({
+        top: Math.max(0, centeredTop),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    };
+
+    const settleCenter = () => {
+      const row = programRowRefs.current[detailsProgramId];
+      if (!row) return;
+
+      const rect = row.getBoundingClientRect();
+      const rowCenter = rect.top + rect.height / 2;
+      const viewportCenter = window.innerHeight / 2;
+      if (Math.abs(rowCenter - viewportCenter) < 8) return;
+
+      const centeredTop = window.scrollY + rect.top + rect.height / 2 - window.innerHeight / 2;
+      window.scrollTo({ top: Math.max(0, centeredTop), behavior: 'auto' });
+    };
+
+    const rafId = window.requestAnimationFrame(centerRow);
+    const timeoutId = window.setTimeout(settleCenter, 220);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [detailsProgramId]);
+
+  const filteredExercises = useMemo(() => {
+    const term = exerciseQuery.trim().toLowerCase();
+    if (!term) return defaultExercises.slice(0, 80);
+    return defaultExercises.filter((exercise) => {
+      return (
+        exercise.name.toLowerCase().includes(term) ||
+        exercise.muscleGroups.some((group) => group.toLowerCase().includes(term)) ||
+        exercise.equipment?.some((equipment) => equipment.toLowerCase().includes(term))
+      );
+    });
+  }, [exerciseQuery]);
+
+  const openCreateEditor = () => {
+    setDraft(createBlankProgram());
+    setEditorMode('create');
+    setEditorError(null);
+    setEditorNotice(null);
+    setDetailsProgramId(null);
+    setActiveWeekIndex(0);
+    setActiveDayIndex(0);
+    setEditorFocusSetIndex(null);
+    setEditorDetailMode('simple');
+    setEditorJumpPicker(null);
+  };
+
+  const openEditEditor = (program: ProgramTemplate) => {
+    const builtIn = builtInProgramIds.has(program.id);
+    const resolved = builtIn ? resolveProgramSelection(program) : program;
+    const draftProgram = normalizeProgramForSave(deepClone(resolved));
+    selectProgram(resolved);
+    setDraft(draftProgram);
+    setEditorMode('edit');
+    setEditorError(null);
+    setEditorNotice(
+      builtIn
+        ? `Built-in duplicated to "Mine". You're editing your personal copy.`
+        : null
+    );
+    setActiveWeekIndex(0);
+    setActiveDayIndex(0);
+    setDetailsProgramId(null);
+    setEditorFocusSetIndex(null);
+    setEditorDetailMode('simple');
+    setEditorJumpPicker(null);
+  };
+
+  const closeEditor = () => {
+    if (editorSaving) return;
+    setEditorMode(null);
+    setDraft(null);
+    setEditorError(null);
+    setEditorNotice(null);
+    setExercisePickerOpen(false);
+    setExercisePickerTarget(null);
+    setExerciseQuery('');
+    setEditorFocusSetIndex(null);
+    setEditorDetailMode('simple');
+    setEditorJumpPicker(null);
+  };
+
+  const updateDraft = (updater: (current: ProgramTemplate) => ProgramTemplate) => {
+    setDraft((current) => (current ? updater(current) : current));
+  };
+
+  const updateDraftWeekCount = (nextWeekCount: number) => {
+    updateDraft((current) => resizeProgramStructure(current, nextWeekCount, current.daysPerWeek ?? 4));
+    setActiveWeekIndex((currentIndex) => Math.max(0, Math.min(nextWeekCount - 1, currentIndex)));
+    setEditorFocusSetIndex(null);
+    setEditorJumpPicker(null);
+  };
+
+  const updateDraftDaysPerWeek = (nextDaysPerWeek: number) => {
+    updateDraft((current) => resizeProgramStructure(current, current.weekCount ?? current.weeks.length, nextDaysPerWeek));
+    setActiveDayIndex((currentIndex) => Math.max(0, Math.min(nextDaysPerWeek - 1, currentIndex)));
+    setEditorFocusSetIndex(null);
+    setEditorJumpPicker(null);
+  };
+
+  const selectEditorWeek = (index: number) => {
+    if (!draft) return;
+    const clampedWeek = Math.max(0, Math.min(draft.weeks.length - 1, index));
+    const nextWeek = draft.weeks[clampedWeek];
+    const nextDayLimit = Math.max(0, (nextWeek?.days.length ?? 1) - 1);
+    setActiveWeekIndex(clampedWeek);
+    setActiveDayIndex((current) => Math.max(0, Math.min(nextDayLimit, current)));
+    setEditorFocusSetIndex(null);
+    setEditorJumpPicker(null);
+  };
+
+  const selectEditorSession = (index: number) => {
+    if (!currentWeek) return;
+    const clampedDay = Math.max(0, Math.min(currentWeek.days.length - 1, index));
+    setActiveDayIndex(clampedDay);
+    setEditorFocusSetIndex(null);
+    setEditorJumpPicker(null);
+  };
+
+  const stepEditorWeek = (delta: number) => {
+    if (!draft) return;
+    selectEditorWeek(activeWeekIndex + delta);
+  };
+
+  const stepEditorSession = (delta: number) => {
+    if (!currentWeek) return;
+    selectEditorSession(activeDayIndex + delta);
+  };
+
+  const updateCurrentDay = (updater: (day: DayTemplate) => DayTemplate) => {
+    updateDraft((current) => {
+      const week = current.weeks[activeWeekIndex];
+      if (!week) return current;
+      const day = week.days[activeDayIndex];
+      if (!day) return current;
+
+      const nextWeeks = current.weeks.map((entry, weekIndex) => {
+        if (weekIndex !== activeWeekIndex) return entry;
+        return {
+          ...entry,
+          days: entry.days.map((dayEntry, dayIndex) => {
+            if (dayIndex !== activeDayIndex) return dayEntry;
+            return updater(dayEntry);
+          }),
+        };
+      });
+      return { ...current, weeks: nextWeeks };
+    });
+  };
+
+  const handleSetTemplateUpdate = (setIndex: number, updater: (set: SetTemplate) => SetTemplate) => {
+    updateCurrentDay((day) => ({
+      ...day,
+      sets: day.sets.map((set, index) => {
+        if (index !== setIndex) return set;
+        return updater(set);
+      }),
+    }));
+  };
+
+  const handleAddSetRow = () => {
+    let nextFocusIndex: number | null = null;
+    updateCurrentDay((day) => {
+      nextFocusIndex = day.sets.length;
+      const previous = day.sets[day.sets.length - 1];
+      const newSet: SetTemplate = {
+        exerciseId: previous?.exerciseId ?? 'bench_press',
+        setIndex: day.sets.length + 1,
+        prescribedReps: previous?.prescribedReps ?? '8',
+        prescriptionMethod: previous?.prescriptionMethod ?? 'rpe',
+        targetRPE: previous?.targetRPE ?? 8,
+        restSeconds: previous?.restSeconds ?? 120,
+      };
+      return {
+        ...day,
+        sets: [...day.sets, newSet],
+      };
+    });
+    if (nextFocusIndex != null) {
+      setEditorFocusSetIndex(nextFocusIndex);
+    }
+  };
+
+  const handleRemoveSetRow = (setIndex: number) => {
+    setEditorFocusSetIndex((currentFocus) => {
+      if (currentFocus == null) return null;
+      if (currentFocus === setIndex) return null;
+      if (currentFocus > setIndex) return currentFocus - 1;
+      return currentFocus;
+    });
+    updateCurrentDay((day) => ({
+      ...day,
+      sets: day.sets.filter((_, index) => index !== setIndex).map((set, index) => ({ ...set, setIndex: index + 1 })),
+    }));
+  };
+
+  const openExercisePicker = (target: ExercisePickerTarget) => {
+    setExercisePickerTarget(target);
+    setExercisePickerOpen(true);
+    setExerciseQuery('');
+  };
+
+  const applyPickedExercise = (exerciseId: string) => {
+    if (!exercisePickerTarget) return;
+    if (exercisePickerTarget.mode === 'append') {
+      updateCurrentDay((day) => {
+        const newSet: SetTemplate = {
+          exerciseId,
+          setIndex: day.sets.length + 1,
+          prescribedReps: '8',
+          prescriptionMethod: 'rpe',
+          targetRPE: 8,
+          restSeconds: 120,
+        };
+        return { ...day, sets: [...day.sets, newSet] };
+      });
+    } else {
+      handleSetTemplateUpdate(exercisePickerTarget.setIndex, (set) => ({ ...set, exerciseId }));
+    }
+
+    setExercisePickerOpen(false);
+    setExercisePickerTarget(null);
+    setExerciseQuery('');
+  };
+
+  const createCustomExerciseFromQuery = () => {
+    const trimmed = exerciseQuery.trim();
+    if (!trimmed) return;
+    applyPickedExercise(slugifyExerciseName(trimmed));
+  };
+
+  const handleSaveDraft = async () => {
+    if (!draft) return;
+
+    const normalized = normalizeProgramForSave(draft);
+    if (!normalized.name.trim()) {
+      setEditorError('Program needs a name.');
+      return;
+    }
+    if (getProgramSetCount(normalized) === 0) {
+      setEditorError('Add at least one set to make this launch-ready.');
+      return;
+    }
+
+    setEditorSaving(true);
+    setEditorError(null);
+    try {
+      await saveProgram(normalized);
+      selectProgram(normalized);
+      closeEditor();
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Failed to save program';
+      setEditorError(message);
+    } finally {
+      setEditorSaving(false);
+    }
+  };
+
+  const handleSelectProgram = (program: ProgramTemplate) => {
+    selectProgram(program);
+  };
+
+  const handleStartProgram = (program: ProgramTemplate) => {
+    selectProgram(program);
+    const progress = getProgramProgress(program, namespaceId);
+    router.push(
+      `/workout/new?program_id=${encodeURIComponent(program.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`
+    );
+  };
+
+  const handleDuplicateProgram = async (program: ProgramTemplate) => {
+    const clone = normalizeProgramForSave({
+      ...deepClone(program),
+      id: `userprog_${createUuid()}`,
+      name: `${program.name} Copy`,
+      isCustom: true,
+    });
+    await saveProgram(clone);
+    selectProgram(clone);
+  };
+
+  const handleDeleteProgram = async (program: ProgramTemplate) => {
+    if (builtInProgramIds.has(program.id)) return;
+    const confirmed = window.confirm(`Delete "${program.name}"?`);
+    if (!confirmed) return;
+    await deleteProgram(program.id);
+  };
+
+  return (
+    <>
+      <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
+        <header className="border-b border-zinc-900 pb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Builder</p>
+              <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Programs</h1>
+            </div>
+            <button
+              type="button"
+              onClick={openCreateEditor}
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
+            >
+              <CirclePlus className="h-4 w-4" />
+              New
+            </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-            {weekPreview.map((item) => (
-              <div
-                key={item.day}
-                className="rounded-xl border border-white/10 bg-zinc-900/40 px-3 py-2 text-center"
+          <div className="mt-5 flex items-center gap-3 border-b border-zinc-900 pb-4">
+            <Search className="h-4 w-4 text-zinc-500" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search programs..."
+              className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+            />
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            {(['all', 'mine', 'built-in'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setFilter(option)}
+                className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                  filter === option
+                    ? 'bg-zinc-100 text-zinc-950'
+                    : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                }`}
               >
-                <p className="text-zinc-400 text-[10px] uppercase">{item.day}</p>
-                <p className="text-zinc-100 text-sm font-bold">{item.focus}</p>
-              </div>
+                {option === 'built-in' ? 'Built-In' : option}
+              </button>
             ))}
           </div>
-        </article>
-      </section>
+        </header>
 
-      <section className="space-y-4">
-        <div>
-          <p className="text-zinc-400 text-xs uppercase tracking-[0.18em]">The Vault</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <button
-            type="button"
-            className="flex min-h-44 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-6 backdrop-blur-xl transition-colors hover:bg-white/5"
-          >
-            <div className="rounded-full border border-zinc-700 p-2">
-              <Plus className="h-6 w-6 text-zinc-100" />
+        <section className="border-b border-zinc-900 py-6">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Active Program</p>
+          <div className="mt-3 flex items-start justify-between gap-4">
+            <div>
+              <p className="break-words text-2xl font-black text-zinc-100">
+                {activeProgram?.name ?? 'No Program Selected'}
+              </p>
+              <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                {activeProgram ? getFrequencyLabel(activeProgram) : 'Pick or build a program'}
+              </p>
             </div>
-            <div className="text-center">
-              <p className="text-zinc-400 text-xs uppercase">Builder</p>
-              <p className="text-zinc-100 font-bold">Create New</p>
-            </div>
-          </button>
+            {activeProgram && (
+              <button
+                type="button"
+                onClick={() => handleStartProgram(activeProgram)}
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 hover:border-zinc-500"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start
+              </button>
+            )}
+          </div>
+        </section>
 
-          {programs.map((program) => (
-            <article
-              key={program.id}
-              className="rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-xl transition-colors hover:bg-white/5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-zinc-100 text-lg font-bold">{program.title}</p>
-                  <p className="mt-2 text-zinc-400 text-xs uppercase">{program.frequency}</p>
-                </div>
+        <section className="py-4">
+          {loading && (
+            <div className="py-6 text-xs uppercase tracking-[0.25em] text-zinc-500">Loading Programs...</div>
+          )}
+
+          {!loading && programList.length === 0 && (
+            <div className="py-10 text-center">
+              <p className="text-zinc-400">No programs found.</p>
+              <button
+                type="button"
+                onClick={openCreateEditor}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-200"
+              >
+                <CirclePlus className="h-4 w-4" />
+                Build from Scratch
+              </button>
+            </div>
+          )}
+
+          {!loading &&
+            programList.map((program) => {
+              const isSelected = selectedProgram?.id === program.id;
+              const builtIn = builtInProgramIds.has(program.id);
+              const detailsOpen = detailsProgramId === program.id;
+              const detailTokens = [
+                builtIn ? 'Built-In' : 'Mine',
+                program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
+                program.intensityMethod
+                  ? INTENSITY_LABELS[program.intensityMethod] ?? formatTokenLabel(program.intensityMethod)
+                  : null,
+                program.experienceLevel
+                  ? EXPERIENCE_LABELS[program.experienceLevel] ?? formatTokenLabel(program.experienceLevel)
+                  : null,
+              ].filter(Boolean) as string[];
+
+              return (
+                <motion.article
+                  key={program.id}
+                  layout
+                  transition={{ layout: { type: 'spring', stiffness: 320, damping: 32 } }}
+                  ref={(node) => {
+                    programRowRefs.current[program.id] = node;
+                  }}
+                  className={`relative transition-[opacity,filter,border-color,box-shadow] duration-200 ${
+                    detailsOpen
+                      ? 'z-[90] border-b border-cyan-400/35 py-4 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
+                      : 'z-[30] border-b border-zinc-900 py-4'
+                  } ${
+                    hasDetailsOpen && !detailsOpen
+                      ? 'opacity-35 blur-[1px] saturate-50'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectProgram(program)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p
+                        className={`break-words text-lg font-black leading-tight ${isSelected ? 'text-emerald-300' : 'text-zinc-100'}`}
+                      >
+                        {program.name}
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                        {getFrequencyLabel(program)}
+                      </p>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectProgram(program)}
+                        className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+                          isSelected
+                            ? 'bg-emerald-500/10 text-emerald-300'
+                            : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                        }`}
+                      >
+                        {isSelected ? 'Selected' : 'Use'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
+                        className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
+                          detailsOpen
+                            ? 'bg-cyan-500/10 text-cyan-300'
+                            : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                        }`}
+                        aria-expanded={detailsOpen}
+                      >
+                        {detailsOpen ? 'Hide' : 'Details'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {isSelected && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                      {builtIn ? 'Built-In' : 'Mine'}
+                    </p>
+                  </div>
+
+                  <AnimatePresence initial={false} mode="wait">
+                    {detailsOpen && (
+                      <motion.div
+                        key={`details-${program.id}`}
+                        layout
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 28, mass: 0.9 }}
+                        className="mt-4 border-t border-cyan-400/20 pt-4 will-change-transform"
+                      >
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
+                        {getFrequencyLabel(program)} • {getProgramExerciseCount(program)} exercises • {getProgramSetCount(program)} sets
+                      </p>
+
+                      {program.description && (
+                        <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
+                      )}
+
+                      <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                        {detailTokens.join(' • ')}
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleStartProgram(program);
+                            setDetailsProgramId(null);
+                          }}
+                          className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                        >
+                          Start
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openEditEditor(program);
+                            setDetailsProgramId(null);
+                          }}
+                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDuplicateProgram(program);
+                            setDetailsProgramId(null);
+                          }}
+                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          disabled={builtIn}
+                          onClick={() => {
+                            void handleDeleteProgram(program);
+                            setDetailsProgramId(null);
+                          }}
+                          className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.article>
+              );
+            })}
+        </section>
+
+        {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
+      </div>
+
+      <button
+        type="button"
+        aria-label="Close program details"
+        onClick={() => setDetailsProgramId(null)}
+        className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
+          hasDetailsOpen
+            ? 'pointer-events-auto bg-black/60 opacity-100'
+            : 'pointer-events-none bg-black/0 opacity-0'
+        }`}
+      />
+
+      {editorMode && draft && (
+        <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
+          <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
+            <header className="border-b border-zinc-900 pb-4">
+              <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  aria-label={`Program actions for ${program.title}`}
-                  className="rounded-lg border border-white/10 p-2 text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+                  onClick={closeEditor}
+                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
+                  Close
+                </button>
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
+                  {editorMode === 'create' ? 'Create Program' : 'Edit Program'}
+                </p>
+              </div>
+            </header>
+
+            {editorNotice && (
+              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                {editorNotice}
+              </div>
+            )}
+
+            <section className="border-b border-zinc-900 py-6">
+              <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
+              <input
+                value={draft.name}
+                onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Program name"
+                className="mt-2 w-full bg-transparent text-3xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
+              />
+
+              <textarea
+                value={draft.description ?? ''}
+                onChange={(event) => updateDraft((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Description (optional)"
+                rows={2}
+                className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
+              />
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={draft.weekCount ?? draft.weeks.length}
+                    onChange={(event) => updateDraftWeekCount(Number(event.target.value) || 1)}
+                    className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Sessions / Week</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={draft.daysPerWeek ?? draft.weeks[0]?.days.length ?? 1}
+                    onChange={(event) => updateDraftDaysPerWeek(Number(event.target.value) || 1)}
+                    className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <select
+                  value={draft.goal ?? 'general'}
+                  onChange={(event) =>
+                    updateDraft((current) => ({ ...current, goal: event.target.value as GoalOption }))
+                  }
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                >
+                  {GOAL_OPTIONS.map((goal) => (
+                    <option key={goal} value={goal}>
+                      {GOAL_LABELS[goal]}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.experienceLevel ?? 'intermediate'}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      experienceLevel: event.target.value as ExperienceOption,
+                    }))
+                  }
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                >
+                  {EXPERIENCE_OPTIONS.map((level) => (
+                    <option key={level} value={level}>
+                      {EXPERIENCE_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.intensityMethod ?? 'rpe'}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      intensityMethod: event.target.value as IntensityOption,
+                    }))
+                  }
+                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                >
+                  {INTENSITY_OPTIONS.map((method) => (
+                    <option key={method} value={method}>
+                      {INTENSITY_LABELS[method]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </section>
+
+            <section className="border-b border-zinc-900 py-6">
+              <div className="mb-5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => stepEditorWeek(-1)}
+                    disabled={activeWeekIndex === 0}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                    aria-label="Previous week"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorJumpPicker('week')}
+                    className="flex-1 rounded-full border border-zinc-800 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                  >
+                    Week {activeWeekIndex + 1} of {draft.weeks.length}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepEditorWeek(1)}
+                    disabled={activeWeekIndex >= draft.weeks.length - 1}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                    aria-label="Next week"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+                {currentWeek && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => stepEditorSession(-1)}
+                      disabled={activeDayIndex === 0}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      aria-label="Previous session"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorJumpPicker('session')}
+                      className="flex-1 rounded-full border border-zinc-800 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                    >
+                      Session {activeDayIndex + 1} of {currentWeek.days.length}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepEditorSession(1)}
+                      disabled={activeDayIndex >= currentWeek.days.length - 1}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      aria-label="Next session"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {currentWeek && (
+                <>
+                  {currentDay && (
+                    <>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <input
+                          value={currentDay.name}
+                          onChange={(event) =>
+                            updateCurrentDay((day) => ({ ...day, name: event.target.value }))
+                          }
+                          className="w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddSetRow}
+                          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-200"
+                        >
+                          <CirclePlus className="h-3.5 w-3.5" />
+                          Set
+                        </button>
+                      </div>
+
+                      {currentDayBlocks.length > 0 && (
+                        <div className="mb-4 flex gap-2 overflow-x-auto pb-1" data-swipe-ignore="true">
+                          {currentDayBlocks.map((block, blockIndex) => {
+                            const blockLabel = block.type === 'superset' ? `Superset ${blockIndex + 1}` : `Block ${blockIndex + 1}`;
+                            const exercisePreview = block.exercises
+                              .map((exercise) => exerciseNameById.get(exercise.exerciseId) ?? humanizeExerciseId(exercise.exerciseId))
+                              .slice(0, 2)
+                              .join(block.type === 'superset' ? ' + ' : ', ');
+                            const firstExerciseId = block.exercises[0]?.exerciseId;
+                            return (
+                              <button
+                                key={block.id}
+                                type="button"
+                                onClick={() => {
+                                  if (!firstExerciseId) return;
+                                  const firstSetIndex = currentDay.sets.findIndex((set) => {
+                                    if (set.exerciseId !== firstExerciseId) return false;
+                                    if (block.type !== 'superset') return true;
+                                    const group = block.exercises[0]?.sets[0]?.supersetGroup;
+                                    return set.supersetGroup === group;
+                                  });
+                                  if (firstSetIndex >= 0) {
+                                    setEditorFocusSetIndex(firstSetIndex);
+                                  }
+                                }}
+                                className="whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900/45 px-3 py-2 text-left"
+                              >
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">{blockLabel}</p>
+                                <p className="mt-1 max-w-[14rem] truncate text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                                  {exercisePreview}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="mb-4 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditorDetailMode('simple')}
+                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                              editorDetailMode === 'simple'
+                                ? 'bg-zinc-100 text-zinc-950'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            Simple
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditorDetailMode('advanced')}
+                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                              editorDetailMode === 'advanced'
+                                ? 'bg-zinc-100 text-zinc-950'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            Advanced
+                          </button>
+                        </div>
+                        {hasEditorSetFocus && (
+                          <button
+                            type="button"
+                            onClick={() => setEditorFocusSetIndex(null)}
+                            className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:text-cyan-200"
+                          >
+                            Exit Focus
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        {currentDay.sets.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditorFocusSetIndex(0);
+                              openExercisePicker({ mode: 'append' });
+                            }}
+                            className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500"
+                          >
+                            Add First Exercise
+                          </button>
+                        )}
+
+                        {currentDay.sets.map((set, setIndex) => {
+                          const exerciseLabel = exerciseNameById.get(set.exerciseId) ?? humanizeExerciseId(set.exerciseId);
+                          const isFocusedRow = editorFocusSetIndex === setIndex;
+                          return (
+                            <article
+                              key={`${set.exerciseId}-${setIndex}`}
+                              className={`border-b border-zinc-900 pb-3 transition-all duration-200 ${
+                                isFocusedRow
+                                  ? 'border-cyan-400/35 pl-2 shadow-[0_0_30px_-22px_rgba(34,211,238,0.9)]'
+                                  : ''
+                              } ${
+                                hasEditorSetFocus && !isFocusedRow ? 'opacity-35 blur-[1px] saturate-50' : ''
+                              }`}
+                            >
+                              <div className="mb-3 flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditorFocusSetIndex(setIndex);
+                                      openExercisePicker({ mode: 'replace', setIndex });
+                                    }}
+                                    className="truncate text-left text-sm font-bold text-zinc-100"
+                                  >
+                                    {exerciseLabel}
+                                  </button>
+                                  <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                                    Set {setIndex + 1} • {getSetSummaryLine(set)}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditorFocusSetIndex((current) => (current === setIndex ? null : setIndex))
+                                    }
+                                    className={`inline-flex h-8 items-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                                      isFocusedRow
+                                        ? 'bg-cyan-500/10 text-cyan-300'
+                                        : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
+                                    }`}
+                                  >
+                                    {isFocusedRow ? 'Done' : 'Edit'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSetRow(setIndex)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                                    aria-label={`Remove set ${setIndex + 1}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {isFocusedRow && (
+                                <div
+                                  className={`grid gap-2 ${
+                                    editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
+                                  }`}
+                                >
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Reps</label>
+                                    <input
+                                      value={set.prescribedReps}
+                                      onChange={(event) =>
+                                        handleSetTemplateUpdate(setIndex, (current) => ({
+                                          ...current,
+                                          prescribedReps: event.target.value,
+                                        }))
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Rest (s)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={15}
+                                      value={set.restSeconds ?? 120}
+                                      onChange={(event) =>
+                                        handleSetTemplateUpdate(setIndex, (current) => ({
+                                          ...current,
+                                          restSeconds: Number(event.target.value) || 0,
+                                        }))
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                    />
+                                  </div>
+
+                                  {editorDetailMode === 'advanced' && (
+                                    <>
+                                      <div>
+                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Method</label>
+                                        <select
+                                          value={set.prescriptionMethod ?? 'rpe'}
+                                          onChange={(event) =>
+                                            handleSetTemplateUpdate(setIndex, (current) => ({
+                                              ...current,
+                                              prescriptionMethod: event.target.value as SetTemplate['prescriptionMethod'],
+                                            }))
+                                          }
+                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                        >
+                                          {PRESCRIPTION_OPTIONS.map((method) => (
+                                            <option key={method} value={method}>
+                                              {PRESCRIPTION_LABELS[method]}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div>
+                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                          {getTargetLabel(set.prescriptionMethod)}
+                                        </label>
+                                        <input
+                                          value={getRpeOrRirValue(set)}
+                                          onChange={(event) => {
+                                            const raw = event.target.value.trim();
+                                            const value = raw === '' ? null : Number(raw);
+                                            handleSetTemplateUpdate(setIndex, (current) => {
+                                              const base = {
+                                                ...current,
+                                                targetRPE: null,
+                                                targetRIR: null,
+                                                targetPercentage: null,
+                                                fixedWeight: null,
+                                                targetSeconds: null,
+                                              };
+                                              if (value == null || Number.isNaN(value)) return base;
+                                              if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
+                                              if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
+                                              if (
+                                                current.prescriptionMethod === 'percentage_1rm' ||
+                                                current.prescriptionMethod === 'percentage_tm'
+                                              ) {
+                                                return { ...base, targetPercentage: value };
+                                              }
+                                              if (current.prescriptionMethod === 'fixed_weight') return { ...base, fixedWeight: value };
+                                              if (current.prescriptionMethod === 'time_based') return { ...base, targetSeconds: value };
+                                              return base;
+                                            });
+                                          }}
+                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Style</label>
+                                        <select
+                                          value={set.setType ?? 'straight'}
+                                          onChange={(event) =>
+                                            handleSetTemplateUpdate(setIndex, (current) => ({
+                                              ...current,
+                                              setType: event.target.value as SetTemplate['setType'],
+                                              supersetGroup:
+                                                event.target.value === 'superset'
+                                                  ? current.supersetGroup ?? 'A'
+                                                  : current.supersetGroup,
+                                            }))
+                                          }
+                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                        >
+                                          {ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => (
+                                            <option key={setTypeOption} value={setTypeOption}>
+                                              {formatTokenLabel(setTypeOption)}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div>
+                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Tempo</label>
+                                        <input
+                                          value={set.tempo ?? ''}
+                                          onChange={(event) =>
+                                            handleSetTemplateUpdate(setIndex, (current) => ({
+                                              ...current,
+                                              tempo: event.target.value.trim() || undefined,
+                                            }))
+                                          }
+                                          placeholder="3-1-1-0"
+                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                        />
+                                      </div>
+
+                                      {set.setType === 'cluster' && (
+                                        <>
+                                          <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Cluster Reps</label>
+                                            <input
+                                              value={set.clusterReps?.join(',') ?? ''}
+                                              onChange={(event) =>
+                                                handleSetTemplateUpdate(setIndex, (current) => {
+                                                  const parsed = event.target.value
+                                                    .split(',')
+                                                    .map((entry) => Number(entry.trim()))
+                                                    .filter((entry) => Number.isFinite(entry) && entry > 0);
+                                                  return {
+                                                    ...current,
+                                                    clusterReps: parsed.length > 0 ? parsed : undefined,
+                                                  };
+                                                })
+                                              }
+                                              placeholder="2,2,2"
+                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Cluster Rest (s)</label>
+                                            <input
+                                              type="number"
+                                              min={5}
+                                              step={5}
+                                              value={set.clusterRestSeconds ?? 20}
+                                              onChange={(event) =>
+                                                handleSetTemplateUpdate(setIndex, (current) => ({
+                                                  ...current,
+                                                  clusterRestSeconds: Number(event.target.value) || 20,
+                                                }))
+                                              }
+                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                            />
+                                          </div>
+                                        </>
+                                      )}
+
+                                      {set.setType === 'superset' && (
+                                        <div>
+                                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Superset Group</label>
+                                          <input
+                                            value={set.supersetGroup ?? 'A'}
+                                            onChange={(event) =>
+                                              handleSetTemplateUpdate(setIndex, (current) => ({
+                                                ...current,
+                                                supersetGroup: event.target.value.trim() || 'A',
+                                              }))
+                                            }
+                                            placeholder="A"
+                                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                          />
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </section>
+
+            {editorError && <p className="pt-4 text-sm text-rose-400">{editorError}</p>}
+          </div>
+
+          <footer className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-xl sm:px-6">
+            <div className="mx-auto flex w-full max-w-5xl items-center gap-3">
+              <button
+                type="button"
+                onClick={closeEditor}
+                className="flex-1 rounded-2xl border border-zinc-800 py-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSaveDraft();
+                }}
+                disabled={editorSaving}
+                className="flex-[2] rounded-2xl bg-emerald-500 py-3 text-xs font-black uppercase tracking-[0.25em] text-zinc-950 shadow-lg shadow-emerald-500/20 disabled:opacity-60"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  {editorSaving ? 'Saving...' : 'Save Program'}
+                </span>
+              </button>
+            </div>
+          </footer>
+        </div>
+      )}
+
+      {editorMode && draft && editorJumpPicker && (
+        <div className="fixed inset-0 z-[135] bg-black/65 backdrop-blur-md">
+          <button
+            type="button"
+            aria-label="Close picker"
+            onClick={() => setEditorJumpPicker(null)}
+            className="absolute inset-0"
+          />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+            <div className="mx-auto w-full max-w-5xl">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
+                  {editorJumpPicker === 'week' ? 'Jump To Week' : 'Jump To Session'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditorJumpPicker(null)}
+                  className="rounded-full p-2 text-zinc-500"
+                  aria-label="Close jump picker"
+                >
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-            </article>
-          ))}
+
+              <div className="max-h-[46dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
+                {editorJumpPicker === 'week' &&
+                  draft.weeks.map((week, index) => {
+                    const weekSetCount = week.days.reduce((count, day) => count + day.sets.length, 0);
+                    const isActive = index === activeWeekIndex;
+                    return (
+                      <button
+                        key={`jump-week-${week.weekNumber}`}
+                        type="button"
+                        onClick={() => selectEditorWeek(index)}
+                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${
+                          isActive
+                            ? 'bg-cyan-500/10 text-cyan-200'
+                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        <p className="text-sm font-bold">Week {index + 1}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                          {week.days.length} sessions • {weekSetCount} sets
+                        </p>
+                      </button>
+                    );
+                  })}
+
+                {editorJumpPicker === 'session' &&
+                  (currentWeek?.days ?? []).map((day, index) => {
+                    const isActive = index === activeDayIndex;
+                    const dayLabel = day.name?.trim() || `Session ${index + 1}`;
+                    return (
+                      <button
+                        key={`jump-session-${index}`}
+                        type="button"
+                        onClick={() => selectEditorSession(index)}
+                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${
+                          isActive
+                            ? 'bg-emerald-500/10 text-emerald-200'
+                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        <p className="text-sm font-bold">Session {index + 1}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                          {dayLabel} • {day.sets.length} sets
+                        </p>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-    </div>
+      )}
+
+      {exercisePickerOpen && (
+        <div className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+            <div className="mx-auto w-full max-w-5xl">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">Pick Exercise</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExercisePickerOpen(false);
+                    setExercisePickerTarget(null);
+                    setExerciseQuery('');
+                  }}
+                  className="rounded-full p-2 text-zinc-500"
+                  aria-label="Close exercise picker"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                <Search className="h-4 w-4 text-zinc-500" />
+                <input
+                  autoFocus
+                  value={exerciseQuery}
+                  onChange={(event) => setExerciseQuery(event.target.value)}
+                  placeholder="Search exercises..."
+                  className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                />
+              </div>
+
+              {exerciseQuery.trim().length > 1 && (
+                <button
+                  type="button"
+                  onClick={createCustomExerciseFromQuery}
+                  className="mb-3 flex w-full items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-left"
+                >
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">
+                    Use &quot;{exerciseQuery.trim()}&quot;
+                  </span>
+                  <CirclePlus className="h-4 w-4 text-emerald-300" />
+                </button>
+              )}
+
+              <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
+                {filteredExercises.map((exercise) => (
+                  <button
+                    key={exercise.id}
+                    type="button"
+                    onClick={() => applyPickedExercise(exercise.id)}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                  >
+                    <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                      {exercise.type} • {exercise.muscleGroups.join(', ')}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

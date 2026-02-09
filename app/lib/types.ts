@@ -95,10 +95,34 @@ export interface SetTemplate {
   clusterRestSeconds?: number;   // Rest between clusters (typically 10-30s)
 }
 
+export type ProgramSchemaVersion = 1 | 2;
+export type ProgramBlockType = 'single' | 'superset';
+export type ProgramSupersetSlot = 'A1' | 'A2';
+
+export interface ProgramBlockExerciseTemplate {
+  id: string;
+  exerciseId: string;
+  slot?: ProgramSupersetSlot;
+  notes?: string;
+  sets: SetTemplate[];
+}
+
+export interface ProgramBlockTemplate {
+  id: string;
+  type: ProgramBlockType;
+  rounds?: number;
+  transitionSeconds?: number;
+  restAfterRoundSeconds?: number;
+  notes?: string;
+  exercises: ProgramBlockExerciseTemplate[];
+}
+
 export interface DayTemplate {
   dayOfWeek: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
   name: string;
+  sessionIndex?: number;
   sets: SetTemplate[];
+  blocks?: ProgramBlockTemplate[];
 }
 
 export interface WeekTemplate {
@@ -108,6 +132,7 @@ export interface WeekTemplate {
 
 export interface ProgramTemplate {
   id: string;
+  schemaVersion?: ProgramSchemaVersion;
   name: string;
   description?: string;
   author?: string;

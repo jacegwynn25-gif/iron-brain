@@ -110,6 +110,26 @@ function clampRpe(value: number | null | undefined): number | null {
   return Math.min(10, Math.max(1, value));
 }
 
+function parseTempoCue(templateSet: SetTemplate): string | null {
+  if (templateSet.tempo?.trim()) return templateSet.tempo.trim();
+  const note = templateSet.notes?.trim();
+  if (!note) return null;
+  const match = note.match(/\b(\d+)\s*-\s*(\d+)\s*-\s*(\d+)(?:\s*-\s*(\d+))?\b/);
+  if (!match) return null;
+  const topPause = match[4] ?? '0';
+  return `${match[1]}-${match[2]}-${match[3]}-${topPause}`;
+}
+
+function parseClusterConfig(templateSet: SetTemplate): SessionSet['cluster'] {
+  const reps = templateSet.clusterReps?.filter((entry) => Number.isFinite(entry) && entry > 0) ?? [];
+  if (reps.length === 0 && templateSet.setType !== 'cluster') return null;
+  const safeReps = reps.length > 0 ? reps : [2, 2, 2];
+  const restSeconds = templateSet.clusterRestSeconds && templateSet.clusterRestSeconds > 0
+    ? templateSet.clusterRestSeconds
+    : 20;
+  return { reps: safeReps, restSeconds };
+}
+
 function parseRepsTarget(prescribedReps: string | undefined): number | null {
   if (!prescribedReps) return null;
 
@@ -162,6 +182,43 @@ function getMockHistory(exerciseId: string): number {
   const mockPool = [185, 195, 205, 215, 225, 235, 245];
   const index = Math.floor(Math.random() * mockPool.length);
   return mockPool[index] ?? 225;
+}
+
+function getLastWeightForExercise(historyMap: Map<string, number>, exerciseId: string): number {
+  if (!historyMap.has(exerciseId)) {
+    historyMap.set(exerciseId, getMockHistory(exerciseId));
+  }
+  return historyMap.get(exerciseId) ?? 225;
+}
+
+function buildSessionSetFromTemplate(
+  templateSet: SetTemplate,
+  lastWeight: number,
+  readinessModifier: number,
+  defaults?: {
+    supersetGroup?: string | null;
+  }
+): SessionSet {
+  const cluster = parseClusterConfig(templateSet);
+  const repsTarget = parseRepsTarget(templateSet.prescribedReps);
+  const mappedSetType = mapTemplateSetType(templateSet);
+  const effectiveReps = cluster && cluster.reps.length > 0 ? cluster.reps[0] : repsTarget;
+
+  return {
+    id: createId('set'),
+    type: mappedSetType,
+    weight:
+      mappedSetType === 'working'
+        ? roundToNearestFive(lastWeight * readinessModifier)
+        : null,
+    reps: effectiveReps,
+    rpe: clampRpe(templateSet.targetRPE ?? null),
+    tempo: parseTempoCue(templateSet),
+    supersetGroup: templateSet.supersetGroup ?? defaults?.supersetGroup ?? null,
+    cluster,
+    completed: false,
+    previous: `${lastWeight}x${effectiveReps ?? 8}`,
+  };
 }
 
 function cloneBlocks(blocks: Block[]): Block[] {
@@ -288,32 +345,67 @@ function buildBlocksFromProgram(program: ProgramTemplate, readinessModifier: num
   const day = sortedWeeks[0]?.days[0];
   if (!day) return [];
 
+  const mockHistoryByExercise = new Map<string, number>();
+
+  if (Array.isArray(day.blocks) && day.blocks.length > 0) {
+    const blocksFromSchema: Block[] = [];
+
+    for (const templateBlock of day.blocks) {
+      const sessionBlock: Block = {
+        id: createId('block'),
+        type: templateBlock.type === 'superset' ? 'superset' : 'single',
+        rounds: templateBlock.rounds ?? null,
+        transitionSeconds: templateBlock.transitionSeconds ?? null,
+        restAfterRoundSeconds: templateBlock.restAfterRoundSeconds ?? null,
+        exercises: [],
+      };
+
+      for (const templateExercise of templateBlock.exercises ?? []) {
+        const exerciseId = templateExercise.exerciseId || createId('exercise');
+        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId);
+        const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
+          buildSessionSetFromTemplate(
+            templateSet,
+            lastWeight,
+            readinessModifier,
+            templateBlock.type === 'superset'
+              ? {
+                  supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
+                }
+              : undefined
+          )
+        );
+
+        if (setsForExercise.length === 0) continue;
+
+        sessionBlock.exercises.push({
+          id: exerciseId,
+          name: formatExerciseName(exerciseId),
+          slot: templateExercise.slot,
+          notes: templateExercise.notes ?? '',
+          historyNote: `Last session: ${lastWeight}x${setsForExercise[0]?.reps ?? 8}`,
+          sets: setsForExercise,
+        });
+      }
+
+      if (sessionBlock.exercises.length > 0) {
+        blocksFromSchema.push(sessionBlock);
+      }
+    }
+
+    if (blocksFromSchema.length > 0) {
+      return blocksFromSchema;
+    }
+  }
+
   const blocks: Block[] = [];
   const blockIndexByKey = new Map<string, number>();
-  const mockHistoryByExercise = new Map<string, number>();
 
   for (const templateSet of day.sets) {
     const exerciseId = templateSet.exerciseId || createId('exercise');
-
-    if (!mockHistoryByExercise.has(exerciseId)) {
-      mockHistoryByExercise.set(exerciseId, getMockHistory(exerciseId));
-    }
-
-    const lastWeight = mockHistoryByExercise.get(exerciseId) ?? 225;
-    const repsTarget = parseRepsTarget(templateSet.prescribedReps);
-    const mappedSetType = mapTemplateSetType(templateSet);
-    const sessionSet: SessionSet = {
-      id: createId('set'),
-      type: mappedSetType,
-      weight:
-        mappedSetType === 'working'
-          ? roundToNearestFive(lastWeight * readinessModifier)
-          : null,
-      reps: repsTarget,
-      rpe: clampRpe(templateSet.targetRPE ?? null),
-      completed: false,
-      previous: `${lastWeight}x${repsTarget ?? 8}`,
-    };
+    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId);
+    const sessionSet = buildSessionSetFromTemplate(templateSet, lastWeight, readinessModifier);
+    const repsTarget = sessionSet.reps;
 
     const blockIdentity = getBlockIdentity(templateSet);
     const existingBlockIndex = blockIndexByKey.get(blockIdentity.key);
@@ -454,6 +546,14 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
         weight: lastSet?.weight ?? null,
         reps: lastSet?.reps ?? null,
         rpe: lastSet?.rpe ?? null,
+        tempo: lastSet?.tempo ?? null,
+        supersetGroup: lastSet?.supersetGroup ?? null,
+        cluster: lastSet?.cluster
+          ? {
+              reps: [...lastSet.cluster.reps],
+              restSeconds: lastSet.cluster.restSeconds,
+            }
+          : null,
         completed: false,
         previous:
           lastSet?.weight != null && lastSet.reps != null
@@ -486,6 +586,9 @@ function workoutSessionReducer(state: SessionState, action: WorkoutSessionAction
         weight: null,
         reps: 8,
         rpe: null,
+        tempo: null,
+        supersetGroup: null,
+        cluster: null,
         completed: false,
         previous: null,
       };
