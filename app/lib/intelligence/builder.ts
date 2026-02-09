@@ -27,7 +27,6 @@ import {
   RIRPreference,
   getExercisesForMuscle,
   getRecommendedVolume,
-  isJunkVolume,
   getRepRangeForGoal,
   getRIRForGoal,
   getVolumeMultiplierForGoal,
@@ -672,83 +671,6 @@ export function generateProgram(profile: UserProfile): ProgramTemplate {
   };
 
   return program;
-}
-
-// ============================================
-// VALIDATION & ANALYSIS
-// ============================================
-
-/**
- * Analyze a generated program and return stats
- */
-export function analyzeProgramVolume(program: ProgramTemplate): {
-  weeklyVolumeByMuscle: Map<string, number>;
-  totalSetsPerWeek: number;
-  exerciseCounts: Map<string, number>;
-  warnings: string[];
-} {
-  const weeklyVolumeByMuscle = new Map<string, number>();
-  const exerciseCounts = new Map<string, number>();
-  const warnings: string[] = [];
-  let totalSets = 0;
-
-  // Analyze first week (representative)
-  const firstWeek = program.weeks[0];
-  if (!firstWeek) {
-    return { weeklyVolumeByMuscle, totalSetsPerWeek: 0, exerciseCounts, warnings };
-  }
-
-  for (const day of firstWeek.days) {
-    const muscleSetCounts = new Map<string, number>();
-
-    for (const set of day.sets) {
-      totalSets++;
-
-      // Count exercise usage
-      const exCount = exerciseCounts.get(set.exerciseId) || 0;
-      exerciseCounts.set(set.exerciseId, exCount + 1);
-
-      // Find exercise config to get muscle info
-      const exercise = EXERCISE_TIER_LIST.find(e => e.id === set.exerciseId);
-      if (exercise) {
-        // Primary muscle
-        const primary = exercise.primaryMuscle;
-        const weeklyCount = weeklyVolumeByMuscle.get(primary) || 0;
-        weeklyVolumeByMuscle.set(primary, weeklyCount + 1);
-
-        // Track per-session volume for junk volume check
-        const sessionCount = muscleSetCounts.get(primary) || 0;
-        muscleSetCounts.set(primary, sessionCount + 1);
-      }
-    }
-
-    // Check for junk volume
-    for (const [muscle, sets] of muscleSetCounts) {
-      if (isJunkVolume(sets)) {
-        warnings.push(`${day.name}: ${muscle} has ${sets} sets (>10 = junk volume risk)`);
-      }
-    }
-  }
-
-  // Check for under/over volume
-  for (const [muscle, sets] of weeklyVolumeByMuscle) {
-    const landmark = VOLUME_LANDMARKS[muscle];
-    if (landmark) {
-      if (sets < landmark.MEV) {
-        warnings.push(`${muscle}: ${sets} sets/week is below MEV (${landmark.MEV})`);
-      }
-      if (sets > landmark.MRV) {
-        warnings.push(`${muscle}: ${sets} sets/week exceeds MRV (${landmark.MRV})`);
-      }
-    }
-  }
-
-  return {
-    weeklyVolumeByMuscle,
-    totalSetsPerWeek: totalSets,
-    exerciseCounts,
-    warnings,
-  };
 }
 
 export default generateProgram;

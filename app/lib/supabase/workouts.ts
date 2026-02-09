@@ -1,5 +1,6 @@
 import { supabase } from './client';
-import type { Database } from './database.types';
+import type { Database, TablesInsert } from './database.types';
+import { isValidUuid } from '../uuid';
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
@@ -13,8 +14,25 @@ type SupabaseSetLogSummaryRow = Pick<
 
 type PersonalRecordRow = Pick<
   Database['public']['Tables']['personal_records']['Row'],
-  'id' | 'weight' | 'reps' | 'e1rm' | 'volume'
+  'id' | 'exercise_id' | 'record_type' | 'weight' | 'reps' | 'e1rm' | 'volume'
 >;
+
+type PersonalRecordType = 'max_weight' | 'max_reps' | 'max_e1rm' | 'max_volume';
+
+type SetLogPrCandidate = Pick<
+  Database['public']['Tables']['set_logs']['Row'],
+  'id' | 'exercise_id' | 'actual_weight' | 'actual_reps' | 'e1rm' | 'volume_load' | 'completed' | 'performed_at'
+>;
+
+const PERSONAL_RECORD_TYPES: PersonalRecordType[] = ['max_weight', 'max_reps', 'max_e1rm', 'max_volume'];
+
+export interface PersonalRecordHit {
+  exerciseId: string;
+  recordType: PersonalRecordType;
+  previousValue: number | null;
+  newValue: number;
+  setLogId: string | null;
+}
 
 export interface CreateWorkoutSessionData {
   user_program_id?: string;
@@ -49,6 +67,159 @@ export interface CreateSetLogData {
   notes?: string;
   completed?: boolean;
   skipped?: boolean;
+}
+
+export async function resolveExerciseIds(
+  client: typeof supabase,
+  exerciseRefs: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const refs = Array.from(new Set(exerciseRefs.filter(Boolean)));
+  if (refs.length === 0) return map;
+
+  const { data: bySlug, error: slugError } = await client
+    .from('exercises')
+    .select('id, slug')
+    .in('slug', refs);
+
+  if (slugError) {
+    console.warn('Could not resolve exercises by slug:', slugError.message);
+  } else {
+    for (const row of bySlug ?? []) {
+      if (row.slug) map.set(row.slug, row.id);
+    }
+  }
+
+  const uuidRefs = refs.filter((value) => isValidUuid(value));
+  if (uuidRefs.length > 0) {
+    const { data: byId, error: idError } = await client
+      .from('exercises')
+      .select('id, slug')
+      .in('id', uuidRefs);
+
+    if (idError) {
+      console.warn('Could not resolve exercises by id:', idError.message);
+    } else {
+      for (const row of byId ?? []) {
+        map.set(row.id, row.id);
+        if (row.slug) map.set(row.slug, row.id);
+      }
+    }
+  }
+
+  return map;
+}
+
+function getRecordValueForType(
+  row: Pick<PersonalRecordRow, 'weight' | 'reps' | 'e1rm' | 'volume'>,
+  type: PersonalRecordType
+): number {
+  if (type === 'max_weight') return Number(row.weight) || 0;
+  if (type === 'max_reps') return Number(row.reps) || 0;
+  if (type === 'max_e1rm') return Number(row.e1rm) || 0;
+  return Number(row.volume) || 0;
+}
+
+function buildSetRecordTypes(setLog: SetLogPrCandidate): Array<{ type: PersonalRecordType; value: number }> {
+  const weight = Number(setLog.actual_weight) || 0;
+  const reps = Number(setLog.actual_reps) || 0;
+  const e1rm = Number(setLog.e1rm) || 0;
+  const volume = Number(setLog.volume_load) || 0;
+  const entries: Array<{ type: PersonalRecordType; value: number }> = [];
+
+  if (weight > 0) entries.push({ type: 'max_weight', value: weight });
+  if (reps > 0) entries.push({ type: 'max_reps', value: reps });
+  if (e1rm > 0) entries.push({ type: 'max_e1rm', value: e1rm });
+  if (volume > 0) entries.push({ type: 'max_volume', value: volume });
+  return entries;
+}
+
+export async function upsertPersonalRecordsForSetLogs(
+  userId: string,
+  setLogs: SetLogPrCandidate[],
+  client: typeof supabase = supabase
+): Promise<PersonalRecordHit[]> {
+  if (!userId || setLogs.length === 0) return [];
+
+  const completedSets = setLogs.filter(
+    (setLog) => setLog.completed !== false && typeof setLog.exercise_id === 'string' && setLog.exercise_id.length > 0
+  );
+  if (completedSets.length === 0) return [];
+
+  const exerciseIds = Array.from(new Set(completedSets.map((setLog) => setLog.exercise_id as string)));
+
+  const { data: existingRows, error: existingError } = await client
+    .from('personal_records')
+    .select('id, exercise_id, record_type, weight, reps, e1rm, volume')
+    .eq('user_id', userId)
+    .eq('is_current', true)
+    .in('exercise_id', exerciseIds)
+    .in('record_type', PERSONAL_RECORD_TYPES);
+
+  if (existingError) throw existingError;
+
+  const existingByKey = new Map<string, PersonalRecordRow>();
+  for (const row of (existingRows ?? []) as PersonalRecordRow[]) {
+    if (!row.exercise_id || !row.record_type) continue;
+    existingByKey.set(`${row.exercise_id}:${row.record_type}`, row);
+  }
+
+  const bestSetByKey = new Map<string, { setLog: SetLogPrCandidate; type: PersonalRecordType; value: number }>();
+  for (const setLog of completedSets) {
+    const exerciseId = setLog.exercise_id as string;
+    for (const record of buildSetRecordTypes(setLog)) {
+      const key = `${exerciseId}:${record.type}`;
+      const current = bestSetByKey.get(key);
+      if (!current || record.value > current.value) {
+        bestSetByKey.set(key, { setLog, type: record.type, value: record.value });
+      }
+    }
+  }
+
+  const hits: PersonalRecordHit[] = [];
+
+  for (const [key, best] of bestSetByKey.entries()) {
+    const existing = existingByKey.get(key);
+    const previousValue = existing ? getRecordValueForType(existing, best.type) : null;
+    if (previousValue != null && best.value <= previousValue) {
+      continue;
+    }
+
+    if (existing?.id) {
+      const { error: deactivateError } = await client
+        .from('personal_records')
+        .update({ is_current: false })
+        .eq('id', existing.id);
+
+      if (deactivateError) throw deactivateError;
+    }
+
+    const insertPayload: TablesInsert<'personal_records'> = {
+      user_id: userId,
+      exercise_id: best.setLog.exercise_id,
+      record_type: best.type,
+      weight: best.setLog.actual_weight ?? null,
+      reps: best.setLog.actual_reps ?? null,
+      e1rm: best.setLog.e1rm ?? null,
+      volume: best.setLog.volume_load ?? null,
+      set_log_id: best.setLog.id ?? null,
+      achieved_at: best.setLog.performed_at ?? new Date().toISOString(),
+      is_current: true,
+    };
+
+    const { error: insertError } = await client.from('personal_records').insert(insertPayload);
+    if (insertError) throw insertError;
+
+    hits.push({
+      exerciseId: best.setLog.exercise_id as string,
+      recordType: best.type,
+      previousValue,
+      newValue: best.value,
+      setLogId: best.setLog.id ?? null,
+    });
+  }
+
+  return hits;
 }
 
 // Create a new workout session
@@ -146,14 +317,23 @@ export async function createSetLog(data: CreateSetLogData) {
   // Check if this is a new personal record
   const setLogRow = setLog as SupabaseSetLogRow | null;
   if (setLogRow?.exercise_id && data.completed !== false) {
-    await checkAndUpdatePersonalRecords(
-      setLogRow.exercise_id,
-      setLogRow.actual_weight ?? undefined,
-      setLogRow.actual_reps ?? undefined,
-      setLogRow.e1rm ?? undefined,
-      setLogRow.volume_load ?? undefined,
-      setLogRow.id
-    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user?.id) {
+      await upsertPersonalRecordsForSetLogs(user.id, [
+        {
+          id: setLogRow.id,
+          exercise_id: setLogRow.exercise_id,
+          actual_weight: setLogRow.actual_weight,
+          actual_reps: setLogRow.actual_reps,
+          e1rm: setLogRow.e1rm,
+          volume_load: setLogRow.volume_load,
+          completed: true,
+          performed_at: new Date().toISOString(),
+        },
+      ]);
+    }
   }
 
   return setLog;
@@ -176,14 +356,23 @@ export async function updateSetLog(
   // Re-check personal records if weight/reps changed
   const updatedSetLog = setLog as SupabaseSetLogRow | null;
   if (updatedSetLog?.exercise_id && (data.actual_weight || data.actual_reps)) {
-    await checkAndUpdatePersonalRecords(
-      updatedSetLog.exercise_id,
-      updatedSetLog.actual_weight ?? undefined,
-      updatedSetLog.actual_reps ?? undefined,
-      updatedSetLog.e1rm ?? undefined,
-      updatedSetLog.volume_load ?? undefined,
-      updatedSetLog.id
-    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user?.id) {
+      await upsertPersonalRecordsForSetLogs(user.id, [
+        {
+          id: updatedSetLog.id,
+          exercise_id: updatedSetLog.exercise_id,
+          actual_weight: updatedSetLog.actual_weight,
+          actual_reps: updatedSetLog.actual_reps,
+          e1rm: updatedSetLog.e1rm,
+          volume_load: updatedSetLog.volume_load,
+          completed: true,
+          performed_at: new Date().toISOString(),
+        },
+      ]);
+    }
   }
 
   return setLog;
@@ -194,75 +383,6 @@ export async function deleteSetLog(setLogId: string) {
   const { error } = await supabase.from('set_logs').delete().eq('id', setLogId);
 
   if (error) throw error;
-}
-
-// Check and update personal records
-async function checkAndUpdatePersonalRecords(
-  exerciseId: string,
-  weight?: number,
-  reps?: number,
-  e1rm?: number,
-  volume?: number,
-  setLogId?: string
-) {
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  if (!userId) return;
-
-  const recordTypes: Array<{
-    type: 'max_weight' | 'max_reps' | 'max_e1rm' | 'max_volume';
-    value: number;
-  }> = [];
-
-  if (weight) recordTypes.push({ type: 'max_weight', value: weight });
-  if (reps) recordTypes.push({ type: 'max_reps', value: reps });
-  if (e1rm) recordTypes.push({ type: 'max_e1rm', value: e1rm });
-  if (volume) recordTypes.push({ type: 'max_volume', value: volume });
-
-  for (const { type, value } of recordTypes) {
-    // Get current record
-    const { data: currentRecord } = await supabase
-      .from('personal_records')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('exercise_id', exerciseId)
-      .eq('record_type', type)
-      .eq('is_current', true)
-      .single();
-
-    const currentValue =
-      type === 'max_weight'
-        ? (currentRecord as PersonalRecordRow | null)?.weight
-        : type === 'max_reps'
-        ? (currentRecord as PersonalRecordRow | null)?.reps
-        : type === 'max_e1rm'
-        ? (currentRecord as PersonalRecordRow | null)?.e1rm
-        : (currentRecord as PersonalRecordRow | null)?.volume;
-
-    // If new record, update
-    if (!currentRecord || value > (currentValue || 0)) {
-      // Mark old record as not current
-      if (currentRecord) {
-        const recordRow = currentRecord as PersonalRecordRow;
-        await supabase
-          .from('personal_records')
-          .update({ is_current: false })
-          .eq('id', recordRow.id);
-      }
-
-      // Create new record
-      await supabase.from('personal_records').insert({
-        user_id: userId,
-        exercise_id: exerciseId,
-        record_type: type,
-        weight,
-        reps,
-        e1rm,
-        volume,
-        set_log_id: setLogId,
-        is_current: true,
-      });
-    }
-  }
 }
 
 // Update exercise stats after a workout

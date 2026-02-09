@@ -168,6 +168,7 @@ export default function HistoryPage() {
         <WorkoutHistory
           workoutHistory={workoutHistory}
           onHistoryUpdate={loadWorkoutsFromBothSources}
+          compactHeader
         />
       </div>
     </div>

@@ -185,25 +185,6 @@ export async function deleteUserMax(userId: string | null, maxId: string): Promi
 }
 
 /**
- * Calculate weight based on percentage of 1RM
- */
-export async function getWeightForPercentage(
-  exerciseId: string,
-  percentage: number,
-  userId: string | null
-): Promise<number | null> {
-  const userMax = await getUserMax(userId, exerciseId);
-
-  if (userMax) {
-    // Round to nearest 2.5 lbs
-    return Math.round((userMax.weight * percentage) / 100 / 2.5) * 2.5;
-  }
-
-  // TODO: Fallback to estimated 1RM from workout history
-  return null;
-}
-
-/**
  * Check if max is stale (older than 3 months)
  */
 export function isMaxStale(max: UserMax): boolean {

@@ -5,6 +5,7 @@ import { supabase } from '../supabase/client';
 import type { Json } from '../supabase/database.types';
 import { logger } from '../logger';
 import { isValidUuid } from '../uuid';
+import { resolveExerciseIds, upsertPersonalRecordsForSetLogs } from '../supabase/workouts';
 
 const QUEUE_KEY = 'iron_brain_sync_queue';
 const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
@@ -170,10 +171,15 @@ const syncWorkoutToCloud = async (
     .eq('workout_session_id', workoutUuid);
 
   if (session.sets && session.sets.length > 0) {
+    const exerciseRefs = Array.from(
+      new Set(session.sets.map((set) => set.exerciseId).filter(Boolean))
+    );
+    const exerciseIdByRef = await resolveExerciseIds(client, exerciseRefs);
+
     const setLogs = session.sets.map((set, index) => ({
       id: set.id && isValidUuid(set.id) ? set.id : undefined,
       workout_session_id: workoutUuid,
-      exercise_id: null,
+      exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
       exercise_slug: set.exerciseId,
       program_set_id: null,
       order_index: index,
@@ -194,13 +200,24 @@ const syncWorkoutToCloud = async (
       rest_seconds: set.restTakenSeconds,
       actual_seconds: set.setDurationSeconds,
       notes: set.notes,
+      performed_at: set.timestamp ?? session.endTime ?? new Date().toISOString(),
       completed: set.completed !== false,
       skipped: set.completed === false,
     }));
 
-    const { error: setsError } = await client.from('set_logs').insert(setLogs);
+    const { data: insertedSetRows, error: setsError } = await client
+      .from('set_logs')
+      .insert(setLogs)
+      .select('id, exercise_id, actual_weight, actual_reps, e1rm, volume_load, completed, performed_at');
+
     if (setsError) {
       throw setsError;
+    }
+
+    try {
+      await upsertPersonalRecordsForSetLogs(userId, insertedSetRows ?? [], client);
+    } catch (prError) {
+      console.error('Failed to update personal records during queue sync:', prError);
     }
   }
 

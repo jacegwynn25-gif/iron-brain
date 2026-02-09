@@ -16,7 +16,6 @@
 import { logger } from '../logger';
 import { SetLog } from '../types';
 import { supabase } from '../supabase/client';
-import type { Database } from '../supabase/database.types';
 import { defaultExercises } from '../programs';
 
 // ============================================================
@@ -45,15 +44,6 @@ export interface WorkoutSFRSummary {
   overallSFR: number;
   overallInterpretation: 'excellent' | 'good' | 'moderate' | 'poor' | 'excessive';
   insights: string[];
-}
-
-type SupabaseWorkoutSfrSummaryRow = Database['public']['Tables']['workout_sfr_summaries']['Row'];
-type SupabaseEfficiencyRow = Database['public']['Views']['exercise_efficiency_leaderboard']['Row'];
-
-const SFR_INTERPRETATION_VALUES = ['excellent', 'good', 'moderate', 'poor', 'excessive'] as const;
-
-function isSfrInterpretation(value: string): value is SFRAnalysis['interpretation'] {
-  return (SFR_INTERPRETATION_VALUES as readonly string[]).includes(value);
 }
 
 // ============================================================
@@ -302,45 +292,6 @@ export function calculateWorkoutSFR(
 }
 
 // ============================================================
-// BENCHMARKING & TRENDS
-// ============================================================
-
-/**
- * Compare current SFR to historical average for this exercise
- * Helps identify if efficiency is improving or declining over time
- */
-export function compareSFRToBaseline(
-  currentSFR: number,
-  historicalAvgSFR: number
-): {
-  percentChange: number;
-  trend: 'improving' | 'stable' | 'declining';
-  interpretation: string;
-} {
-  const percentChange = ((currentSFR - historicalAvgSFR) / historicalAvgSFR) * 100;
-
-  let trend: 'improving' | 'stable' | 'declining';
-  let interpretation: string;
-
-  if (percentChange > 10) {
-    trend = 'improving';
-    interpretation = `Training efficiency up ${percentChange.toFixed(0)}% - you're getting more stimulus with less fatigue`;
-  } else if (percentChange < -10) {
-    trend = 'declining';
-    interpretation = `Training efficiency down ${Math.abs(percentChange).toFixed(0)}% - consider deload or technique review`;
-  } else {
-    trend = 'stable';
-    interpretation = `Training efficiency stable (${percentChange > 0 ? '+' : ''}${percentChange.toFixed(0)}%)`;
-  }
-
-  return {
-    percentChange,
-    trend,
-    interpretation,
-  };
-}
-
-// ============================================================
 // DATABASE OPERATIONS
 // ============================================================
 
@@ -415,166 +366,4 @@ export async function saveSFRAnalysis(
   } catch (err) {
     console.error('Error saving SFR analysis:', err);
   }
-}
-
-/**
- * Get SFR history for a specific exercise
- */
-export async function getExerciseSFRHistory(
-  userId: string,
-  exerciseId: string,
-  limit: number = 10
-): Promise<SFRAnalysis[]> {
-  const { data, error } = await supabase
-    .from('sfr_analyses')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('exercise_id', exerciseId)
-    .order('recorded_at', { ascending: false })
-    .limit(limit);
-
-  if (error || !data) {
-    console.error('Failed to fetch exercise SFR history:', error);
-    return [];
-  }
-
-  const rows = data ?? [];
-  return rows.map((record) => ({
-    exerciseId: record.exercise_id,
-    exerciseName: record.exercise_name,
-    totalSets: record.total_sets,
-    effectiveVolume: record.effective_volume,
-    totalFatigue: record.total_fatigue,
-    sfr: record.sfr,
-    interpretation: isSfrInterpretation(record.interpretation)
-      ? record.interpretation
-      : 'moderate',
-    recommendation: record.recommendation ?? '',
-    avgRPE: record.avg_rpe ?? 0,
-    totalVolumeLoad: record.total_volume_load,
-    fatiguePerSet: record.fatigue_per_set ?? 0,
-  }));
-}
-
-/**
- * Get recent workout SFR summaries
- */
-export async function getWorkoutSFRHistory(
-  userId: string,
-  limit: number = 10
-): Promise<SupabaseWorkoutSfrSummaryRow[]> {
-  const { data, error } = await supabase
-    .from('workout_sfr_summaries')
-    .select('*')
-    .eq('user_id', userId)
-    .order('recorded_at', { ascending: false })
-    .limit(limit);
-
-  if (error || !data) {
-    console.error('Failed to fetch workout SFR history:', error);
-    return [];
-  }
-
-  return data ?? [];
-}
-
-/**
- * Get average SFR for an exercise (for trend analysis)
- */
-export async function getExerciseAvgSFR(
-  userId: string,
-  exerciseId: string,
-  daysBack: number = 90
-): Promise<number> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-
-  const { data, error } = await supabase
-    .from('sfr_analyses')
-    .select('sfr')
-    .eq('user_id', userId)
-    .eq('exercise_id', exerciseId)
-    .gte('recorded_at', cutoffDate.toISOString());
-
-  if (error || !data || data.length === 0) {
-    return 0;
-  }
-
-  const rows = data ?? [];
-  const avgSFR = rows.reduce((sum, record) => sum + record.sfr, 0) / rows.length;
-  return avgSFR;
-}
-
-/**
- * Identify exercises with poor efficiency (junk volume)
- */
-export async function identifyJunkVolumeExercises(
-  userId: string,
-  minSessions: number = 3
-): Promise<Array<{
-  exerciseId: string;
-  exerciseName: string;
-  avgSFR: number;
-  sessionCount: number;
-  recommendation: string;
-}>> {
-  const { data, error } = await supabase.rpc('identify_junk_volume_exercises', {
-    p_user_id: userId,
-    p_min_sessions: minSessions,
-  });
-
-  if (error) {
-    console.error('Failed to identify junk volume exercises:', error);
-    return [];
-  }
-
-  const rows = data ?? [];
-  return rows.map(row => ({
-    exerciseId: row.exercise_id,
-    exerciseName: row.exercise_name,
-    avgSFR: row.avg_sfr,
-    sessionCount: row.session_count,
-    recommendation: row.recommendation,
-  }));
-}
-
-/**
- * Get exercise efficiency leaderboard (best performing exercises)
- */
-export async function getExerciseEfficiencyLeaderboard(
-  userId: string,
-  limit: number = 20
-): Promise<Array<{
-  exerciseId: string;
-  exerciseName: string;
-  avgSFR: number;
-  timesPerformed: number;
-  bestSFR: number;
-  worstSFR: number;
-}>> {
-  const { data, error } = await supabase
-    .from('exercise_efficiency_leaderboard')
-    .select('*')
-    .eq('user_id', userId)
-    .order('avg_sfr', { ascending: false })
-    .limit(limit);
-
-  if (error || !data) {
-    console.error('Failed to fetch efficiency leaderboard:', error);
-    return [];
-  }
-
-  const rows = (data ?? []).filter(
-    (record): record is SupabaseEfficiencyRow & { exercise_id: string; exercise_name: string } =>
-      Boolean(record.exercise_id) && Boolean(record.exercise_name)
-  );
-
-  return rows.map((record) => ({
-    exerciseId: record.exercise_id,
-    exerciseName: record.exercise_name,
-    avgSFR: record.avg_sfr ?? 0,
-    timesPerformed: record.times_performed ?? 0,
-    bestSFR: record.best_sfr ?? 0,
-    worstSFR: record.worst_sfr ?? 0,
-  }));
 }

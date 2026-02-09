@@ -1,10 +1,7 @@
 import { supabase } from '../supabase/client';
 import type { CustomExercise } from '../types';
-import type { Database } from '../supabase/database.types';
 
 const LOCAL_STORAGE_KEY = 'iron_brain_custom_exercises';
-
-type SupabaseCustomExerciseUpdate = Database['public']['Tables']['custom_exercises']['Update'];
 
 const EQUIPMENT_VALUES: CustomExercise['equipment'][] = [
   'barbell',
@@ -152,77 +149,4 @@ export async function createCustomExercise(
   }
 
   return newExercise;
-}
-
-/**
- * Update custom exercise
- */
-export async function updateCustomExercise(
-  userId: string | null,
-  exerciseId: string,
-  updates: Partial<Omit<CustomExercise, 'id' | 'userId' | 'createdAt'>>
-): Promise<void> {
-  const now = new Date().toISOString();
-
-  if (userId) {
-    try {
-      const updateData: SupabaseCustomExerciseUpdate = { updated_at: now };
-
-      if (updates.name) {
-        updateData.name = updates.name;
-        updateData.slug = updates.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      }
-      if (updates.equipment) updateData.equipment = updates.equipment;
-      if (updates.exerciseType) updateData.exercise_type = updates.exerciseType;
-      if (updates.primaryMuscles) updateData.primary_muscles = updates.primaryMuscles;
-      if (updates.secondaryMuscles) updateData.secondary_muscles = updates.secondaryMuscles;
-      if (updates.movementPattern) updateData.movement_pattern = updates.movementPattern;
-      if (updates.trackWeight !== undefined) updateData.track_weight = updates.trackWeight;
-      if (updates.trackReps !== undefined) updateData.track_reps = updates.trackReps;
-      if (updates.trackTime !== undefined) updateData.track_time = updates.trackTime;
-      if (updates.defaultRestSeconds !== undefined) {
-        updateData.default_rest_seconds = updates.defaultRestSeconds;
-      }
-
-      await supabase
-        .from('custom_exercises')
-        .update(updateData)
-        .eq('id', exerciseId);
-    } catch (err) {
-      console.error('Failed to update in Supabase:', err);
-    }
-  }
-
-  try {
-    const existing = await getCustomExercises(userId);
-    const updated = existing.map(e =>
-      e.id === exerciseId
-        ? { ...e, ...updates, updatedAt: now }
-        : e
-    );
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-  } catch (err) {
-    console.error('Failed to update in localStorage:', err);
-  }
-}
-
-/**
- * Delete custom exercise
- */
-export async function deleteCustomExercise(userId: string | null, exerciseId: string): Promise<void> {
-  if (userId) {
-    try {
-      await supabase.from('custom_exercises').delete().eq('id', exerciseId);
-    } catch (err) {
-      console.error('Failed to delete from Supabase:', err);
-    }
-  }
-
-  try {
-    const existing = await getCustomExercises(userId);
-    const filtered = existing.filter(e => e.id !== exerciseId);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
-  } catch (err) {
-    console.error('Failed to delete from localStorage:', err);
-  }
 }

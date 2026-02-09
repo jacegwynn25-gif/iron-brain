@@ -2,7 +2,7 @@
  * Workout Intelligence Service
  *
  * Unified service that connects PhD-level analytics models to real-time workout suggestions.
- * This is the bridge between AdvancedAnalyticsDashboard (analytics) and WorkoutLogger (real-time).
+ * This is the bridge between AdvancedAnalyticsDashboard (analytics) and SessionLogger (real-time).
  *
  * Features:
  * - Pre-workout readiness assessment (ACWR, recovery, fitness-fatigue)

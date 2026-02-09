@@ -9,6 +9,12 @@ import { createUuid, isValidUuid } from './uuid';
 import { queueOperation, isOnline } from './sync/offline-queue';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { convertWeight } from './units';
+import type { TablesInsert } from './supabase/database.types';
+import {
+  resolveExerciseIds,
+  upsertPersonalRecordsForSetLogs,
+  type PersonalRecordHit,
+} from './supabase/workouts';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -296,8 +302,20 @@ export async function saveWorkout(
   session: WorkoutSession,
   providedUserId?: string | null,
   options?: { skipAnalytics?: boolean }
-): Promise<void> {
+): Promise<{
+  workoutId: string;
+  queued: boolean;
+  syncedToCloud: boolean;
+  newPersonalRecords: PersonalRecordHit[];
+}> {
   let sessionToQueue = session;
+  const result = {
+    workoutId: session.id,
+    queued: false,
+    syncedToCloud: false,
+    newPersonalRecords: [] as PersonalRecordHit[],
+  };
+
   try {
     // Normalize session ID to always include a valid UUID
     let workoutUuid = session.id.startsWith('session_')
@@ -316,6 +334,7 @@ export async function saveWorkout(
         regeneratedId: sessionToSave.id,
       });
     }
+    result.workoutId = sessionToSave.id;
     sessionToQueue = sessionToSave;
 
     // Always save to localStorage first (for offline support)
@@ -325,13 +344,14 @@ export async function saveWorkout(
     logger.debug('✅ Saved to localStorage');
 
     const queueWorkout = () => {
+      result.queued = true;
       queueOperation('create', 'workout_sessions', sessionToSave);
     };
 
     if (!isOnline()) {
       logger.debug('📥 Offline - queued workout for sync');
       queueWorkout();
-      return;
+      return result;
     }
 
     // Also save to Supabase if user is logged in
@@ -357,14 +377,14 @@ export async function saveWorkout(
         if (userError) {
           console.error('Error getting user:', userError);
           queueWorkout();
-          return;
+          return result;
         }
 
         user = authUser;
       } catch (error) {
         console.error('Auth check timed out or failed:', error);
         queueWorkout();
-        return;
+        return result;
       }
     }
 
@@ -445,17 +465,23 @@ export async function saveWorkout(
         };
         console.error('Failed to save workout session to Supabase:', errorPayload);
         queueWorkout();
-        return; // Don't try to save sets if session failed
+        return result; // Don't try to save sets if session failed
       }
 
       const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
+      let setLogsSynced = true;
 
       // Save each set (batched for speed)
       if (sessionToSave.sets && sessionToSave.sets.length > 0) {
-        const setPayloads = sessionToSave.sets.map((set, index) => {
-          const payload: Record<string, unknown> = {
+        const exerciseRefs = Array.from(
+          new Set(sessionToSave.sets.map((set) => set.exerciseId).filter(Boolean))
+        );
+        const exerciseIdByRef = await resolveExerciseIds(supabase, exerciseRefs);
+
+        const setPayloads = sessionToSave.sets.map((set, index): TablesInsert<'set_logs'> => {
+          const payload: TablesInsert<'set_logs'> = {
             workout_session_id: workoutUuid,
-            exercise_id: null, // Set to NULL - we use exercise_slug instead
+            exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
             exercise_slug: set.exerciseId, // Store app exercise ID for backward compatibility
             program_set_id: null,
             order_index: index,
@@ -483,6 +509,7 @@ export async function saveWorkout(
             rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
             actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
             notes: set.notes,
+            performed_at: set.timestamp ?? sessionToSave.endTime ?? new Date().toISOString(),
             completed: set.completed !== false,
             skipped: set.completed === false,
           };
@@ -494,12 +521,25 @@ export async function saveWorkout(
           return payload;
         });
 
-        const { error: setError } = await supabase.from('set_logs').insert(setPayloads);
+        const { data: insertedSetRows, error: setError } = await supabase
+          .from('set_logs')
+          .insert(setPayloads)
+          .select('id, exercise_id, actual_weight, actual_reps, e1rm, volume_load, completed, performed_at');
+
         if (setError) {
+          setLogsSynced = false;
           console.error('Failed to save set logs:', setError);
           queueWorkout();
         } else {
           logger.debug(`✅ Saved ${sessionToSave.sets.length} sets to Supabase`);
+          try {
+            result.newPersonalRecords = await upsertPersonalRecordsForSetLogs(user.id, insertedSetRows ?? []);
+            if (result.newPersonalRecords.length > 0) {
+              logger.debug(`🏆 Saved ${result.newPersonalRecords.length} new personal records`);
+            }
+          } catch (prError) {
+            console.error('Could not update personal records:', prError);
+          }
         }
 
         if (!options?.skipAnalytics) {
@@ -551,6 +591,7 @@ export async function saveWorkout(
         console.warn('No sets to save or session failed');
       }
 
+      result.syncedToCloud = setLogsSynced;
       logger.debug('✅ Workout synced to Supabase!');
     } else {
       queueWorkout();
@@ -558,8 +599,13 @@ export async function saveWorkout(
   } catch (error) {
     console.error('Failed to save workout:', error);
     // Don't throw - we want localStorage save to succeed even if Supabase fails
-    queueOperation('create', 'workout_sessions', sessionToQueue);
+    if (!result.queued) {
+      result.queued = true;
+      queueOperation('create', 'workout_sessions', sessionToQueue);
+    }
   }
+
+  return result;
 }
 
 export function getWorkoutHistory(): WorkoutSession[] {

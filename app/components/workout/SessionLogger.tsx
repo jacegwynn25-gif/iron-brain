@@ -23,9 +23,10 @@ import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
-import { saveWorkout } from '@/app/lib/storage';
+import { saveWorkout, storage } from '@/app/lib/storage';
 import { createUuid } from '@/app/lib/uuid';
 import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
+import { convertWeight } from '@/app/lib/units';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -224,6 +225,29 @@ type ExerciseStyle = {
   primaryColor: string;
   secondaryColor: string;
   isCompound: boolean;
+};
+
+type PrMetric = 'max_weight' | 'max_reps' | 'max_e1rm' | 'max_volume';
+
+type ProjectedPrHit = {
+  exerciseId: string;
+  exerciseName: string;
+  metric: PrMetric;
+  current: number;
+  previous: number;
+};
+
+const PR_METRIC_LABEL: Record<PrMetric, string> = {
+  max_weight: 'WEIGHT',
+  max_reps: 'REPS',
+  max_e1rm: 'E1RM',
+  max_volume: 'VOLUME',
+};
+
+const formatProjectedPrValue = (metric: PrMetric, value: number): string => {
+  if (metric === 'max_reps') return `${Math.round(value)}`;
+  if (metric === 'max_volume') return `${Math.round(value).toLocaleString()}LBS`;
+  return `${Math.round(value).toLocaleString()}LBS`;
 };
 
 const ExerciseBadge = ({ icon: Icon, style }: { icon: LucideIcon; style: ExerciseStyle }) => {
@@ -447,8 +471,139 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     };
   };
 
-  const sessionStats = calculateSessionStats(session.blocks);
-  const maxSessionVolume = Math.max(1, ...sessionStats.pulseMap.map((entry) => entry.volume));
+  const sessionStats = useMemo(() => calculateSessionStats(session.blocks), [session.blocks]);
+  const maxSessionVolume = useMemo(
+    () => Math.max(1, ...sessionStats.pulseMap.map((entry) => entry.volume)),
+    [sessionStats.pulseMap]
+  );
+  const projectedPrHits = useMemo<ProjectedPrHit[]>(() => {
+    if (!isSummaryOpen || typeof window === 'undefined') {
+      return [];
+    }
+
+    const baselineByExercise = new Map<
+      string,
+      { maxWeight: number; maxReps: number; maxE1RM: number; maxVolume: number }
+    >();
+
+    const history = storage.getWorkoutHistory();
+    history.forEach((historySession) => {
+      historySession.sets.forEach((set) => {
+        if (!set.completed) return;
+        const exerciseId = set.exerciseId;
+        if (!exerciseId) return;
+        const reps = Number(set.actualReps) || 0;
+        const weightRaw = Number(set.actualWeight) || 0;
+        const weight = weightRaw > 0 ? convertWeight(weightRaw, set.weightUnit ?? 'lbs', 'lbs') : 0;
+        const e1rmRaw = Number(set.e1rm) || 0;
+        const e1rm = e1rmRaw > 0 ? convertWeight(e1rmRaw, set.weightUnit ?? 'lbs', 'lbs') : 0;
+        const volume = weight > 0 && reps > 0 ? weight * reps : 0;
+
+        const baseline = baselineByExercise.get(exerciseId) ?? {
+          maxWeight: 0,
+          maxReps: 0,
+          maxE1RM: 0,
+          maxVolume: 0,
+        };
+
+        baseline.maxWeight = Math.max(baseline.maxWeight, weight);
+        baseline.maxReps = Math.max(baseline.maxReps, reps);
+        baseline.maxE1RM = Math.max(baseline.maxE1RM, e1rm);
+        baseline.maxVolume = Math.max(baseline.maxVolume, volume);
+        baselineByExercise.set(exerciseId, baseline);
+      });
+    });
+
+    const currentByExercise = new Map<
+      string,
+      {
+        exerciseName: string;
+        maxWeight: number;
+        maxReps: number;
+        maxE1RM: number;
+        maxVolume: number;
+      }
+    >();
+
+    session.blocks.forEach((block) => {
+      block.exercises.forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          if (!set.completed) return;
+          const reps = set.reps == null ? 8 : Number(set.reps);
+          if (!Number.isFinite(reps) || reps <= 0) return;
+          const weight = Number(set.weight) || 0;
+          const e1rm =
+            weight > 0 ? Number(rpeAdjusted1RM(weight, reps, set.rpe ?? null) || 0) : 0;
+          const volume = weight > 0 ? weight * reps : 0;
+
+          const current = currentByExercise.get(exercise.id) ?? {
+            exerciseName: exercise.name,
+            maxWeight: 0,
+            maxReps: 0,
+            maxE1RM: 0,
+            maxVolume: 0,
+          };
+
+          current.maxWeight = Math.max(current.maxWeight, weight);
+          current.maxReps = Math.max(current.maxReps, reps);
+          current.maxE1RM = Math.max(current.maxE1RM, e1rm);
+          current.maxVolume = Math.max(current.maxVolume, volume);
+          currentByExercise.set(exercise.id, current);
+        });
+      });
+    });
+
+    const hits: ProjectedPrHit[] = [];
+    currentByExercise.forEach((current, exerciseId) => {
+      const baseline = baselineByExercise.get(exerciseId) ?? {
+        maxWeight: 0,
+        maxReps: 0,
+        maxE1RM: 0,
+        maxVolume: 0,
+      };
+
+      if (current.maxWeight > 0 && current.maxWeight > baseline.maxWeight) {
+        hits.push({
+          exerciseId,
+          exerciseName: current.exerciseName,
+          metric: 'max_weight',
+          current: current.maxWeight,
+          previous: baseline.maxWeight,
+        });
+      }
+      if (current.maxReps > 0 && current.maxReps > baseline.maxReps) {
+        hits.push({
+          exerciseId,
+          exerciseName: current.exerciseName,
+          metric: 'max_reps',
+          current: current.maxReps,
+          previous: baseline.maxReps,
+        });
+      }
+      if (current.maxE1RM > 0 && current.maxE1RM > baseline.maxE1RM) {
+        hits.push({
+          exerciseId,
+          exerciseName: current.exerciseName,
+          metric: 'max_e1rm',
+          current: current.maxE1RM,
+          previous: baseline.maxE1RM,
+        });
+      }
+      if (current.maxVolume > 0 && current.maxVolume > baseline.maxVolume) {
+        hits.push({
+          exerciseId,
+          exerciseName: current.exerciseName,
+          metric: 'max_volume',
+          current: current.maxVolume,
+          previous: baseline.maxVolume,
+        });
+      }
+    });
+
+    return hits
+      .sort((a, b) => (b.current - b.previous) - (a.current - a.previous))
+      .slice(0, 8);
+  }, [isSummaryOpen, session.blocks]);
   const legendItems = useMemo(() => {
     const activeGroups = new Set<MuscleGroup>();
     const groupCounts = new Map<MuscleGroup, number>();
@@ -892,9 +1047,21 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
     }
     saveInFlightRef.current = true;
     const payload = buildWorkoutSession();
-    void saveWorkout(payload, undefined, { skipAnalytics: true }).finally(() => {
-      saveInFlightRef.current = false;
-    });
+    void saveWorkout(payload, undefined, { skipAnalytics: true })
+      .then((saveResult) => {
+        if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
+          localStorage.setItem(
+            'iron_brain_last_pr_hits',
+            JSON.stringify({
+              createdAt: new Date().toISOString(),
+              hits: saveResult.newPersonalRecords,
+            })
+          );
+        }
+      })
+      .finally(() => {
+        saveInFlightRef.current = false;
+      });
     router.push('/');
   };
 
@@ -1634,6 +1801,41 @@ export default function SessionLogger({ initialData }: SessionLoggerProps) {
                           <span>{item.label}</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {projectedPrHits.length > 0 && (
+                  <div className="mb-10">
+                    <p className="text-center text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                      Projected PRs
+                    </p>
+                    <div
+                      className="mt-3 flex gap-2 overflow-x-auto pb-2 pr-6"
+                      data-swipe-ignore="true"
+                      style={{
+                        WebkitMaskImage:
+                          'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
+                        maskImage:
+                          'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }}
+                    >
+                      {projectedPrHits.map((hit, index) => {
+                        const shortName =
+                          hit.exerciseName.length > 18
+                            ? `${hit.exerciseName.slice(0, 16)}…`
+                            : hit.exerciseName;
+                        return (
+                          <div
+                            key={`${hit.exerciseId}-${hit.metric}-${index}`}
+                            className="whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300"
+                          >
+                            {shortName} • {PR_METRIC_LABEL[hit.metric]} {formatProjectedPrValue(hit.metric, hit.current)}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

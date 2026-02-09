@@ -18,9 +18,7 @@
 
 import { SetLog } from '../types';
 import {
-  calculateDescriptiveStats,
-  exponentialMovingAverage,
-  detectTrend
+  calculateDescriptiveStats
 } from './statistical-utils';
 
 // ============================================================
@@ -55,18 +53,6 @@ export interface WorkloadMetrics {
   status: 'optimal' | 'building' | 'maintaining' | 'detraining' | 'overreaching' | 'danger';
   recommendation: string;
   scientificBasis: string;
-}
-
-export interface AdaptiveRecoveryProfile {
-  muscleGroup: string;
-  personalizedRecoveryHours: number; // Learned recovery time (not fixed)
-  readinessScore: number; // 0-10
-  recoveryPercentage: number; // 0-100
-  estimatedFullRecovery: Date;
-  chronicFatiguePenalty: number; // Penalty from repeated training
-  trainingAge: number; // Months of consistent training
-  adaptationRate: number; // How fast user recovers (relative to population)
-  confidence: number;
 }
 
 // ============================================================
@@ -242,177 +228,5 @@ export function calculateACWR(workouts: Array<{ date: Date; load: number }>): Wo
     status,
     recommendation,
     scientificBasis
-  };
-}
-
-// ============================================================
-// ADAPTIVE RECOVERY PROFILES
-// ============================================================
-
-/**
- * Build personalized recovery profile by learning from user's actual performance
- *
- * Learns:
- * - How fast individual recovers (faster/slower than population average)
- * - Chronic fatigue patterns
- * - Training age effects
- */
-export async function buildAdaptiveRecoveryProfile(
-  muscleGroup: string,
-  recentWorkouts: Array<{
-    date: Date;
-    load: number;
-    perceivedRecovery: number; // User-reported or inferred from performance
-  }>
-): Promise<AdaptiveRecoveryProfile> {
-  // Base recovery times (population average, Schoenfeld & Grgic 2018)
-  const baseRecoveryHours: Record<string, number> = {
-    chest: 48,
-    back: 48,
-    shoulders: 36,
-    quads: 72,
-    hamstrings: 72,
-    triceps: 36,
-    biceps: 36,
-    calves: 24,
-    abs: 24
-  };
-
-  const baseHours = baseRecoveryHours[muscleGroup.toLowerCase()] || 48;
-
-  if (recentWorkouts.length < 5) {
-    // Insufficient data - use population defaults
-    return {
-      muscleGroup,
-      personalizedRecoveryHours: baseHours,
-      readinessScore: 7,
-      recoveryPercentage: 70,
-      estimatedFullRecovery: new Date(Date.now() + baseHours * 60 * 60 * 1000),
-      chronicFatiguePenalty: 0,
-      trainingAge: 0,
-      adaptationRate: 1.0, // Population average
-      confidence: 0.3
-    };
-  }
-
-  // Analyze recovery patterns
-  const recoveryRates: number[] = [];
-
-  for (let i = 1; i < recentWorkouts.length; i++) {
-    const prev = recentWorkouts[i - 1];
-    const current = recentWorkouts[i];
-
-    const hoursBetween = (current.date.getTime() - prev.date.getTime()) / (1000 * 60 * 60);
-    const recoveryAchieved = current.perceivedRecovery;
-
-    // Estimate personal recovery rate
-    // If 80% recovered after 36h, personal rate = 36 / 0.80 = 45h for full recovery
-    if (recoveryAchieved > 0.5) {
-      const estimatedFullRecoveryTime = hoursBetween / recoveryAchieved;
-      recoveryRates.push(estimatedFullRecoveryTime);
-    }
-  }
-
-  const stats = calculateDescriptiveStats(recoveryRates);
-  const personalizedRecoveryHours = stats.median > 0 ? stats.median : baseHours;
-
-  // Adaptation rate relative to population
-  const adaptationRate = baseHours / personalizedRecoveryHours; // >1 = recovers faster, <1 = slower
-
-  // Chronic fatigue check (using EWMA)
-  const loads = recentWorkouts.map(w => w.load);
-  const ewma = exponentialMovingAverage(loads, 0.3);
-  const trend = detectTrend(ewma);
-
-  let chronicFatiguePenalty = 0;
-  if (trend.trend === 'increasing' && trend.slope > 5) {
-    // Load increasing without sufficient recovery
-    chronicFatiguePenalty = Math.min(24, trend.slope * 2); // Up to +24h penalty
-  }
-
-  // Training age (months of consistent training)
-  const firstWorkout = recentWorkouts[0].date;
-  const lastWorkoutDate = recentWorkouts[recentWorkouts.length - 1].date;
-  const trainingAge = (lastWorkoutDate.getTime() - firstWorkout.getTime()) / (1000 * 60 * 60 * 24 * 30);
-
-  // Current state
-  const now = new Date();
-  const lastWorkout = recentWorkouts[recentWorkouts.length - 1];
-  const hoursSinceLastTrained = (now.getTime() - lastWorkout.date.getTime()) / (1000 * 60 * 60);
-
-  const adjustedRecoveryTime = personalizedRecoveryHours + chronicFatiguePenalty;
-  const recoveryPercentage = Math.min(100, (hoursSinceLastTrained / adjustedRecoveryTime) * 100);
-
-  // Readiness score (1-10 scale)
-  let readinessScore = (recoveryPercentage / 10) - (chronicFatiguePenalty / 10);
-  readinessScore = Math.max(1, Math.min(10, readinessScore));
-
-  const hoursRemaining = Math.max(0, adjustedRecoveryTime - hoursSinceLastTrained);
-  const estimatedFullRecovery = new Date(now.getTime() + hoursRemaining * 60 * 60 * 1000);
-
-  const confidence = Math.min(0.9, recentWorkouts.length / 20);
-
-  return {
-    muscleGroup,
-    personalizedRecoveryHours: adjustedRecoveryTime,
-    readinessScore,
-    recoveryPercentage,
-    estimatedFullRecovery,
-    chronicFatiguePenalty,
-    trainingAge,
-    adaptationRate,
-    confidence
-  };
-}
-
-/**
- * Predict performance based on current recovery state
- *
- * Returns expected performance relative to baseline (0-100%)
- */
-export function predictPerformance(
-  recoveryProfile: AdaptiveRecoveryProfile
-): {
-  expectedPerformance: number; // 0-100%
-  recommendation: 'proceed' | 'reduce_load' | 'skip';
-  reasoning: string;
-} {
-  const { readinessScore, recoveryPercentage, chronicFatiguePenalty } = recoveryProfile;
-
-  // Performance curve (non-linear)
-  // 100% recovered = 100% performance
-  // 80% recovered = 95% performance (slight drop)
-  // 60% recovered = 85% performance (noticeable drop)
-  // 40% recovered = 70% performance (significant impairment)
-  let expectedPerformance = 100;
-
-  if (recoveryPercentage < 100) {
-    // Exponential performance decay
-    expectedPerformance = 100 * Math.pow(recoveryPercentage / 100, 1.5);
-  }
-
-  // Chronic fatigue penalty
-  if (chronicFatiguePenalty > 12) {
-    expectedPerformance *= 0.85; // 15% performance penalty from chronic fatigue
-  }
-
-  let recommendation: 'proceed' | 'reduce_load' | 'skip';
-  let reasoning: string;
-
-  if (readinessScore >= 7 && expectedPerformance >= 90) {
-    recommendation = 'proceed';
-    reasoning = 'Full recovery achieved. Ready for high-quality training.';
-  } else if (readinessScore >= 5 && expectedPerformance >= 75) {
-    recommendation = 'reduce_load';
-    reasoning = `Partial recovery (${recoveryPercentage.toFixed(0)}%). Reduce load by ${Math.round((100 - expectedPerformance) * 0.5)}% or volume by 20-30%.`;
-  } else {
-    recommendation = 'skip';
-    reasoning = `Insufficient recovery (readiness ${readinessScore.toFixed(1)}/10). Risk of maladaptation and injury. Rest or train different muscle group.`;
-  }
-
-  return {
-    expectedPerformance,
-    recommendation,
-    reasoning
   };
 }

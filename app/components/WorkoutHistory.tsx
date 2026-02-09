@@ -15,9 +15,14 @@ import { convertWeight } from '../lib/units';
 interface WorkoutHistoryProps {
   workoutHistory: WorkoutSession[];
   onHistoryUpdate: () => void;
+  compactHeader?: boolean;
 }
 
-export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: WorkoutHistoryProps) {
+export default function WorkoutHistory({
+  workoutHistory,
+  onHistoryUpdate,
+  compactHeader = false,
+}: WorkoutHistoryProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { weightUnit } = useUnitPreference();
@@ -342,25 +347,27 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
-              Session Totals
-            </p>
-            <h2 className="mt-2 text-3xl font-black text-white">Workout History</h2>
-            <p className="mt-2 text-sm text-zinc-500">
-              {sortedHistory.length} {sortedHistory.length === 1 ? 'session' : 'sessions'} completed
-            </p>
+        {!compactHeader && (
+          <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
+                Session Totals
+              </p>
+              <h2 className="mt-2 text-3xl font-black text-white">Workout History</h2>
+              <p className="mt-2 text-sm text-zinc-500">
+                {sortedHistory.length} {sortedHistory.length === 1 ? 'session' : 'sessions'} completed
+              </p>
+            </div>
+            <div className="text-left sm:text-right">
+              <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+                {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
+              </p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                {weightUnit} total volume
+              </p>
+            </div>
           </div>
-          <div className="text-left sm:text-right">
-            <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
-              {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
-            </p>
-            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-              {weightUnit} total volume
-            </p>
-          </div>
-        </div>
+        )}
 
         <div className="space-y-6">
         {sortedHistory.map((session, sessionIdx) => {
@@ -602,8 +609,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
       </div>
       </div>
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4">
+          <div className="w-full max-w-lg max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="p-6 sm:p-8 text-white">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-rose-300">
                 Confirm Delete
@@ -627,7 +634,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:p-6">
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteBusy}
@@ -647,8 +654,8 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
         </div>
       )}
       {editTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4">
+          <div className="w-full max-w-xl max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="p-6 sm:p-8 text-white">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-sky-300">
                 Adjust Details
@@ -719,7 +726,7 @@ export default function WorkoutHistory({ workoutHistory, onHistoryUpdate }: Work
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:p-6">
               <button
                 onClick={() => setEditTarget(null)}
                 disabled={editBusy}

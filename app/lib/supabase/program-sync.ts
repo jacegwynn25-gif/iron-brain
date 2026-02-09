@@ -108,32 +108,6 @@ function parseProgramTemplate(value: Json): ProgramTemplate | null {
   };
 }
 
-export async function loadProgramsFromCloud(userId: string): Promise<ProgramTemplate[]> {
-  try {
-    const { data, error } = await supabase
-      .from('custom_programs')
-      .select('program_data, updated_at')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      console.error('Failed to load programs from cloud:', error);
-      return [];
-    }
-
-    const rows = (data ?? []) as Array<{ program_data: Json }>;
-    const programs = rows
-      .map(row => parseProgramTemplate(row.program_data))
-      .filter((value): value is ProgramTemplate => value !== null);
-    const normalized = normalizePrograms(programs).programs;
-    logger.debug(`📥 Loaded ${normalized.length} programs from cloud`);
-    return normalized;
-  } catch (err) {
-    console.error('Error loading programs from cloud:', err);
-    return [];
-  }
-}
-
 export async function loadProgramsFromCloudWithCleanup(userId: string): Promise<{
   programs: ProgramTemplate[];
   changedPrograms: ProgramTemplate[];
@@ -195,23 +169,6 @@ export async function deleteProgramFromCloud(programId: string, userId: string):
 }
 
 /**
- * Sync all local programs to cloud (retroactive sync)
- */
-export async function syncAllProgramsToCloud(programs: ProgramTemplate[], userId: string): Promise<number> {
-  let successCount = 0;
-
-  for (const program of programs) {
-    const success = await saveProgramToCloud(program, userId);
-    if (success) {
-      successCount++;
-    }
-  }
-
-  logger.debug(`✅ Synced ${successCount}/${programs.length} programs to cloud`);
-  return successCount;
-}
-
-/**
  * Merge local and cloud programs (cloud wins for conflicts)
  */
 export function mergeProgramsWithCloud(
@@ -250,22 +207,4 @@ export function mergeProgramsWithCloud(
   });
 
   return merged;
-}
-
-/**
- * Debounced auto-save for program builder
- */
-let autoSaveTimeout: NodeJS.Timeout | null = null;
-
-export function autoSaveProgram(program: ProgramTemplate, userId: string, delayMs: number = 2000) {
-  // Clear previous timeout
-  if (autoSaveTimeout) {
-    clearTimeout(autoSaveTimeout);
-  }
-
-  // Set new timeout
-  autoSaveTimeout = setTimeout(async () => {
-    logger.debug('💾 Auto-saving program...');
-    await saveProgramToCloud(program, userId);
-  }, delayMs);
 }

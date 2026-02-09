@@ -1,9 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { ArrowRight, BookOpen, History as HistoryIcon, RotateCcw, Settings } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  BookOpen,
+  History as HistoryIcon,
+  RotateCcw,
+  Settings,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
+import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
 
 type Tone = {
   color: string;
@@ -33,8 +42,48 @@ export default function Dashboard() {
   const score = readiness?.score ?? 0;
   const tone = useMemo(() => getTone(score), [score]);
   const message = readiness?.recommendation ?? tone.tag;
+  const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const upperModifier = readiness?.focus_adjustments?.upper_body_modifier;
   const lowerModifier = readiness?.focus_adjustments?.lower_body_modifier;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('iron_brain_last_pr_hits');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as
+        | PersonalRecordHit[]
+        | { hits?: PersonalRecordHit[]; createdAt?: string };
+      const hits = Array.isArray(parsed) ? parsed : parsed.hits ?? [];
+      if (hits.length === 0) return;
+      setRecentPrHits(hits);
+    } catch (error) {
+      console.error('Failed to read recent PR hits:', error);
+    }
+  }, []);
+
+  const prSummary = useMemo(() => {
+    if (recentPrHits.length === 0) return [];
+    const labels: Record<PersonalRecordHit['recordType'], string> = {
+      max_weight: 'Max Weight',
+      max_reps: 'Max Reps',
+      max_e1rm: 'Max e1RM',
+      max_volume: 'Max Volume',
+    };
+    const grouped = new Map<string, number>();
+    recentPrHits.forEach((hit) => {
+      const label = labels[hit.recordType];
+      grouped.set(label, (grouped.get(label) ?? 0) + 1);
+    });
+    return Array.from(grouped.entries()).map(([label, count]) => ({ label, count }));
+  }, [recentPrHits]);
+
+  const dismissPrSummary = () => {
+    setRecentPrHits([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('iron_brain_last_pr_hits');
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
@@ -51,6 +100,37 @@ export default function Dashboard() {
           Settings
         </Link>
       </header>
+
+      {prSummary.length > 0 && (
+        <section className="border-b border-zinc-900 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                New Personal Records
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {prSummary.map((entry) => (
+                  <span
+                    key={entry.label}
+                    className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300"
+                  >
+                    {entry.label} {entry.count > 1 ? `x${entry.count}` : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={dismissPrSummary}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-800 text-zinc-500 transition-colors hover:text-zinc-200"
+              aria-label="Dismiss PR summary"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="pt-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-zinc-500">Session Readiness</p>

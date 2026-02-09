@@ -13,13 +13,11 @@ import { SetLog } from '../types';
 import {
   buildHierarchicalFatigueModel,
   predictFatigueNextSet,
-  updateHierarchicalModel,
   type HierarchicalFatigueModel,
   type FatiguePrediction
 } from './hierarchical-models';
 import {
   detectChangePoints,
-  sequentialFatigueAnalysis,
   type ChangePoint
 } from './advanced-methods';
 
@@ -203,25 +201,6 @@ export function assessFatigueWithHierarchicalModel(
   };
 }
 
-/**
- * Update hierarchical model in real-time as sets are completed
- *
- * ONLINE LEARNING: Model adapts during the workout itself
- */
-export function updateModelWithNewSet(
-  model: HierarchicalFatigueModel,
-  exerciseId: string,
-  completedSet: SetLog,
-  setNumber: number
-): HierarchicalFatigueModel {
-  // Calculate observed fatigue from RPE
-  const observedFatigue = completedSet.actualRPE
-    ? (completedSet.actualRPE / 10) * 100
-    : 50; // Default if no RPE
-
-  return updateHierarchicalModel(model, exerciseId, observedFatigue, setNumber);
-}
-
 // ============================================================
 // CHANGE POINT INTERPRETATION
 // ============================================================
@@ -271,102 +250,6 @@ function buildRecommendation(
     case 'minimal':
       return `Minimal fatigue (${prediction.expectedFatigue.toFixed(0)}%). Performing well.`;
   }
-}
-
-// ============================================================
-// SEQUENTIAL TESTING FOR EARLY STOPPING
-// ============================================================
-
-/**
- * Sequential hypothesis testing: Should we stop the exercise early?
- *
- * Uses Sequential Probability Ratio Test (SPRT) to decide if fatigue
- * has exceeded acceptable thresholds with high confidence.
- *
- * BENEFIT: Can stop earlier than fixed-sample tests while maintaining accuracy
- */
-export interface EarlyStoppingDecision {
-  shouldStop: boolean;
-  reason: string;
-  evidence: 'strong' | 'moderate' | 'weak' | 'insufficient';
-  bayesFactor: number; // >10 = strong evidence for stopping
-  setsAnalyzed: number;
-}
-
-export function testEarlyStopping(
-  completedSets: SetLog[],
-  fatigueThreshold: number = 60 // Stop if fatigue exceeds this
-): EarlyStoppingDecision {
-  if (completedSets.length < 3) {
-    return {
-      shouldStop: false,
-      reason: 'Insufficient data for early stopping decision',
-      evidence: 'insufficient',
-      bayesFactor: 1.0,
-      setsAnalyzed: completedSets.length
-    };
-  }
-
-  // Use sequential Bayesian fatigue analysis
-  const estimates = sequentialFatigueAnalysis(completedSets);
-
-  if (estimates.length === 0) {
-    return {
-      shouldStop: false,
-      reason: 'No valid estimates available',
-      evidence: 'insufficient',
-      bayesFactor: 1.0,
-      setsAnalyzed: completedSets.length
-    };
-  }
-
-  // Get most recent estimate
-  const latestEstimate = estimates[estimates.length - 1];
-  const currentFatigue = latestEstimate.posteriorFatigue;
-  const confidence = latestEstimate.confidence;
-
-  // Calculate evidence strength based on confidence and threshold exceedance
-  let evidence: 'strong' | 'moderate' | 'weak' | 'insufficient';
-  let bayesFactor = 1.0;
-
-  if (currentFatigue > fatigueThreshold) {
-    const excessAmount = currentFatigue - fatigueThreshold;
-    // Approximate Bayes factor from confidence and excess
-    bayesFactor = 1 + (confidence * excessAmount / 10);
-
-    if (bayesFactor > 10) evidence = 'strong';
-    else if (bayesFactor > 3) evidence = 'moderate';
-    else if (bayesFactor > 1) evidence = 'weak';
-    else evidence = 'insufficient';
-  } else {
-    evidence = 'insufficient';
-    bayesFactor = 1.0;
-  }
-
-  // Decision: Should we stop?
-  const shouldStop = latestEstimate.recommendation === 'stop' ||
-                     (currentFatigue > fatigueThreshold && confidence > 0.75);
-
-  let reason = '';
-  if (shouldStop) {
-    if (evidence === 'strong') {
-      reason = `Strong statistical evidence (confidence=${(confidence * 100).toFixed(0)}%) that fatigue (${currentFatigue.toFixed(0)}%) exceeds threshold (${fatigueThreshold}%)`;
-    } else {
-      reason = latestEstimate.reasoning;
-    }
-  } else if (latestEstimate.recommendation === 'reduce_load') {
-    reason = 'Moderate fatigue - reduce load or increase rest if needed';
-  } else {
-    reason = 'Fatigue within acceptable range - continue as planned';
-  }
-
-  return {
-    shouldStop,
-    reason,
-    evidence,
-    bayesFactor,
-    setsAnalyzed: completedSets.length
-  };
 }
 
 // ============================================================

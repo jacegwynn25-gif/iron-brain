@@ -56,6 +56,3 @@ export const logger = {
     }
   },
 };
-
-// For backwards compatibility - can be used as drop-in replacement
-export default logger;
