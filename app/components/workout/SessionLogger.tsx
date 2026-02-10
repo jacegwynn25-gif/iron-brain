@@ -413,6 +413,39 @@ function getFocusSet(exercise: Exercise, activeCell: ActiveCell | null, blockId:
   return exercise.sets.find((set) => !set.completed) ?? exercise.sets[exercise.sets.length - 1] ?? null;
 }
 
+function sortSupersetExercisesBySlot(exercises: Exercise[]): Exercise[] {
+  return [...exercises].sort((a, b) => {
+    const rankA = a.slot === 'A1' ? 0 : a.slot === 'A2' ? 1 : 9;
+    const rankB = b.slot === 'A1' ? 0 : b.slot === 'A2' ? 1 : 9;
+    return rankA - rankB;
+  });
+}
+
+function shouldSkipRestForSupersetTransition(
+  blocks: Block[],
+  context: { blockId: string; exerciseId: string; setId: string }
+): boolean {
+  const block = blocks.find((entry) => entry.id === context.blockId);
+  if (!block || block.type !== 'superset') return false;
+
+  const exercises = sortSupersetExercisesBySlot(block.exercises);
+  const currentExerciseIndex = exercises.findIndex((exercise) => exercise.id === context.exerciseId);
+  if (currentExerciseIndex === -1) return false;
+
+  const currentExercise = exercises[currentExerciseIndex];
+  const currentRoundIndex = currentExercise.sets.findIndex((set) => set.id === context.setId);
+  if (currentRoundIndex === -1) return false;
+
+  for (let index = currentExerciseIndex + 1; index < exercises.length; index += 1) {
+    const nextSet = exercises[index].sets[currentRoundIndex];
+    if (nextSet && !nextSet.completed) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 type SessionLoggerProps = {
   initialData?: ProgramTemplate;
   initialProgress?: ProgramProgress | null;
@@ -509,6 +542,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     setId: string;
     wasLastSet: boolean;
     wasEditing: boolean;
+    supersetRoundRest?: boolean;
     clusterTransition?: boolean;
     clusterRestSeconds?: number;
     nextClusterRound?: number;
@@ -1184,6 +1218,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     const completedRounds = clusterProgressBySetId[focusContext.setId] ?? 0;
     const clusterTotal = cluster?.reps.length ?? 0;
     const hasClusterTransition = !wasEditing && Boolean(cluster && completedRounds + 1 < clusterTotal);
+    const skipRestForSupersetTransition =
+      !wasEditing &&
+      shouldSkipRestForSupersetTransition(session.blocks, {
+        blockId: focusContext.blockId,
+        exerciseId: focusContext.exerciseId,
+        setId: focusContext.setId,
+      });
+    const block = session.blocks.find((entry) => entry.id === focusContext.blockId);
+    const isSupersetRoundRest = !wasEditing && !skipRestForSupersetTransition && block?.type === 'superset';
 
     if (hasClusterTransition && cluster) {
       const nextCompletedRounds = completedRounds + 1;
@@ -1209,6 +1252,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         setId: focusContext.setId,
         wasLastSet: false,
         wasEditing,
+        supersetRoundRest: false,
         clusterTransition: true,
         clusterRestSeconds: cluster.restSeconds,
         nextClusterRound: nextCompletedRounds + 1,
@@ -1217,14 +1261,6 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       setViewMode('rest');
       return;
     }
-
-    setRestContext({
-      blockId: focusContext.blockId,
-      exerciseId: focusContext.exerciseId,
-      setId: focusContext.setId,
-      wasLastSet,
-      wasEditing,
-    });
 
     if (clusterTotal > 0) {
       setClusterProgressBySetId((current) => {
@@ -1238,6 +1274,22 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     if (!wasEditing) {
       toggleComplete(focusContext.blockId, focusContext.exerciseId, focusContext.setId);
     }
+
+    if (skipRestForSupersetTransition) {
+      setRestContext(null);
+      setViewMode('cockpit');
+      return;
+    }
+
+    setRestContext({
+      blockId: focusContext.blockId,
+      exerciseId: focusContext.exerciseId,
+      setId: focusContext.setId,
+      wasLastSet,
+      wasEditing,
+      supersetRoundRest: isSupersetRoundRest,
+    });
+
     setViewMode('rest');
   };
 
@@ -1519,6 +1571,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       return restContext.clusterRestSeconds;
     }
     const block = session.blocks.find((entry) => entry.id === restContext.blockId);
+    if (restContext.supersetRoundRest && block?.type === 'superset' && block.restAfterRoundSeconds) {
+      return block.restAfterRoundSeconds;
+    }
     const exercise = block?.exercises.find((entry) => entry.id === restContext.exerciseId);
     if (!exercise) return DEFAULT_REST_SECONDS;
     return getRestDurationSeconds(exercise);

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -18,7 +20,17 @@ import {
 import { defaultExercises } from '@/app/lib/programs';
 import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import { getProgramProgress } from '@/app/lib/programs/progress';
-import type { CustomExercise, DayTemplate, ProgramTemplate, SetTemplate, WeekTemplate } from '@/app/lib/types';
+import { blocksToProgramSets, setsToProgramBlocks } from '@/app/lib/programs/structure';
+import type {
+  CustomExercise,
+  DayTemplate,
+  ProgramBlockExerciseTemplate,
+  ProgramBlockTemplate,
+  ProgramSupersetSlot,
+  ProgramTemplate,
+  SetTemplate,
+  WeekTemplate,
+} from '@/app/lib/types';
 import { createUuid } from '@/app/lib/uuid';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
@@ -28,10 +40,12 @@ import FancySelect from '@/app/components/ui/FancySelect';
 type ProgramFilter = 'all' | 'mine' | 'built-in';
 type EditorMode = 'create' | 'edit' | null;
 type ExercisePickerTarget =
-  | { mode: 'append' }
-  | { mode: 'replace-set'; setIndex: number }
-  | { mode: 'replace-exercise-card'; setIndexes: number[] }
+  | { mode: 'append-single-block' }
+  | { mode: 'append-superset-block' }
+  | { mode: 'set-superset-slot'; blockIndex: number; slot: ProgramSupersetSlot }
+  | { mode: 'replace-exercise'; blockIndex: number; exerciseIndex: number }
   | null;
+type EditorSetFocus = { blockIndex: number; exerciseIndex: number; setIndex: number } | null;
 type GoalOption = NonNullable<ProgramTemplate['goal']>;
 type IntensityOption = NonNullable<ProgramTemplate['intensityMethod']>;
 type ExperienceOption = NonNullable<ProgramTemplate['experienceLevel']>;
@@ -42,13 +56,6 @@ type PickerExerciseOption = {
   muscleGroups: string[];
   equipment: string[];
   source: 'default' | 'custom' | 'quick';
-};
-type DayExerciseCard = {
-  id: string;
-  exerciseId: string;
-  setIndexes: number[];
-  supersetGroup?: string;
-  setType?: SetTemplate['setType'];
 };
 
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -128,37 +135,211 @@ function cloneSetTemplate(set: SetTemplate): SetTemplate {
   };
 }
 
-function renumberSetIndexes(sets: SetTemplate[]): SetTemplate[] {
-  return sets.map((set, index) => ({ ...set, setIndex: index + 1 }));
+function cloneBlockExerciseTemplate(
+  exercise: ProgramBlockExerciseTemplate
+): ProgramBlockExerciseTemplate {
+  return {
+    ...exercise,
+    sets: (exercise.sets ?? []).map(cloneSetTemplate),
+  };
 }
 
-function buildExerciseCards(sets: SetTemplate[]): DayExerciseCard[] {
-  const cards: DayExerciseCard[] = [];
+function cloneBlockTemplate(block: ProgramBlockTemplate): ProgramBlockTemplate {
+  return {
+    ...block,
+    exercises: (block.exercises ?? []).map(cloneBlockExerciseTemplate),
+  };
+}
 
-  sets.forEach((set, setIndex) => {
-    if (!set.exerciseId) return;
-    const previousCard = cards[cards.length - 1];
-    const shouldMergeWithPrevious =
-      previousCard != null &&
-      previousCard.exerciseId === set.exerciseId &&
-      (previousCard.supersetGroup ?? '') === (set.supersetGroup ?? '') &&
-      (previousCard.setType ?? '') === (set.setType ?? '');
+function cloneBlockTemplates(blocks: ProgramBlockTemplate[]): ProgramBlockTemplate[] {
+  return blocks.map(cloneBlockTemplate);
+}
 
-    if (shouldMergeWithPrevious) {
-      previousCard.setIndexes.push(setIndex);
-      return;
-    }
+function getDayBlocks(day: DayTemplate | null | undefined): ProgramBlockTemplate[] {
+  if (!day) return [];
+  if (Array.isArray(day.blocks)) return day.blocks;
+  if (Array.isArray(day.sets) && day.sets.length > 0) return setsToProgramBlocks(day.sets);
+  return [];
+}
 
-    cards.push({
-      id: `exercise-card-${set.exerciseId}-${setIndex}`,
-      exerciseId: set.exerciseId,
-      setIndexes: [setIndex],
-      supersetGroup: set.supersetGroup,
-      setType: set.setType,
-    });
+function countBlockSets(blocks: ProgramBlockTemplate[]): number {
+  return blocks.reduce((blockCount, block) => {
+    return (
+      blockCount +
+      block.exercises.reduce((exerciseCount, exercise) => exerciseCount + (exercise.sets?.length ?? 0), 0)
+    );
+  }, 0);
+}
+
+function countDaySets(day: DayTemplate): number {
+  const blocks = getDayBlocks(day);
+  if (blocks.length > 0) return countBlockSets(blocks);
+  return day.sets.length;
+}
+
+function countDayExercises(day: DayTemplate): number {
+  const blocks = getDayBlocks(day);
+  if (blocks.length > 0) {
+    return blocks.reduce((count, block) => count + block.exercises.length, 0);
+  }
+  return new Set(day.sets.map((set) => set.exerciseId).filter(Boolean)).size;
+}
+
+function createDefaultSetTemplate(
+  exerciseId: string,
+  setIndex: number,
+  blockType: ProgramBlockTemplate['type'],
+  supersetGroup?: string
+): SetTemplate {
+  return {
+    exerciseId,
+    setIndex,
+    prescribedReps: '8',
+    prescriptionMethod: 'rpe',
+    targetRPE: 8,
+    restSeconds: 120,
+    setType: blockType === 'superset' ? 'superset' : 'straight',
+    supersetGroup: blockType === 'superset' ? supersetGroup : undefined,
+  };
+}
+
+function createBlockId(type: ProgramBlockTemplate['type']): string {
+  return `block_${type}_${createUuid().slice(0, 8)}`;
+}
+
+function createBlockExerciseId(blockId: string, slotOrIndex: ProgramSupersetSlot | number): string {
+  if (typeof slotOrIndex === 'number') return `${blockId}_exercise_${slotOrIndex + 1}`;
+  return `${blockId}_${slotOrIndex.toLowerCase()}`;
+}
+
+function createSingleBlock(exerciseId: string): ProgramBlockTemplate {
+  const blockId = createBlockId('single');
+  return {
+    id: blockId,
+    type: 'single',
+    exercises: [
+      {
+        id: createBlockExerciseId(blockId, 0),
+        exerciseId,
+        sets: [createDefaultSetTemplate(exerciseId, 1, 'single')],
+      },
+    ],
+  };
+}
+
+function createSupersetBlock(exerciseId: string): ProgramBlockTemplate {
+  const blockId = createBlockId('superset');
+  return {
+    id: blockId,
+    type: 'superset',
+    rounds: 1,
+    exercises: [
+      {
+        id: createBlockExerciseId(blockId, 'A1'),
+        exerciseId,
+        slot: 'A1',
+        sets: [createDefaultSetTemplate(exerciseId, 1, 'superset', blockId)],
+      },
+    ],
+  };
+}
+
+function normalizeSlotOrder(
+  exercises: ProgramBlockExerciseTemplate[]
+): ProgramBlockExerciseTemplate[] {
+  const slotRank: Record<ProgramSupersetSlot, number> = { A1: 0, A2: 1 };
+  return [...exercises].sort((a, b) => {
+    const rankA = a.slot ? slotRank[a.slot] : 9;
+    const rankB = b.slot ? slotRank[b.slot] : 9;
+    return rankA - rankB;
   });
+}
 
-  return cards;
+function sanitizeProgramBlocks(blocks: ProgramBlockTemplate[]): ProgramBlockTemplate[] {
+  return blocks
+    .map<ProgramBlockTemplate | null>((block, blockIndex) => {
+      const blockType: ProgramBlockTemplate['type'] = block.type === 'superset' ? 'superset' : 'single';
+      const blockId = block.id?.trim() || `${createBlockId(blockType)}_${blockIndex + 1}`;
+      const sourceExercises = (block.exercises ?? [])
+        .map(cloneBlockExerciseTemplate)
+        .filter((exercise) => exercise.exerciseId?.trim().length > 0);
+
+      const sortedExercises =
+        blockType === 'superset'
+          ? normalizeSlotOrder(sourceExercises).slice(0, 2)
+          : sourceExercises.slice(0, 1);
+
+      const normalizedExercises = sortedExercises
+        .map<ProgramBlockExerciseTemplate | null>((exercise, exerciseIndex) => {
+          const exerciseId = exercise.exerciseId.trim();
+          const slot: ProgramSupersetSlot | undefined =
+            blockType === 'superset'
+              ? (exercise.slot === 'A2' ? 'A2' : exerciseIndex === 0 ? 'A1' : 'A2')
+              : undefined;
+
+          const normalizedSets = (exercise.sets ?? [])
+            .map(cloneSetTemplate)
+            .map((set) => ({
+              ...set,
+              exerciseId,
+              prescribedReps: set.prescribedReps?.trim() ?? '',
+            }))
+            .filter((set) => Boolean(set.exerciseId) && Boolean(set.prescribedReps))
+            .map((set, setIndex) => {
+              const normalizedSetType: SetTemplate['setType'] =
+                blockType === 'superset'
+                  ? 'superset'
+                  : set.setType === 'superset'
+                    ? 'straight'
+                    : set.setType;
+              return {
+                ...set,
+                setIndex: setIndex + 1,
+                setType: normalizedSetType,
+                supersetGroup: blockType === 'superset' ? set.supersetGroup ?? blockId : undefined,
+              };
+            });
+
+          if (normalizedSets.length === 0) return null;
+
+          return {
+            ...exercise,
+            id: exercise.id?.trim() || createBlockExerciseId(blockId, slot ?? exerciseIndex),
+            exerciseId,
+            slot,
+            notes: exercise.notes?.trim() || undefined,
+            sets: normalizedSets,
+          };
+        })
+        .filter((exercise): exercise is ProgramBlockExerciseTemplate => exercise !== null);
+
+      if (normalizedExercises.length === 0) return null;
+
+      const inferredRounds = normalizedExercises.reduce(
+        (max, exercise) => Math.max(max, exercise.sets.length),
+        1
+      );
+
+      return {
+        id: blockId,
+        type: blockType,
+        notes: block.notes?.trim() || undefined,
+        rounds:
+          blockType === 'superset'
+            ? Math.max(1, Math.round(block.rounds ?? inferredRounds))
+            : undefined,
+        transitionSeconds:
+          block.transitionSeconds != null && Number.isFinite(block.transitionSeconds)
+            ? Math.max(0, Math.round(block.transitionSeconds))
+            : undefined,
+        restAfterRoundSeconds:
+          block.restAfterRoundSeconds != null && Number.isFinite(block.restAfterRoundSeconds)
+            ? Math.max(0, Math.round(block.restAfterRoundSeconds))
+            : undefined,
+        exercises: normalizedExercises,
+      };
+    })
+    .filter((block): block is ProgramBlockTemplate => Boolean(block));
 }
 
 function matchesExerciseSearch(exercise: PickerExerciseOption, query: string): boolean {
@@ -213,6 +394,7 @@ function createDayTemplate(dayOfWeek: DayTemplate['dayOfWeek'], index: number): 
     dayOfWeek,
     name: `Session ${index + 1}`,
     sets: [],
+    blocks: [],
   };
 }
 
@@ -253,10 +435,12 @@ function resizeProgramStructure(program: ProgramTemplate, weekCount: number, day
 
     const nextDays: DayTemplate[] = DAYS.slice(0, safeDays).map((dayOfWeek, dayIndex) => {
       const sourceDay = sourceDays[dayIndex];
+      const sourceBlocks = sourceDay ? getDayBlocks(sourceDay) : [];
       return {
         dayOfWeek,
         name: sourceDay?.name?.trim() || `Session ${dayIndex + 1}`,
-        sets: sourceDay?.sets ? sourceDay.sets.map((set) => ({ ...set })) : [],
+        sets: sourceDay?.sets ? sourceDay.sets.map(cloneSetTemplate) : [],
+        blocks: cloneBlockTemplates(sourceBlocks),
       };
     });
 
@@ -288,29 +472,29 @@ function normalizeProgramForSave(program: ProgramTemplate): ProgramTemplate {
 
   const cleanedWeeks = normalized.weeks.map((week, weekIndex) => ({
     weekNumber: weekIndex + 1,
-    days: week.days.map((day, dayIndex) => ({
-      dayOfWeek: DAYS[dayIndex] ?? day.dayOfWeek,
-      name: day.name?.trim() || `Session ${dayIndex + 1}`,
-      sets: day.sets
-        .filter((set) => set.exerciseId && set.prescribedReps)
-        .map((set, setIndex) => ({
-          ...set,
-          exerciseId: set.exerciseId.trim(),
-          prescribedReps: set.prescribedReps.trim(),
-          setIndex: setIndex + 1,
-        })),
-    })),
+    days: week.days.map((day, dayIndex) => {
+      const sourceBlocks = getDayBlocks(day);
+      const sanitizedBlocks = sanitizeProgramBlocks(sourceBlocks);
+      const derivedSets = blocksToProgramSets(cloneBlockTemplates(sanitizedBlocks));
+      return {
+        dayOfWeek: DAYS[dayIndex] ?? day.dayOfWeek,
+        name: day.name?.trim() || `Session ${dayIndex + 1}`,
+        sets: derivedSets,
+        blocks: sanitizedBlocks,
+      };
+    }),
   }));
 
   return {
     ...normalized,
+    schemaVersion: 2,
     weeks: cleanedWeeks,
   };
 }
 
 function getProgramSetCount(program: ProgramTemplate): number {
   return program.weeks.reduce((weekAcc, week) => {
-    return weekAcc + week.days.reduce((dayAcc, day) => dayAcc + day.sets.length, 0);
+    return weekAcc + week.days.reduce((dayAcc, day) => dayAcc + countDaySets(day), 0);
   }, 0);
 }
 
@@ -389,7 +573,7 @@ export default function ProgramsPage() {
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [quickCustomExerciseNames, setQuickCustomExerciseNames] = useState<Record<string, string>>({});
-  const [editorFocusSetIndex, setEditorFocusSetIndex] = useState<number | null>(null);
+  const [editorSetFocus, setEditorSetFocus] = useState<EditorSetFocus>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
   const [weekCountInput, setWeekCountInput] = useState('');
@@ -494,11 +678,8 @@ export default function ProgramsPage() {
   const activeProgram = selectedProgram ?? null;
   const currentWeek = draft?.weeks[activeWeekIndex] ?? null;
   const currentDay = currentWeek?.days[activeDayIndex] ?? null;
-  const currentDayExerciseCards = useMemo(
-    () => buildExerciseCards(currentDay?.sets ?? []),
-    [currentDay?.sets]
-  );
-  const hasEditorSetFocus = editorFocusSetIndex !== null;
+  const currentDayBlocks = useMemo(() => getDayBlocks(currentDay), [currentDay]);
+  const hasEditorSetFocus = editorSetFocus != null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
   const hasProgramBuilderOverlay = Boolean(editorMode || editorJumpPicker || exercisePickerOpen);
@@ -535,8 +716,13 @@ export default function ProgramsPage() {
   }, [exerciseQuery, pickerExercises]);
 
   const currentSessionExerciseCount = useMemo(() => {
-    return currentDayExerciseCards.length;
-  }, [currentDayExerciseCards.length]);
+    if (!currentDay) return 0;
+    return countDayExercises(currentDay);
+  }, [currentDay]);
+  const currentSessionSetCount = useMemo(() => {
+    if (!currentDay) return 0;
+    return countDaySets(currentDay);
+  }, [currentDay]);
 
   const openCreateEditor = () => {
     setDraft(createBlankProgram());
@@ -547,7 +733,7 @@ export default function ProgramsPage() {
     setDetailsProgramId(null);
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
   };
@@ -569,7 +755,7 @@ export default function ProgramsPage() {
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
     setDetailsProgramId(null);
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
   };
@@ -584,7 +770,7 @@ export default function ProgramsPage() {
     setExercisePickerTarget(null);
     setExerciseQuery('');
     setQuickCustomExerciseNames({});
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
   };
@@ -596,14 +782,14 @@ export default function ProgramsPage() {
   const updateDraftWeekCount = (nextWeekCount: number) => {
     updateDraft((current) => resizeProgramStructure(current, nextWeekCount, current.daysPerWeek ?? 4));
     setActiveWeekIndex((currentIndex) => Math.max(0, Math.min(nextWeekCount - 1, currentIndex)));
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorJumpPicker(null);
   };
 
   const updateDraftDaysPerWeek = (nextDaysPerWeek: number) => {
     updateDraft((current) => resizeProgramStructure(current, current.weekCount ?? current.weeks.length, nextDaysPerWeek));
     setActiveDayIndex((currentIndex) => Math.max(0, Math.min(nextDaysPerWeek - 1, currentIndex)));
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorJumpPicker(null);
   };
 
@@ -614,7 +800,7 @@ export default function ProgramsPage() {
     const nextDayLimit = Math.max(0, (nextWeek?.days.length ?? 1) - 1);
     setActiveWeekIndex(clampedWeek);
     setActiveDayIndex((current) => Math.max(0, Math.min(nextDayLimit, current)));
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorJumpPicker(null);
   };
 
@@ -622,7 +808,7 @@ export default function ProgramsPage() {
     if (!currentWeek) return;
     const clampedDay = Math.max(0, Math.min(currentWeek.days.length - 1, index));
     setActiveDayIndex(clampedDay);
-    setEditorFocusSetIndex(null);
+    setEditorSetFocus(null);
     setEditorJumpPicker(null);
   };
 
@@ -657,93 +843,231 @@ export default function ProgramsPage() {
     });
   };
 
-  const handleSetTemplateUpdate = (setIndex: number, updater: (set: SetTemplate) => SetTemplate) => {
-    updateCurrentDay((day) => ({
-      ...day,
-      sets: day.sets.map((set, index) => {
-        if (index !== setIndex) return set;
-        return updater(set);
-      }),
-    }));
-  };
-
-  const handleAddExerciseRow = () => {
-    if (!currentDay) return;
-    openExercisePicker({ mode: 'append' });
-  };
-
-  const handleAddSetToExerciseCard = (cardLastSetIndex: number) => {
-    let nextFocusIndex: number | null = null;
+  const updateCurrentDayBlocks = (updater: (blocks: ProgramBlockTemplate[]) => ProgramBlockTemplate[]) => {
     updateCurrentDay((day) => {
-      const previousSet = day.sets[cardLastSetIndex];
-      if (!previousSet) return day;
-
-      const duplicated = cloneSetTemplate(previousSet);
-      const insertionIndex = cardLastSetIndex + 1;
-      nextFocusIndex = insertionIndex;
-      const nextSets = [...day.sets];
-      nextSets.splice(insertionIndex, 0, {
-        ...duplicated,
-        setIndex: insertionIndex + 1,
-      });
-
-      return { ...day, sets: renumberSetIndexes(nextSets) };
-    });
-    if (nextFocusIndex != null) {
-      setEditorFocusSetIndex(nextFocusIndex);
-    }
-  };
-
-  const handleDuplicateSetRow = (setIndex: number) => {
-    let nextFocusIndex: number | null = null;
-    updateCurrentDay((day) => {
-      const sourceSet = day.sets[setIndex];
-      if (!sourceSet) return day;
-      const duplicated = cloneSetTemplate(sourceSet);
-      const insertionIndex = setIndex + 1;
-      nextFocusIndex = insertionIndex;
-      const nextSets = [...day.sets];
-      nextSets.splice(insertionIndex, 0, { ...duplicated, setIndex: insertionIndex + 1 });
-
+      const nextBlocks = updater(cloneBlockTemplates(getDayBlocks(day)));
       return {
         ...day,
-        sets: nextSets.map((set, index) => ({ ...set, setIndex: index + 1 })),
+        blocks: nextBlocks,
       };
     });
-    if (nextFocusIndex != null) {
-      setEditorFocusSetIndex(nextFocusIndex);
-    }
   };
 
-  const handleRemoveSetRow = (setIndex: number) => {
-    setEditorFocusSetIndex((currentFocus) => {
-      if (currentFocus == null) return null;
-      if (currentFocus === setIndex) return null;
-      if (currentFocus > setIndex) return currentFocus - 1;
-      return currentFocus;
+  const handleSetTemplateUpdate = (
+    blockIndex: number,
+    exerciseIndex: number,
+    setIndex: number,
+    updater: (set: SetTemplate) => SetTemplate
+  ) => {
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      const exercise = block?.exercises[exerciseIndex];
+      const sourceSet = exercise?.sets?.[setIndex];
+      if (!block || !exercise || !sourceSet) return blocks;
+
+      exercise.sets = exercise.sets.map((set, index) => {
+        if (index !== setIndex) return set;
+        const updated = updater(set);
+        return {
+          ...updated,
+          exerciseId: exercise.exerciseId,
+          setIndex: index + 1,
+          setType: block.type === 'superset' ? 'superset' : updated.setType,
+          supersetGroup: block.type === 'superset' ? updated.supersetGroup ?? block.id : undefined,
+        };
+      });
+
+      return blocks;
     });
-    updateCurrentDay((day) => ({
-      ...day,
-      sets: renumberSetIndexes(day.sets.filter((_, index) => index !== setIndex)),
-    }));
   };
 
-  const handleRemoveExerciseCard = (setIndexes: number[]) => {
-    if (setIndexes.length === 0) return;
-    const sorted = [...setIndexes].sort((a, b) => a - b);
-    const removeIndexSet = new Set(sorted);
+  const handleAddSingleBlock = () => {
+    openExercisePicker({ mode: 'append-single-block' });
+  };
 
-    setEditorFocusSetIndex((currentFocus) => {
-      if (currentFocus == null) return null;
-      if (removeIndexSet.has(currentFocus)) return null;
-      const removedBeforeFocus = sorted.reduce((count, index) => (index < currentFocus ? count + 1 : count), 0);
-      return currentFocus - removedBeforeFocus;
+  const handleAddSupersetBlock = () => {
+    openExercisePicker({ mode: 'append-superset-block' });
+  };
+
+  const handleMoveBlock = (blockIndex: number, direction: -1 | 1) => {
+    const targetIndex = blockIndex + direction;
+    if (targetIndex < 0 || targetIndex >= currentDayBlocks.length) return;
+
+    updateCurrentDayBlocks((blocks) => {
+      const next = [...blocks];
+      const [moved] = next.splice(blockIndex, 1);
+      if (!moved) return blocks;
+      next.splice(targetIndex, 0, moved);
+      return next;
     });
 
-    updateCurrentDay((day) => ({
-      ...day,
-      sets: renumberSetIndexes(day.sets.filter((_, index) => !removeIndexSet.has(index))),
-    }));
+    setEditorSetFocus((current) => {
+      if (!current) return null;
+      if (current.blockIndex === blockIndex) {
+        return { ...current, blockIndex: targetIndex };
+      }
+      if (direction === -1 && current.blockIndex >= targetIndex && current.blockIndex < blockIndex) {
+        return { ...current, blockIndex: current.blockIndex + 1 };
+      }
+      if (direction === 1 && current.blockIndex <= targetIndex && current.blockIndex > blockIndex) {
+        return { ...current, blockIndex: current.blockIndex - 1 };
+      }
+      return current;
+    });
+  };
+
+  const handleRemoveBlock = (blockIndex: number) => {
+    updateCurrentDayBlocks((blocks) => blocks.filter((_, index) => index !== blockIndex));
+    setEditorSetFocus((current) => {
+      if (!current) return null;
+      if (current.blockIndex === blockIndex) return null;
+      if (current.blockIndex > blockIndex) {
+        return { ...current, blockIndex: current.blockIndex - 1 };
+      }
+      return current;
+    });
+  };
+
+  const handleUpdateSupersetMetadata = (
+    blockIndex: number,
+    updates: Partial<Pick<ProgramBlockTemplate, 'rounds' | 'restAfterRoundSeconds' | 'transitionSeconds'>>
+  ) => {
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      if (!block || block.type !== 'superset') return blocks;
+      block.rounds =
+        updates.rounds == null || !Number.isFinite(updates.rounds)
+          ? block.rounds
+          : Math.max(1, Math.round(updates.rounds));
+      block.restAfterRoundSeconds =
+        updates.restAfterRoundSeconds == null || !Number.isFinite(updates.restAfterRoundSeconds)
+          ? undefined
+          : Math.max(0, Math.round(updates.restAfterRoundSeconds));
+      block.transitionSeconds =
+        updates.transitionSeconds == null || !Number.isFinite(updates.transitionSeconds)
+          ? undefined
+          : Math.max(0, Math.round(updates.transitionSeconds));
+      return blocks;
+    });
+  };
+
+  const handleReplaceExercise = (blockIndex: number, exerciseIndex: number) => {
+    openExercisePicker({ mode: 'replace-exercise', blockIndex, exerciseIndex });
+  };
+
+  const handleSetSupersetSlotExercise = (blockIndex: number, slot: ProgramSupersetSlot) => {
+    openExercisePicker({ mode: 'set-superset-slot', blockIndex, slot });
+  };
+
+  const handleRemoveExercise = (blockIndex: number, exerciseIndex: number) => {
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      if (!block) return blocks;
+
+      if (block.type === 'single') {
+        blocks.splice(blockIndex, 1);
+        return blocks;
+      }
+
+      const remaining = block.exercises.filter((_, index) => index !== exerciseIndex);
+      block.exercises = normalizeSlotOrder(remaining).map((exercise, index) => ({
+        ...exercise,
+        slot: index === 0 ? 'A1' : 'A2',
+        sets: exercise.sets.map((set, setIndex) => ({
+          ...set,
+          exerciseId: exercise.exerciseId,
+          setIndex: setIndex + 1,
+          setType: 'superset',
+          supersetGroup: block.id,
+        })),
+      }));
+
+      if (block.exercises.length === 0) {
+        blocks.splice(blockIndex, 1);
+      }
+
+      return blocks;
+    });
+    setEditorSetFocus(null);
+  };
+
+  const handleAddSetToExercise = (blockIndex: number, exerciseIndex: number) => {
+    let nextFocus: EditorSetFocus = null;
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      const exercise = block?.exercises[exerciseIndex];
+      if (!block || !exercise) return blocks;
+      const previous = exercise.sets[exercise.sets.length - 1];
+      const nextSet =
+        previous != null
+          ? {
+              ...cloneSetTemplate(previous),
+              setIndex: exercise.sets.length + 1,
+              exerciseId: exercise.exerciseId,
+              setType: block.type === 'superset' ? 'superset' : previous.setType,
+              supersetGroup: block.type === 'superset' ? block.id : undefined,
+            }
+          : createDefaultSetTemplate(
+              exercise.exerciseId,
+              1,
+              block.type,
+              block.type === 'superset' ? block.id : undefined
+            );
+      exercise.sets = [...exercise.sets, nextSet];
+      nextFocus = { blockIndex, exerciseIndex, setIndex: exercise.sets.length - 1 };
+      return blocks;
+    });
+    setEditorSetFocus(nextFocus);
+  };
+
+  const handleDuplicateSetRow = (blockIndex: number, exerciseIndex: number, setIndex: number) => {
+    let nextFocus: EditorSetFocus = null;
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      const exercise = block?.exercises[exerciseIndex];
+      const sourceSet = exercise?.sets[setIndex];
+      if (!block || !exercise || !sourceSet) return blocks;
+
+      const duplicated = cloneSetTemplate(sourceSet);
+      const insertionIndex = setIndex + 1;
+      const nextSets = [...exercise.sets];
+      nextSets.splice(insertionIndex, 0, {
+        ...duplicated,
+        exerciseId: exercise.exerciseId,
+        setIndex: insertionIndex + 1,
+        setType: block.type === 'superset' ? 'superset' : duplicated.setType,
+        supersetGroup: block.type === 'superset' ? block.id : undefined,
+      });
+      exercise.sets = nextSets.map((set, index) => ({ ...set, setIndex: index + 1 }));
+      nextFocus = { blockIndex, exerciseIndex, setIndex: insertionIndex };
+      return blocks;
+    });
+    setEditorSetFocus(nextFocus);
+  };
+
+  const handleRemoveSetRow = (blockIndex: number, exerciseIndex: number, setIndex: number) => {
+    updateCurrentDayBlocks((blocks) => {
+      const block = blocks[blockIndex];
+      const exercise = block?.exercises[exerciseIndex];
+      if (!block || !exercise || exercise.sets.length <= 1) return blocks;
+      exercise.sets = exercise.sets
+        .filter((_, index) => index !== setIndex)
+        .map((set, index) => ({
+          ...set,
+          setIndex: index + 1,
+          exerciseId: exercise.exerciseId,
+          setType: block.type === 'superset' ? 'superset' : set.setType,
+          supersetGroup: block.type === 'superset' ? block.id : undefined,
+        }));
+      return blocks;
+    });
+    setEditorSetFocus((current) => {
+      if (!current) return null;
+      if (current.blockIndex !== blockIndex || current.exerciseIndex !== exerciseIndex) return current;
+      if (current.setIndex === setIndex) return null;
+      if (current.setIndex > setIndex) return { ...current, setIndex: current.setIndex - 1 };
+      return current;
+    });
   };
 
   const openExercisePicker = (target: ExercisePickerTarget) => {
@@ -754,37 +1078,86 @@ export default function ProgramsPage() {
 
   const applyPickedExercise = (exerciseId: string) => {
     if (!exercisePickerTarget) return;
-    if (exercisePickerTarget.mode === 'append') {
-      let nextFocusIndex: number | null = null;
-      updateCurrentDay((day) => {
-        nextFocusIndex = day.sets.length;
-        const newSet: SetTemplate = {
-          exerciseId,
-          setIndex: day.sets.length + 1,
-          prescribedReps: '8',
-          prescriptionMethod: 'rpe',
-          targetRPE: 8,
-          restSeconds: 120,
-        };
-        return { ...day, sets: [...day.sets, newSet] };
-      });
-      if (nextFocusIndex != null) {
-        setEditorFocusSetIndex(nextFocusIndex);
+    let nextFocus: EditorSetFocus = null;
+    updateCurrentDayBlocks((blocks) => {
+      if (exercisePickerTarget.mode === 'append-single-block') {
+        blocks.push(createSingleBlock(exerciseId));
+        nextFocus = { blockIndex: blocks.length - 1, exerciseIndex: 0, setIndex: 0 };
+        return blocks;
       }
-    } else if (exercisePickerTarget.mode === 'replace-set') {
-      handleSetTemplateUpdate(exercisePickerTarget.setIndex, (set) => ({ ...set, exerciseId }));
-      setEditorFocusSetIndex(exercisePickerTarget.setIndex);
-    } else {
-      const replaceIndexes = new Set(exercisePickerTarget.setIndexes);
-      updateCurrentDay((day) => ({
-        ...day,
-        sets: day.sets.map((set, index) => {
-          if (!replaceIndexes.has(index)) return set;
-          return { ...set, exerciseId };
-        }),
+
+      if (exercisePickerTarget.mode === 'append-superset-block') {
+        blocks.push(createSupersetBlock(exerciseId));
+        nextFocus = { blockIndex: blocks.length - 1, exerciseIndex: 0, setIndex: 0 };
+        return blocks;
+      }
+
+      if (exercisePickerTarget.mode === 'set-superset-slot') {
+        const block = blocks[exercisePickerTarget.blockIndex];
+        if (!block || block.type !== 'superset') return blocks;
+        const slot = exercisePickerTarget.slot;
+        const sorted = normalizeSlotOrder(block.exercises);
+        const existingIndex = sorted.findIndex((exercise) => exercise.slot === slot);
+        const rounds = Math.max(
+          1,
+          block.rounds ?? sorted.reduce((max, exercise) => Math.max(max, exercise.sets.length), 1)
+        );
+        const sets = Array.from({ length: rounds }, (_, index) =>
+          createDefaultSetTemplate(exerciseId, index + 1, 'superset', block.id)
+        );
+        const nextExercise: ProgramBlockExerciseTemplate = {
+          id: createBlockExerciseId(block.id, slot),
+          exerciseId,
+          slot,
+          sets,
+        };
+        if (existingIndex === -1) {
+          sorted.push(nextExercise);
+        } else {
+          sorted[existingIndex] = nextExercise;
+        }
+        block.exercises = normalizeSlotOrder(sorted)
+          .slice(0, 2)
+          .map((exercise, index) => ({
+            ...exercise,
+            slot: index === 0 ? 'A1' : 'A2',
+            sets: exercise.sets.map((set, setIndex) => ({
+              ...set,
+              exerciseId: exercise.exerciseId,
+              setIndex: setIndex + 1,
+              setType: 'superset',
+              supersetGroup: block.id,
+            })),
+          }));
+        const exerciseIndex = block.exercises.findIndex((exercise) => exercise.exerciseId === exerciseId);
+        nextFocus = {
+          blockIndex: exercisePickerTarget.blockIndex,
+          exerciseIndex: Math.max(0, exerciseIndex),
+          setIndex: 0,
+        };
+        return blocks;
+      }
+
+      const block = blocks[exercisePickerTarget.blockIndex];
+      const exercise = block?.exercises[exercisePickerTarget.exerciseIndex];
+      if (!block || !exercise) return blocks;
+
+      exercise.exerciseId = exerciseId;
+      exercise.sets = exercise.sets.map((set, index) => ({
+        ...set,
+        exerciseId,
+        setIndex: index + 1,
+        setType: block.type === 'superset' ? 'superset' : set.setType,
+        supersetGroup: block.type === 'superset' ? block.id : undefined,
       }));
-      setEditorFocusSetIndex(exercisePickerTarget.setIndexes[0] ?? null);
-    }
+      nextFocus = {
+        blockIndex: exercisePickerTarget.blockIndex,
+        exerciseIndex: exercisePickerTarget.exerciseIndex,
+        setIndex: 0,
+      };
+      return blocks;
+    });
+    setEditorSetFocus(nextFocus);
 
     setExercisePickerOpen(false);
     setExercisePickerTarget(null);
@@ -869,6 +1242,333 @@ export default function ProgramsPage() {
     const confirmed = window.confirm(`Delete "${program.name}"?`);
     if (!confirmed) return;
     await deleteProgram(program.id);
+  };
+
+  const renderExerciseEditor = (
+    block: ProgramBlockTemplate,
+    blockIndex: number,
+    exercise: ProgramBlockExerciseTemplate,
+    exerciseIndex: number,
+    slotLabel?: ProgramSupersetSlot
+  ) => {
+    const exerciseLabel = exerciseNameById.get(exercise.exerciseId) ?? humanizeExerciseId(exercise.exerciseId);
+    const hasFocusedSet =
+      hasEditorSetFocus &&
+      editorSetFocus?.blockIndex === blockIndex &&
+      editorSetFocus.exerciseIndex === exerciseIndex;
+
+    return (
+      <article
+        key={`${block.id}-${exercise.id}-${slotLabel ?? 'single'}`}
+        className={`rounded-2xl border border-zinc-900/90 bg-zinc-900/25 p-3 ${
+          hasFocusedSet ? 'border-cyan-400/30' : ''
+        }`}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => handleReplaceExercise(blockIndex, exerciseIndex)}
+              className="truncate text-left text-sm font-bold text-zinc-100"
+            >
+              {exerciseLabel}
+            </button>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+              {slotLabel ? `${slotLabel} • ` : ''}{exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+              className="inline-flex h-8 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+            >
+              Add Set
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRemoveExercise(blockIndex, exerciseIndex)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+              aria-label={`Remove ${exerciseLabel}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {exercise.sets.map((set, setIndex) => {
+            const isFocusedRow =
+              editorSetFocus?.blockIndex === blockIndex &&
+              editorSetFocus.exerciseIndex === exerciseIndex &&
+              editorSetFocus.setIndex === setIndex;
+
+            return (
+              <div
+                key={`${exercise.id}-set-${setIndex}`}
+                className={`border-b border-zinc-900/80 pb-2 last:border-b-0 transition-all duration-200 ${
+                  isFocusedRow ? 'border-cyan-400/25' : ''
+                } ${hasEditorSetFocus && !isFocusedRow ? 'opacity-40 blur-[1px] saturate-50' : ''}`}
+              >
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
+                    Set {setIndex + 1} • {getSetSummaryLine(set)}
+                  </p>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditorSetFocus((current) => {
+                          if (
+                            current?.blockIndex === blockIndex &&
+                            current.exerciseIndex === exerciseIndex &&
+                            current.setIndex === setIndex
+                          ) {
+                            return null;
+                          }
+                          return { blockIndex, exerciseIndex, setIndex };
+                        })
+                      }
+                      className={`inline-flex h-7 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                        isFocusedRow
+                          ? 'bg-cyan-500/10 text-cyan-300'
+                          : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
+                      }`}
+                    >
+                      {isFocusedRow ? 'Done' : 'Edit'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
+                      className="inline-flex h-7 items-center rounded-full px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+                      aria-label={`Duplicate set ${setIndex + 1}`}
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                      aria-label={`Remove set ${setIndex + 1}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {isFocusedRow && (
+                  <div
+                    className={`grid gap-2 ${
+                      editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
+                    }`}
+                  >
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Reps
+                      </label>
+                      <input
+                        value={set.prescribedReps}
+                        onChange={(event) =>
+                          handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                            ...current,
+                            prescribedReps: event.target.value,
+                          }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Rest (s)
+                      </label>
+                      <EditableNumberInput
+                        min={0}
+                        step={15}
+                        value={set.restSeconds ?? 120}
+                        defaultValue={120}
+                        onCommit={(value) =>
+                          handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                            ...current,
+                            restSeconds: value == null ? undefined : value,
+                          }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                      />
+                    </div>
+
+                    {editorDetailMode === 'advanced' && (
+                      <>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Method
+                          </label>
+                          <FancySelect
+                            value={set.prescriptionMethod ?? 'rpe'}
+                            options={PRESCRIPTION_OPTIONS.map((method) => ({
+                              value: method,
+                              label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
+                            }))}
+                            onChange={(value) =>
+                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                ...current,
+                                prescriptionMethod: value as SetTemplate['prescriptionMethod'],
+                              }))
+                            }
+                            ariaLabel="Prescription method"
+                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            listClassName="max-h-56 overflow-y-auto"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            {getTargetLabel(set.prescriptionMethod)}
+                          </label>
+                          <input
+                            value={getRpeOrRirValue(set)}
+                            onChange={(event) => {
+                              const raw = event.target.value.trim();
+                              const value = raw === '' ? null : Number(raw);
+                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
+                                const base = {
+                                  ...current,
+                                  targetRPE: null,
+                                  targetRIR: null,
+                                  targetPercentage: null,
+                                  fixedWeight: null,
+                                  targetSeconds: null,
+                                };
+                                if (value == null || Number.isNaN(value)) return base;
+                                if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
+                                if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
+                                if (
+                                  current.prescriptionMethod === 'percentage_1rm' ||
+                                  current.prescriptionMethod === 'percentage_tm'
+                                ) {
+                                  return { ...base, targetPercentage: value };
+                                }
+                                if (current.prescriptionMethod === 'fixed_weight') {
+                                  return { ...base, fixedWeight: value };
+                                }
+                                if (current.prescriptionMethod === 'time_based') {
+                                  return { ...base, targetSeconds: value };
+                                }
+                                return base;
+                              });
+                            }}
+                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          />
+                        </div>
+
+                        {block.type === 'single' && (
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              Set Style
+                            </label>
+                            <FancySelect
+                              value={set.setType ?? 'straight'}
+                              options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
+                                value: setTypeOption,
+                                label: formatTokenLabel(setTypeOption),
+                              }))}
+                              onChange={(value) =>
+                                handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                  ...current,
+                                  setType: value as SetTemplate['setType'],
+                                  supersetGroup:
+                                    value === 'superset' ? current.supersetGroup ?? block.id : current.supersetGroup,
+                                }))
+                              }
+                              ariaLabel="Set style"
+                              buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                              listClassName="max-h-56 overflow-y-auto"
+                            />
+                          </div>
+                        )}
+
+                        {block.type === 'superset' && (
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              Block Mode
+                            </label>
+                            <div className="mt-1 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-200">
+                              Superset {slotLabel ?? ''}
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Tempo
+                          </label>
+                          <input
+                            value={set.tempo ?? ''}
+                            onChange={(event) =>
+                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                ...current,
+                                tempo: event.target.value.trim() || undefined,
+                              }))
+                            }
+                            placeholder="3-1-1-0"
+                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          />
+                        </div>
+
+                        {set.setType === 'cluster' && block.type === 'single' && (
+                          <>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                Cluster Reps
+                              </label>
+                              <input
+                                value={set.clusterReps?.join(',') ?? ''}
+                                onChange={(event) =>
+                                  handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
+                                    const parsed = event.target.value
+                                      .split(',')
+                                      .map((entry) => Number(entry.trim()))
+                                      .filter((entry) => Number.isFinite(entry) && entry > 0);
+                                    return {
+                                      ...current,
+                                      clusterReps: parsed.length > 0 ? parsed : undefined,
+                                    };
+                                  })
+                                }
+                                placeholder="2,2,2"
+                                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                Cluster Rest (s)
+                              </label>
+                              <EditableNumberInput
+                                min={5}
+                                step={5}
+                                value={set.clusterRestSeconds ?? 20}
+                                defaultValue={20}
+                                onCommit={(value) =>
+                                  handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                    ...current,
+                                    clusterRestSeconds: value == null ? undefined : value,
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </article>
+    );
   };
 
   return (
@@ -1391,24 +2091,32 @@ export default function ProgramsPage() {
                               {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
                             </span>
                             <span className="rounded-full border border-zinc-800 px-2.5 py-1">
-                              {currentDay.sets.length} {currentDay.sets.length === 1 ? 'set' : 'sets'}
+                              {currentSessionSetCount} {currentSessionSetCount === 1 ? 'set' : 'sets'}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={handleAddExerciseRow}
+                              onClick={handleAddSingleBlock}
                               className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/15"
                             >
                               <CirclePlus className="h-3.5 w-3.5" />
-                              Add Exercise
+                              Add Single
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSupersetBlock}
+                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300 transition-colors hover:border-violet-500/60 hover:bg-violet-500/15"
+                            >
+                              <CirclePlus className="h-3.5 w-3.5" />
+                              Add Superset
                             </button>
                           </div>
                         </div>
 
                         <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                          Each exercise groups its sets so planning stays clean.
+                          Build this session as ordered blocks. Superset blocks run A1, then A2, then round rest.
                         </p>
                       </div>
 
@@ -1440,7 +2148,7 @@ export default function ProgramsPage() {
                         {hasEditorSetFocus && (
                           <button
                             type="button"
-                            onClick={() => setEditorFocusSetIndex(null)}
+                            onClick={() => setEditorSetFocus(null)}
                             className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:text-cyan-200"
                           >
                             Exit Focus
@@ -1449,373 +2157,201 @@ export default function ProgramsPage() {
                       </div>
 
                       <div className="space-y-3">
-                        {currentDayExerciseCards.length === 0 && (
-                          <button
-                            type="button"
-                            onClick={handleAddExerciseRow}
-                            className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500"
-                          >
-                            Add First Exercise
-                          </button>
+                        {currentDayBlocks.length === 0 && (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={handleAddSingleBlock}
+                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-7 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-emerald-500/45 hover:text-emerald-300"
+                            >
+                              Add First Single Block
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSupersetBlock}
+                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-7 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-violet-500/45 hover:text-violet-300"
+                            >
+                              Add First Superset Block
+                            </button>
+                          </div>
                         )}
 
-                        {currentDayExerciseCards.map((exerciseCard, exerciseCardIndex) => {
-                          const exerciseLabel =
-                            exerciseNameById.get(exerciseCard.exerciseId) ??
-                            humanizeExerciseId(exerciseCard.exerciseId);
-                          const firstSetIndex = exerciseCard.setIndexes[0];
-                          const lastSetIndex =
-                            exerciseCard.setIndexes[exerciseCard.setIndexes.length - 1] ?? firstSetIndex;
-                          const hasFocusedSet =
-                            hasEditorSetFocus &&
-                            editorFocusSetIndex != null &&
-                            exerciseCard.setIndexes.includes(editorFocusSetIndex);
+                        {currentDayBlocks.map((block, blockIndex) => {
+                          const blockTypeLabel = block.type === 'superset' ? 'Superset' : 'Single';
+                          const blockSetCount = countBlockSets([block]);
+                          const blockExerciseCount = block.exercises.length;
+                          const canMoveUp = blockIndex > 0;
+                          const canMoveDown = blockIndex < currentDayBlocks.length - 1;
 
                           return (
                             <article
-                              key={exerciseCard.id}
-                              className={`border-b border-zinc-900 py-2 transition-all duration-200 ${
-                                hasFocusedSet ? 'border-cyan-400/25' : ''
-                              }`}
+                              key={`${block.id}-${blockIndex}`}
+                              className="rounded-2xl border border-zinc-900 bg-zinc-950/35 p-3"
                             >
                               <div className="mb-3 flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditorFocusSetIndex(firstSetIndex);
-                                      openExercisePicker({
-                                        mode: 'replace-exercise-card',
-                                        setIndexes: exerciseCard.setIndexes,
-                                      });
-                                    }}
-                                    className="truncate text-left text-sm font-bold text-zinc-100"
-                                  >
-                                    {exerciseLabel}
-                                  </button>
+                                <div>
+                                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-300">
+                                    Block {blockIndex + 1}
+                                  </p>
                                   <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                    Exercise {exerciseCardIndex + 1} • {exerciseCard.setIndexes.length}{' '}
-                                    {exerciseCard.setIndexes.length === 1 ? 'set' : 'sets'}
-                                    {exerciseCard.supersetGroup ? ` • Superset ${exerciseCard.supersetGroup}` : ''}
+                                    {blockTypeLabel} • {blockExerciseCount} {blockExerciseCount === 1 ? 'exercise' : 'exercises'} • {blockSetCount} {blockSetCount === 1 ? 'set' : 'sets'}
                                   </p>
                                 </div>
-                                <div className="flex shrink-0 items-center gap-1">
+
+                                <div className="flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => handleAddSetToExerciseCard(lastSetIndex)}
-                                    className="inline-flex h-8 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+                                    onClick={() => handleMoveBlock(blockIndex, -1)}
+                                    disabled={!canMoveUp}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200 disabled:opacity-30"
+                                    aria-label="Move block up"
                                   >
-                                    Add Set
+                                    <ArrowUp className="h-4 w-4" />
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveExerciseCard(exerciseCard.setIndexes)}
+                                    onClick={() => handleMoveBlock(blockIndex, 1)}
+                                    disabled={!canMoveDown}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200 disabled:opacity-30"
+                                    aria-label="Move block down"
+                                  >
+                                    <ArrowDown className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveBlock(blockIndex)}
                                     className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                                    aria-label={`Remove ${exerciseLabel}`}
+                                    aria-label="Remove block"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
                                 </div>
                               </div>
 
-                              <div className="space-y-2">
-                                {exerciseCard.setIndexes.map((setIndex, exerciseSetIndex) => {
-                                  const set = currentDay.sets[setIndex];
-                                  if (!set) return null;
-                                  const isFocusedRow = editorFocusSetIndex === setIndex;
-
-                                  return (
-                                    <div
-                                      key={`${exerciseCard.id}-set-${setIndex}`}
-                                      className={`border-b border-zinc-900/80 pb-2 last:border-b-0 transition-all duration-200 ${
-                                        isFocusedRow ? 'border-cyan-400/25' : ''
-                                      } ${
-                                        hasEditorSetFocus && !isFocusedRow
-                                          ? 'opacity-40 blur-[1px] saturate-50'
-                                          : ''
-                                      }`}
-                                    >
-                                      <div className="mb-2 flex items-start justify-between gap-2">
-                                        <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
-                                          Set {exerciseSetIndex + 1} • {getSetSummaryLine(set)}
-                                        </p>
-                                        <div className="flex shrink-0 items-center gap-1">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setEditorFocusSetIndex((current) => (current === setIndex ? null : setIndex))
-                                            }
-                                            className={`inline-flex h-7 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                                              isFocusedRow
-                                                ? 'bg-cyan-500/10 text-cyan-300'
-                                                : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
-                                            }`}
-                                          >
-                                            {isFocusedRow ? 'Done' : 'Edit'}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDuplicateSetRow(setIndex)}
-                                            className="inline-flex h-7 items-center rounded-full px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
-                                            aria-label={`Duplicate set ${exerciseSetIndex + 1}`}
-                                          >
-                                            Copy
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleRemoveSetRow(setIndex)}
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                                            aria-label={`Remove set ${exerciseSetIndex + 1}`}
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </button>
-                                        </div>
-                                      </div>
-
-                                      {isFocusedRow && (
-                                        <div
-                                          className={`grid gap-2 ${
-                                            editorDetailMode === 'advanced'
-                                              ? 'grid-cols-2 sm:grid-cols-4'
-                                              : 'grid-cols-2'
-                                          }`}
-                                        >
-                                          <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                              Reps
-                                            </label>
-                                            <input
-                                              value={set.prescribedReps}
-                                              onChange={(event) =>
-                                                handleSetTemplateUpdate(setIndex, (current) => ({
-                                                  ...current,
-                                                  prescribedReps: event.target.value,
-                                                }))
-                                              }
-                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                            />
-                                          </div>
-
-                                          <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                              Rest (s)
-                                            </label>
-                                            <EditableNumberInput
-                                              min={0}
-                                              step={15}
-                                              value={set.restSeconds ?? 120}
-                                              defaultValue={120}
-                                              onCommit={(value) =>
-                                                handleSetTemplateUpdate(setIndex, (current) => ({
-                                                  ...current,
-                                                  restSeconds: value == null ? undefined : value,
-                                                }))
-                                              }
-                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                            />
-                                          </div>
-
-                                          {editorDetailMode === 'advanced' && (
-                                            <>
-                                              <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                  Method
-                                                </label>
-                                                <FancySelect
-                                                  value={set.prescriptionMethod ?? 'rpe'}
-                                                  options={PRESCRIPTION_OPTIONS.map((method) => ({
-                                                    value: method,
-                                                    label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
-                                                  }))}
-                                                  onChange={(value) =>
-                                                    handleSetTemplateUpdate(setIndex, (current) => ({
-                                                      ...current,
-                                                      prescriptionMethod:
-                                                        value as SetTemplate['prescriptionMethod'],
-                                                    }))
-                                                  }
-                                                  ariaLabel="Prescription method"
-                                                  buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                                  listClassName="max-h-56 overflow-y-auto"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                  {getTargetLabel(set.prescriptionMethod)}
-                                                </label>
-                                                <input
-                                                  value={getRpeOrRirValue(set)}
-                                                  onChange={(event) => {
-                                                    const raw = event.target.value.trim();
-                                                    const value = raw === '' ? null : Number(raw);
-                                                    handleSetTemplateUpdate(setIndex, (current) => {
-                                                      const base = {
-                                                        ...current,
-                                                        targetRPE: null,
-                                                        targetRIR: null,
-                                                        targetPercentage: null,
-                                                        fixedWeight: null,
-                                                        targetSeconds: null,
-                                                      };
-                                                      if (value == null || Number.isNaN(value)) return base;
-                                                      if (current.prescriptionMethod === 'rpe') {
-                                                        return { ...base, targetRPE: value };
-                                                      }
-                                                      if (current.prescriptionMethod === 'rir') {
-                                                        return { ...base, targetRIR: value };
-                                                      }
-                                                      if (
-                                                        current.prescriptionMethod === 'percentage_1rm' ||
-                                                        current.prescriptionMethod === 'percentage_tm'
-                                                      ) {
-                                                        return { ...base, targetPercentage: value };
-                                                      }
-                                                      if (current.prescriptionMethod === 'fixed_weight') {
-                                                        return { ...base, fixedWeight: value };
-                                                      }
-                                                      if (current.prescriptionMethod === 'time_based') {
-                                                        return { ...base, targetSeconds: value };
-                                                      }
-                                                      return base;
-                                                    });
-                                                  }}
-                                                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                  Set Style
-                                                </label>
-                                                <FancySelect
-                                                  value={set.setType ?? 'straight'}
-                                                  options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
-                                                    value: setTypeOption,
-                                                    label: formatTokenLabel(setTypeOption),
-                                                  }))}
-                                                  onChange={(value) =>
-                                                    handleSetTemplateUpdate(setIndex, (current) => ({
-                                                      ...current,
-                                                      setType: value as SetTemplate['setType'],
-                                                      supersetGroup:
-                                                        value === 'superset'
-                                                          ? current.supersetGroup ?? 'A'
-                                                          : current.supersetGroup,
-                                                    }))
-                                                  }
-                                                  ariaLabel="Set style"
-                                                  buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                                  listClassName="max-h-56 overflow-y-auto"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                  Tempo
-                                                </label>
-                                                <input
-                                                  value={set.tempo ?? ''}
-                                                  onChange={(event) =>
-                                                    handleSetTemplateUpdate(setIndex, (current) => ({
-                                                      ...current,
-                                                      tempo: event.target.value.trim() || undefined,
-                                                    }))
-                                                  }
-                                                  placeholder="3-1-1-0"
-                                                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                                />
-                                              </div>
-
-                                              {set.setType === 'cluster' && (
-                                                <>
-                                                  <div>
-                                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                      Cluster Reps
-                                                    </label>
-                                                    <input
-                                                      value={set.clusterReps?.join(',') ?? ''}
-                                                      onChange={(event) =>
-                                                        handleSetTemplateUpdate(setIndex, (current) => {
-                                                          const parsed = event.target.value
-                                                            .split(',')
-                                                            .map((entry) => Number(entry.trim()))
-                                                            .filter(
-                                                              (entry) =>
-                                                                Number.isFinite(entry) && entry > 0
-                                                            );
-                                                          return {
-                                                            ...current,
-                                                            clusterReps:
-                                                              parsed.length > 0 ? parsed : undefined,
-                                                          };
-                                                        })
-                                                      }
-                                                      placeholder="2,2,2"
-                                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                      Cluster Rest (s)
-                                                    </label>
-                                                    <EditableNumberInput
-                                                      min={5}
-                                                      step={5}
-                                                      value={set.clusterRestSeconds ?? 20}
-                                                      defaultValue={20}
-                                                      onCommit={(value) =>
-                                                        handleSetTemplateUpdate(setIndex, (current) => ({
-                                                          ...current,
-                                                          clusterRestSeconds:
-                                                            value == null ? undefined : value,
-                                                        }))
-                                                      }
-                                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                                    />
-                                                  </div>
-                                                </>
-                                              )}
-
-                                              {set.setType === 'superset' && (
-                                                <div>
-                                                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                                    Superset Group
-                                                  </label>
-                                                  <input
-                                                    value={set.supersetGroup ?? 'A'}
-                                                    onChange={(event) =>
-                                                      handleSetTemplateUpdate(setIndex, (current) => ({
-                                                        ...current,
-                                                        supersetGroup:
-                                                          event.target.value.trim() || 'A',
-                                                      }))
-                                                    }
-                                                    placeholder="A"
-                                                    className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                                  />
-                                                </div>
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
-                                      )}
+                              {block.type === 'superset' && (
+                                <div className={`mb-3 grid gap-2 ${editorDetailMode === 'advanced' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                      Rounds
+                                    </label>
+                                    <EditableNumberInput
+                                      min={1}
+                                      step={1}
+                                      value={block.rounds ?? 1}
+                                      defaultValue={1}
+                                      onCommit={(value) =>
+                                        handleUpdateSupersetMetadata(blockIndex, {
+                                          rounds: value == null ? 1 : value,
+                                        })
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                      Round Rest (s)
+                                    </label>
+                                    <EditableNumberInput
+                                      min={0}
+                                      step={5}
+                                      value={block.restAfterRoundSeconds ?? 60}
+                                      defaultValue={60}
+                                      onCommit={(value) =>
+                                        handleUpdateSupersetMetadata(blockIndex, {
+                                          restAfterRoundSeconds: value == null ? undefined : value,
+                                        })
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                    />
+                                  </div>
+                                  {editorDetailMode === 'advanced' && (
+                                    <div>
+                                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                        A1→A2 Transition (s)
+                                      </label>
+                                      <EditableNumberInput
+                                        min={0}
+                                        step={5}
+                                        value={block.transitionSeconds ?? 0}
+                                        defaultValue={0}
+                                        onCommit={(value) =>
+                                          handleUpdateSupersetMetadata(blockIndex, {
+                                            transitionSeconds: value == null ? undefined : value,
+                                          })
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                      />
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {block.type === 'single' && (
+                                <>
+                                  {block.exercises[0] ? (
+                                    renderExerciseEditor(block, blockIndex, block.exercises[0], 0)
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReplaceExercise(blockIndex, 0)}
+                                      className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                                    >
+                                      Pick Exercise
+                                    </button>
+                                  )}
+                                </>
+                              )}
+
+                              {block.type === 'superset' && (
+                                <div className="space-y-2">
+                                  {(['A1', 'A2'] as const).map((slot) => {
+                                    const slotExercise = block.exercises.find((exercise) => exercise.slot === slot);
+                                    const slotExerciseIndex = slotExercise
+                                      ? block.exercises.findIndex((exercise) => exercise.id === slotExercise.id)
+                                      : -1;
+                                    if (!slotExercise || slotExerciseIndex === -1) {
+                                      return (
+                                        <button
+                                          key={`${block.id}-${slot}-add`}
+                                          type="button"
+                                          onClick={() => handleSetSupersetSlotExercise(blockIndex, slot)}
+                                          className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-violet-500/45 hover:text-violet-200"
+                                        >
+                                          Add {slot}
+                                        </button>
+                                      );
+                                    }
+                                    return renderExerciseEditor(
+                                      block,
+                                      blockIndex,
+                                      slotExercise,
+                                      slotExerciseIndex,
+                                      slot
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </article>
                           );
                         })}
 
-                        {currentDayExerciseCards.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={handleAddExerciseRow}
-                            className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                          >
-                            Add Another Exercise
-                          </button>
+                        {currentDayBlocks.length > 0 && (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={handleAddSingleBlock}
+                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-emerald-500/45 hover:text-emerald-200"
+                            >
+                              Add Single Block
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSupersetBlock}
+                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-violet-500/45 hover:text-violet-200"
+                            >
+                              Add Superset Block
+                            </button>
+                          </div>
                         )}
                       </div>
                     </>
@@ -1881,7 +2417,7 @@ export default function ProgramsPage() {
               <div className="max-h-[46dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
                 {editorJumpPicker === 'week' &&
                   draft.weeks.map((week, index) => {
-                    const weekSetCount = week.days.reduce((count, day) => count + day.sets.length, 0);
+                    const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
                     const isActive = index === activeWeekIndex;
                     return (
                       <button
@@ -1919,7 +2455,7 @@ export default function ProgramsPage() {
                       >
                         <p className="text-sm font-bold">Session {index + 1}</p>
                         <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                          {dayLabel} • {day.sets.length} sets
+                          {dayLabel} • {countDaySets(day)} sets
                         </p>
                       </button>
                     );

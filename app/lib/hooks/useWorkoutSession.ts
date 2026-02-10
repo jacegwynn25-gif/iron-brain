@@ -248,10 +248,15 @@ function buildTraversalOrder(blocks: Block[]): SetRef[] {
 
   for (const block of blocks) {
     if (block.type === 'superset') {
-      const maxSets = block.exercises.reduce((max, exercise) => Math.max(max, exercise.sets.length), 0);
+      const exercises = [...block.exercises].sort((a, b) => {
+        const rankA = a.slot === 'A1' ? 0 : a.slot === 'A2' ? 1 : 9;
+        const rankB = b.slot === 'A1' ? 0 : b.slot === 'A2' ? 1 : 9;
+        return rankA - rankB;
+      });
+      const maxSets = exercises.reduce((max, exercise) => Math.max(max, exercise.sets.length), 0);
 
       for (let round = 0; round < maxSets; round += 1) {
-        for (const exercise of block.exercises) {
+        for (const exercise of exercises) {
           const set = exercise.sets[round];
           if (!set) continue;
 
@@ -367,6 +372,14 @@ function buildBlocksFromProgram(
     const blocksFromSchema: Block[] = [];
 
     for (const templateBlock of day.blocks) {
+      const templateExercises =
+        templateBlock.type === 'superset'
+          ? [...(templateBlock.exercises ?? [])].sort((a, b) => {
+              const rankA = a.slot === 'A1' ? 0 : a.slot === 'A2' ? 1 : 9;
+              const rankB = b.slot === 'A1' ? 0 : b.slot === 'A2' ? 1 : 9;
+              return rankA - rankB;
+            })
+          : templateBlock.exercises ?? [];
       const sessionBlock: Block = {
         id: createId('block'),
         type: templateBlock.type === 'superset' ? 'superset' : 'single',
@@ -376,7 +389,7 @@ function buildBlocksFromProgram(
         exercises: [],
       };
 
-      for (const templateExercise of templateBlock.exercises ?? []) {
+      for (const templateExercise of templateExercises) {
         const exerciseId = templateExercise.exerciseId || createId('exercise');
         const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit);
         const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
