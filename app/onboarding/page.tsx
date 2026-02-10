@@ -7,6 +7,7 @@ import { useRequireAuth } from '../lib/hooks/useRequireAuth';
 import { useAuth } from '../lib/supabase/auth-context';
 import { supabase } from '../lib/supabase/client';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
+import FancySelect from '../components/ui/FancySelect';
 
 type Goal = 'strength' | 'muscle' | 'fitness' | 'sport';
 type Experience = 'beginner' | 'intermediate' | 'advanced';
@@ -207,30 +208,17 @@ export default function OnboardingPage() {
                 <label className="block text-sm font-medium text-zinc-300">
                   Measurement System
                 </label>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setUnitSystem('metric')}
-                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                      unitSystem === 'metric'
-                        ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
-                        : 'border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700'
-                    }`}
-                  >
-                    Metric (kg)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUnitSystem('imperial')}
-                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
-                      unitSystem === 'imperial'
-                        ? 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'
-                        : 'border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700'
-                    }`}
-                  >
-                    Imperial (lbs)
-                  </button>
-                </div>
+                <FancySelect
+                  value={unitSystem}
+                  options={[
+                    { value: 'imperial', label: 'Imperial (lbs)' },
+                    { value: 'metric', label: 'Metric (kg)' },
+                  ]}
+                  onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
+                  ariaLabel="Measurement system"
+                  buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
+                  listClassName="max-h-44 overflow-y-auto"
+                />
               </div>
 
               <div>

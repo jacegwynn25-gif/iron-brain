@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, getSupabaseUserFromRequest } from '@/app/lib/supabase/admin';
+import type { TablesInsert } from '@/app/lib/supabase/database.types';
 import { getOuraConfig, OURA_API_BASE_URL, OURA_TOKEN_URL } from '@/app/lib/integrations/oura';
 
 type DailyReadiness = {
@@ -116,12 +117,12 @@ export async function POST(request: NextRequest) {
       ...sleepByDay.keys(),
     ]);
 
-    const rows = Array.from(allDays).map((day) => {
+    const rows = Array.from(allDays).map((day): TablesInsert<'user_context_data'> => {
       const sleep = sleepByDay.get(day);
       const readinessScore = readinessByDay.get(day);
       const sleepScore = sleepScoreByDay.get(day);
 
-      const row: Record<string, unknown> = {
+      const row: TablesInsert<'user_context_data'> = {
         user_id: user.id,
         date: day,
         source: 'oura',

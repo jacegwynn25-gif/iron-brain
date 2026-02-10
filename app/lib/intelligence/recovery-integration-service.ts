@@ -8,7 +8,7 @@ export interface TrainingReadiness {
     upper_body_modifier: number;
     lower_body_modifier: number;
   };
- reason: string;
+  reason: string;
 }
 
 interface UserContext {
@@ -28,10 +28,12 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
   ]);
 
   // --- STEP 1: SYSTEMIC RECOVERY (The Foundation) ---
-  const usesOuraReadiness = context.source === 'oura' && context.subjective_readiness != null;
-  let systemicScore = usesOuraReadiness
-    ? Math.round(context.subjective_readiness * 10)
-    : 100;
+  const ouraReadiness =
+    context.source === 'oura' && context.subjective_readiness != null
+      ? context.subjective_readiness
+      : null;
+  const usesOuraReadiness = ouraReadiness != null;
+  let systemicScore = usesOuraReadiness ? Math.round(ouraReadiness * 10) : 100;
   const systemicReasons: string[] = [];
 
   // Sleep Logic

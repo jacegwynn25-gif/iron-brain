@@ -7,6 +7,7 @@ import { Apple, ChevronRight, LogOut, MoonStar, Wrench, type LucideIcon } from '
 import { useAuth } from '../../lib/supabase/auth-context';
 import { useUnitPreference } from '../../lib/hooks/useUnitPreference';
 import { supabase } from '../../lib/supabase/client';
+import FancySelect from '../../components/ui/FancySelect';
 
 interface IntegrationToggleProps {
   icon: LucideIcon;
@@ -130,11 +131,14 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     const status = searchParams.get('oura');
+    const reason = searchParams.get('reason');
     if (!status) return;
     if (status === 'connected') {
       setOuraNotice('Oura connected. Sync now to import the latest data.');
     } else if (status === 'error') {
-      setOuraNotice('Oura connection failed. Please try again.');
+      setOuraError(
+        reason ? `Oura connection failed (${reason}).` : 'Oura connection failed. Please try again.'
+      );
     }
   }, [searchParams]);
 
@@ -343,26 +347,17 @@ export default function ProfileSettingsPage() {
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-4">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Units</p>
             <p className="mt-1 text-xs text-zinc-500">Controls weight and measurement display.</p>
-            <div className="mt-3 inline-flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                className={`rounded-full px-3 py-1 transition-colors ${
-                  unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
-                }`}
-              >
-                lbs
-              </button>
-              <button
-                type="button"
-                onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                className={`rounded-full px-3 py-1 transition-colors ${
-                  unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
-                }`}
-              >
-                kg
-              </button>
-            </div>
+            <FancySelect
+              value={unitSystem}
+              options={[
+                { value: 'imperial', label: 'Imperial (lbs)' },
+                { value: 'metric', label: 'Metric (kg)' },
+              ]}
+              onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
+              ariaLabel="Preferred unit system"
+              buttonClassName="mt-3 w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-zinc-700"
+              listClassName="max-h-44 overflow-y-auto"
+            />
           </div>
           <SettingsLinkRow
             href="/profile/appearance"

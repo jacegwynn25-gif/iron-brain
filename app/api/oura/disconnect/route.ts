@@ -12,9 +12,11 @@ export async function DELETE(request: NextRequest) {
     .from('fitness_tracker_connections')
     .update({
       is_active: false,
-      access_token: null,
+      access_token: '',
       refresh_token: null,
       token_expires_at: null,
+      scope: null,
+      last_sync_at: null,
       last_sync_status: 'failed',
       sync_error: 'Disconnected by user',
     })

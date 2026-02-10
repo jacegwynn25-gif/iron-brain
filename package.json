@@ -19,14 +19,13 @@
     "framer-motion": "^12.26.2",
     "fuse.js": "^7.1.0",
     "lucide-react": "^0.556.0",
-    "next": "16.0.7",
+    "next": "^16.1.6",
     "papaparse": "^5.5.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "^3.5.1",
     "stripe": "^20.2.0",
     "tailwind-merge": "^3.4.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -38,9 +37,9 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.2.3",
     "eslint": "^9",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "^16.1.6",
     "openapi-typescript": "^7.10.1",
-    "supabase": "^2.72.8",
+    "supabase": "^2.76.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

@@ -47,7 +47,12 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       console.error('Oura token exchange failed:', tokenPayload);
       baseUrl.searchParams.set('oura', 'error');
-      baseUrl.searchParams.set('reason', 'token_exchange_failed');
+      const rawReason =
+        (typeof tokenPayload?.error === 'string' && tokenPayload.error) ||
+        (typeof tokenPayload?.error_description === 'string' && tokenPayload.error_description) ||
+        'token_exchange_failed';
+      const normalizedReason = rawReason.replace(/\s+/g, '_').slice(0, 120);
+      baseUrl.searchParams.set('reason', normalizedReason);
       return NextResponse.redirect(baseUrl);
     }
 

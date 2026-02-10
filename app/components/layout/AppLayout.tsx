@@ -9,7 +9,7 @@ import {
   History,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -38,16 +38,30 @@ function isActivePath(pathname: string, href: string): boolean {
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname() ?? '/';
-  const hideBottomNav =
+  const hideBottomNavByRoute =
     pathname.includes('/workout/active') ||
     pathname === '/workout/readiness' ||
     pathname === '/workout/summary' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/reset-auth');
+  const [hideBottomNavByOverlay, setHideBottomNavByOverlay] = useState(false);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const routeHistoryRef = useRef<string[]>([pathname]);
   const isBackNavRef = useRef(false);
+
+  useEffect(() => {
+    const syncOverlayNavState = () => {
+      setHideBottomNavByOverlay(document.body.getAttribute('data-hide-bottom-nav') === 'true');
+    };
+    syncOverlayNavState();
+
+    const observer = new MutationObserver(syncOverlayNavState);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-hide-bottom-nav'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
 
   useEffect(() => {
     if (isBackNavRef.current) {
@@ -127,7 +141,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </main>
 
       {!hideBottomNav && (
-        <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl">
+        <nav className="app-bottom-nav fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
           <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.12rem)] pt-1.5">
             {navItems.map((item) => {

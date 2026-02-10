@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
@@ -16,12 +16,15 @@ import {
   X,
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
+import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import { getProgramProgress } from '@/app/lib/programs/progress';
 import { setsToProgramBlocks } from '@/app/lib/programs/structure';
-import type { DayTemplate, ProgramTemplate, SetTemplate, WeekTemplate } from '@/app/lib/types';
+import type { CustomExercise, DayTemplate, ProgramTemplate, SetTemplate, WeekTemplate } from '@/app/lib/types';
 import { createUuid } from '@/app/lib/uuid';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
+import EditableNumberInput from '@/app/components/ui/EditableNumberInput';
+import FancySelect from '@/app/components/ui/FancySelect';
 
 type ProgramFilter = 'all' | 'mine' | 'built-in';
 type EditorMode = 'create' | 'edit' | null;
@@ -29,6 +32,14 @@ type ExercisePickerTarget = { mode: 'append' } | { mode: 'replace'; setIndex: nu
 type GoalOption = NonNullable<ProgramTemplate['goal']>;
 type IntensityOption = NonNullable<ProgramTemplate['intensityMethod']>;
 type ExperienceOption = NonNullable<ProgramTemplate['experienceLevel']>;
+type PickerExerciseOption = {
+  id: string;
+  name: string;
+  type: string;
+  muscleGroups: string[];
+  equipment: string[];
+  source: 'default' | 'custom' | 'quick';
+};
 
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -97,6 +108,34 @@ function formatTokenLabel(value: string): string {
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function cloneSetTemplate(set: SetTemplate): SetTemplate {
+  return {
+    ...set,
+    dropSetWeights: set.dropSetWeights ? [...set.dropSetWeights] : undefined,
+    clusterReps: set.clusterReps ? [...set.clusterReps] : undefined,
+  };
+}
+
+function matchesExerciseSearch(exercise: PickerExerciseOption, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchableText = [
+    exercise.name,
+    exercise.type,
+    ...exercise.muscleGroups,
+    ...exercise.equipment,
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (searchableText.includes(normalizedQuery)) return true;
+
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  return tokens.every((token) => searchableText.includes(token));
 }
 
 function humanizeExerciseId(exerciseId: string): string {
@@ -291,18 +330,90 @@ export default function ProgramsPage() {
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [exercisePickerTarget, setExercisePickerTarget] = useState<ExercisePickerTarget>(null);
   const [exerciseQuery, setExerciseQuery] = useState('');
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const [quickCustomExerciseNames, setQuickCustomExerciseNames] = useState<Record<string, string>>({});
   const [editorFocusSetIndex, setEditorFocusSetIndex] = useState<number | null>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
+  const [weekCountInput, setWeekCountInput] = useState('');
+  const [daysPerWeekInput, setDaysPerWeekInput] = useState('');
+  const [weekCountFocused, setWeekCountFocused] = useState(false);
+  const [daysPerWeekFocused, setDaysPerWeekFocused] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCustomExercises = async () => {
+      try {
+        const loaded = await getCustomExercises(user?.id ?? null);
+        if (!cancelled) {
+          setCustomExercises(loaded);
+        }
+      } catch (loadError) {
+        console.error('Failed to load custom exercises for program builder:', loadError);
+      }
+    };
+
+    void loadCustomExercises();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const pickerExercises = useMemo(() => {
+    const items: PickerExerciseOption[] = [];
+    const seenIds = new Set<string>();
+
+    customExercises.forEach((exercise) => {
+      if (!exercise.id || seenIds.has(exercise.id)) return;
+      seenIds.add(exercise.id);
+      items.push({
+        id: exercise.id,
+        name: exercise.name,
+        type: exercise.exerciseType,
+        muscleGroups: exercise.primaryMuscles,
+        equipment: [exercise.equipment],
+        source: 'custom',
+      });
+    });
+
+    defaultExercises.forEach((exercise) => {
+      if (!exercise.id || seenIds.has(exercise.id)) return;
+      seenIds.add(exercise.id);
+      items.push({
+        id: exercise.id,
+        name: exercise.name,
+        type: exercise.type,
+        muscleGroups: exercise.muscleGroups,
+        equipment: exercise.equipment ?? [],
+        source: 'default',
+      });
+    });
+
+    Object.entries(quickCustomExerciseNames).forEach(([exerciseId, exerciseName]) => {
+      if (!exerciseId || seenIds.has(exerciseId)) return;
+      seenIds.add(exerciseId);
+      items.push({
+        id: exerciseId,
+        name: exerciseName,
+        type: 'custom',
+        muscleGroups: [],
+        equipment: [],
+        source: 'quick',
+      });
+    });
+
+    return items;
+  }, [customExercises, quickCustomExerciseNames]);
 
   const exerciseNameById = useMemo(() => {
     const map = new Map<string, string>();
-    defaultExercises.forEach((exercise) => {
-      map.set(exercise.id, exercise.name);
-    });
+    pickerExercises.forEach((exercise) => map.set(exercise.id, exercise.name));
+    Object.entries(quickCustomExerciseNames).forEach(([exerciseId, exerciseName]) =>
+      map.set(exerciseId, exerciseName)
+    );
     return map;
-  }, []);
+  }, [pickerExercises, quickCustomExerciseNames]);
 
   const programList = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -332,24 +443,52 @@ export default function ProgramsPage() {
     return setsToProgramBlocks(currentDay.sets ?? []);
   }, [currentDay]);
   const hasEditorSetFocus = editorFocusSetIndex !== null;
+  const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
+  const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
+  const hasProgramBuilderOverlay = Boolean(editorMode || editorJumpPicker || exercisePickerOpen);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (hasProgramBuilderOverlay) {
+      document.body.setAttribute('data-hide-bottom-nav', 'true');
+      return () => {
+        document.body.removeAttribute('data-hide-bottom-nav');
+      };
+    }
+    document.body.removeAttribute('data-hide-bottom-nav');
+  }, [hasProgramBuilderOverlay]);
+
+  useEffect(() => {
+    if (!draft) {
+      setWeekCountInput('');
+      setDaysPerWeekInput('');
+      return;
+    }
+    if (!weekCountFocused) {
+      setWeekCountInput(String(resolvedWeekCount));
+    }
+    if (!daysPerWeekFocused) {
+      setDaysPerWeekInput(String(resolvedDaysPerWeek));
+    }
+  }, [draft, resolvedWeekCount, resolvedDaysPerWeek, weekCountFocused, daysPerWeekFocused]);
 
   const filteredExercises = useMemo(() => {
     const term = exerciseQuery.trim().toLowerCase();
-    if (!term) return defaultExercises.slice(0, 80);
-    return defaultExercises.filter((exercise) => {
-      return (
-        exercise.name.toLowerCase().includes(term) ||
-        exercise.muscleGroups.some((group) => group.toLowerCase().includes(term)) ||
-        exercise.equipment?.some((equipment) => equipment.toLowerCase().includes(term))
-      );
-    });
-  }, [exerciseQuery]);
+    if (!term) return pickerExercises.slice(0, 100);
+    return pickerExercises.filter((exercise) => matchesExerciseSearch(exercise, term));
+  }, [exerciseQuery, pickerExercises]);
+
+  const currentSessionExerciseCount = useMemo(() => {
+    if (!currentDay?.sets) return 0;
+    return new Set(currentDay.sets.map((set) => set.exerciseId).filter(Boolean)).size;
+  }, [currentDay?.sets]);
 
   const openCreateEditor = () => {
     setDraft(createBlankProgram());
     setEditorMode('create');
     setEditorError(null);
     setEditorNotice(null);
+    setQuickCustomExerciseNames({});
     setDetailsProgramId(null);
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
@@ -371,6 +510,7 @@ export default function ProgramsPage() {
         ? `Built-in duplicated to "Mine". You're editing your personal copy.`
         : null
     );
+    setQuickCustomExerciseNames({});
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
     setDetailsProgramId(null);
@@ -388,6 +528,7 @@ export default function ProgramsPage() {
     setExercisePickerOpen(false);
     setExercisePickerTarget(null);
     setExerciseQuery('');
+    setQuickCustomExerciseNames({});
     setEditorFocusSetIndex(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
@@ -471,22 +612,50 @@ export default function ProgramsPage() {
     }));
   };
 
+  const handleAddExerciseRow = () => {
+    if (!currentDay) return;
+    openExercisePicker({ mode: 'append' });
+  };
+
   const handleAddSetRow = () => {
     let nextFocusIndex: number | null = null;
     updateCurrentDay((day) => {
       nextFocusIndex = day.sets.length;
       const previous = day.sets[day.sets.length - 1];
+      const previousSet = previous ? cloneSetTemplate(previous) : null;
       const newSet: SetTemplate = {
-        exerciseId: previous?.exerciseId ?? 'bench_press',
+        ...(previousSet ?? {}),
+        exerciseId: previousSet?.exerciseId ?? 'bench_press',
         setIndex: day.sets.length + 1,
-        prescribedReps: previous?.prescribedReps ?? '8',
-        prescriptionMethod: previous?.prescriptionMethod ?? 'rpe',
-        targetRPE: previous?.targetRPE ?? 8,
-        restSeconds: previous?.restSeconds ?? 120,
+        prescribedReps: previousSet?.prescribedReps ?? '8',
+        prescriptionMethod: previousSet?.prescriptionMethod ?? 'rpe',
+        targetRPE: previousSet?.targetRPE ?? 8,
+        restSeconds: previousSet?.restSeconds ?? 120,
       };
       return {
         ...day,
         sets: [...day.sets, newSet],
+      };
+    });
+    if (nextFocusIndex != null) {
+      setEditorFocusSetIndex(nextFocusIndex);
+    }
+  };
+
+  const handleDuplicateSetRow = (setIndex: number) => {
+    let nextFocusIndex: number | null = null;
+    updateCurrentDay((day) => {
+      const sourceSet = day.sets[setIndex];
+      if (!sourceSet) return day;
+      const duplicated = cloneSetTemplate(sourceSet);
+      const insertionIndex = setIndex + 1;
+      nextFocusIndex = insertionIndex;
+      const nextSets = [...day.sets];
+      nextSets.splice(insertionIndex, 0, { ...duplicated, setIndex: insertionIndex + 1 });
+
+      return {
+        ...day,
+        sets: nextSets.map((set, index) => ({ ...set, setIndex: index + 1 })),
       };
     });
     if (nextFocusIndex != null) {
@@ -516,7 +685,9 @@ export default function ProgramsPage() {
   const applyPickedExercise = (exerciseId: string) => {
     if (!exercisePickerTarget) return;
     if (exercisePickerTarget.mode === 'append') {
+      let nextFocusIndex: number | null = null;
       updateCurrentDay((day) => {
+        nextFocusIndex = day.sets.length;
         const newSet: SetTemplate = {
           exerciseId,
           setIndex: day.sets.length + 1,
@@ -527,8 +698,12 @@ export default function ProgramsPage() {
         };
         return { ...day, sets: [...day.sets, newSet] };
       });
+      if (nextFocusIndex != null) {
+        setEditorFocusSetIndex(nextFocusIndex);
+      }
     } else {
       handleSetTemplateUpdate(exercisePickerTarget.setIndex, (set) => ({ ...set, exerciseId }));
+      setEditorFocusSetIndex(exercisePickerTarget.setIndex);
     }
 
     setExercisePickerOpen(false);
@@ -539,7 +714,15 @@ export default function ProgramsPage() {
   const createCustomExerciseFromQuery = () => {
     const trimmed = exerciseQuery.trim();
     if (!trimmed) return;
-    applyPickedExercise(slugifyExerciseName(trimmed));
+    const customExerciseId = slugifyExerciseName(trimmed);
+    setQuickCustomExerciseNames((current) => {
+      if (current[customExerciseId] === trimmed) return current;
+      return {
+        ...current,
+        [customExerciseId]: trimmed,
+      };
+    });
+    applyPickedExercise(customExerciseId);
   };
 
   const handleSaveDraft = async () => {
@@ -916,8 +1099,38 @@ export default function ProgramsPage() {
                     type="number"
                     min={1}
                     max={24}
-                    value={draft.weekCount ?? draft.weeks.length}
-                    onChange={(event) => updateDraftWeekCount(Number(event.target.value) || 1)}
+                    value={weekCountInput}
+                    onFocus={() => setWeekCountFocused(true)}
+                    onBlur={() => {
+                      setWeekCountFocused(false);
+                      const trimmed = weekCountInput.trim();
+                      if (!trimmed) {
+                        setWeekCountInput(String(resolvedWeekCount));
+                        return;
+                      }
+                      const parsed = Number(trimmed);
+                      if (!Number.isFinite(parsed)) {
+                        setWeekCountInput(String(resolvedWeekCount));
+                        return;
+                      }
+                      const clamped = Math.min(24, Math.max(1, parsed));
+                      if (clamped !== resolvedWeekCount) {
+                        updateDraftWeekCount(clamped);
+                      }
+                      setWeekCountInput(String(clamped));
+                    }}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      if (!/^\d*$/.test(nextValue)) return;
+                      setWeekCountInput(nextValue);
+                      if (nextValue === '') return;
+                      const parsed = Number(nextValue);
+                      if (!Number.isFinite(parsed)) return;
+                      const clamped = Math.min(24, Math.max(1, parsed));
+                      if (clamped !== resolvedWeekCount) {
+                        updateDraftWeekCount(clamped);
+                      }
+                    }}
                     className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                   />
                 </div>
@@ -927,59 +1140,86 @@ export default function ProgramsPage() {
                     type="number"
                     min={1}
                     max={7}
-                    value={draft.daysPerWeek ?? draft.weeks[0]?.days.length ?? 1}
-                    onChange={(event) => updateDraftDaysPerWeek(Number(event.target.value) || 1)}
+                    value={daysPerWeekInput}
+                    onFocus={() => setDaysPerWeekFocused(true)}
+                    onBlur={() => {
+                      setDaysPerWeekFocused(false);
+                      const trimmed = daysPerWeekInput.trim();
+                      if (!trimmed) {
+                        setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                        return;
+                      }
+                      const parsed = Number(trimmed);
+                      if (!Number.isFinite(parsed)) {
+                        setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                        return;
+                      }
+                      const clamped = Math.min(7, Math.max(1, parsed));
+                      if (clamped !== resolvedDaysPerWeek) {
+                        updateDraftDaysPerWeek(clamped);
+                      }
+                      setDaysPerWeekInput(String(clamped));
+                    }}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      if (!/^\d*$/.test(nextValue)) return;
+                      setDaysPerWeekInput(nextValue);
+                      if (nextValue === '') return;
+                      const parsed = Number(nextValue);
+                      if (!Number.isFinite(parsed)) return;
+                      const clamped = Math.min(7, Math.max(1, parsed));
+                      if (clamped !== resolvedDaysPerWeek) {
+                        updateDraftDaysPerWeek(clamped);
+                      }
+                    }}
                     className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <select
+                <FancySelect
                   value={draft.goal ?? 'general'}
-                  onChange={(event) =>
-                    updateDraft((current) => ({ ...current, goal: event.target.value as GoalOption }))
+                  options={GOAL_OPTIONS.map((goal) => ({
+                    value: goal,
+                    label: GOAL_LABELS[goal] ?? formatTokenLabel(goal),
+                  }))}
+                  onChange={(value) =>
+                    updateDraft((current) => ({ ...current, goal: value as GoalOption }))
                   }
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                >
-                  {GOAL_OPTIONS.map((goal) => (
-                    <option key={goal} value={goal}>
-                      {GOAL_LABELS[goal]}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  ariaLabel="Program goal"
+                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                />
+                <FancySelect
                   value={draft.experienceLevel ?? 'intermediate'}
-                  onChange={(event) =>
+                  options={EXPERIENCE_OPTIONS.map((level) => ({
+                    value: level,
+                    label: EXPERIENCE_LABELS[level] ?? formatTokenLabel(level),
+                  }))}
+                  onChange={(value) =>
                     updateDraft((current) => ({
                       ...current,
-                      experienceLevel: event.target.value as ExperienceOption,
+                      experienceLevel: value as ExperienceOption,
                     }))
                   }
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                >
-                  {EXPERIENCE_OPTIONS.map((level) => (
-                    <option key={level} value={level}>
-                      {EXPERIENCE_LABELS[level]}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  ariaLabel="Experience level"
+                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                />
+                <FancySelect
                   value={draft.intensityMethod ?? 'rpe'}
-                  onChange={(event) =>
+                  options={INTENSITY_OPTIONS.map((method) => ({
+                    value: method,
+                    label: INTENSITY_LABELS[method] ?? formatTokenLabel(method),
+                  }))}
+                  onChange={(value) =>
                     updateDraft((current) => ({
                       ...current,
-                      intensityMethod: event.target.value as IntensityOption,
+                      intensityMethod: value as IntensityOption,
                     }))
                   }
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                >
-                  {INTENSITY_OPTIONS.map((method) => (
-                    <option key={method} value={method}>
-                      {INTENSITY_LABELS[method]}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Intensity method"
+                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                />
               </div>
             </section>
 
@@ -1047,7 +1287,7 @@ export default function ProgramsPage() {
                 <>
                   {currentDay && (
                     <>
-                      <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="mb-4 space-y-3">
                         <input
                           value={currentDay.name}
                           onChange={(event) =>
@@ -1055,14 +1295,41 @@ export default function ProgramsPage() {
                           }
                           className="w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 focus:outline-none"
                         />
-                        <button
-                          type="button"
-                          onClick={handleAddSetRow}
-                          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-200"
-                        >
-                          <CirclePlus className="h-3.5 w-3.5" />
-                          Set
-                        </button>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                              {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
+                            </span>
+                            <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                              {currentDay.sets.length} {currentDay.sets.length === 1 ? 'set' : 'sets'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddExerciseRow}
+                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/15"
+                            >
+                              <CirclePlus className="h-3.5 w-3.5" />
+                              Exercise
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSetRow}
+                              disabled={currentDay.sets.length === 0}
+                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-200 disabled:opacity-35"
+                            >
+                              <CirclePlus className="h-3.5 w-3.5" />
+                              Set
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                          Add exercise for a new movement. Add set to repeat your current movement pattern.
+                        </p>
                       </div>
 
                       {currentDayBlocks.length > 0 && (
@@ -1142,10 +1409,7 @@ export default function ProgramsPage() {
                         {currentDay.sets.length === 0 && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditorFocusSetIndex(0);
-                              openExercisePicker({ mode: 'append' });
-                            }}
+                            onClick={handleAddExerciseRow}
                             className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500"
                           >
                             Add First Exercise
@@ -1198,6 +1462,14 @@ export default function ProgramsPage() {
                                   </button>
                                   <button
                                     type="button"
+                                    onClick={() => handleDuplicateSetRow(setIndex)}
+                                    className="inline-flex h-8 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+                                    aria-label={`Duplicate set ${setIndex + 1}`}
+                                  >
+                                    Copy
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => handleRemoveSetRow(setIndex)}
                                     className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
                                     aria-label={`Remove set ${setIndex + 1}`}
@@ -1229,15 +1501,15 @@ export default function ProgramsPage() {
 
                                   <div>
                                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Rest (s)</label>
-                                    <input
-                                      type="number"
+                                    <EditableNumberInput
                                       min={0}
                                       step={15}
                                       value={set.restSeconds ?? 120}
-                                      onChange={(event) =>
+                                      defaultValue={120}
+                                      onCommit={(value) =>
                                         handleSetTemplateUpdate(setIndex, (current) => ({
                                           ...current,
-                                          restSeconds: Number(event.target.value) || 0,
+                                          restSeconds: value == null ? undefined : value,
                                         }))
                                       }
                                       className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
@@ -1248,22 +1520,22 @@ export default function ProgramsPage() {
                                     <>
                                       <div>
                                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Method</label>
-                                        <select
+                                        <FancySelect
                                           value={set.prescriptionMethod ?? 'rpe'}
-                                          onChange={(event) =>
+                                          options={PRESCRIPTION_OPTIONS.map((method) => ({
+                                            value: method,
+                                            label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
+                                          }))}
+                                          onChange={(value) =>
                                             handleSetTemplateUpdate(setIndex, (current) => ({
                                               ...current,
-                                              prescriptionMethod: event.target.value as SetTemplate['prescriptionMethod'],
+                                              prescriptionMethod: value as SetTemplate['prescriptionMethod'],
                                             }))
                                           }
-                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                        >
-                                          {PRESCRIPTION_OPTIONS.map((method) => (
-                                            <option key={method} value={method}>
-                                              {PRESCRIPTION_LABELS[method]}
-                                            </option>
-                                          ))}
-                                        </select>
+                                          ariaLabel="Prescription method"
+                                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                          listClassName="max-h-56 overflow-y-auto"
+                                        />
                                       </div>
 
                                       <div>
@@ -1304,26 +1576,26 @@ export default function ProgramsPage() {
 
                                       <div>
                                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Style</label>
-                                        <select
+                                        <FancySelect
                                           value={set.setType ?? 'straight'}
-                                          onChange={(event) =>
+                                          options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
+                                            value: setTypeOption,
+                                            label: formatTokenLabel(setTypeOption),
+                                          }))}
+                                          onChange={(value) =>
                                             handleSetTemplateUpdate(setIndex, (current) => ({
                                               ...current,
-                                              setType: event.target.value as SetTemplate['setType'],
+                                              setType: value as SetTemplate['setType'],
                                               supersetGroup:
-                                                event.target.value === 'superset'
+                                                value === 'superset'
                                                   ? current.supersetGroup ?? 'A'
                                                   : current.supersetGroup,
                                             }))
                                           }
-                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                        >
-                                          {ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => (
-                                            <option key={setTypeOption} value={setTypeOption}>
-                                              {formatTokenLabel(setTypeOption)}
-                                            </option>
-                                          ))}
-                                        </select>
+                                          ariaLabel="Set style"
+                                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                          listClassName="max-h-56 overflow-y-auto"
+                                        />
                                       </div>
 
                                       <div>
@@ -1365,15 +1637,15 @@ export default function ProgramsPage() {
                                           </div>
                                           <div>
                                             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Cluster Rest (s)</label>
-                                            <input
-                                              type="number"
+                                            <EditableNumberInput
                                               min={5}
                                               step={5}
                                               value={set.clusterRestSeconds ?? 20}
-                                              onChange={(event) =>
+                                              defaultValue={20}
+                                              onCommit={(value) =>
                                                 handleSetTemplateUpdate(setIndex, (current) => ({
                                                   ...current,
-                                                  clusterRestSeconds: Number(event.target.value) || 20,
+                                                  clusterRestSeconds: value == null ? undefined : value,
                                                 }))
                                               }
                                               className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
@@ -1405,6 +1677,16 @@ export default function ProgramsPage() {
                             </article>
                           );
                         })}
+
+                        {currentDay.sets.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleAddExerciseRow}
+                            className="w-full rounded-xl border border-dashed border-emerald-500/35 bg-emerald-500/5 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/55 hover:bg-emerald-500/10"
+                          >
+                            Add Another Exercise
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1563,6 +1845,14 @@ export default function ProgramsPage() {
               )}
 
               <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
+                {filteredExercises.length === 0 && (
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
+                    <p className="text-sm text-zinc-300">No exercises found.</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                      Try another search or add a custom exercise.
+                    </p>
+                  </div>
+                )}
                 {filteredExercises.map((exercise) => (
                   <button
                     key={exercise.id}
@@ -1572,7 +1862,10 @@ export default function ProgramsPage() {
                   >
                     <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
                     <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                      {exercise.type} • {exercise.muscleGroups.join(', ')}
+                      {exercise.type}
+                      {exercise.muscleGroups.length > 0 ? ` • ${exercise.muscleGroups.join(', ')}` : ''}
+                      {exercise.equipment.length > 0 ? ` • ${exercise.equipment.join(', ')}` : ''}
+                      {exercise.source !== 'default' ? ` • ${formatTokenLabel(exercise.source)}` : ''}
                     </p>
                   </button>
                 ))}
