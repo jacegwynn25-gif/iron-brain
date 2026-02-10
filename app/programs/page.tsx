@@ -18,7 +18,6 @@ import {
 import { defaultExercises } from '@/app/lib/programs';
 import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import { getProgramProgress } from '@/app/lib/programs/progress';
-import { setsToProgramBlocks } from '@/app/lib/programs/structure';
 import type { CustomExercise, DayTemplate, ProgramTemplate, SetTemplate, WeekTemplate } from '@/app/lib/types';
 import { createUuid } from '@/app/lib/uuid';
 import { useAuth } from '@/app/lib/supabase/auth-context';
@@ -28,7 +27,11 @@ import FancySelect from '@/app/components/ui/FancySelect';
 
 type ProgramFilter = 'all' | 'mine' | 'built-in';
 type EditorMode = 'create' | 'edit' | null;
-type ExercisePickerTarget = { mode: 'append' } | { mode: 'replace'; setIndex: number } | null;
+type ExercisePickerTarget =
+  | { mode: 'append' }
+  | { mode: 'replace-set'; setIndex: number }
+  | { mode: 'replace-exercise-card'; setIndexes: number[] }
+  | null;
 type GoalOption = NonNullable<ProgramTemplate['goal']>;
 type IntensityOption = NonNullable<ProgramTemplate['intensityMethod']>;
 type ExperienceOption = NonNullable<ProgramTemplate['experienceLevel']>;
@@ -39,6 +42,13 @@ type PickerExerciseOption = {
   muscleGroups: string[];
   equipment: string[];
   source: 'default' | 'custom' | 'quick';
+};
+type DayExerciseCard = {
+  id: string;
+  exerciseId: string;
+  setIndexes: number[];
+  supersetGroup?: string;
+  setType?: SetTemplate['setType'];
 };
 
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -118,6 +128,39 @@ function cloneSetTemplate(set: SetTemplate): SetTemplate {
   };
 }
 
+function renumberSetIndexes(sets: SetTemplate[]): SetTemplate[] {
+  return sets.map((set, index) => ({ ...set, setIndex: index + 1 }));
+}
+
+function buildExerciseCards(sets: SetTemplate[]): DayExerciseCard[] {
+  const cards: DayExerciseCard[] = [];
+
+  sets.forEach((set, setIndex) => {
+    if (!set.exerciseId) return;
+    const previousCard = cards[cards.length - 1];
+    const shouldMergeWithPrevious =
+      previousCard != null &&
+      previousCard.exerciseId === set.exerciseId &&
+      (previousCard.supersetGroup ?? '') === (set.supersetGroup ?? '') &&
+      (previousCard.setType ?? '') === (set.setType ?? '');
+
+    if (shouldMergeWithPrevious) {
+      previousCard.setIndexes.push(setIndex);
+      return;
+    }
+
+    cards.push({
+      id: `exercise-card-${set.exerciseId}-${setIndex}`,
+      exerciseId: set.exerciseId,
+      setIndexes: [setIndex],
+      supersetGroup: set.supersetGroup,
+      setType: set.setType,
+    });
+  });
+
+  return cards;
+}
+
 function matchesExerciseSearch(exercise: PickerExerciseOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return true;
@@ -149,6 +192,20 @@ function humanizeExerciseId(exerciseId: string): string {
 function slugifyExerciseName(name: string): string {
   const base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return base || `custom_${createUuid().slice(0, 8)}`;
+}
+
+function createUniqueQuickExerciseId(name: string, existingIds: Set<string>): string {
+  const baseSlug = slugifyExerciseName(name);
+  const prefixBase = baseSlug.startsWith('custom_') ? baseSlug : `custom_${baseSlug}`;
+  let candidate = prefixBase;
+  let index = 1;
+
+  while (existingIds.has(candidate)) {
+    candidate = `${prefixBase}_${index}`;
+    index += 1;
+  }
+
+  return candidate;
 }
 
 function createDayTemplate(dayOfWeek: DayTemplate['dayOfWeek'], index: number): DayTemplate {
@@ -437,11 +494,10 @@ export default function ProgramsPage() {
   const activeProgram = selectedProgram ?? null;
   const currentWeek = draft?.weeks[activeWeekIndex] ?? null;
   const currentDay = currentWeek?.days[activeDayIndex] ?? null;
-  const currentDayBlocks = useMemo(() => {
-    if (!currentDay) return [];
-    if (currentDay.blocks && currentDay.blocks.length > 0) return currentDay.blocks;
-    return setsToProgramBlocks(currentDay.sets ?? []);
-  }, [currentDay]);
+  const currentDayExerciseCards = useMemo(
+    () => buildExerciseCards(currentDay?.sets ?? []),
+    [currentDay?.sets]
+  );
   const hasEditorSetFocus = editorFocusSetIndex !== null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
@@ -479,9 +535,8 @@ export default function ProgramsPage() {
   }, [exerciseQuery, pickerExercises]);
 
   const currentSessionExerciseCount = useMemo(() => {
-    if (!currentDay?.sets) return 0;
-    return new Set(currentDay.sets.map((set) => set.exerciseId).filter(Boolean)).size;
-  }, [currentDay?.sets]);
+    return currentDayExerciseCards.length;
+  }, [currentDayExerciseCards.length]);
 
   const openCreateEditor = () => {
     setDraft(createBlankProgram());
@@ -617,25 +672,22 @@ export default function ProgramsPage() {
     openExercisePicker({ mode: 'append' });
   };
 
-  const handleAddSetRow = () => {
+  const handleAddSetToExerciseCard = (cardLastSetIndex: number) => {
     let nextFocusIndex: number | null = null;
     updateCurrentDay((day) => {
-      nextFocusIndex = day.sets.length;
-      const previous = day.sets[day.sets.length - 1];
-      const previousSet = previous ? cloneSetTemplate(previous) : null;
-      const newSet: SetTemplate = {
-        ...(previousSet ?? {}),
-        exerciseId: previousSet?.exerciseId ?? 'bench_press',
-        setIndex: day.sets.length + 1,
-        prescribedReps: previousSet?.prescribedReps ?? '8',
-        prescriptionMethod: previousSet?.prescriptionMethod ?? 'rpe',
-        targetRPE: previousSet?.targetRPE ?? 8,
-        restSeconds: previousSet?.restSeconds ?? 120,
-      };
-      return {
-        ...day,
-        sets: [...day.sets, newSet],
-      };
+      const previousSet = day.sets[cardLastSetIndex];
+      if (!previousSet) return day;
+
+      const duplicated = cloneSetTemplate(previousSet);
+      const insertionIndex = cardLastSetIndex + 1;
+      nextFocusIndex = insertionIndex;
+      const nextSets = [...day.sets];
+      nextSets.splice(insertionIndex, 0, {
+        ...duplicated,
+        setIndex: insertionIndex + 1,
+      });
+
+      return { ...day, sets: renumberSetIndexes(nextSets) };
     });
     if (nextFocusIndex != null) {
       setEditorFocusSetIndex(nextFocusIndex);
@@ -672,7 +724,25 @@ export default function ProgramsPage() {
     });
     updateCurrentDay((day) => ({
       ...day,
-      sets: day.sets.filter((_, index) => index !== setIndex).map((set, index) => ({ ...set, setIndex: index + 1 })),
+      sets: renumberSetIndexes(day.sets.filter((_, index) => index !== setIndex)),
+    }));
+  };
+
+  const handleRemoveExerciseCard = (setIndexes: number[]) => {
+    if (setIndexes.length === 0) return;
+    const sorted = [...setIndexes].sort((a, b) => a - b);
+    const removeIndexSet = new Set(sorted);
+
+    setEditorFocusSetIndex((currentFocus) => {
+      if (currentFocus == null) return null;
+      if (removeIndexSet.has(currentFocus)) return null;
+      const removedBeforeFocus = sorted.reduce((count, index) => (index < currentFocus ? count + 1 : count), 0);
+      return currentFocus - removedBeforeFocus;
+    });
+
+    updateCurrentDay((day) => ({
+      ...day,
+      sets: renumberSetIndexes(day.sets.filter((_, index) => !removeIndexSet.has(index))),
     }));
   };
 
@@ -701,9 +771,19 @@ export default function ProgramsPage() {
       if (nextFocusIndex != null) {
         setEditorFocusSetIndex(nextFocusIndex);
       }
-    } else {
+    } else if (exercisePickerTarget.mode === 'replace-set') {
       handleSetTemplateUpdate(exercisePickerTarget.setIndex, (set) => ({ ...set, exerciseId }));
       setEditorFocusSetIndex(exercisePickerTarget.setIndex);
+    } else {
+      const replaceIndexes = new Set(exercisePickerTarget.setIndexes);
+      updateCurrentDay((day) => ({
+        ...day,
+        sets: day.sets.map((set, index) => {
+          if (!replaceIndexes.has(index)) return set;
+          return { ...set, exerciseId };
+        }),
+      }));
+      setEditorFocusSetIndex(exercisePickerTarget.setIndexes[0] ?? null);
     }
 
     setExercisePickerOpen(false);
@@ -714,7 +794,16 @@ export default function ProgramsPage() {
   const createCustomExerciseFromQuery = () => {
     const trimmed = exerciseQuery.trim();
     if (!trimmed) return;
-    const customExerciseId = slugifyExerciseName(trimmed);
+    const existingByName = pickerExercises.find(
+      (exercise) => exercise.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existingByName) {
+      applyPickedExercise(existingByName.id);
+      return;
+    }
+
+    const existingIds = new Set(pickerExercises.map((exercise) => exercise.id));
+    const customExerciseId = createUniqueQuickExerciseId(trimmed, existingIds);
     setQuickCustomExerciseNames((current) => {
       if (current[customExerciseId] === trimmed) return current;
       return {
@@ -1313,61 +1402,15 @@ export default function ProgramsPage() {
                               className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/15"
                             >
                               <CirclePlus className="h-3.5 w-3.5" />
-                              Exercise
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleAddSetRow}
-                              disabled={currentDay.sets.length === 0}
-                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-200 disabled:opacity-35"
-                            >
-                              <CirclePlus className="h-3.5 w-3.5" />
-                              Set
+                              Add Exercise
                             </button>
                           </div>
                         </div>
 
                         <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                          Add exercise for a new movement. Add set to repeat your current movement pattern.
+                          Each exercise groups its sets so planning stays clean.
                         </p>
                       </div>
-
-                      {currentDayBlocks.length > 0 && (
-                        <div className="mb-4 flex gap-2 overflow-x-auto pb-1" data-swipe-ignore="true">
-                          {currentDayBlocks.map((block, blockIndex) => {
-                            const blockLabel = block.type === 'superset' ? `Superset ${blockIndex + 1}` : `Block ${blockIndex + 1}`;
-                            const exercisePreview = block.exercises
-                              .map((exercise) => exerciseNameById.get(exercise.exerciseId) ?? humanizeExerciseId(exercise.exerciseId))
-                              .slice(0, 2)
-                              .join(block.type === 'superset' ? ' + ' : ', ');
-                            const firstExerciseId = block.exercises[0]?.exerciseId;
-                            return (
-                              <button
-                                key={block.id}
-                                type="button"
-                                onClick={() => {
-                                  if (!firstExerciseId) return;
-                                  const firstSetIndex = currentDay.sets.findIndex((set) => {
-                                    if (set.exerciseId !== firstExerciseId) return false;
-                                    if (block.type !== 'superset') return true;
-                                    const group = block.exercises[0]?.sets[0]?.supersetGroup;
-                                    return set.supersetGroup === group;
-                                  });
-                                  if (firstSetIndex >= 0) {
-                                    setEditorFocusSetIndex(firstSetIndex);
-                                  }
-                                }}
-                                className="whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900/45 px-3 py-2 text-left"
-                              >
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">{blockLabel}</p>
-                                <p className="mt-1 max-w-[14rem] truncate text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-                                  {exercisePreview}
-                                </p>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
 
                       <div className="mb-4 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
@@ -1406,7 +1449,7 @@ export default function ProgramsPage() {
                       </div>
 
                       <div className="space-y-3">
-                        {currentDay.sets.length === 0 && (
+                        {currentDayExerciseCards.length === 0 && (
                           <button
                             type="button"
                             onClick={handleAddExerciseRow}
@@ -1416,18 +1459,23 @@ export default function ProgramsPage() {
                           </button>
                         )}
 
-                        {currentDay.sets.map((set, setIndex) => {
-                          const exerciseLabel = exerciseNameById.get(set.exerciseId) ?? humanizeExerciseId(set.exerciseId);
-                          const isFocusedRow = editorFocusSetIndex === setIndex;
+                        {currentDayExerciseCards.map((exerciseCard, exerciseCardIndex) => {
+                          const exerciseLabel =
+                            exerciseNameById.get(exerciseCard.exerciseId) ??
+                            humanizeExerciseId(exerciseCard.exerciseId);
+                          const firstSetIndex = exerciseCard.setIndexes[0];
+                          const lastSetIndex =
+                            exerciseCard.setIndexes[exerciseCard.setIndexes.length - 1] ?? firstSetIndex;
+                          const hasFocusedSet =
+                            hasEditorSetFocus &&
+                            editorFocusSetIndex != null &&
+                            exerciseCard.setIndexes.includes(editorFocusSetIndex);
+
                           return (
                             <article
-                              key={`${set.exerciseId}-${setIndex}`}
-                              className={`border-b border-zinc-900 pb-3 transition-all duration-200 ${
-                                isFocusedRow
-                                  ? 'border-cyan-400/35 pl-2 shadow-[0_0_30px_-22px_rgba(34,211,238,0.9)]'
-                                  : ''
-                              } ${
-                                hasEditorSetFocus && !isFocusedRow ? 'opacity-35 blur-[1px] saturate-50' : ''
+                              key={exerciseCard.id}
+                              className={`border-b border-zinc-900 py-2 transition-all duration-200 ${
+                                hasFocusedSet ? 'border-cyan-400/25' : ''
                               }`}
                             >
                               <div className="mb-3 flex items-start justify-between gap-3">
@@ -1435,254 +1483,336 @@ export default function ProgramsPage() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      setEditorFocusSetIndex(setIndex);
-                                      openExercisePicker({ mode: 'replace', setIndex });
+                                      setEditorFocusSetIndex(firstSetIndex);
+                                      openExercisePicker({
+                                        mode: 'replace-exercise-card',
+                                        setIndexes: exerciseCard.setIndexes,
+                                      });
                                     }}
                                     className="truncate text-left text-sm font-bold text-zinc-100"
                                   >
                                     {exerciseLabel}
                                   </button>
                                   <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                    Set {setIndex + 1} • {getSetSummaryLine(set)}
+                                    Exercise {exerciseCardIndex + 1} • {exerciseCard.setIndexes.length}{' '}
+                                    {exerciseCard.setIndexes.length === 1 ? 'set' : 'sets'}
+                                    {exerciseCard.supersetGroup ? ` • Superset ${exerciseCard.supersetGroup}` : ''}
                                   </p>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setEditorFocusSetIndex((current) => (current === setIndex ? null : setIndex))
-                                    }
-                                    className={`inline-flex h-8 items-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                                      isFocusedRow
-                                        ? 'bg-cyan-500/10 text-cyan-300'
-                                        : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
-                                    }`}
-                                  >
-                                    {isFocusedRow ? 'Done' : 'Edit'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDuplicateSetRow(setIndex)}
+                                    onClick={() => handleAddSetToExerciseCard(lastSetIndex)}
                                     className="inline-flex h-8 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
-                                    aria-label={`Duplicate set ${setIndex + 1}`}
                                   >
-                                    Copy
+                                    Add Set
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveSetRow(setIndex)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                                    aria-label={`Remove set ${setIndex + 1}`}
+                                    onClick={() => handleRemoveExerciseCard(exerciseCard.setIndexes)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                                    aria-label={`Remove ${exerciseLabel}`}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
                                 </div>
                               </div>
 
-                              {isFocusedRow && (
-                                <div
-                                  className={`grid gap-2 ${
-                                    editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
-                                  }`}
-                                >
-                                  <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Reps</label>
-                                    <input
-                                      value={set.prescribedReps}
-                                      onChange={(event) =>
-                                        handleSetTemplateUpdate(setIndex, (current) => ({
-                                          ...current,
-                                          prescribedReps: event.target.value,
-                                        }))
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                    />
-                                  </div>
+                              <div className="space-y-2">
+                                {exerciseCard.setIndexes.map((setIndex, exerciseSetIndex) => {
+                                  const set = currentDay.sets[setIndex];
+                                  if (!set) return null;
+                                  const isFocusedRow = editorFocusSetIndex === setIndex;
 
-                                  <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Rest (s)</label>
-                                    <EditableNumberInput
-                                      min={0}
-                                      step={15}
-                                      value={set.restSeconds ?? 120}
-                                      defaultValue={120}
-                                      onCommit={(value) =>
-                                        handleSetTemplateUpdate(setIndex, (current) => ({
-                                          ...current,
-                                          restSeconds: value == null ? undefined : value,
-                                        }))
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                    />
-                                  </div>
-
-                                  {editorDetailMode === 'advanced' && (
-                                    <>
-                                      <div>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Method</label>
-                                        <FancySelect
-                                          value={set.prescriptionMethod ?? 'rpe'}
-                                          options={PRESCRIPTION_OPTIONS.map((method) => ({
-                                            value: method,
-                                            label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
-                                          }))}
-                                          onChange={(value) =>
-                                            handleSetTemplateUpdate(setIndex, (current) => ({
-                                              ...current,
-                                              prescriptionMethod: value as SetTemplate['prescriptionMethod'],
-                                            }))
-                                          }
-                                          ariaLabel="Prescription method"
-                                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                          listClassName="max-h-56 overflow-y-auto"
-                                        />
+                                  return (
+                                    <div
+                                      key={`${exerciseCard.id}-set-${setIndex}`}
+                                      className={`border-b border-zinc-900/80 pb-2 last:border-b-0 transition-all duration-200 ${
+                                        isFocusedRow ? 'border-cyan-400/25' : ''
+                                      } ${
+                                        hasEditorSetFocus && !isFocusedRow
+                                          ? 'opacity-40 blur-[1px] saturate-50'
+                                          : ''
+                                      }`}
+                                    >
+                                      <div className="mb-2 flex items-start justify-between gap-2">
+                                        <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
+                                          Set {exerciseSetIndex + 1} • {getSetSummaryLine(set)}
+                                        </p>
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setEditorFocusSetIndex((current) => (current === setIndex ? null : setIndex))
+                                            }
+                                            className={`inline-flex h-7 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                                              isFocusedRow
+                                                ? 'bg-cyan-500/10 text-cyan-300'
+                                                : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
+                                            }`}
+                                          >
+                                            {isFocusedRow ? 'Done' : 'Edit'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDuplicateSetRow(setIndex)}
+                                            className="inline-flex h-7 items-center rounded-full px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+                                            aria-label={`Duplicate set ${exerciseSetIndex + 1}`}
+                                          >
+                                            Copy
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveSetRow(setIndex)}
+                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                                            aria-label={`Remove set ${exerciseSetIndex + 1}`}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
                                       </div>
 
-                                      <div>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                          {getTargetLabel(set.prescriptionMethod)}
-                                        </label>
-                                        <input
-                                          value={getRpeOrRirValue(set)}
-                                          onChange={(event) => {
-                                            const raw = event.target.value.trim();
-                                            const value = raw === '' ? null : Number(raw);
-                                            handleSetTemplateUpdate(setIndex, (current) => {
-                                              const base = {
-                                                ...current,
-                                                targetRPE: null,
-                                                targetRIR: null,
-                                                targetPercentage: null,
-                                                fixedWeight: null,
-                                                targetSeconds: null,
-                                              };
-                                              if (value == null || Number.isNaN(value)) return base;
-                                              if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
-                                              if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
-                                              if (
-                                                current.prescriptionMethod === 'percentage_1rm' ||
-                                                current.prescriptionMethod === 'percentage_tm'
-                                              ) {
-                                                return { ...base, targetPercentage: value };
-                                              }
-                                              if (current.prescriptionMethod === 'fixed_weight') return { ...base, fixedWeight: value };
-                                              if (current.prescriptionMethod === 'time_based') return { ...base, targetSeconds: value };
-                                              return base;
-                                            });
-                                          }}
-                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Style</label>
-                                        <FancySelect
-                                          value={set.setType ?? 'straight'}
-                                          options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
-                                            value: setTypeOption,
-                                            label: formatTokenLabel(setTypeOption),
-                                          }))}
-                                          onChange={(value) =>
-                                            handleSetTemplateUpdate(setIndex, (current) => ({
-                                              ...current,
-                                              setType: value as SetTemplate['setType'],
-                                              supersetGroup:
-                                                value === 'superset'
-                                                  ? current.supersetGroup ?? 'A'
-                                                  : current.supersetGroup,
-                                            }))
-                                          }
-                                          ariaLabel="Set style"
-                                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                          listClassName="max-h-56 overflow-y-auto"
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Tempo</label>
-                                        <input
-                                          value={set.tempo ?? ''}
-                                          onChange={(event) =>
-                                            handleSetTemplateUpdate(setIndex, (current) => ({
-                                              ...current,
-                                              tempo: event.target.value.trim() || undefined,
-                                            }))
-                                          }
-                                          placeholder="3-1-1-0"
-                                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                        />
-                                      </div>
-
-                                      {set.setType === 'cluster' && (
-                                        <>
+                                      {isFocusedRow && (
+                                        <div
+                                          className={`grid gap-2 ${
+                                            editorDetailMode === 'advanced'
+                                              ? 'grid-cols-2 sm:grid-cols-4'
+                                              : 'grid-cols-2'
+                                          }`}
+                                        >
                                           <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Cluster Reps</label>
+                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                              Reps
+                                            </label>
                                             <input
-                                              value={set.clusterReps?.join(',') ?? ''}
+                                              value={set.prescribedReps}
                                               onChange={(event) =>
-                                                handleSetTemplateUpdate(setIndex, (current) => {
-                                                  const parsed = event.target.value
-                                                    .split(',')
-                                                    .map((entry) => Number(entry.trim()))
-                                                    .filter((entry) => Number.isFinite(entry) && entry > 0);
-                                                  return {
-                                                    ...current,
-                                                    clusterReps: parsed.length > 0 ? parsed : undefined,
-                                                  };
-                                                })
-                                              }
-                                              placeholder="2,2,2"
-                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Cluster Rest (s)</label>
-                                            <EditableNumberInput
-                                              min={5}
-                                              step={5}
-                                              value={set.clusterRestSeconds ?? 20}
-                                              defaultValue={20}
-                                              onCommit={(value) =>
                                                 handleSetTemplateUpdate(setIndex, (current) => ({
                                                   ...current,
-                                                  clusterRestSeconds: value == null ? undefined : value,
+                                                  prescribedReps: event.target.value,
                                                 }))
                                               }
                                               className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                                             />
                                           </div>
-                                        </>
-                                      )}
 
-                                      {set.setType === 'superset' && (
-                                        <div>
-                                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Superset Group</label>
-                                          <input
-                                            value={set.supersetGroup ?? 'A'}
-                                            onChange={(event) =>
-                                              handleSetTemplateUpdate(setIndex, (current) => ({
-                                                ...current,
-                                                supersetGroup: event.target.value.trim() || 'A',
-                                              }))
-                                            }
-                                            placeholder="A"
-                                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                                          />
+                                          <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                              Rest (s)
+                                            </label>
+                                            <EditableNumberInput
+                                              min={0}
+                                              step={15}
+                                              value={set.restSeconds ?? 120}
+                                              defaultValue={120}
+                                              onCommit={(value) =>
+                                                handleSetTemplateUpdate(setIndex, (current) => ({
+                                                  ...current,
+                                                  restSeconds: value == null ? undefined : value,
+                                                }))
+                                              }
+                                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                            />
+                                          </div>
+
+                                          {editorDetailMode === 'advanced' && (
+                                            <>
+                                              <div>
+                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                  Method
+                                                </label>
+                                                <FancySelect
+                                                  value={set.prescriptionMethod ?? 'rpe'}
+                                                  options={PRESCRIPTION_OPTIONS.map((method) => ({
+                                                    value: method,
+                                                    label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
+                                                  }))}
+                                                  onChange={(value) =>
+                                                    handleSetTemplateUpdate(setIndex, (current) => ({
+                                                      ...current,
+                                                      prescriptionMethod:
+                                                        value as SetTemplate['prescriptionMethod'],
+                                                    }))
+                                                  }
+                                                  ariaLabel="Prescription method"
+                                                  buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                                  listClassName="max-h-56 overflow-y-auto"
+                                                />
+                                              </div>
+
+                                              <div>
+                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                  {getTargetLabel(set.prescriptionMethod)}
+                                                </label>
+                                                <input
+                                                  value={getRpeOrRirValue(set)}
+                                                  onChange={(event) => {
+                                                    const raw = event.target.value.trim();
+                                                    const value = raw === '' ? null : Number(raw);
+                                                    handleSetTemplateUpdate(setIndex, (current) => {
+                                                      const base = {
+                                                        ...current,
+                                                        targetRPE: null,
+                                                        targetRIR: null,
+                                                        targetPercentage: null,
+                                                        fixedWeight: null,
+                                                        targetSeconds: null,
+                                                      };
+                                                      if (value == null || Number.isNaN(value)) return base;
+                                                      if (current.prescriptionMethod === 'rpe') {
+                                                        return { ...base, targetRPE: value };
+                                                      }
+                                                      if (current.prescriptionMethod === 'rir') {
+                                                        return { ...base, targetRIR: value };
+                                                      }
+                                                      if (
+                                                        current.prescriptionMethod === 'percentage_1rm' ||
+                                                        current.prescriptionMethod === 'percentage_tm'
+                                                      ) {
+                                                        return { ...base, targetPercentage: value };
+                                                      }
+                                                      if (current.prescriptionMethod === 'fixed_weight') {
+                                                        return { ...base, fixedWeight: value };
+                                                      }
+                                                      if (current.prescriptionMethod === 'time_based') {
+                                                        return { ...base, targetSeconds: value };
+                                                      }
+                                                      return base;
+                                                    });
+                                                  }}
+                                                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                                />
+                                              </div>
+
+                                              <div>
+                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                  Set Style
+                                                </label>
+                                                <FancySelect
+                                                  value={set.setType ?? 'straight'}
+                                                  options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
+                                                    value: setTypeOption,
+                                                    label: formatTokenLabel(setTypeOption),
+                                                  }))}
+                                                  onChange={(value) =>
+                                                    handleSetTemplateUpdate(setIndex, (current) => ({
+                                                      ...current,
+                                                      setType: value as SetTemplate['setType'],
+                                                      supersetGroup:
+                                                        value === 'superset'
+                                                          ? current.supersetGroup ?? 'A'
+                                                          : current.supersetGroup,
+                                                    }))
+                                                  }
+                                                  ariaLabel="Set style"
+                                                  buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                                  listClassName="max-h-56 overflow-y-auto"
+                                                />
+                                              </div>
+
+                                              <div>
+                                                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                  Tempo
+                                                </label>
+                                                <input
+                                                  value={set.tempo ?? ''}
+                                                  onChange={(event) =>
+                                                    handleSetTemplateUpdate(setIndex, (current) => ({
+                                                      ...current,
+                                                      tempo: event.target.value.trim() || undefined,
+                                                    }))
+                                                  }
+                                                  placeholder="3-1-1-0"
+                                                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                                />
+                                              </div>
+
+                                              {set.setType === 'cluster' && (
+                                                <>
+                                                  <div>
+                                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                      Cluster Reps
+                                                    </label>
+                                                    <input
+                                                      value={set.clusterReps?.join(',') ?? ''}
+                                                      onChange={(event) =>
+                                                        handleSetTemplateUpdate(setIndex, (current) => {
+                                                          const parsed = event.target.value
+                                                            .split(',')
+                                                            .map((entry) => Number(entry.trim()))
+                                                            .filter(
+                                                              (entry) =>
+                                                                Number.isFinite(entry) && entry > 0
+                                                            );
+                                                          return {
+                                                            ...current,
+                                                            clusterReps:
+                                                              parsed.length > 0 ? parsed : undefined,
+                                                          };
+                                                        })
+                                                      }
+                                                      placeholder="2,2,2"
+                                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                      Cluster Rest (s)
+                                                    </label>
+                                                    <EditableNumberInput
+                                                      min={5}
+                                                      step={5}
+                                                      value={set.clusterRestSeconds ?? 20}
+                                                      defaultValue={20}
+                                                      onCommit={(value) =>
+                                                        handleSetTemplateUpdate(setIndex, (current) => ({
+                                                          ...current,
+                                                          clusterRestSeconds:
+                                                            value == null ? undefined : value,
+                                                        }))
+                                                      }
+                                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                                                    />
+                                                  </div>
+                                                </>
+                                              )}
+
+                                              {set.setType === 'superset' && (
+                                                <div>
+                                                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                                                    Superset Group
+                                                  </label>
+                                                  <input
+                                                    value={set.supersetGroup ?? 'A'}
+                                                    onChange={(event) =>
+                                                      handleSetTemplateUpdate(setIndex, (current) => ({
+                                                        ...current,
+                                                        supersetGroup:
+                                                          event.target.value.trim() || 'A',
+                                                      }))
+                                                    }
+                                                    placeholder="A"
+                                                    className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                                                  />
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
                                         </div>
                                       )}
-                                    </>
-                                  )}
-                                </div>
-                              )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </article>
                           );
                         })}
 
-                        {currentDay.sets.length > 0 && (
+                        {currentDayExerciseCards.length > 0 && (
                           <button
                             type="button"
                             onClick={handleAddExerciseRow}
-                            className="w-full rounded-xl border border-dashed border-emerald-500/35 bg-emerald-500/5 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/55 hover:bg-emerald-500/10"
+                            className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                           >
                             Add Another Exercise
                           </button>
