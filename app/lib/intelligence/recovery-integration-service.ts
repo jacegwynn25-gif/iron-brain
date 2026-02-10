@@ -14,6 +14,10 @@ export interface TrainingReadiness {
 interface UserContext {
   sleep_hours?: number;
   calorie_balance?: 'surplus' | 'deficit' | 'maintenance';
+  subjective_readiness?: number;
+  resting_heart_rate?: number;
+  heart_rate_variability?: number;
+  source?: string;
 }
 
 export async function calculateTrainingReadiness(userId: string): Promise<TrainingReadiness> {
@@ -24,11 +28,14 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
   ]);
 
   // --- STEP 1: SYSTEMIC RECOVERY (The Foundation) ---
-  let systemicScore = 100;
+  const usesOuraReadiness = context.source === 'oura' && context.subjective_readiness != null;
+  let systemicScore = usesOuraReadiness
+    ? Math.round(context.subjective_readiness * 10)
+    : 100;
   const systemicReasons: string[] = [];
 
   // Sleep Logic
-  if (context.sleep_hours) {
+  if (!usesOuraReadiness && context.sleep_hours) {
     if (context.sleep_hours < 5) {
       systemicScore -= 25; 
       systemicReasons.push("Severe sleep debt");
@@ -36,6 +43,14 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
       systemicScore -= 10;
       systemicReasons.push("Poor sleep");
     }
+  }
+
+  if (usesOuraReadiness) {
+    systemicReasons.push("Oura readiness score");
+  } else if (context.subjective_readiness != null) {
+    const subjectiveScore = Math.round(context.subjective_readiness * 10);
+    systemicScore = Math.round((systemicScore + subjectiveScore) / 2);
+    systemicReasons.push("Self-reported readiness");
   }
 
   // Nutrition Logic (Using 'calorie_balance' enum column)
@@ -125,7 +140,7 @@ function getRecommendation(score: number): string {
 async function fetchLatestContext(userId: string): Promise<UserContext> {
   const { data } = await supabase
     .from('user_context_data')
-    .select('sleep_hours, calorie_balance')
+    .select('sleep_hours, calorie_balance, subjective_readiness, resting_heart_rate, heart_rate_variability, source')
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .limit(1)

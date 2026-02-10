@@ -15,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { DayTemplate, ProgramTemplate } from '@/app/lib/types';
+import type { DayTemplate, ProgramTemplate, WeightUnit } from '@/app/lib/types';
 import type { SetLog, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
@@ -421,11 +421,12 @@ type SessionLoggerProps = {
 export default function SessionLogger({ initialData, initialProgress }: SessionLoggerProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { weightUnit } = useUnitPreference();
+  const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness } = useRecoveryState();
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
   const namespaceId = user?.id ?? 'guest';
+  const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(preferredWeightUnit);
   const baseProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
   const programDayContext = useMemo<ProgramDayContext | null>(() => {
     if (!initialData || initialData.weeks.length === 0) return null;
@@ -453,7 +454,33 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     addExercise,
     removeExercise,
     setActiveCell,
-  } = useWorkoutSession(sessionProgram, readinessModifier, weightUnit);
+  } = useWorkoutSession(sessionProgram, readinessModifier, sessionWeightUnit);
+
+  const hasCompletedSets = useMemo(
+    () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),
+    [session.blocks]
+  );
+  const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
+
+  useEffect(() => {
+    if (hasCompletedSets) return;
+    if (preferredWeightUnit !== sessionWeightUnit) {
+      setSessionWeightUnit(preferredWeightUnit);
+    }
+  }, [hasCompletedSets, preferredWeightUnit, sessionWeightUnit]);
+
+  useEffect(() => {
+    if (prevWeightUnitRef.current === sessionWeightUnit) return;
+    prevWeightUnitRef.current = sessionWeightUnit;
+    if (hasCompletedSets) return;
+    dispatch({
+      type: 'INITIALIZE_SESSION',
+      payload: {
+        program: sessionProgram,
+        readinessModifier,
+      },
+    });
+  }, [dispatch, hasCompletedSets, readinessModifier, sessionProgram, sessionWeightUnit]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -745,10 +772,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           const reps = set.reps == null ? 8 : Number(set.reps);
           if (!Number.isFinite(reps) || reps <= 0) return;
           const weight = Number(set.weight) || 0;
-          const weightLbs = weight > 0 ? convertWeight(weight, weightUnit, 'lbs') : 0;
+          const weightLbs = weight > 0 ? convertWeight(weight, sessionWeightUnit, 'lbs') : 0;
           const e1rmRaw =
             weight > 0 ? Number(rpeAdjusted1RM(weight, reps, set.rpe ?? null) || 0) : 0;
-          const e1rmLbs = e1rmRaw > 0 ? convertWeight(e1rmRaw, weightUnit, 'lbs') : 0;
+          const e1rmLbs = e1rmRaw > 0 ? convertWeight(e1rmRaw, sessionWeightUnit, 'lbs') : 0;
           const volume = weightLbs > 0 ? weightLbs * reps : 0;
 
           const current = currentByExercise.get(exercise.id) ?? {
@@ -818,7 +845,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     return hits
       .sort((a, b) => (b.current - b.previous) - (a.current - a.previous))
       .slice(0, 8);
-  }, [cloudPrBaseline, isSummaryOpen, session.blocks]);
+  }, [cloudPrBaseline, isSummaryOpen, session.blocks, sessionWeightUnit]);
   const legendItems = useMemo(() => {
     const activeGroups = new Set<MuscleGroup>();
     const groupCounts = new Map<MuscleGroup, number>();
@@ -1313,7 +1340,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         exercise.sets.forEach((set, index) => {
           const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
           const weight = Number(set.weight) || 0;
-          const weightLbs = weight > 0 ? convertWeight(weight, weightUnit, 'lbs') : 0;
+          const weightLbs = weight > 0 ? convertWeight(weight, sessionWeightUnit, 'lbs') : 0;
           const volumeLoad = weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
           const e1rm =
             weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
@@ -1326,7 +1353,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             prescribedReps: String(reps),
             prescribedRPE: set.rpe ?? null,
             actualWeight: weight || null,
-            weightUnit,
+            weightUnit: sessionWeightUnit,
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
             actualReps: reps,
             actualRPE: set.rpe ?? null,
@@ -1423,7 +1450,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   };
 
   const handleShare = async () => {
-    const text = `IRON BRAIN SESSION\nVolume: ${sessionStats.totalVolume.toLocaleString()} ${weightUnit.toUpperCase()}\nSets: ${sessionStats.totalSets}\nReps: ${sessionStats.totalReps}\n\nCompleted with Iron Brain app.`;
+    const text = `IRON BRAIN SESSION\nVolume: ${sessionStats.totalVolume.toLocaleString()} ${sessionWeightUnit.toUpperCase()}\nSets: ${sessionStats.totalSets}\nReps: ${sessionStats.totalReps}\n\nCompleted with Iron Brain app.`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Iron Brain Session', text });
@@ -1830,8 +1857,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                       layout="vertical"
                       value={weightValue}
                       onChange={handleWeightChange}
-                      step={weightUnit === 'kg' ? 0.25 : 0.5}
-                      label={weightUnit.toUpperCase()}
+                      step={sessionWeightUnit === 'kg' ? 0.25 : 0.5}
+                      label={sessionWeightUnit.toUpperCase()}
                       valueClassName={isWeightActive ? 'text-emerald-400' : undefined}
                       onLabelClick={() => openKeypad('weight')}
                     />
@@ -1927,7 +1954,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               <RestTimer
                 isActive={viewMode === 'rest'}
                 duration={restDurationSeconds}
-                weightUnit={weightUnit}
+                weightUnit={sessionWeightUnit}
                 onComplete={(addExtra) => {
                   if (addExtra) {
                     handleAddBonusSet();
@@ -2265,13 +2292,13 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         const displayValue =
                           hit.metric === 'max_reps'
                             ? hit.current
-                            : convertWeight(hit.current, 'lbs', weightUnit);
+                            : convertWeight(hit.current, 'lbs', sessionWeightUnit);
                         return (
                           <div
                             key={`${hit.exerciseId}-${hit.metric}-${index}`}
                             className="whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300"
                           >
-                            {shortName} • {PR_METRIC_LABEL[hit.metric]} {formatProjectedPrValue(hit.metric, displayValue, weightUnit)}
+                            {shortName} • {PR_METRIC_LABEL[hit.metric]} {formatProjectedPrValue(hit.metric, displayValue, sessionWeightUnit)}
                           </div>
                         );
                       })}
@@ -2281,7 +2308,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
                 <div className="grid gap-2 text-center">
                   <p className="text-7xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
-                    {sessionStats.totalVolume.toLocaleString()} {weightUnit.toUpperCase()}
+                    {sessionStats.totalVolume.toLocaleString()} {sessionWeightUnit.toUpperCase()}
                   </p>
                   <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">
                     {sessionStats.totalSets} SETS

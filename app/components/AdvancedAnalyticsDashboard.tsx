@@ -214,16 +214,20 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const buildCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
     if (workouts.length < 3) return null;
 
-    const convertWeight = (value: number, fromUnit: 'lbs' | 'kg', toUnit: 'lbs' | 'kg') => {
-      if (fromUnit === toUnit) return value;
-      return fromUnit === 'lbs' ? lbsToKg(value) : kgToLbs(value);
+    const toLbs = (value: number, fromUnit: 'lbs' | 'kg') =>
+      fromUnit === 'lbs' ? value : kgToLbs(value);
+    const toDisplay = (valueLbs: number) =>
+      weightUnit === 'lbs' ? valueLbs : lbsToKg(valueLbs);
+    const roundWeightDisplay = (value: number) => {
+      const factor = weightUnit === 'kg' ? 100 : 10;
+      return Math.round(value * factor) / factor;
     };
 
     const resolveSetWeight = (set: WorkoutSession['sets'][number]) => {
       const raw = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
       if (!Number.isFinite(raw)) return 0;
       const fromUnit = set.weightUnit ?? 'lbs';
-      return convertWeight(raw, fromUnit, weightUnit);
+      return toLbs(raw, fromUnit);
     };
 
     const resolveFallbackVolumeLoad = (workout: WorkoutSession) => {
@@ -231,7 +235,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         ? workout.totalVolumeLoad
         : Number(workout.totalVolumeLoad ?? 0);
       if (!Number.isFinite(fallback)) return 0;
-      return convertWeight(fallback, 'lbs', weightUnit);
+      return fallback;
     };
 
     const resolveWorkoutVolumeLoad = (workout: WorkoutSession) => {
@@ -327,15 +331,29 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         }))
     );
 
-    const strengthLeaderboard = calculate1RMLeaderboard(allSets, { minSets: 2 });
-    const volumeLeaderboard = calculateVolumeLeaderboard(allSets, { minSets: 2 });
+    const strengthLeaderboardLbs = calculate1RMLeaderboard(allSets, { minSets: 2 });
+    const volumeLeaderboardLbs = calculateVolumeLeaderboard(allSets, { minSets: 2 });
+    const strengthLeaderboard = strengthLeaderboardLbs.map((lift) => ({
+      ...lift,
+      estimated1RM: Math.round(toDisplay(lift.estimated1RM)),
+      totalVolume: Math.round(toDisplay(lift.totalVolume)),
+      bestSet: {
+        ...lift.bestSet,
+        weight: roundWeightDisplay(toDisplay(lift.bestSet.weight)),
+      },
+    }));
+    const volumeLeaderboard = volumeLeaderboardLbs.map((exercise) => ({
+      ...exercise,
+      totalVolume: Math.round(toDisplay(exercise.totalVolume)),
+      avgWeightPerSet: roundWeightDisplay(toDisplay(exercise.avgWeightPerSet)),
+    }));
 
     return {
       acwr: {
         ratio: clampValue(acwrMetrics.acwr, 0, 5.0),
         status: acwrMetrics.status,
-        acuteLoad: clampValue(acwrMetrics.acuteLoad, 0, 1000000),
-        chronicLoad: clampValue(acwrMetrics.chronicLoad, 0, 1000000),
+        acuteLoad: toDisplay(clampValue(acwrMetrics.acuteLoad, 0, 1000000)),
+        chronicLoad: toDisplay(clampValue(acwrMetrics.chronicLoad, 0, 1000000)),
       },
       fitnessFatigue: fitnessFatigueModel
         ? {

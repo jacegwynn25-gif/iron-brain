@@ -6,6 +6,7 @@ import { analyzeSampleSizePower, cleanAndValidateData } from './stats/advanced-m
 // import { analyzeVBTFatigue, type VBTAnalysis } from './stats/velocity-based-training';
 import { analyzeBayesianRPE, type BayesianRPEAnalysis } from './stats/bayesian-rpe';
 import { getEnhancedFatigueAssessment, canUseHierarchicalModel } from './stats/fatigue-integration';
+import { convertWeight } from './units';
 
 /**
  * Science-Backed Fatigue Model for Auto-Regulation
@@ -344,8 +345,9 @@ export function calculateMuscleFatigue(
 
         // LOAD FACTOR: Heavier weights create more systemic fatigue
         const weight = set.actualWeight || 0;
-        // Normalize weight contribution (assuming 100-300 is typical working range)
-        const loadFactor = weight > 0 ? Math.min(1.5, Math.max(0.5, weight / 150)) : 1.0;
+        const weightLbs = weight > 0 ? convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs') : 0;
+        // Normalize weight contribution (assuming 100-300 lbs is typical working range)
+        const loadFactor = weightLbs > 0 ? Math.min(1.5, Math.max(0.5, weightLbs / 150)) : 1.0;
 
         // ENHANCED: Form breakdown multiplier (Häkkinen & Komi 1983)
         let formBreakdownMultiplier = 1.0;

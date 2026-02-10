@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
   Check,
@@ -294,6 +294,7 @@ export default function ProgramsPage() {
   const [editorFocusSetIndex, setEditorFocusSetIndex] = useState<number | null>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const exerciseNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -692,6 +693,7 @@ export default function ProgramsPage() {
             programList.map((program) => {
               const isSelected = selectedProgram?.id === program.id;
               const detailsOpen = detailsProgramId === program.id;
+              const detailsId = `program-details-${program.id}`;
               const detailTokens = [
                 program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
                 program.experienceLevel
@@ -744,6 +746,7 @@ export default function ProgramsPage() {
                             : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                         }`}
                         aria-expanded={detailsOpen}
+                        aria-controls={detailsId}
                       >
                         {detailsOpen ? 'Hide' : 'Details'}
                       </button>
@@ -760,20 +763,27 @@ export default function ProgramsPage() {
                     {detailsOpen && (
                       <motion.div
                         key={`details-${program.id}`}
-                        initial={{ opacity: 0, height: 0 }}
+                        id={detailsId}
+                        initial={prefersReducedMotion ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        exit={prefersReducedMotion ? { opacity: 1, height: 0 } : { opacity: 0, height: 0 }}
                         transition={{
-                          opacity: { duration: 0.18 },
-                          height: { duration: 0.28, ease: [0.25, 0.8, 0.2, 1] },
+                          opacity: { duration: prefersReducedMotion ? 0 : 0.18 },
+                          height: {
+                            duration: prefersReducedMotion ? 0 : 0.28,
+                            ease: [0.25, 0.8, 0.2, 1],
+                          },
                         }}
                         className="mt-4 overflow-hidden"
                       >
                         <motion.div
-                          initial={{ y: 10 }}
+                          initial={prefersReducedMotion ? { y: 0 } : { y: 10 }}
                           animate={{ y: 0 }}
-                          exit={{ y: 6 }}
-                          transition={{ duration: 0.22, ease: [0.25, 0.8, 0.2, 1] }}
+                          exit={prefersReducedMotion ? { y: 0 } : { y: 6 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.22,
+                            ease: [0.25, 0.8, 0.2, 1],
+                          }}
                           className="border-t border-cyan-400/20 pt-4"
                         >
                           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
@@ -841,130 +851,21 @@ export default function ProgramsPage() {
             })}
         </section>
 
-        <AnimatePresence>
-          {detailsProgram && (
-            <motion.div
-              key="program-details-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[95]"
-            >
-              <motion.button
-                type="button"
-                aria-label="Close program details"
-                onClick={() => setDetailsProgramId(null)}
-                className="absolute inset-0 bg-black/55 backdrop-blur-[28px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              />
-              <div className="relative z-[1] flex h-full items-center justify-center px-4 py-8 sm:px-6">
-                <motion.div
-                  initial={{ y: 12, scale: 0.98 }}
-                  animate={{ y: 0, scale: 1 }}
-                  exit={{ y: 8, scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 240, damping: 26, mass: 0.9 }}
-                  className="w-full max-w-xl rounded-3xl border border-cyan-400/20 bg-zinc-950/85 px-6 py-6 shadow-[0_25px_90px_-60px_rgba(6,182,212,0.8)] backdrop-blur-2xl sm:px-8 sm:py-7"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Program details"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
-                      <p className="mt-3 text-2xl font-black text-zinc-100 sm:text-3xl">
-                        {detailsProgram.name}
-                      </p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                        {getFrequencyLabel(detailsProgram)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDetailsProgramId(null)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-100"
-                      aria-label="Close program details"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {detailsProgram.description && (
-                    <p className="mt-5 text-sm text-zinc-300">{detailsProgram.description}</p>
-                  )}
-
-                  {(() => {
-                    const tokens = [
-                      detailsProgram.goal
-                        ? GOAL_LABELS[detailsProgram.goal] ?? formatTokenLabel(detailsProgram.goal)
-                        : null,
-                      detailsProgram.experienceLevel
-                        ? EXPERIENCE_LABELS[detailsProgram.experienceLevel] ??
-                          formatTokenLabel(detailsProgram.experienceLevel)
-                        : null,
-                    ].filter(Boolean) as string[];
-
-                    return tokens.length > 0 ? (
-                      <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                        {tokens.join(' • ')}
-                      </p>
-                    ) : null;
-                  })()}
-
-                  <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleStartProgram(detailsProgram);
-                        setDetailsProgramId(null);
-                      }}
-                      className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
-                    >
-                      Start
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openEditEditor(detailsProgram);
-                        setDetailsProgramId(null);
-                      }}
-                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleDuplicateProgram(detailsProgram);
-                        setDetailsProgramId(null);
-                      }}
-                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      disabled={builtInProgramIds.has(detailsProgram.id)}
-                      onClick={() => {
-                        void handleDeleteProgram(detailsProgram);
-                        setDetailsProgramId(null);
-                      }}
-                      className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
       </div>
+
+      <button
+        type="button"
+        aria-label="Close program details"
+        onClick={() => setDetailsProgramId(null)}
+        aria-hidden={!detailsProgramId}
+        tabIndex={detailsProgramId ? 0 : -1}
+        className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
+          detailsProgramId
+            ? 'pointer-events-auto bg-black/60 opacity-100'
+            : 'pointer-events-none bg-black/0 opacity-0'
+        }`}
+      />
 
       {editorMode && draft && (
         <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">

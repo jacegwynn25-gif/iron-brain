@@ -196,6 +196,11 @@ export default function WorkoutHistory({
     return grouped;
   };
 
+  const formatWeightValue = (value: number, unit: WeightUnit) =>
+    new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: unit === 'kg' ? 2 : 1,
+    }).format(value);
+
   const calculateSessionStats = (session: WorkoutSession) => {
     const completedSets = session.sets.filter(s => s.completed);
     const totalVolume = completedSets.reduce((sum, set) => {
@@ -541,14 +546,14 @@ export default function WorkoutHistory({
 
                           <div className="space-y-2">
                             {completedSets.map((set, idx) => {
-                              const pr = checkIfPR(set, exerciseId, session.date);
-                              const fromUnit = set.weightUnit ?? 'lbs';
-                              const displayWeight = set.actualWeight != null
-                                ? convertWeight(Number(set.actualWeight), fromUnit, weightUnit)
-                                : null;
-                              const displayE1RM = set.e1rm != null
-                                ? convertWeight(Number(set.e1rm), fromUnit, weightUnit)
-                                : null;
+                      const pr = checkIfPR(set, exerciseId, session.date);
+                      const fromUnit = set.weightUnit ?? 'lbs';
+                      const displayWeight = set.actualWeight != null
+                        ? Number(set.actualWeight)
+                        : null;
+                      const displayE1RM = set.e1rm != null
+                        ? Number(set.e1rm)
+                        : null;
 
                               return (
                                 <div
@@ -562,8 +567,8 @@ export default function WorkoutHistory({
                                     <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
                                       <span className="font-semibold text-white">
                                         {displayWeight != null && Number.isFinite(displayWeight)
-                                          ? `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(displayWeight)} ${weightUnit}`
-                                          : `— ${weightUnit}`}
+                                          ? `${formatWeightValue(displayWeight, fromUnit)} ${fromUnit}`
+                                          : `— ${fromUnit}`}
                                       </span>
                                       <span className="text-zinc-500">×</span>
                                       <span className="font-semibold text-white">

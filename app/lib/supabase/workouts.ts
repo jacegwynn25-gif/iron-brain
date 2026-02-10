@@ -2,6 +2,7 @@ import { supabase } from './client';
 import type { Database, TablesInsert } from './database.types';
 import { isValidUuid } from '../uuid';
 import { convertWeight } from '../units';
+import type { WeightUnit } from '../types';
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
@@ -26,6 +27,7 @@ type SetLogPrCandidate = Pick<
 >;
 
 const PERSONAL_RECORD_TYPES: PersonalRecordType[] = ['max_weight', 'max_reps', 'max_e1rm', 'max_volume'];
+const normalizeWeightUnit = (value?: string | null): WeightUnit => (value === 'kg' ? 'kg' : 'lbs');
 
 export interface PersonalRecordHit {
   exerciseId: string;
@@ -125,7 +127,7 @@ function buildSetRecordTypes(setLog: SetLogPrCandidate): Array<{ type: PersonalR
   const weightRaw = Number(setLog.actual_weight) || 0;
   const reps = Number(setLog.actual_reps) || 0;
   const e1rmRaw = Number(setLog.e1rm) || 0;
-  const unit = setLog.weight_unit ?? 'lbs';
+  const unit = normalizeWeightUnit(setLog.weight_unit);
   const weight = weightRaw > 0 ? convertWeight(weightRaw, unit, 'lbs') : 0;
   const e1rm = e1rmRaw > 0 ? convertWeight(e1rmRaw, unit, 'lbs') : 0;
   const volume = weight > 0 && reps > 0 ? weight * reps : 0;
@@ -198,7 +200,7 @@ export async function upsertPersonalRecordsForSetLogs(
       if (deactivateError) throw deactivateError;
     }
 
-    const unit = best.setLog.weight_unit ?? 'lbs';
+    const unit = normalizeWeightUnit(best.setLog.weight_unit);
     const weight = best.setLog.actual_weight != null
       ? convertWeight(best.setLog.actual_weight, unit, 'lbs')
       : null;
@@ -426,12 +428,12 @@ export async function updateExerciseStats(exerciseId: string) {
   const weightValues = setsTyped.map((set) => {
     const weight = set.actual_weight || 0;
     if (!weight) return 0;
-    return convertWeight(weight, set.weight_unit ?? 'lbs', 'lbs');
+    return convertWeight(weight, normalizeWeightUnit(set.weight_unit), 'lbs');
   });
   const e1rmValues = setsTyped.map((set) => {
     const e1rm = set.e1rm || 0;
     if (!e1rm) return 0;
-    return convertWeight(e1rm, set.weight_unit ?? 'lbs', 'lbs');
+    return convertWeight(e1rm, normalizeWeightUnit(set.weight_unit), 'lbs');
   });
 
   const avgWeight = weightValues.reduce((sum, weight) => sum + weight, 0) / totalSets;

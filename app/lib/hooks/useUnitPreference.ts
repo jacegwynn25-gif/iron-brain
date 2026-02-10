@@ -29,7 +29,7 @@ const getLocaleUnitSystem = (): UnitSystem => {
   if (typeof navigator === 'undefined') return 'metric';
 
   try {
-    const LocaleCtor = (Intl as typeof Intl & { Locale?: new (tag: string) => Intl.Locale }).Locale;
+    const LocaleCtor = (Intl as unknown as { Locale?: new (tag: string) => { measurementSystem?: string } }).Locale;
     if (LocaleCtor) {
       const locale = new LocaleCtor(navigator.language);
       const measurementSystem = (locale as Intl.Locale & { measurementSystem?: string }).measurementSystem;
@@ -143,7 +143,7 @@ export function useUnitPreference(): UseUnitPreferenceReturn {
         .from('user_settings')
         .select('weight_unit')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!active) return;
 
@@ -182,7 +182,7 @@ export function useUnitPreference(): UseUnitPreferenceReturn {
         { user_id: user.id, weight_unit: weightUnitFromSystem(system) },
         { onConflict: 'user_id' }
       );
-  }, [applyUnitSystem, user?.id]);
+  }, [applyUnitSystem, user]);
 
   // Conversion functions
   const kgToLbs = useCallback((kg: number) => kg * KG_TO_LBS, []);
