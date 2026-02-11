@@ -38,6 +38,9 @@ import { saveWorkout, storage } from '@/app/lib/storage';
 import { createUuid, isValidUuid } from '@/app/lib/uuid';
 import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
 import { convertWeight } from '@/app/lib/units';
+import { trackUiEvent } from '@/app/lib/analytics/ui-events';
+import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
+import { FEATURES } from '@/app/lib/features';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -1485,18 +1488,47 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
   const handleFinishWorkout = async () => {
     if (saveInFlightRef.current || isFinishingWorkout) {
+      if (user?.id) {
+        void trackUiEvent(
+          {
+            name: 'workout_finish_ignored',
+            source: 'workout',
+            properties: {
+              reason: saveInFlightRef.current ? 'save_in_flight' : 'is_finishing',
+            },
+          },
+          user.id
+        );
+      }
       return;
     }
     saveInFlightRef.current = true;
     setIsFinishingWorkout(true);
     setFinishStatusMessage('Saving workout...');
     setActiveInput(null);
+    const startedAt = Date.now();
+    const finishEventBase = {
+      programId: baseProgram?.id ?? 'quick_start',
+      programName: baseProgram?.name ?? 'Quick Start',
+      blockCount: session.blocks.length,
+    };
+    if (user?.id) {
+      void trackUiEvent(
+        {
+          name: 'workout_finish_pressed',
+          source: 'workout',
+          properties: finishEventBase,
+        },
+        user.id
+      );
+    }
 
     try {
       await withTimeout(
         (async () => {
           const payload = buildWorkoutSession();
           const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
+          setFinishStatusMessage('Saving program progress...');
           const hasCompletedSets = payload.sets.some((set) => set.completed);
           if (hasCompletedSets && initialData && programDayContext) {
             const nextProgress = advanceProgramProgress(
@@ -1512,6 +1544,26 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               await syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId);
             }
           }
+          if (FEATURES.programCalendar && hasCompletedSets && programDayContext && payload.programId) {
+            setFinishStatusMessage('Updating schedule...');
+            try {
+              await updateScheduleEvent({
+                match: {
+                  programId: payload.programId,
+                  weekIndex: programDayContext.weekIndex,
+                  dayIndex: programDayContext.dayIndex,
+                  scheduledDate: payload.date,
+                },
+                status: 'completed',
+                completedWorkoutSessionId: payload.id,
+                metadata: {
+                  completed_from: 'workout_finish',
+                },
+              });
+            } catch (scheduleError) {
+              console.warn('Failed to sync schedule completion from workout finish:', scheduleError);
+            }
+          }
           if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
             localStorage.setItem(
               'iron_brain_last_pr_hits',
@@ -1521,6 +1573,22 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               })
             );
           }
+          if (user?.id) {
+            void trackUiEvent(
+              {
+                name: 'workout_finish_success',
+                source: 'workout',
+                properties: {
+                  ...finishEventBase,
+                  durationMs: Date.now() - startedAt,
+                  completedSets: payload.sets.filter((set) => set.completed).length,
+                  totalSets: payload.sets.length,
+                  prHits: saveResult.newPersonalRecords.length,
+                },
+              },
+              user.id
+            );
+          }
         })(),
         12000,
         'Workout save timed out'
@@ -1528,6 +1596,21 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       setFinishStatusMessage('Saved. Finishing up...');
     } catch (error) {
       console.error('Workout finish flow failed; continuing to exit session:', error);
+      if (user?.id) {
+        const message = error instanceof Error ? error.message : String(error);
+        void trackUiEvent(
+          {
+            name: 'workout_finish_fallback_exit',
+            source: 'workout',
+            properties: {
+              ...finishEventBase,
+              durationMs: Date.now() - startedAt,
+              error: message,
+            },
+          },
+          user.id
+        );
+      }
       setFinishStatusMessage('Saved locally. Exiting...');
     } finally {
       saveInFlightRef.current = false;

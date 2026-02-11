@@ -89,6 +89,36 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_client_links: {
+        Row: {
+          client_user_id: string
+          coach_user_id: string
+          created_at: string
+          id: string
+          responded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_user_id: string
+          coach_user_id: string
+          created_at?: string
+          id?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_user_id?: string
+          coach_user_id?: string
+          created_at?: string
+          id?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       custom_exercises: {
         Row: {
           created_at: string
@@ -172,6 +202,127 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      program_assignments: {
+        Row: {
+          accepted_at: string | null
+          assigned_at: string
+          assigned_program_id: string | null
+          client_user_id: string
+          coach_user_id: string
+          created_at: string
+          id: string
+          link_id: string | null
+          metadata: Json
+          program_snapshot: Json
+          source_program_id: string
+          source_program_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          assigned_at?: string
+          assigned_program_id?: string | null
+          client_user_id: string
+          coach_user_id: string
+          created_at?: string
+          id?: string
+          link_id?: string | null
+          metadata?: Json
+          program_snapshot: Json
+          source_program_id: string
+          source_program_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          assigned_at?: string
+          assigned_program_id?: string | null
+          client_user_id?: string
+          coach_user_id?: string
+          created_at?: string
+          id?: string
+          link_id?: string | null
+          metadata?: Json
+          program_snapshot?: Json
+          source_program_id?: string
+          source_program_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_assignments_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "coach_client_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_schedule_events: {
+        Row: {
+          completed_at: string | null
+          completed_workout_session_id: string | null
+          created_at: string
+          day_index: number
+          id: string
+          metadata: Json
+          moved_from_date: string | null
+          program_id: string
+          program_name: string
+          scheduled_date: string
+          session_name: string
+          status: string
+          updated_at: string
+          user_id: string
+          week_index: number
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_workout_session_id?: string | null
+          created_at?: string
+          day_index?: number
+          id?: string
+          metadata?: Json
+          moved_from_date?: string | null
+          program_id: string
+          program_name: string
+          scheduled_date: string
+          session_name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          week_index?: number
+        }
+        Update: {
+          completed_at?: string | null
+          completed_workout_session_id?: string | null
+          created_at?: string
+          day_index?: number
+          id?: string
+          metadata?: Json
+          moved_from_date?: string | null
+          program_id?: string
+          program_name?: string
+          scheduled_date?: string
+          session_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          week_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_schedule_events_completed_workout_session_id_fkey"
+            columns: ["completed_workout_session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       equipment: {
         Row: {

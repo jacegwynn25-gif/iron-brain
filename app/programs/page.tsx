@@ -33,6 +33,9 @@ import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
 import EditableNumberInput from '@/app/components/ui/EditableNumberInput';
 import FancySelect from '@/app/components/ui/FancySelect';
+import ProgramsCalendarView from '@/app/components/program-builder/ProgramsCalendarView';
+import CoachCollabPanel from '@/app/components/program-builder/CoachCollabPanel';
+import { FEATURES } from '@/app/lib/features';
 
 type ProgramFilter = 'all' | 'mine' | 'built-in';
 type EditorMode = 'create' | 'edit' | null;
@@ -187,18 +190,6 @@ function parseMusclesFromInput(value: string): string[] {
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
   return Array.from(new Set(cleaned));
-}
-
-function inferPrimaryMusclesFromMovement(
-  movementPattern: CustomExerciseDraft['movementPattern']
-): string[] {
-  if (movementPattern === 'push') return ['chest'];
-  if (movementPattern === 'pull') return ['back'];
-  if (movementPattern === 'squat') return ['quads'];
-  if (movementPattern === 'hinge') return ['hamstrings'];
-  if (movementPattern === 'carry') return ['core'];
-  if (movementPattern === 'rotation') return ['obliques'];
-  return ['other'];
 }
 
 function fingerprintProgram(program: ProgramTemplate): string {
@@ -681,6 +672,7 @@ export default function ProgramsPage() {
   const [daysPerWeekInput, setDaysPerWeekInput] = useState('');
   const [weekCountFocused, setWeekCountFocused] = useState(false);
   const [daysPerWeekFocused, setDaysPerWeekFocused] = useState(false);
+  const [workspaceView, setWorkspaceView] = useState<'builder' | 'calendar' | 'collab'>('builder');
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -840,7 +832,7 @@ export default function ProgramsPage() {
     if (!hasEditorSetFocus) {
       return 'Tap Edit Sets on an exercise to tune set details.';
     }
-    return 'Adjust sets, then tap Close on the exercise when finished.';
+    return 'Adjust sets, then tap Collapse to return to the session list.';
   }, [currentDayExerciseRows.length, hasEditorSetFocus]);
   const normalizedExerciseQuery = exerciseQuery.trim();
   const exercisePickerHeading = useMemo(() => {
@@ -863,7 +855,8 @@ export default function ProgramsPage() {
     () => parseMusclesFromInput(customExerciseDraft.primaryMusclesText),
     [customExerciseDraft.primaryMusclesText]
   );
-  const canCreateCustomExercise = customExerciseName.length > 0;
+  const canCreateCustomExercise =
+    customExerciseName.length > 0 && customExercisePrimaryMuscles.length > 0;
 
   const resetCustomExerciseBuilder = (seedName = '') => {
     setShowCreateCustomExercise(false);
@@ -1493,7 +1486,6 @@ export default function ProgramsPage() {
     setCustomExerciseDraft((current) => ({
       ...current,
       name: seedName,
-      movementPattern: current.movementPattern || 'other',
     }));
     setCustomExerciseError(null);
     setShowCustomExerciseAdvanced(false);
@@ -1504,6 +1496,10 @@ export default function ProgramsPage() {
     const name = customExerciseName;
     if (!name) {
       setCustomExerciseError('Add a name for this exercise.');
+      return;
+    }
+    if (customExercisePrimaryMuscles.length === 0) {
+      setCustomExerciseError('Add at least one primary muscle.');
       return;
     }
 
@@ -1518,15 +1514,11 @@ export default function ProgramsPage() {
     setCustomExerciseSaving(true);
     setCustomExerciseError(null);
     try {
-      const resolvedPrimaryMuscles =
-        customExercisePrimaryMuscles.length > 0
-          ? customExercisePrimaryMuscles
-          : inferPrimaryMusclesFromMovement(customExerciseDraft.movementPattern);
       const created = await createCustomExercise(user?.id ?? null, {
         name,
         equipment: customExerciseDraft.equipment,
         exerciseType: customExerciseDraft.exerciseType,
-        primaryMuscles: resolvedPrimaryMuscles,
+        primaryMuscles: customExercisePrimaryMuscles,
         secondaryMuscles: parseMusclesFromInput(customExerciseDraft.secondaryMusclesText),
         movementPattern: customExerciseDraft.movementPattern || undefined,
         trackWeight: customExerciseDraft.equipment !== 'bodyweight',
@@ -1696,13 +1688,13 @@ export default function ProgramsPage() {
                   return { blockIndex, exerciseIndex, setIndex: 0 };
                 })
               }
-              className={`inline-flex h-11 items-center rounded-full border px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
+              className={`inline-flex h-11 items-center rounded-full border px-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
                 hasFocusedSet
                   ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
                   : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
               }`}
             >
-              {hasFocusedSet ? 'Close' : 'Edit Sets'}
+              {hasFocusedSet ? 'Collapse' : 'Edit Sets'}
             </button>
           </div>
         </div>
@@ -1766,9 +1758,9 @@ export default function ProgramsPage() {
         )}
 
         {!hasFocusedSet && (
-          <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 px-3 py-2">
-            <p className="truncate text-[10px] uppercase tracking-[0.18em] text-zinc-500">{compactSetSummary}</p>
-          </div>
+          <p className="truncate border-t border-zinc-900 pt-2 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            {compactSetSummary}
+          </p>
         )}
 
         {hasFocusedSet && (
@@ -1783,7 +1775,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-9 items-center rounded-lg border border-zinc-800 px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                      className="inline-flex h-11 items-center rounded-lg border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
                       aria-label={`Duplicate set ${setIndex + 1}`}
                     >
                       Duplicate
@@ -1792,7 +1784,7 @@ export default function ProgramsPage() {
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
                       disabled={exercise.sets.length <= 1}
-                      className="inline-flex h-9 items-center rounded-lg border border-rose-500/35 bg-rose-500/10 px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
+                      className="inline-flex h-11 items-center rounded-lg border border-rose-500/35 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
                       aria-label={`Remove set ${setIndex + 1}`}
                     >
                       Remove
@@ -2011,7 +2003,7 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
               >
                 Add Set
               </button>
@@ -2025,7 +2017,7 @@ export default function ProgramsPage() {
                         : { blockIndex, exerciseIndex }
                     )
                   }
-                  className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                  className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
                     isMenuOpen
                       ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
                       : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
@@ -2120,107 +2112,155 @@ export default function ProgramsPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Builder</p>
               <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Programs</h1>
             </div>
-            <button
-              type="button"
-              onClick={openCreateEditor}
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
-            >
-              <CirclePlus className="h-4 w-4" />
-              New
-            </button>
-          </div>
-
-          <div className="mt-5 flex items-center gap-3 border-b border-zinc-900 pb-4">
-            <Search className="h-4 w-4 text-zinc-500" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search programs..."
-              className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
-            />
-          </div>
-
-          <div className="mt-4 flex gap-2">
-            {(['all', 'mine', 'built-in'] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setFilter(option)}
-                className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                  filter === option
-                    ? 'bg-zinc-100 text-zinc-950'
-                    : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                {option === 'built-in' ? 'Built-In' : option}
-              </button>
-            ))}
-          </div>
-        </header>
-
-        <section className="border-b border-zinc-900 py-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Active Program</p>
-          <div className="mt-3 flex items-start justify-between gap-4">
-            <div>
-              <p className="break-words text-2xl font-black text-zinc-100">
-                {activeProgram?.name ?? 'No Program Selected'}
-              </p>
-              <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                {activeProgram ? getFrequencyLabel(activeProgram) : 'Pick or build a program'}
-              </p>
-            </div>
-            {activeProgram && (
-              <button
-                type="button"
-                onClick={() => handleStartProgram(activeProgram)}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 hover:border-zinc-500"
-              >
-                <Play className="h-3.5 w-3.5" />
-                Start
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section className="py-4 [overflow-anchor:none]">
-          {loading && (
-            <div className="py-6 text-xs uppercase tracking-[0.25em] text-zinc-500">Loading Programs...</div>
-          )}
-
-          {!loading && programList.length === 0 && (
-            <div className="py-10 text-center">
-              <p className="text-zinc-400">No programs found.</p>
+            {workspaceView === 'builder' && (
               <button
                 type="button"
                 onClick={openCreateEditor}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-200"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
               >
                 <CirclePlus className="h-4 w-4" />
-                Build from Scratch
+                New
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
-          {!loading &&
-            programList.map((program) => {
-              const isSelected = selectedProgram?.id === program.id;
-              const detailsOpen = detailsProgramId === program.id;
-              const detailsId = `program-details-${program.id}`;
-              const detailTokens = [
-                program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
-                program.experienceLevel
-                  ? EXPERIENCE_LABELS[program.experienceLevel] ?? formatTokenLabel(program.experienceLevel)
-                  : null,
-              ].filter(Boolean) as string[];
-              return (
-                <motion.article
-                  key={program.id}
-                  className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${
-                    detailsOpen
-                      ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
-                      : 'z-[30] border-b border-zinc-900'
-                  }`}
-                >
+          <div className="mt-4 inline-flex h-11 items-center gap-1 rounded-full border border-zinc-800 p-1">
+            <button
+              type="button"
+              onClick={() => setWorkspaceView('builder')}
+              className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                workspaceView === 'builder'
+                  ? 'bg-zinc-100 text-zinc-950'
+                  : 'text-zinc-500 hover:text-zinc-200'
+              }`}
+            >
+              Builder
+            </button>
+            {FEATURES.programCalendar && (
+              <button
+                type="button"
+                onClick={() => setWorkspaceView('calendar')}
+                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                  workspaceView === 'calendar'
+                    ? 'bg-zinc-100 text-zinc-950'
+                    : 'text-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                Calendar
+              </button>
+            )}
+            {FEATURES.coachCollab && (
+              <button
+                type="button"
+                onClick={() => setWorkspaceView('collab')}
+                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                  workspaceView === 'collab'
+                    ? 'bg-zinc-100 text-zinc-950'
+                    : 'text-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                Collaboration
+              </button>
+            )}
+          </div>
+
+          {workspaceView === 'builder' && (
+            <>
+              <div className="mt-5 flex items-center gap-3 border-b border-zinc-900 pb-4">
+                <Search className="h-4 w-4 text-zinc-500" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search programs..."
+                  className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                {(['all', 'mine', 'built-in'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setFilter(option)}
+                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                      filter === option
+                        ? 'bg-zinc-100 text-zinc-950'
+                        : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    {option === 'built-in' ? 'Built-In' : option}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </header>
+
+        {workspaceView === 'builder' && (
+          <>
+            <section className="border-b border-zinc-900 py-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Active Program</p>
+              <div className="mt-3 flex items-start justify-between gap-4">
+                <div>
+                  <p className="break-words text-2xl font-black text-zinc-100">
+                    {activeProgram?.name ?? 'No Program Selected'}
+                  </p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                    {activeProgram ? getFrequencyLabel(activeProgram) : 'Pick or build a program'}
+                  </p>
+                </div>
+                {activeProgram && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartProgram(activeProgram)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 hover:border-zinc-500"
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    Start
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section className="py-4 [overflow-anchor:none]">
+              {loading && (
+                <div className="py-6 text-xs uppercase tracking-[0.25em] text-zinc-500">Loading Programs...</div>
+              )}
+
+              {!loading && programList.length === 0 && (
+                <div className="py-10 text-center">
+                  <p className="text-zinc-400">No programs found.</p>
+                  <button
+                    type="button"
+                    onClick={openCreateEditor}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-200"
+                  >
+                    <CirclePlus className="h-4 w-4" />
+                    Build from Scratch
+                  </button>
+                </div>
+              )}
+
+              {!loading &&
+                programList.map((program) => {
+                  const isSelected = selectedProgram?.id === program.id;
+                  const detailsOpen = detailsProgramId === program.id;
+                  const detailsId = `program-details-${program.id}`;
+                  const detailTokens = [
+                    program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
+                    program.experienceLevel
+                      ? EXPERIENCE_LABELS[program.experienceLevel] ?? formatTokenLabel(program.experienceLevel)
+                      : null,
+                  ].filter(Boolean) as string[];
+                  return (
+                    <motion.article
+                      key={program.id}
+                      className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${
+                        detailsOpen
+                          ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
+                          : 'z-[30] border-b border-zinc-900'
+                      }`}
+                    >
                   <div className="flex items-center justify-between gap-3">
                     <button
                       type="button"
@@ -2358,26 +2398,38 @@ export default function ProgramsPage() {
                     )}
                   </AnimatePresence>
 
-                </motion.article>
-              );
-            })}
-        </section>
+                    </motion.article>
+                  );
+                })}
+            </section>
 
-        {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
+            {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
+          </>
+        )}
+
+        {workspaceView === 'calendar' && FEATURES.programCalendar && (
+          <ProgramsCalendarView programs={allPrograms} />
+        )}
+
+        {workspaceView === 'collab' && FEATURES.coachCollab && (
+          <CoachCollabPanel programs={allPrograms} />
+        )}
       </div>
 
-      <button
-        type="button"
-        aria-label="Close program details"
-        onClick={() => setDetailsProgramId(null)}
-        aria-hidden={!detailsProgramId}
-        tabIndex={detailsProgramId ? 0 : -1}
-        className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
-          detailsProgramId
-            ? 'pointer-events-auto bg-black/60 opacity-100'
-            : 'pointer-events-none bg-black/0 opacity-0'
-        }`}
-      />
+      {workspaceView === 'builder' && (
+        <button
+          type="button"
+          aria-label="Close program details"
+          onClick={() => setDetailsProgramId(null)}
+          aria-hidden={!detailsProgramId}
+          tabIndex={detailsProgramId ? 0 : -1}
+          className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
+            detailsProgramId
+              ? 'pointer-events-auto bg-black/60 opacity-100'
+              : 'pointer-events-none bg-black/0 opacity-0'
+          }`}
+        />
+      )}
 
       {editorMode && draft && (
         <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
@@ -2387,7 +2439,7 @@ export default function ProgramsPage() {
                 <button
                   type="button"
                   onClick={closeEditor}
-                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400"
+                  className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:bg-zinc-900/70 hover:text-zinc-100"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
@@ -2401,7 +2453,7 @@ export default function ProgramsPage() {
                     void handleSaveDraft();
                   }}
                   disabled={editorSaving}
-                  className="inline-flex h-9 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-3 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
+                  className="inline-flex h-11 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
                 >
                   {editorSaving ? 'Saving...' : 'Done'}
                 </button>
@@ -2685,7 +2737,7 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSingleBlock}
-                              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
+                              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
                             >
                               <CirclePlus className="h-3.5 w-3.5" />
                               Add Exercise
@@ -2693,7 +2745,7 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="inline-flex h-10 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
+                              className="inline-flex h-11 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
                             >
                               Add Superset Pair
                             </button>
@@ -2708,7 +2760,7 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('simple')}
-                            className={`h-10 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
+                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
                               editorDetailMode === 'simple'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -2719,7 +2771,7 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('advanced')}
-                            className={`h-10 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
+                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
                               editorDetailMode === 'advanced'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -2732,21 +2784,11 @@ export default function ProgramsPage() {
 
                       <div className="space-y-3">
                         {currentDayExerciseRows.length === 0 && (
-                          <div className="space-y-2">
-                            <button
-                              type="button"
-                              onClick={handleAddSingleBlock}
-                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                            >
-                              Add First Exercise
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleAddSupersetBlock}
-                              className="w-full px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
-                            >
-                              Start with a Superset Pair Instead
-                            </button>
+                          <div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center">
+                            <p className="text-sm font-semibold text-zinc-300">No exercises in this session yet.</p>
+                            <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                              Use Add Exercise above to build this session.
+                            </p>
                           </div>
                         )}
 
@@ -2957,7 +2999,7 @@ export default function ProgramsPage() {
                   </div>
 
                   <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                    Required: exercise name. Add extra details now or later.
+                    Required: name, equipment, lift type, and primary muscles.
                   </p>
 
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -3002,7 +3044,7 @@ export default function ProgramsPage() {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Lift Type
+                        Lift Type *
                       </label>
                       <div className="mt-1 grid grid-cols-2 gap-2">
                         {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
@@ -3025,6 +3067,29 @@ export default function ProgramsPage() {
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Primary Muscles *
+                      </label>
+                      <input
+                        aria-label="Primary Muscles"
+                        value={customExerciseDraft.primaryMusclesText}
+                        onChange={(event) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            primaryMusclesText: event.target.value,
+                          }))
+                        }
+                        placeholder="chest, shoulders, triceps"
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                      />
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                        {customExercisePrimaryMuscles.length > 0
+                          ? `${customExercisePrimaryMuscles.length} selected`
+                          : 'Comma separated list'}
+                      </p>
                     </div>
                   </div>
 
@@ -3059,28 +3124,6 @@ export default function ProgramsPage() {
                           buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                           listClassName="max-h-56 overflow-y-auto"
                         />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                          Primary Muscles
-                        </label>
-                        <input
-                          aria-label="Primary Muscles"
-                          value={customExerciseDraft.primaryMusclesText}
-                          onChange={(event) =>
-                            setCustomExerciseDraft((current) => ({
-                              ...current,
-                              primaryMusclesText: event.target.value,
-                            }))
-                          }
-                          placeholder="chest, shoulders, triceps"
-                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                        />
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
-                          {customExercisePrimaryMuscles.length > 0
-                            ? `${customExercisePrimaryMuscles.length} selected`
-                            : 'Optional comma separated'}
-                        </p>
                       </div>
                       <div className="sm:col-span-2">
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">

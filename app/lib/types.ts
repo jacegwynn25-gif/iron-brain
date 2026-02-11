@@ -142,7 +142,63 @@ export interface ProgramTemplate {
   weekCount?: number;
   intensityMethod?: 'rpe' | 'rir' | 'percentage' | 'amrap' | 'custom';
   isCustom?: boolean;
+  sourceType?: 'user' | 'assigned' | 'template';
+  sourceAssignmentId?: string;
+  assignedByUserId?: string;
+  assignedAt?: string;
   weeks: WeekTemplate[];
+}
+
+// ============================================================
+// PROGRAM SCHEDULE + COLLABORATION TYPES
+// ============================================================
+
+export type ProgramScheduleStatus = 'scheduled' | 'completed' | 'skipped' | 'moved';
+
+export interface ProgramScheduleEvent {
+  id: string;
+  userId: string;
+  programId: string;
+  programName: string;
+  weekIndex: number;
+  dayIndex: number;
+  sessionName: string;
+  scheduledDate: string; // YYYY-MM-DD in user local timezone
+  status: ProgramScheduleStatus;
+  completedWorkoutSessionId?: string | null;
+  completedAt?: string | null;
+  movedFromDate?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CoachClientLinkStatus = 'pending' | 'accepted' | 'rejected' | 'revoked';
+
+export interface CoachClientLink {
+  id: string;
+  coachUserId: string;
+  clientUserId: string;
+  status: CoachClientLinkStatus;
+  createdAt: string;
+  updatedAt: string;
+  respondedAt?: string | null;
+}
+
+export type ProgramAssignmentStatus = 'assigned' | 'accepted' | 'archived';
+
+export interface ProgramAssignment {
+  id: string;
+  coachUserId: string;
+  clientUserId: string;
+  sourceProgramId: string;
+  sourceProgramName: string;
+  assignedProgramId?: string | null;
+  status: ProgramAssignmentStatus;
+  assignedAt: string;
+  acceptedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================

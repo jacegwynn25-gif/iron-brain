@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   Battery,
+  CalendarDays,
   Dumbbell,
   User,
   AlertTriangle,
@@ -15,7 +16,9 @@ import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { trackUiEvent } from '../lib/analytics/ui-events';
-import type { SetType, WorkoutSession } from '../lib/types';
+import type { ProgramScheduleEvent, SetType, WorkoutSession } from '../lib/types';
+import { FEATURES } from '../lib/features';
+import { listScheduleEvents } from '../lib/calendar/schedule-api';
 import {
   calculateACWR,
   updateFitnessFatigueModel,
@@ -115,21 +118,78 @@ interface AnalyticsData {
     setCount: number;
     avgWeightPerSet: number;
   }>;
+  adherence?: {
+    windows: Record<
+      '7' | '30' | '90',
+      {
+        plannedSessions: number;
+        completedSessions: number;
+        onTimeCompletedSessions: number;
+        skippedSessions: number;
+        rescheduledSessions: number;
+        completionRate: number;
+        onTimeRate: number;
+        skipRate: number;
+        rescheduleRate: number;
+      }
+    >;
+    trend: Array<{
+      label: string;
+      startDate: string;
+      endDate: string;
+      plannedSessions: number;
+      completedSessions: number;
+      completionRate: number;
+    }>;
+    overdueCount: number;
+    upcomingSession: ProgramScheduleEvent | null;
+  };
 }
 
-type ViewType = 'overview' | 'recovery' | 'strength' | 'profile';
+type AdherenceSnapshot = NonNullable<AnalyticsData['adherence']>;
+
+type ViewType = 'overview' | 'adherence' | 'recovery' | 'strength' | 'profile';
 
 interface AdvancedAnalyticsDashboardProps {
   initialView?: string;
 }
 
-const VIEW_OPTIONS: ViewType[] = ['overview', 'recovery', 'strength', 'profile'];
+const VIEW_OPTIONS: ViewType[] = ['overview', 'adherence', 'recovery', 'strength', 'profile'];
 
-const resolveInitialView = (value?: string): ViewType =>
-  VIEW_OPTIONS.includes(value as ViewType) ? (value as ViewType) : 'overview';
+const resolveInitialView = (value?: string): ViewType => {
+  const resolved = VIEW_OPTIONS.includes(value as ViewType) ? (value as ViewType) : 'overview';
+  if (resolved === 'adherence' && !FEATURES.adherenceAnalytics) return 'overview';
+  return resolved;
+};
 
 const SECTION_CLASS = 'border-b border-zinc-900 pb-6';
 const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900/80 bg-zinc-950/45 p-3';
+
+const formatIsoDateLocal = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseIsoDate = (value: string) => new Date(`${value}T00:00:00`);
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const startOfWeek = (date: Date) => {
+  const next = new Date(date);
+  const day = (next.getDay() + 6) % 7;
+  next.setDate(next.getDate() - day);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const pct = (numerator: number, denominator: number) =>
+  denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
 
 export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnalyticsDashboardProps) {
   const { user, loading: authLoading, namespaceReady, isSyncing } = useAuth();
@@ -142,7 +202,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutSession[]>([]);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
+  const [loadingAdherence, setLoadingAdherence] = useState(false);
   const hasMinimumData = completedWorkouts.length >= 3;
+  const adherencePlanned90 = analytics.adherence?.windows['90'].plannedSessions ?? 0;
+  const canRenderAdherenceWithoutWorkoutMinimum =
+    FEATURES.adherenceAnalytics && (adherencePlanned90 > 0 || loadingAdherence || selectedView === 'adherence');
+  const hasRequiredDataset = hasMinimumData || canRenderAdherenceWithoutWorkoutMinimum;
 
   // Track previous user ID to detect actual user changes
   const prevUserIdRef = useRef<string | undefined | null>(null);
@@ -394,6 +459,113 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }));
   }, [buildCoreAnalytics]);
 
+  const buildAdherenceAnalytics = useCallback((events: ProgramScheduleEvent[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = formatIsoDateLocal(today);
+
+    const getWindowMetrics = (days: number) => {
+      const start = addDays(today, -(days - 1));
+      const startIso = formatIsoDateLocal(start);
+      const scoped = events.filter((event) => event.scheduledDate >= startIso && event.scheduledDate <= todayIso);
+
+      const plannedSessions = scoped.length;
+      const completedSessions = scoped.filter((event) => event.status === 'completed').length;
+      const onTimeCompletedSessions = scoped.filter(
+        (event) => event.status === 'completed' && !event.movedFromDate
+      ).length;
+      const skippedSessions = scoped.filter((event) => event.status === 'skipped').length;
+      const rescheduledSessions = scoped.filter(
+        (event) => event.status === 'moved' || Boolean(event.movedFromDate)
+      ).length;
+
+      return {
+        plannedSessions,
+        completedSessions,
+        onTimeCompletedSessions,
+        skippedSessions,
+        rescheduledSessions,
+        completionRate: pct(completedSessions, plannedSessions),
+        onTimeRate: pct(onTimeCompletedSessions, plannedSessions),
+        skipRate: pct(skippedSessions, plannedSessions),
+        rescheduleRate: pct(rescheduledSessions, plannedSessions),
+      };
+    };
+
+    const windows = {
+      '7': getWindowMetrics(7),
+      '30': getWindowMetrics(30),
+      '90': getWindowMetrics(90),
+    } satisfies AdherenceSnapshot['windows'];
+
+    const currentWeekStart = startOfWeek(today);
+    const trend = Array.from({ length: 12 }, (_, offset) => {
+      const weekStart = addDays(currentWeekStart, -(11 - offset) * 7);
+      const weekEnd = addDays(weekStart, 6);
+      const weekStartIso = formatIsoDateLocal(weekStart);
+      const weekEndIso = formatIsoDateLocal(weekEnd);
+      const clampedEndIso = weekEndIso > todayIso ? todayIso : weekEndIso;
+      const weekEvents = events.filter(
+        (event) => event.scheduledDate >= weekStartIso && event.scheduledDate <= clampedEndIso
+      );
+      const plannedSessions = weekEvents.length;
+      const completedSessions = weekEvents.filter((event) => event.status === 'completed').length;
+      return {
+        label: weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        startDate: weekStartIso,
+        endDate: clampedEndIso,
+        plannedSessions,
+        completedSessions,
+        completionRate: pct(completedSessions, plannedSessions),
+      };
+    });
+
+    const upcomingSession =
+      events
+        .filter(
+          (event) =>
+            (event.status === 'scheduled' || event.status === 'moved') && event.scheduledDate >= todayIso
+        )
+        .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0] ?? null;
+
+    const overdueCount = events.filter(
+      (event) =>
+        (event.status === 'scheduled' || event.status === 'moved') && event.scheduledDate < todayIso
+    ).length;
+
+    return {
+      windows,
+      trend,
+      overdueCount,
+      upcomingSession,
+    } satisfies AdherenceSnapshot;
+  }, []);
+
+  const loadAdherenceAnalytics = useCallback(async () => {
+    if (!FEATURES.adherenceAnalytics || !user) {
+      setAnalytics((prev) => ({ ...prev, adherence: undefined }));
+      return;
+    }
+
+    setLoadingAdherence(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const from = formatIsoDateLocal(addDays(today, -89));
+      const to = formatIsoDateLocal(addDays(today, 30));
+      const events = await listScheduleEvents({ from, to });
+      const adherence = buildAdherenceAnalytics(events);
+      setAnalytics((prev) => ({
+        ...prev,
+        adherence,
+      }));
+    } catch (err) {
+      console.error('Failed to load adherence analytics:', err);
+    } finally {
+      setLoadingAdherence(false);
+    }
+  }, [buildAdherenceAnalytics, user]);
+
   const loadAnalytics = useCallback(async () => {
     // Check preconditions BEFORE acquiring lock - this allows proper retry when conditions change
     // If we acquire the lock first and then return early, subsequent calls get blocked unnecessarily
@@ -585,6 +757,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }
   }, [selectedView, user, analytics.recoveryProfiles, loadingRecovery, loadRecoveryProfiles]);
 
+  useEffect(() => {
+    if (!FEATURES.adherenceAnalytics || !user) return;
+    if (selectedView === 'adherence' || selectedView === 'overview') {
+      void loadAdherenceAnalytics();
+    }
+  }, [selectedView, user, loadAdherenceAnalytics]);
+
   // Get injury risk status
   const getInjuryRiskStatus = () => {
     if (!analytics.acwr) return { color: 'gray', label: 'Unknown' };
@@ -638,6 +817,39 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   const unifiedReadiness = getUnifiedReadiness();
   const readinessStatus = getReadinessStatus(unifiedReadiness);
+  const adherence = analytics.adherence;
+  const getRateToneClass = (rate: number) => {
+    if (rate >= 80) return 'text-emerald-300';
+    if (rate >= 60) return 'text-amber-300';
+    return 'text-rose-300';
+  };
+
+  const adherenceActionItems = (() => {
+    if (!adherence) return [] as string[];
+    const actions: string[] = [];
+    if (adherence.overdueCount > 0) {
+      actions.push(
+        `${adherence.overdueCount} overdue session${adherence.overdueCount === 1 ? '' : 's'} pending. Clear one overdue session first.`
+      );
+    }
+    if (adherence.upcomingSession) {
+      const upcomingDate = parseIsoDate(adherence.upcomingSession.scheduledDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayDelta = Math.round((upcomingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const relativeLabel =
+        dayDelta <= 0 ? 'today' : dayDelta === 1 ? 'tomorrow' : `in ${dayDelta} days`;
+      const base = `${adherence.upcomingSession.sessionName} (${adherence.upcomingSession.programName}) is scheduled ${relativeLabel}.`;
+      if (readinessStatus === 'poor') {
+        actions.push(`${base} Readiness is low, so run a lighter variant or reschedule proactively.`);
+      } else {
+        actions.push(`${base} Readiness is ${readinessStatus}, so keep this as your next priority.`);
+      }
+    } else {
+      actions.push('No upcoming scheduled session. Add one from Programs → Calendar to keep momentum.');
+    }
+    return actions;
+  })();
 
   if (loading) {
     return (
@@ -653,7 +865,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     );
   }
 
-  if (!hasMinimumData) {
+  if (!hasRequiredDataset) {
     const awaitingSync = cloudSyncing && completedWorkouts.length === 0;
     return (
       <div className="min-h-dvh app-gradient safe-top px-6 pb-24 pt-10">
@@ -667,7 +879,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <p className="mb-6 text-sm text-zinc-400">
             {awaitingSync
               ? 'Pulling your workout history from the cloud.'
-              : 'Complete at least 3 workouts to unlock Insights.'}
+              : FEATURES.adherenceAnalytics
+                ? 'Complete at least 3 workouts or schedule sessions in Programs to unlock full Insights.'
+                : 'Complete at least 3 workouts to unlock Insights.'}
           </p>
           {cloudSyncing && (
             <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-400">
@@ -727,6 +941,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         >
           {([
             { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
+            ...(FEATURES.adherenceAnalytics
+              ? [{ id: 'adherence' as ViewType, label: 'Adherence', Icon: CalendarDays }]
+              : []),
             { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
             { id: 'strength' as ViewType, label: 'Strength', Icon: Dumbbell },
             { id: 'profile' as ViewType, label: 'Profile', Icon: User }
@@ -912,6 +1129,86 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Adherence Tab */}
+        {selectedView === 'adherence' && FEATURES.adherenceAnalytics && (
+          <div className="space-y-6">
+            <div className={SECTION_CLASS}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold text-white">Plan Adherence</h2>
+                {loadingAdherence && (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+                    Syncing...
+                  </span>
+                )}
+              </div>
+
+              {adherence ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {(['7', '30', '90'] as const).map((window) => {
+                    const metrics = adherence.windows[window];
+                    return (
+                      <div key={window} className={SUBSECTION_CARD_CLASS}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">{window} day</p>
+                        <p className={`mt-2 text-2xl font-bold ${getRateToneClass(metrics.completionRate)}`}>
+                          {metrics.completionRate}%
+                        </p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                          {metrics.completedSessions}/{metrics.plannedSessions} completed
+                        </p>
+                        <div className="mt-3 space-y-1 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                          <p>On-time: {metrics.onTimeRate}%</p>
+                          <p>Skip rate: {metrics.skipRate}%</p>
+                          <p>Reschedule rate: {metrics.rescheduleRate}%</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">No schedule history yet. Add scheduled sessions in Programs.</p>
+              )}
+            </div>
+
+            {adherence && (
+              <div className={SECTION_CLASS}>
+                <h2 className="mb-4 text-xl font-bold text-white">Consistency Trend (12 Weeks)</h2>
+                <div className="space-y-2">
+                  {adherence.trend.map((point) => (
+                    <div
+                      key={`${point.startDate}-${point.endDate}`}
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-4`}
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-200">{point.label}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                          {point.completedSessions}/{point.plannedSessions} sessions completed
+                        </p>
+                      </div>
+                      <p className={`text-sm font-bold ${getRateToneClass(point.completionRate)}`}>
+                        {point.completionRate}%
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className={SECTION_CLASS}>
+              <h2 className="mb-4 text-xl font-bold text-white">What To Do Next</h2>
+              <div className="space-y-2">
+                {adherenceActionItems.map((action, index) => (
+                  <div key={`${action}-${index}`} className={SUBSECTION_CARD_CLASS}>
+                    <p className="text-sm text-zinc-200">{action}</p>
+                  </div>
+                ))}
+                {adherenceActionItems.length === 0 && (
+                  <p className="text-sm text-zinc-500">No recommendations available yet.</p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

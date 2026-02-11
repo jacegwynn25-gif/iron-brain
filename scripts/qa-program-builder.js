@@ -59,7 +59,7 @@ async function clickFirstByRole(page, role, options, label) {
 
   console.log('▶️ Removing and undoing custom exercise...');
   const customExerciseRow = page.locator('article', { hasText: new RegExp(customExerciseName, 'i') }).first();
-  const focusToggle = customExerciseRow.getByRole('button', { name: /^(Edit Sets|Close)$/i }).first();
+  const focusToggle = customExerciseRow.getByRole('button', { name: /^(Edit Sets|Collapse)$/i }).first();
   const focusLabel = (await focusToggle.textContent()) ?? '';
   if (/Edit Sets/i.test(focusLabel)) {
     await focusToggle.click();
