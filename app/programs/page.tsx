@@ -12,7 +12,6 @@ import {
   MoreHorizontal,
   Play,
   Search,
-  Trash2,
   X,
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
@@ -1664,7 +1663,6 @@ export default function ProgramsPage() {
     const showSupersetSettings =
       block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
     const canBreakSupersetPair = block.type === 'superset';
-    const canShowSetQuickActions = hasFocusedSet;
 
     return (
       <article
@@ -1680,7 +1678,7 @@ export default function ProgramsPage() {
               {slotLabel ? `${slotLabel} • ` : ''}{exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
             </p>
           </div>
-          <div className="relative flex shrink-0 items-center gap-1.5" data-exercise-action-menu="true">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() =>
@@ -1699,93 +1697,6 @@ export default function ProgramsPage() {
             >
               {hasFocusedSet ? 'Close' : 'Edit'}
             </button>
-            <button
-              type="button"
-              onClick={() =>
-                setExerciseActionMenu((current) =>
-                  current?.blockIndex === blockIndex && current.exerciseIndex === exerciseIndex
-                    ? null
-                    : { blockIndex, exerciseIndex }
-                )
-              }
-              className={`inline-flex h-11 items-center gap-1.5 rounded-full border px-3 transition-colors ${
-                isMenuOpen
-                  ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
-                  : 'border-indigo-500/35 bg-indigo-500/8 text-indigo-200 hover:bg-indigo-500/14'
-              }`}
-              aria-label={`More actions for ${exerciseLabel}`}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.18em]">More</span>
-            </button>
-            {isMenuOpen && (
-              <div className="absolute right-0 top-10 z-30 min-w-[12rem] rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleReplaceExercise(blockIndex, exerciseIndex);
-                    setExerciseActionMenu(null);
-                  }}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
-                >
-                  Replace Exercise
-                </button>
-                {block.type === 'single' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExerciseActionMenu(null);
-                      handleConvertSingleToSupersetPair(blockIndex);
-                    }}
-                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
-                  >
-                    Convert To Superset Pair
-                  </button>
-                )}
-                {canBreakSupersetPair && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExerciseActionMenu(null);
-                      handleBreakSupersetPair(blockIndex);
-                    }}
-                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
-                  >
-                    Break Superset Pair
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExerciseActionMenu(null);
-                    handleRemoveExercise(blockIndex, exerciseIndex);
-                  }}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
-                >
-                  Remove Exercise
-                </button>
-                {canReorderBlock && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={!canMoveUp}
-                      onClick={() => handleMoveBlock(blockIndex, -1)}
-                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
-                    >
-                      Move Up
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canMoveDown}
-                      onClick={() => handleMoveBlock(blockIndex, 1)}
-                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
-                    >
-                      Move Down
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1888,26 +1799,6 @@ export default function ProgramsPage() {
                     >
                       {isFocusedRow ? 'Done' : 'Edit Set'}
                     </button>
-                    {canShowSetQuickActions && isFocusedRow && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                          className="inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                          aria-label={`Duplicate set ${setIndex + 1}`}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                          aria-label={`Remove set ${setIndex + 1}`}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
                   </div>
                 </div>
 
@@ -2118,17 +2009,130 @@ export default function ProgramsPage() {
                     )}
                   </div>
                 )}
+
+                {isFocusedRow && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                      aria-label={`Duplicate set ${setIndex + 1}`}
+                    >
+                      Duplicate Set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
+                      disabled={exercise.sets.length <= 1}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
+                      aria-label={`Remove set ${setIndex + 1}`}
+                    >
+                      Remove Set
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
           {hasFocusedSet && (
-            <button
-              type="button"
-              onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-              className="mt-1 inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
-            >
-              Add Set
-            </button>
+            <div className="mt-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
+              >
+                Add Set
+              </button>
+              <div className="relative" data-exercise-action-menu="true">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExerciseActionMenu((current) =>
+                      current?.blockIndex === blockIndex && current.exerciseIndex === exerciseIndex
+                        ? null
+                        : { blockIndex, exerciseIndex }
+                    )
+                  }
+                  className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                    isMenuOpen
+                      ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
+                      : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                  }`}
+                  aria-label={`Exercise actions for ${exerciseLabel}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                  Exercise Actions
+                </button>
+                {isMenuOpen && (
+                  <div className="mt-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleReplaceExercise(blockIndex, exerciseIndex);
+                        setExerciseActionMenu(null);
+                      }}
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
+                    >
+                      Replace Exercise
+                    </button>
+                    {block.type === 'single' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExerciseActionMenu(null);
+                          handleConvertSingleToSupersetPair(blockIndex);
+                        }}
+                        className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
+                      >
+                        Convert To Superset Pair
+                      </button>
+                    )}
+                    {canBreakSupersetPair && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExerciseActionMenu(null);
+                          handleBreakSupersetPair(blockIndex);
+                        }}
+                        className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
+                      >
+                        Break Superset Pair
+                      </button>
+                    )}
+                    {canReorderBlock && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={!canMoveUp}
+                          onClick={() => handleMoveBlock(blockIndex, -1)}
+                          className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
+                        >
+                          Move Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canMoveDown}
+                          onClick={() => handleMoveBlock(blockIndex, 1)}
+                          className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
+                        >
+                          Move Down
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExerciseActionMenu(null);
+                        handleRemoveExercise(blockIndex, exerciseIndex);
+                      }}
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
+                    >
+                      Remove Exercise
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </article>

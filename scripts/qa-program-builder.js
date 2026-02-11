@@ -65,7 +65,7 @@ async function clickFirstByRole(page, role, options, label) {
     await focusToggle.click();
   }
   console.log('✅ Focused custom exercise');
-  await customExerciseRow.getByRole('button', { name: /More/i }).first().click();
+  await customExerciseRow.getByRole('button', { name: /Exercise Actions/i }).first().click();
   await clickFirstByRole(page, 'button', { name: /Remove Exercise/i }, 'Removed exercise');
   await expectVisible(page.getByRole('button', { name: /Undo/i }), 'Undo prompt visible');
   await clickFirstByRole(page, 'button', { name: /Undo/i }, 'Undo applied');
