@@ -838,9 +838,9 @@ export default function ProgramsPage() {
       return 'Start with Add Exercise. Add superset pairs from the secondary action.';
     }
     if (!hasEditorSetFocus) {
-      return 'Tap Edit on an exercise to tune sets and details.';
+      return 'Tap Edit Sets on an exercise to tune set details.';
     }
-    return 'Adjust set details, then tap Done to collapse.';
+    return 'Adjust sets, then tap Close on the exercise when finished.';
   }, [currentDayExerciseRows.length, hasEditorSetFocus]);
   const normalizedExerciseQuery = exerciseQuery.trim();
   const exercisePickerHeading = useMemo(() => {
@@ -1661,8 +1661,15 @@ export default function ProgramsPage() {
     const canMoveUp = blockIndex > 0;
     const canMoveDown = blockIndex < currentDayBlocks.length - 1;
     const showSupersetSettings =
-      block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
+      hasFocusedSet && block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
     const canBreakSupersetPair = block.type === 'superset';
+    const compactSetSummary =
+      exercise.sets.length === 0
+        ? 'No set prescription yet.'
+        : exercise.sets
+            .slice(0, 2)
+            .map((set, index) => `S${index + 1} ${getSetSummaryLine(set)}`)
+            .join(' • ');
 
     return (
       <article
@@ -1695,7 +1702,7 @@ export default function ProgramsPage() {
                   : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
               }`}
             >
-              {hasFocusedSet ? 'Close' : 'Edit'}
+              {hasFocusedSet ? 'Close' : 'Edit Sets'}
             </button>
           </div>
         </div>
@@ -1758,283 +1765,248 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        <div className="space-y-2">
-          {exercise.sets.map((set, setIndex) => {
-            const isFocusedRow =
-              editorSetFocus?.blockIndex === blockIndex &&
-              editorSetFocus.exerciseIndex === exerciseIndex &&
-              editorSetFocus.setIndex === setIndex;
+        {!hasFocusedSet && (
+          <div className="rounded-xl border border-zinc-900 bg-zinc-950/40 px-3 py-2">
+            <p className="truncate text-[10px] uppercase tracking-[0.18em] text-zinc-500">{compactSetSummary}</p>
+          </div>
+        )}
 
-            return (
-              <div
-                key={`${exercise.id}-set-${setIndex}`}
-                className={`border-b border-zinc-900/80 pb-2 last:border-b-0 transition-all duration-200 ${
-                  isFocusedRow ? 'border-cyan-400/25' : ''
-                } ${hasEditorSetFocus && !isFocusedRow ? 'opacity-40 blur-[1px] saturate-50' : ''}`}
-              >
+        {hasFocusedSet && (
+          <div className="space-y-2">
+            {exercise.sets.map((set, setIndex) => (
+              <div key={`${exercise.id}-set-${setIndex}`} className="rounded-xl border border-zinc-900/80 bg-zinc-950/40 p-3">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
                     Set {setIndex + 1} • {getSetSummaryLine(set)}
                   </p>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditorSetFocus((current) => {
-                          if (
-                            current?.blockIndex === blockIndex &&
-                            current.exerciseIndex === exerciseIndex &&
-                            current.setIndex === setIndex
-                          ) {
-                            return null;
-                          }
-                          return { blockIndex, exerciseIndex, setIndex };
-                        })
-                      }
-                      className={`inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                        isFocusedRow
-                          ? 'bg-cyan-500/10 text-cyan-300'
-                          : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-100'
-                      }`}
-                    >
-                      {isFocusedRow ? 'Done' : 'Edit Set'}
-                    </button>
-                  </div>
-                </div>
-
-                {isFocusedRow && (
-                  <div
-                    className={`grid gap-2 ${
-                      editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
-                    }`}
-                  >
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Reps
-                      </label>
-                      <input
-                        value={set.prescribedReps}
-                        onChange={(event) =>
-                          handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                            ...current,
-                            prescribedReps: event.target.value,
-                          }))
-                        }
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Rest (s)
-                      </label>
-                      <EditableNumberInput
-                        min={0}
-                        step={15}
-                        value={set.restSeconds ?? 120}
-                        defaultValue={120}
-                        onCommit={(value) =>
-                          handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                            ...current,
-                            restSeconds: value == null ? undefined : value,
-                          }))
-                        }
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                      />
-                    </div>
-
-                    {editorDetailMode === 'advanced' && (
-                      <>
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            Method
-                          </label>
-                          <FancySelect
-                            value={set.prescriptionMethod ?? 'rpe'}
-                            options={PRESCRIPTION_OPTIONS.map((method) => ({
-                              value: method,
-                              label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
-                            }))}
-                            onChange={(value) =>
-                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                                ...current,
-                                prescriptionMethod: value as SetTemplate['prescriptionMethod'],
-                              }))
-                            }
-                            ariaLabel="Prescription method"
-                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                            listClassName="max-h-56 overflow-y-auto"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            {getTargetLabel(set.prescriptionMethod)}
-                          </label>
-                          <input
-                            value={getRpeOrRirValue(set)}
-                            onChange={(event) => {
-                              const raw = event.target.value.trim();
-                              const value = raw === '' ? null : Number(raw);
-                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
-                                const base = {
-                                  ...current,
-                                  targetRPE: null,
-                                  targetRIR: null,
-                                  targetPercentage: null,
-                                  fixedWeight: null,
-                                  targetSeconds: null,
-                                };
-                                if (value == null || Number.isNaN(value)) return base;
-                                if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
-                                if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
-                                if (
-                                  current.prescriptionMethod === 'percentage_1rm' ||
-                                  current.prescriptionMethod === 'percentage_tm'
-                                ) {
-                                  return { ...base, targetPercentage: value };
-                                }
-                                if (current.prescriptionMethod === 'fixed_weight') {
-                                  return { ...base, fixedWeight: value };
-                                }
-                                if (current.prescriptionMethod === 'time_based') {
-                                  return { ...base, targetSeconds: value };
-                                }
-                                return base;
-                              });
-                            }}
-                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                          />
-                        </div>
-
-                        {block.type === 'single' && (
-                          <div>
-                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Set Style
-                            </label>
-                            <FancySelect
-                              value={set.setType ?? 'straight'}
-                              options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
-                                value: setTypeOption,
-                                label: formatTokenLabel(setTypeOption),
-                              }))}
-                              onChange={(value) =>
-                                handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                                  ...current,
-                                  setType: value as SetTemplate['setType'],
-                                  supersetGroup:
-                                    value === 'superset' ? current.supersetGroup ?? block.id : current.supersetGroup,
-                                }))
-                              }
-                              ariaLabel="Set style"
-                              buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                              listClassName="max-h-56 overflow-y-auto"
-                            />
-                          </div>
-                        )}
-
-                        {block.type === 'superset' && (
-                          <div>
-                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Block Mode
-                            </label>
-                            <div className="mt-1 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-200">
-                              Superset {slotLabel ?? ''}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            Tempo
-                          </label>
-                          <input
-                            value={set.tempo ?? ''}
-                            onChange={(event) =>
-                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                                ...current,
-                                tempo: event.target.value.trim() || undefined,
-                              }))
-                            }
-                            placeholder="3-1-1-0"
-                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                          />
-                        </div>
-
-                        {set.setType === 'cluster' && block.type === 'single' && (
-                          <>
-                            <div>
-                              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                Cluster Reps
-                              </label>
-                              <input
-                                value={set.clusterReps?.join(',') ?? ''}
-                                onChange={(event) =>
-                                  handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
-                                    const parsed = event.target.value
-                                      .split(',')
-                                      .map((entry) => Number(entry.trim()))
-                                      .filter((entry) => Number.isFinite(entry) && entry > 0);
-                                    return {
-                                      ...current,
-                                      clusterReps: parsed.length > 0 ? parsed : undefined,
-                                    };
-                                  })
-                                }
-                                placeholder="2,2,2"
-                                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                Cluster Rest (s)
-                              </label>
-                              <EditableNumberInput
-                                min={5}
-                                step={5}
-                                value={set.clusterRestSeconds ?? 20}
-                                defaultValue={20}
-                                onCommit={(value) =>
-                                  handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                                    ...current,
-                                    clusterRestSeconds: value == null ? undefined : value,
-                                  }))
-                                }
-                                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                              />
-                            </div>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {isFocusedRow && (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                      className="inline-flex h-9 items-center rounded-lg border border-zinc-800 px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
                       aria-label={`Duplicate set ${setIndex + 1}`}
                     >
-                      Duplicate Set
+                      Duplicate
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
                       disabled={exercise.sets.length <= 1}
-                      className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
+                      className="inline-flex h-9 items-center rounded-lg border border-rose-500/35 bg-rose-500/10 px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
                       aria-label={`Remove set ${setIndex + 1}`}
                     >
-                      Remove Set
+                      Remove
                     </button>
                   </div>
-                )}
+                </div>
+
+                <div
+                  className={`grid gap-2 ${
+                    editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
+                  }`}
+                >
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Reps
+                    </label>
+                    <input
+                      value={set.prescribedReps}
+                      onChange={(event) =>
+                        handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                          ...current,
+                          prescribedReps: event.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Rest (s)
+                    </label>
+                    <EditableNumberInput
+                      min={0}
+                      step={15}
+                      value={set.restSeconds ?? 120}
+                      defaultValue={120}
+                      onCommit={(value) =>
+                        handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                          ...current,
+                          restSeconds: value == null ? undefined : value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                    />
+                  </div>
+
+                  {editorDetailMode === 'advanced' && (
+                    <>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Method
+                        </label>
+                        <FancySelect
+                          value={set.prescriptionMethod ?? 'rpe'}
+                          options={PRESCRIPTION_OPTIONS.map((method) => ({
+                            value: method,
+                            label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
+                          }))}
+                          onChange={(value) =>
+                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                              ...current,
+                              prescriptionMethod: value as SetTemplate['prescriptionMethod'],
+                            }))
+                          }
+                          ariaLabel="Prescription method"
+                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          listClassName="max-h-56 overflow-y-auto"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          {getTargetLabel(set.prescriptionMethod)}
+                        </label>
+                        <input
+                          value={getRpeOrRirValue(set)}
+                          onChange={(event) => {
+                            const raw = event.target.value.trim();
+                            const value = raw === '' ? null : Number(raw);
+                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
+                              const base = {
+                                ...current,
+                                targetRPE: null,
+                                targetRIR: null,
+                                targetPercentage: null,
+                                fixedWeight: null,
+                                targetSeconds: null,
+                              };
+                              if (value == null || Number.isNaN(value)) return base;
+                              if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
+                              if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
+                              if (
+                                current.prescriptionMethod === 'percentage_1rm' ||
+                                current.prescriptionMethod === 'percentage_tm'
+                              ) {
+                                return { ...base, targetPercentage: value };
+                              }
+                              if (current.prescriptionMethod === 'fixed_weight') {
+                                return { ...base, fixedWeight: value };
+                              }
+                              if (current.prescriptionMethod === 'time_based') {
+                                return { ...base, targetSeconds: value };
+                              }
+                              return base;
+                            });
+                          }}
+                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                        />
+                      </div>
+
+                      {block.type === 'single' && (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Set Style
+                          </label>
+                          <FancySelect
+                            value={set.setType ?? 'straight'}
+                            options={ADVANCED_SET_TYPE_OPTIONS.map((setTypeOption) => ({
+                              value: setTypeOption,
+                              label: formatTokenLabel(setTypeOption),
+                            }))}
+                            onChange={(value) =>
+                              handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                ...current,
+                                setType: value as SetTemplate['setType'],
+                                supersetGroup:
+                                  value === 'superset' ? current.supersetGroup ?? block.id : current.supersetGroup,
+                              }))
+                            }
+                            ariaLabel="Set style"
+                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            listClassName="max-h-56 overflow-y-auto"
+                          />
+                        </div>
+                      )}
+
+                      {block.type === 'superset' && (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Block Mode
+                          </label>
+                          <div className="mt-1 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-200">
+                            Superset {slotLabel ?? ''}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Tempo
+                        </label>
+                        <input
+                          value={set.tempo ?? ''}
+                          onChange={(event) =>
+                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                              ...current,
+                              tempo: event.target.value.trim() || undefined,
+                            }))
+                          }
+                          placeholder="3-1-1-0"
+                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                        />
+                      </div>
+
+                      {set.setType === 'cluster' && block.type === 'single' && (
+                        <>
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              Cluster Reps
+                            </label>
+                            <input
+                              value={set.clusterReps?.join(',') ?? ''}
+                              onChange={(event) =>
+                                handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
+                                  const parsed = event.target.value
+                                    .split(',')
+                                    .map((entry) => Number(entry.trim()))
+                                    .filter((entry) => Number.isFinite(entry) && entry > 0);
+                                  return {
+                                    ...current,
+                                    clusterReps: parsed.length > 0 ? parsed : undefined,
+                                  };
+                                })
+                              }
+                              placeholder="2,2,2"
+                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              Cluster Rest (s)
+                            </label>
+                            <EditableNumberInput
+                              min={5}
+                              step={5}
+                              value={set.clusterRestSeconds ?? 20}
+                              defaultValue={20}
+                              onCommit={(value) =>
+                                handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
+                                  ...current,
+                                  clusterRestSeconds: value == null ? undefined : value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            );
-          })}
-          {hasFocusedSet && (
+            ))}
             <div className="mt-2 space-y-2">
               <button
                 type="button"
@@ -2133,8 +2105,8 @@ export default function ProgramsPage() {
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </article>
     );
   };
@@ -2449,7 +2421,7 @@ export default function ProgramsPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
                       Builder Quick Start
                     </p>
-                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap edit for sets. 3. Tap Done in the header.</p>
+                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap Edit Sets. 3. Tap Done in the header.</p>
                   </div>
                   <button
                     type="button"
