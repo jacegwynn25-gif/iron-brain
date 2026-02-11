@@ -1650,6 +1650,15 @@ export default function ProgramsPage() {
             </p>
           </div>
           <div className="relative flex shrink-0 items-center gap-1.5" data-exercise-action-menu="true">
+            {hasFocusedSet && (
+              <button
+                type="button"
+                onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+                className="inline-flex h-11 items-center rounded-full bg-emerald-500 px-3.5 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
+              >
+                Add Set
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -1660,7 +1669,11 @@ export default function ProgramsPage() {
                   return { blockIndex, exerciseIndex, setIndex: 0 };
                 })
               }
-              className="inline-flex h-11 items-center rounded-full border border-zinc-800 px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+              className={`inline-flex h-11 items-center rounded-full border px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                hasFocusedSet
+                  ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
+                  : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
+              }`}
             >
               {hasFocusedSet ? 'Done' : 'Edit'}
             </button>
@@ -1673,7 +1686,11 @@ export default function ProgramsPage() {
                     : { blockIndex, exerciseIndex }
                 )
               }
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-zinc-800 px-3 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+              className={`inline-flex h-11 items-center gap-1.5 rounded-full border px-3 transition-colors ${
+                isMenuOpen
+                  ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
+                  : 'border-indigo-500/35 bg-indigo-500/8 text-indigo-200 hover:bg-indigo-500/14'
+              }`}
               aria-label={`More actions for ${exerciseLabel}`}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -1687,7 +1704,7 @@ export default function ProgramsPage() {
                     handleAddSetToExercise(blockIndex, exerciseIndex);
                     setExerciseActionMenu(null);
                   }}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-500/10"
                 >
                   Add Set
                 </button>
@@ -2084,16 +2101,6 @@ export default function ProgramsPage() {
             );
           })}
         </div>
-
-        {hasFocusedSet && (
-          <button
-            type="button"
-            onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-            className="mt-2 inline-flex h-10 items-center rounded-full border border-zinc-800 px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
-          >
-            Add Set
-          </button>
-        )}
       </article>
     );
   };
@@ -2390,7 +2397,7 @@ export default function ProgramsPage() {
                   disabled={editorSaving}
                   className="inline-flex h-9 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-3 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
                 >
-                  {editorSaving ? 'Saving...' : 'Save'}
+                  {editorSaving ? 'Saving...' : 'Save Program'}
                 </button>
               </div>
             </header>
@@ -2438,134 +2445,150 @@ export default function ProgramsPage() {
                 className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
               />
 
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={weekCountInput}
-                    onFocus={() => setWeekCountFocused(true)}
-                    onBlur={() => {
-                      setWeekCountFocused(false);
-                      const trimmed = weekCountInput.trim();
-                      if (!trimmed) {
-                        setWeekCountInput(String(resolvedWeekCount));
-                        return;
-                      }
-                      const parsed = Number(trimmed);
-                      if (!Number.isFinite(parsed)) {
-                        setWeekCountInput(String(resolvedWeekCount));
-                        return;
-                      }
-                      const clamped = Math.min(24, Math.max(1, parsed));
-                      if (clamped !== resolvedWeekCount) {
-                        updateDraftWeekCount(clamped);
-                      }
-                      setWeekCountInput(String(clamped));
-                    }}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      if (!/^\d*$/.test(nextValue)) return;
-                      setWeekCountInput(nextValue);
-                      if (nextValue === '') return;
-                      const parsed = Number(nextValue);
-                      if (!Number.isFinite(parsed)) return;
-                      const clamped = Math.min(24, Math.max(1, parsed));
-                      if (clamped !== resolvedWeekCount) {
-                        updateDraftWeekCount(clamped);
-                      }
-                    }}
-                    className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                  />
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                    Set length and training frequency first.
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={weekCountInput}
+                        onFocus={() => setWeekCountFocused(true)}
+                        onBlur={() => {
+                          setWeekCountFocused(false);
+                          const trimmed = weekCountInput.trim();
+                          if (!trimmed) {
+                            setWeekCountInput(String(resolvedWeekCount));
+                            return;
+                          }
+                          const parsed = Number(trimmed);
+                          if (!Number.isFinite(parsed)) {
+                            setWeekCountInput(String(resolvedWeekCount));
+                            return;
+                          }
+                          const clamped = Math.min(24, Math.max(1, parsed));
+                          if (clamped !== resolvedWeekCount) {
+                            updateDraftWeekCount(clamped);
+                          }
+                          setWeekCountInput(String(clamped));
+                        }}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          if (!/^\d*$/.test(nextValue)) return;
+                          setWeekCountInput(nextValue);
+                          if (nextValue === '') return;
+                          const parsed = Number(nextValue);
+                          if (!Number.isFinite(parsed)) return;
+                          const clamped = Math.min(24, Math.max(1, parsed));
+                          if (clamped !== resolvedWeekCount) {
+                            updateDraftWeekCount(clamped);
+                          }
+                        }}
+                        className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Sessions / Week
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={7}
+                        value={daysPerWeekInput}
+                        onFocus={() => setDaysPerWeekFocused(true)}
+                        onBlur={() => {
+                          setDaysPerWeekFocused(false);
+                          const trimmed = daysPerWeekInput.trim();
+                          if (!trimmed) {
+                            setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                            return;
+                          }
+                          const parsed = Number(trimmed);
+                          if (!Number.isFinite(parsed)) {
+                            setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                            return;
+                          }
+                          const clamped = Math.min(7, Math.max(1, parsed));
+                          if (clamped !== resolvedDaysPerWeek) {
+                            updateDraftDaysPerWeek(clamped);
+                          }
+                          setDaysPerWeekInput(String(clamped));
+                        }}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          if (!/^\d*$/.test(nextValue)) return;
+                          setDaysPerWeekInput(nextValue);
+                          if (nextValue === '') return;
+                          const parsed = Number(nextValue);
+                          if (!Number.isFinite(parsed)) return;
+                          const clamped = Math.min(7, Math.max(1, parsed));
+                          if (clamped !== resolvedDaysPerWeek) {
+                            updateDraftDaysPerWeek(clamped);
+                          }
+                        }}
+                        className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Sessions / Week</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={7}
-                    value={daysPerWeekInput}
-                    onFocus={() => setDaysPerWeekFocused(true)}
-                    onBlur={() => {
-                      setDaysPerWeekFocused(false);
-                      const trimmed = daysPerWeekInput.trim();
-                      if (!trimmed) {
-                        setDaysPerWeekInput(String(resolvedDaysPerWeek));
-                        return;
-                      }
-                      const parsed = Number(trimmed);
-                      if (!Number.isFinite(parsed)) {
-                        setDaysPerWeekInput(String(resolvedDaysPerWeek));
-                        return;
-                      }
-                      const clamped = Math.min(7, Math.max(1, parsed));
-                      if (clamped !== resolvedDaysPerWeek) {
-                        updateDraftDaysPerWeek(clamped);
-                      }
-                      setDaysPerWeekInput(String(clamped));
-                    }}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      if (!/^\d*$/.test(nextValue)) return;
-                      setDaysPerWeekInput(nextValue);
-                      if (nextValue === '') return;
-                      const parsed = Number(nextValue);
-                      if (!Number.isFinite(parsed)) return;
-                      const clamped = Math.min(7, Math.max(1, parsed));
-                      if (clamped !== resolvedDaysPerWeek) {
-                        updateDraftDaysPerWeek(clamped);
-                      }
-                    }}
-                    className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <FancySelect
-                  value={draft.goal ?? 'general'}
-                  options={GOAL_OPTIONS.map((goal) => ({
-                    value: goal,
-                    label: GOAL_LABELS[goal] ?? formatTokenLabel(goal),
-                  }))}
-                  onChange={(value) =>
-                    updateDraft((current) => ({ ...current, goal: value as GoalOption }))
-                  }
-                  ariaLabel="Program goal"
-                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                />
-                <FancySelect
-                  value={draft.experienceLevel ?? 'intermediate'}
-                  options={EXPERIENCE_OPTIONS.map((level) => ({
-                    value: level,
-                    label: EXPERIENCE_LABELS[level] ?? formatTokenLabel(level),
-                  }))}
-                  onChange={(value) =>
-                    updateDraft((current) => ({
-                      ...current,
-                      experienceLevel: value as ExperienceOption,
-                    }))
-                  }
-                  ariaLabel="Experience level"
-                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                />
-                <FancySelect
-                  value={draft.intensityMethod ?? 'rpe'}
-                  options={INTENSITY_OPTIONS.map((method) => ({
-                    value: method,
-                    label: INTENSITY_LABELS[method] ?? formatTokenLabel(method),
-                  }))}
-                  onChange={(value) =>
-                    updateDraft((current) => ({
-                      ...current,
-                      intensityMethod: value as IntensityOption,
-                    }))
-                  }
-                  ariaLabel="Intensity method"
-                  buttonClassName="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                />
+                <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/20 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                    Define goal, experience, and intensity style.
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <FancySelect
+                      value={draft.goal ?? 'general'}
+                      options={GOAL_OPTIONS.map((goal) => ({
+                        value: goal,
+                        label: GOAL_LABELS[goal] ?? formatTokenLabel(goal),
+                      }))}
+                      onChange={(value) =>
+                        updateDraft((current) => ({ ...current, goal: value as GoalOption }))
+                      }
+                      ariaLabel="Program goal"
+                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                    />
+                    <FancySelect
+                      value={draft.experienceLevel ?? 'intermediate'}
+                      options={EXPERIENCE_OPTIONS.map((level) => ({
+                        value: level,
+                        label: EXPERIENCE_LABELS[level] ?? formatTokenLabel(level),
+                      }))}
+                      onChange={(value) =>
+                        updateDraft((current) => ({
+                          ...current,
+                          experienceLevel: value as ExperienceOption,
+                        }))
+                      }
+                      ariaLabel="Experience level"
+                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                    />
+                    <FancySelect
+                      value={draft.intensityMethod ?? 'rpe'}
+                      options={INTENSITY_OPTIONS.map((method) => ({
+                        value: method,
+                        label: INTENSITY_LABELS[method] ?? formatTokenLabel(method),
+                      }))}
+                      onChange={(value) =>
+                        updateDraft((current) => ({
+                          ...current,
+                          intensityMethod: value as IntensityOption,
+                        }))
+                      }
+                      ariaLabel="Intensity method"
+                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
             </section>
 
