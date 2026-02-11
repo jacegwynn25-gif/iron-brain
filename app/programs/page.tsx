@@ -816,6 +816,15 @@ export default function ProgramsPage() {
     if (!currentDay) return 0;
     return countDaySets(currentDay);
   }, [currentDay]);
+  const builderGuidanceText = useMemo(() => {
+    if (currentDayExerciseRows.length === 0) {
+      return 'Start with Add Exercise. Add superset pairs from the secondary action.';
+    }
+    if (!hasEditorSetFocus) {
+      return 'Tap Edit on an exercise to adjust sets. Use More for replace, reorder, or remove.';
+    }
+    return 'Update set details, then tap Done.';
+  }, [currentDayExerciseRows.length, hasEditorSetFocus]);
   const normalizedExerciseQuery = exerciseQuery.trim();
   const exercisePickerHeading = useMemo(() => {
     if (!exercisePickerTarget) return 'Pick Exercise';
@@ -1607,6 +1616,7 @@ export default function ProgramsPage() {
       block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
     const canConvertSingleToSuperset = block.type === 'single';
     const canBreakSupersetPair = block.type === 'superset';
+    const canShowSetQuickActions = hasFocusedSet;
 
     return (
       <article
@@ -1625,10 +1635,17 @@ export default function ProgramsPage() {
           <div className="relative flex shrink-0 items-center gap-1.5" data-exercise-action-menu="true">
             <button
               type="button"
-              onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+              onClick={() =>
+                setEditorSetFocus((current) => {
+                  const isCurrent =
+                    current?.blockIndex === blockIndex && current.exerciseIndex === exerciseIndex;
+                  if (isCurrent) return null;
+                  return { blockIndex, exerciseIndex, setIndex: 0 };
+                })
+              }
               className="inline-flex h-11 items-center rounded-full border border-zinc-800 px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
             >
-              Add Set
+              {hasFocusedSet ? 'Done' : 'Edit'}
             </button>
             <button
               type="button"
@@ -1639,13 +1656,24 @@ export default function ProgramsPage() {
                     : { blockIndex, exerciseIndex }
                 )
               }
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-zinc-800 px-3 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
               aria-label={`More actions for ${exerciseLabel}`}
             >
               <MoreHorizontal className="h-4 w-4" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em]">More</span>
             </button>
             {isMenuOpen && (
               <div className="absolute right-0 top-10 z-30 min-w-[12rem] rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAddSetToExercise(blockIndex, exerciseIndex);
+                    setExerciseActionMenu(null);
+                  }}
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
+                >
+                  Add Set
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1805,22 +1833,26 @@ export default function ProgramsPage() {
                     >
                       {isFocusedRow ? 'Done' : 'Edit'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                      aria-label={`Duplicate set ${setIndex + 1}`}
-                    >
-                      Copy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                      aria-label={`Remove set ${setIndex + 1}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {canShowSetQuickActions && isFocusedRow && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
+                          className="inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                          aria-label={`Duplicate set ${setIndex + 1}`}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                          aria-label={`Remove set ${setIndex + 1}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -2035,6 +2067,16 @@ export default function ProgramsPage() {
             );
           })}
         </div>
+
+        {hasFocusedSet && (
+          <button
+            type="button"
+            onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+            className="mt-2 inline-flex h-10 items-center rounded-full border border-zinc-800 px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+          >
+            Add Set
+          </button>
+        )}
       </article>
     );
   };
@@ -2575,7 +2617,7 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="inline-flex h-10 shrink-0 items-center rounded-xl border border-zinc-800 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                              className="inline-flex h-10 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
                             >
                               Add Superset Pair
                             </button>
@@ -2583,6 +2625,7 @@ export default function ProgramsPage() {
                         </div>
 
                         <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Ordered exercises for this session.</p>
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{builderGuidanceText}</p>
                       </div>
 
                       <div className="mb-4 flex items-center justify-between gap-2">
@@ -2623,7 +2666,7 @@ export default function ProgramsPage() {
 
                       <div className="space-y-3">
                         {currentDayExerciseRows.length === 0 && (
-                          <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-2">
                             <button
                               type="button"
                               onClick={handleAddSingleBlock}
@@ -2634,9 +2677,9 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                              className="w-full px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
                             >
-                              Add First Superset Pair
+                              Start with a Superset Pair Instead
                             </button>
                           </div>
                         )}
@@ -2681,7 +2724,7 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="w-full rounded-xl border border-zinc-900 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-200"
+                              className="w-full px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
                             >
                               Add Superset Pair
                             </button>
