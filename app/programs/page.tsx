@@ -817,12 +817,25 @@ export default function ProgramsPage() {
     if (!currentDay) return 0;
     return countDaySets(currentDay);
   }, [currentDay]);
+  const focusedExerciseContext = useMemo(() => {
+    if (!editorSetFocus) return null;
+    const block = currentDayBlocks[editorSetFocus.blockIndex];
+    const exercise = block?.exercises[editorSetFocus.exerciseIndex];
+    if (!block || !exercise) return null;
+    return {
+      block,
+      exercise,
+      blockIndex: editorSetFocus.blockIndex,
+      exerciseIndex: editorSetFocus.exerciseIndex,
+      exerciseLabel: exerciseNameById.get(exercise.exerciseId) ?? humanizeExerciseId(exercise.exerciseId),
+    };
+  }, [currentDayBlocks, editorSetFocus, exerciseNameById]);
   const builderGuidanceText = useMemo(() => {
     if (currentDayExerciseRows.length === 0) {
       return 'Start with Add Exercise. Add superset pairs from the secondary action.';
     }
     if (!hasEditorSetFocus) {
-      return 'Tap Edit on an exercise to adjust sets. Use More for replace, reorder, or remove.';
+      return 'Tap Edit on an exercise. Focused exercise actions appear below the list.';
     }
     return 'Update set details, then tap Done.';
   }, [currentDayExerciseRows.length, hasEditorSetFocus]);
@@ -1631,7 +1644,6 @@ export default function ProgramsPage() {
     const canMoveDown = blockIndex < currentDayBlocks.length - 1;
     const showSupersetSettings =
       block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
-    const canConvertSingleToSuperset = block.type === 'single';
     const canBreakSupersetPair = block.type === 'superset';
     const canShowSetQuickActions = hasFocusedSet;
 
@@ -1650,15 +1662,6 @@ export default function ProgramsPage() {
             </p>
           </div>
           <div className="relative flex shrink-0 items-center gap-1.5" data-exercise-action-menu="true">
-            {hasFocusedSet && (
-              <button
-                type="button"
-                onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-                className="inline-flex h-11 items-center rounded-full bg-emerald-500 px-3.5 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
-              >
-                Add Set
-              </button>
-            )}
             <button
               type="button"
               onClick={() =>
@@ -1701,16 +1704,6 @@ export default function ProgramsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    handleAddSetToExercise(blockIndex, exerciseIndex);
-                    setExerciseActionMenu(null);
-                  }}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-500/10"
-                >
-                  Add Set
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
                     handleReplaceExercise(blockIndex, exerciseIndex);
                     setExerciseActionMenu(null);
                   }}
@@ -1718,15 +1711,6 @@ export default function ProgramsPage() {
                 >
                   Replace Exercise
                 </button>
-                {canConvertSingleToSuperset && (
-                  <button
-                    type="button"
-                    onClick={() => handleConvertSingleToSupersetPair(blockIndex)}
-                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
-                  >
-                    Convert to Superset Pair
-                  </button>
-                )}
                 {canBreakSupersetPair && (
                   <button
                     type="button"
@@ -1756,13 +1740,6 @@ export default function ProgramsPage() {
                     </button>
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveExercise(blockIndex, exerciseIndex)}
-                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
-                >
-                  Remove Exercise
-                </button>
               </div>
             )}
           </div>
@@ -2782,22 +2759,60 @@ export default function ProgramsPage() {
                           );
                         })}
 
-                        {currentDayExerciseRows.length > 0 && (
-                          <div className="space-y-1">
-                            <button
-                              type="button"
-                              onClick={handleAddSingleBlock}
-                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                            >
-                              Add Exercise
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleAddSupersetBlock}
-                              className="w-full px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
-                            >
-                              Add Superset Pair
-                            </button>
+                        {currentDayExerciseRows.length > 0 && focusedExerciseContext && (
+                          <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-3 py-3">
+                            <p className="truncate text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              Focused: {focusedExerciseContext.exerciseLabel}
+                            </p>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleAddSetToExercise(
+                                    focusedExerciseContext.blockIndex,
+                                    focusedExerciseContext.exerciseIndex
+                                  )
+                                }
+                                className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-500 px-3 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
+                              >
+                                Add Set
+                              </button>
+                              {focusedExerciseContext.block.type === 'single' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExerciseActionMenu(null);
+                                    handleConvertSingleToSupersetPair(focusedExerciseContext.blockIndex);
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200 transition-colors hover:bg-indigo-500/18"
+                                >
+                                  Convert Pair
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExerciseActionMenu(null);
+                                    handleBreakSupersetPair(focusedExerciseContext.blockIndex);
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200 transition-colors hover:bg-indigo-500/18"
+                                >
+                                  Break Pair
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveExercise(
+                                    focusedExerciseContext.blockIndex,
+                                    focusedExerciseContext.exerciseIndex
+                                  )
+                                }
+                                className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-500/45 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:bg-rose-500/18"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

@@ -52,13 +52,14 @@ async function clickFirstByRole(page, role, options, label) {
   await expectVisible(page.getByText(new RegExp(customExerciseName, 'i')).first(), 'Custom exercise row visible');
 
   console.log('▶️ Removing and undoing custom exercise...');
-  await clickFirstByRole(
-    page,
-    'button',
-    { name: new RegExp(`More actions for ${customExerciseName}`, 'i') },
-    'Opened row actions'
-  );
-  await clickFirstByRole(page, 'button', { name: /Remove Exercise/i }, 'Removed exercise');
+  const customExerciseRow = page.locator('article', { hasText: new RegExp(customExerciseName, 'i') }).first();
+  const focusToggle = customExerciseRow.getByRole('button', { name: /(Edit Exercise|Done Exercise)/i }).first();
+  const focusLabel = (await focusToggle.textContent()) ?? '';
+  if (/Edit Exercise/i.test(focusLabel)) {
+    await focusToggle.click();
+  }
+  console.log('✅ Focused custom exercise');
+  await clickFirstByRole(page, 'button', { name: /^Remove$/i }, 'Removed exercise');
   await expectVisible(page.getByRole('button', { name: /Undo/i }), 'Undo prompt visible');
   await clickFirstByRole(page, 'button', { name: /Undo/i }, 'Undo applied');
   await expectVisible(page.getByText(new RegExp(customExerciseName, 'i')).first(), 'Custom exercise restored');
