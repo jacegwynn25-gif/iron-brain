@@ -13,6 +13,10 @@
 - [ ] Visual cohesion across screens
 
 ## Phases
+### Program Builder V2 (Design + UX System)
+- Blueprint: `docs/program-builder-v2-blueprint.md`
+- Goal: move to a clean exercise-first builder flow with minimal visual clutter, larger tap targets, and metadata-aware custom exercises.
+
 ### Phase 1: Cloud Save Pipeline (Fast + Stealth)
 - Optimistic UI + background Supabase write
 - Offline queue fallback

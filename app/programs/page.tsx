@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   Check,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
+  MoreHorizontal,
   Play,
   Save,
   Search,
@@ -18,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
-import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
+import { createCustomExercise, getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import { getProgramProgress } from '@/app/lib/programs/progress';
 import { blocksToProgramSets, setsToProgramBlocks } from '@/app/lib/programs/structure';
 import type {
@@ -55,7 +54,32 @@ type PickerExerciseOption = {
   type: string;
   muscleGroups: string[];
   equipment: string[];
-  source: 'default' | 'custom' | 'quick';
+  source: 'default' | 'custom';
+};
+type CustomExerciseDraft = {
+  name: string;
+  equipment: CustomExercise['equipment'];
+  exerciseType: CustomExercise['exerciseType'];
+  primaryMusclesText: string;
+  secondaryMusclesText: string;
+  movementPattern: NonNullable<CustomExercise['movementPattern']> | '';
+};
+type SessionExerciseRow = {
+  key: string;
+  blockIndex: number;
+  blockId: string;
+  blockType: ProgramBlockTemplate['type'];
+  exerciseIndex: number;
+  exercise: ProgramBlockExerciseTemplate;
+  slot?: ProgramSupersetSlot;
+};
+type ExerciseRemovalUndoPayload = {
+  id: string;
+  weekIndex: number;
+  dayIndex: number;
+  beforeBlocks: ProgramBlockTemplate[];
+  afterBlocksFingerprint: string;
+  message: string;
 };
 
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -115,6 +139,38 @@ const PRESCRIPTION_LABELS: Record<NonNullable<SetTemplate['prescriptionMethod']>
   time_based: 'Time',
 };
 
+const CUSTOM_EXERCISE_EQUIPMENT_OPTIONS: CustomExercise['equipment'][] = [
+  'barbell',
+  'dumbbell',
+  'cable',
+  'machine',
+  'bodyweight',
+  'kettlebell',
+  'band',
+  'other',
+];
+const CUSTOM_EXERCISE_TYPE_OPTIONS: CustomExercise['exerciseType'][] = ['compound', 'isolation'];
+const CUSTOM_EXERCISE_MOVEMENT_OPTIONS: Array<NonNullable<CustomExercise['movementPattern']>> = [
+  'push',
+  'pull',
+  'squat',
+  'hinge',
+  'carry',
+  'rotation',
+  'other',
+];
+
+function createCustomExerciseDraft(name = ''): CustomExerciseDraft {
+  return {
+    name,
+    equipment: 'bodyweight',
+    exerciseType: 'compound',
+    primaryMusclesText: '',
+    secondaryMusclesText: '',
+    movementPattern: '',
+  };
+}
+
 function formatTokenLabel(value: string): string {
   return value
     .replace(/[_-]+/g, ' ')
@@ -125,6 +181,14 @@ function formatTokenLabel(value: string): string {
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function parseMusclesFromInput(value: string): string[] {
+  const cleaned = value
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(cleaned));
 }
 
 function cloneSetTemplate(set: SetTemplate): SetTemplate {
@@ -155,6 +219,10 @@ function cloneBlockTemplates(blocks: ProgramBlockTemplate[]): ProgramBlockTempla
   return blocks.map(cloneBlockTemplate);
 }
 
+function fingerprintBlocks(blocks: ProgramBlockTemplate[]): string {
+  return JSON.stringify(blocks);
+}
+
 function getDayBlocks(day: DayTemplate | null | undefined): ProgramBlockTemplate[] {
   if (!day) return [];
   if (Array.isArray(day.blocks)) return day.blocks;
@@ -183,6 +251,29 @@ function countDayExercises(day: DayTemplate): number {
     return blocks.reduce((count, block) => count + block.exercises.length, 0);
   }
   return new Set(day.sets.map((set) => set.exerciseId).filter(Boolean)).size;
+}
+
+function buildSessionExerciseRows(blocks: ProgramBlockTemplate[]): SessionExerciseRow[] {
+  const rows: SessionExerciseRow[] = [];
+  blocks.forEach((block, blockIndex) => {
+    const orderedExercises =
+      block.type === 'superset' ? normalizeSlotOrder(block.exercises) : block.exercises;
+
+    orderedExercises.forEach((exercise) => {
+      const exerciseIndex = block.exercises.findIndex((entry) => entry.id === exercise.id);
+      if (exerciseIndex < 0) return;
+      rows.push({
+        key: `${block.id}-${exercise.id}`,
+        blockIndex,
+        blockId: block.id,
+        blockType: block.type,
+        exerciseIndex,
+        exercise,
+        slot: exercise.slot,
+      });
+    });
+  });
+  return rows;
 }
 
 function createDefaultSetTemplate(
@@ -370,25 +461,6 @@ function humanizeExerciseId(exerciseId: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function slugifyExerciseName(name: string): string {
-  const base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  return base || `custom_${createUuid().slice(0, 8)}`;
-}
-
-function createUniqueQuickExerciseId(name: string, existingIds: Set<string>): string {
-  const baseSlug = slugifyExerciseName(name);
-  const prefixBase = baseSlug.startsWith('custom_') ? baseSlug : `custom_${baseSlug}`;
-  let candidate = prefixBase;
-  let index = 1;
-
-  while (existingIds.has(candidate)) {
-    candidate = `${prefixBase}_${index}`;
-    index += 1;
-  }
-
-  return candidate;
-}
-
 function createDayTemplate(dayOfWeek: DayTemplate['dayOfWeek'], index: number): DayTemplate {
   return {
     dayOfWeek,
@@ -572,7 +644,19 @@ export default function ProgramsPage() {
   const [exercisePickerTarget, setExercisePickerTarget] = useState<ExercisePickerTarget>(null);
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
-  const [quickCustomExerciseNames, setQuickCustomExerciseNames] = useState<Record<string, string>>({});
+  const [showCreateCustomExercise, setShowCreateCustomExercise] = useState(false);
+  const [customExerciseDraft, setCustomExerciseDraft] = useState<CustomExerciseDraft>(
+    createCustomExerciseDraft()
+  );
+  const [customExerciseSaving, setCustomExerciseSaving] = useState(false);
+  const [customExerciseError, setCustomExerciseError] = useState<string | null>(null);
+  const [pendingExerciseUndo, setPendingExerciseUndo] = useState<ExerciseRemovalUndoPayload | null>(
+    null
+  );
+  const [exerciseActionMenu, setExerciseActionMenu] = useState<{
+    blockIndex: number;
+    exerciseIndex: number;
+  } | null>(null);
   const [editorSetFocus, setEditorSetFocus] = useState<EditorSetFocus>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
@@ -631,30 +715,14 @@ export default function ProgramsPage() {
       });
     });
 
-    Object.entries(quickCustomExerciseNames).forEach(([exerciseId, exerciseName]) => {
-      if (!exerciseId || seenIds.has(exerciseId)) return;
-      seenIds.add(exerciseId);
-      items.push({
-        id: exerciseId,
-        name: exerciseName,
-        type: 'custom',
-        muscleGroups: [],
-        equipment: [],
-        source: 'quick',
-      });
-    });
-
     return items;
-  }, [customExercises, quickCustomExerciseNames]);
+  }, [customExercises]);
 
   const exerciseNameById = useMemo(() => {
     const map = new Map<string, string>();
     pickerExercises.forEach((exercise) => map.set(exercise.id, exercise.name));
-    Object.entries(quickCustomExerciseNames).forEach(([exerciseId, exerciseName]) =>
-      map.set(exerciseId, exerciseName)
-    );
     return map;
-  }, [pickerExercises, quickCustomExerciseNames]);
+  }, [pickerExercises]);
 
   const programList = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -679,6 +747,19 @@ export default function ProgramsPage() {
   const currentWeek = draft?.weeks[activeWeekIndex] ?? null;
   const currentDay = currentWeek?.days[activeDayIndex] ?? null;
   const currentDayBlocks = useMemo(() => getDayBlocks(currentDay), [currentDay]);
+  const currentDayExerciseRows = useMemo(
+    () => buildSessionExerciseRows(currentDayBlocks),
+    [currentDayBlocks]
+  );
+  const blocksMissingSupersetA2 = useMemo(() => {
+    const set = new Set<number>();
+    currentDayBlocks.forEach((block, blockIndex) => {
+      if (block.type !== 'superset') return;
+      const hasA2 = block.exercises.some((exercise) => exercise.slot === 'A2');
+      if (!hasA2) set.add(blockIndex);
+    });
+    return set;
+  }, [currentDayBlocks]);
   const hasEditorSetFocus = editorSetFocus != null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
@@ -694,6 +775,18 @@ export default function ProgramsPage() {
     }
     document.body.removeAttribute('data-hide-bottom-nav');
   }, [hasProgramBuilderOverlay]);
+
+  useEffect(() => {
+    if (!exerciseActionMenu) return;
+    if (typeof document === 'undefined') return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-exercise-action-menu]')) return;
+      setExerciseActionMenu(null);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [exerciseActionMenu]);
 
   useEffect(() => {
     if (!draft) {
@@ -723,19 +816,50 @@ export default function ProgramsPage() {
     if (!currentDay) return 0;
     return countDaySets(currentDay);
   }, [currentDay]);
+  const normalizedExerciseQuery = exerciseQuery.trim();
+  const exercisePickerHeading = useMemo(() => {
+    if (!exercisePickerTarget) return 'Pick Exercise';
+    if (exercisePickerTarget.mode === 'set-superset-slot') {
+      return `Pick ${exercisePickerTarget.slot} Exercise`;
+    }
+    if (exercisePickerTarget.mode === 'replace-exercise') return 'Replace Exercise';
+    return 'Pick Exercise';
+  }, [exercisePickerTarget]);
+  const matchingExerciseByName = useMemo(() => {
+    const normalizedName = normalizedExerciseQuery.toLowerCase();
+    if (!normalizedName) return null;
+    return (
+      pickerExercises.find((exercise) => exercise.name.trim().toLowerCase() === normalizedName) ?? null
+    );
+  }, [normalizedExerciseQuery, pickerExercises]);
+  const customExerciseName = customExerciseDraft.name.trim();
+  const customExercisePrimaryMuscles = useMemo(
+    () => parseMusclesFromInput(customExerciseDraft.primaryMusclesText),
+    [customExerciseDraft.primaryMusclesText]
+  );
+  const canCreateCustomExercise = customExerciseName.length > 0 && customExercisePrimaryMuscles.length > 0;
+
+  const resetCustomExerciseBuilder = (seedName = '') => {
+    setShowCreateCustomExercise(false);
+    setCustomExerciseDraft(createCustomExerciseDraft(seedName));
+    setCustomExerciseError(null);
+    setCustomExerciseSaving(false);
+  };
 
   const openCreateEditor = () => {
     setDraft(createBlankProgram());
     setEditorMode('create');
     setEditorError(null);
     setEditorNotice(null);
-    setQuickCustomExerciseNames({});
+    setPendingExerciseUndo(null);
+    resetCustomExerciseBuilder();
     setDetailsProgramId(null);
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const openEditEditor = (program: ProgramTemplate) => {
@@ -751,13 +875,15 @@ export default function ProgramsPage() {
         ? `Built-in duplicated to "Mine". You're editing your personal copy.`
         : null
     );
-    setQuickCustomExerciseNames({});
+    setPendingExerciseUndo(null);
+    resetCustomExerciseBuilder();
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
     setDetailsProgramId(null);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const closeEditor = () => {
@@ -766,13 +892,15 @@ export default function ProgramsPage() {
     setDraft(null);
     setEditorError(null);
     setEditorNotice(null);
+    setPendingExerciseUndo(null);
     setExercisePickerOpen(false);
     setExercisePickerTarget(null);
     setExerciseQuery('');
-    setQuickCustomExerciseNames({});
+    resetCustomExerciseBuilder();
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const updateDraft = (updater: (current: ProgramTemplate) => ProgramTemplate) => {
@@ -784,6 +912,7 @@ export default function ProgramsPage() {
     setActiveWeekIndex((currentIndex) => Math.max(0, Math.min(nextWeekCount - 1, currentIndex)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const updateDraftDaysPerWeek = (nextDaysPerWeek: number) => {
@@ -791,6 +920,7 @@ export default function ProgramsPage() {
     setActiveDayIndex((currentIndex) => Math.max(0, Math.min(nextDaysPerWeek - 1, currentIndex)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const selectEditorWeek = (index: number) => {
@@ -802,6 +932,7 @@ export default function ProgramsPage() {
     setActiveDayIndex((current) => Math.max(0, Math.min(nextDayLimit, current)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const selectEditorSession = (index: number) => {
@@ -810,6 +941,7 @@ export default function ProgramsPage() {
     setActiveDayIndex(clampedDay);
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
   };
 
   const stepEditorWeek = (delta: number) => {
@@ -914,18 +1046,7 @@ export default function ProgramsPage() {
       }
       return current;
     });
-  };
-
-  const handleRemoveBlock = (blockIndex: number) => {
-    updateCurrentDayBlocks((blocks) => blocks.filter((_, index) => index !== blockIndex));
-    setEditorSetFocus((current) => {
-      if (!current) return null;
-      if (current.blockIndex === blockIndex) return null;
-      if (current.blockIndex > blockIndex) {
-        return { ...current, blockIndex: current.blockIndex - 1 };
-      }
-      return current;
-    });
+    setExerciseActionMenu(null);
   };
 
   const handleUpdateSupersetMetadata = (
@@ -959,16 +1080,97 @@ export default function ProgramsPage() {
     openExercisePicker({ mode: 'set-superset-slot', blockIndex, slot });
   };
 
+  const handleConvertSingleToSupersetPair = (blockIndex: number) => {
+    const nextBlocks = cloneBlockTemplates(currentDayBlocks);
+    const block = nextBlocks[blockIndex];
+    const sourceExercise = block?.exercises[0];
+    if (!block || block.type !== 'single' || !sourceExercise) return;
+
+    const convertedSets = (sourceExercise.sets.length > 0
+      ? sourceExercise.sets
+      : [createDefaultSetTemplate(sourceExercise.exerciseId, 1, 'single')]
+    ).map((set, index) => ({
+      ...cloneSetTemplate(set),
+      exerciseId: sourceExercise.exerciseId,
+      setIndex: index + 1,
+      setType: 'superset' as const,
+      supersetGroup: block.id,
+    }));
+
+    block.type = 'superset';
+    block.rounds = Math.max(1, convertedSets.length);
+    block.exercises = [
+      {
+        ...sourceExercise,
+        id: createBlockExerciseId(block.id, 'A1'),
+        slot: 'A1',
+        sets: convertedSets,
+      },
+    ];
+
+    updateCurrentDay((day) => ({
+      ...day,
+      blocks: nextBlocks,
+    }));
+    setEditorSetFocus({ blockIndex, exerciseIndex: 0, setIndex: 0 });
+    setExerciseActionMenu(null);
+    setExercisePickerOpen(true);
+    setExercisePickerTarget({ mode: 'set-superset-slot', blockIndex, slot: 'A2' });
+    setExerciseQuery('');
+    resetCustomExerciseBuilder();
+  };
+
+  const handleBreakSupersetPair = (blockIndex: number) => {
+    const nextBlocks = cloneBlockTemplates(currentDayBlocks);
+    const block = nextBlocks[blockIndex];
+    if (!block || block.type !== 'superset') return;
+
+    const sourceExercises = normalizeSlotOrder(block.exercises);
+    if (sourceExercises.length === 0) return;
+
+    const replacementBlocks = sourceExercises.map((exercise) => {
+      const nextBlockId = createBlockId('single');
+      return {
+        id: nextBlockId,
+        type: 'single' as const,
+        exercises: [
+          {
+            ...exercise,
+            id: createBlockExerciseId(nextBlockId, 0),
+            slot: undefined,
+            sets: exercise.sets.map((set, setIndex) => ({
+              ...cloneSetTemplate(set),
+              exerciseId: exercise.exerciseId,
+              setIndex: setIndex + 1,
+              setType: set.setType === 'superset' ? 'straight' : set.setType,
+              supersetGroup: undefined,
+            })),
+          },
+        ],
+      };
+    });
+
+    nextBlocks.splice(blockIndex, 1, ...replacementBlocks);
+
+    updateCurrentDay((day) => ({
+      ...day,
+      blocks: nextBlocks,
+    }));
+    setPendingExerciseUndo(null);
+    setEditorSetFocus({ blockIndex, exerciseIndex: 0, setIndex: 0 });
+    setExerciseActionMenu(null);
+  };
+
   const handleRemoveExercise = (blockIndex: number, exerciseIndex: number) => {
-    updateCurrentDayBlocks((blocks) => {
-      const block = blocks[blockIndex];
-      if (!block) return blocks;
+    const beforeBlocks = cloneBlockTemplates(currentDayBlocks);
+    const nextBlocks = cloneBlockTemplates(currentDayBlocks);
+    const block = nextBlocks[blockIndex];
+    const removedExercise = block?.exercises?.[exerciseIndex];
+    if (!block || !removedExercise) return;
 
-      if (block.type === 'single') {
-        blocks.splice(blockIndex, 1);
-        return blocks;
-      }
-
+    if (block.type === 'single') {
+      nextBlocks.splice(blockIndex, 1);
+    } else {
       const remaining = block.exercises.filter((_, index) => index !== exerciseIndex);
       block.exercises = normalizeSlotOrder(remaining).map((exercise, index) => ({
         ...exercise,
@@ -983,12 +1185,70 @@ export default function ProgramsPage() {
       }));
 
       if (block.exercises.length === 0) {
-        blocks.splice(blockIndex, 1);
+        nextBlocks.splice(blockIndex, 1);
       }
+    }
 
-      return blocks;
+    const removedLabel =
+      exerciseNameById.get(removedExercise.exerciseId) ?? humanizeExerciseId(removedExercise.exerciseId);
+
+    updateCurrentDay((day) => ({
+      ...day,
+      blocks: nextBlocks,
+    }));
+    setPendingExerciseUndo({
+      id: createUuid(),
+      weekIndex: activeWeekIndex,
+      dayIndex: activeDayIndex,
+      beforeBlocks,
+      afterBlocksFingerprint: fingerprintBlocks(nextBlocks),
+      message: `${removedLabel} removed.`,
     });
     setEditorSetFocus(null);
+    setExerciseActionMenu(null);
+  };
+
+  const handleUndoExerciseRemoval = () => {
+    if (!pendingExerciseUndo || !draft) return;
+    const undo = pendingExerciseUndo;
+    const targetWeek = draft.weeks[undo.weekIndex];
+    const targetDay = targetWeek?.days[undo.dayIndex];
+    if (!targetWeek || !targetDay) {
+      setPendingExerciseUndo(null);
+      return;
+    }
+
+    const currentTargetBlocks = cloneBlockTemplates(getDayBlocks(targetDay));
+    if (fingerprintBlocks(currentTargetBlocks) !== undo.afterBlocksFingerprint) {
+      setPendingExerciseUndo(null);
+      setEditorError('Undo expired because this session changed.');
+      return;
+    }
+
+    const nextDraft: ProgramTemplate = {
+      ...draft,
+      weeks: draft.weeks.map((week, weekIndex) => {
+        if (weekIndex !== undo.weekIndex) return week;
+        return {
+          ...week,
+          days: week.days.map((day, dayIndex) => {
+            if (dayIndex !== undo.dayIndex) return day;
+            return {
+              ...day,
+              blocks: cloneBlockTemplates(undo.beforeBlocks),
+            };
+          }),
+        };
+      }),
+    };
+
+    setDraft(nextDraft);
+    setActiveWeekIndex(undo.weekIndex);
+    setActiveDayIndex(undo.dayIndex);
+    setEditorSetFocus(null);
+    setExerciseActionMenu(null);
+    setEditorError(null);
+    setPendingExerciseUndo(null);
   };
 
   const handleAddSetToExercise = (blockIndex: number, exerciseIndex: number) => {
@@ -1074,28 +1334,29 @@ export default function ProgramsPage() {
     setExercisePickerTarget(target);
     setExercisePickerOpen(true);
     setExerciseQuery('');
+    resetCustomExerciseBuilder();
+    setExerciseActionMenu(null);
   };
 
   const applyPickedExercise = (exerciseId: string) => {
     if (!exercisePickerTarget) return;
+    const target = exercisePickerTarget;
+    const nextBlocks = cloneBlockTemplates(currentDayBlocks);
     let nextFocus: EditorSetFocus = null;
-    updateCurrentDayBlocks((blocks) => {
-      if (exercisePickerTarget.mode === 'append-single-block') {
-        blocks.push(createSingleBlock(exerciseId));
-        nextFocus = { blockIndex: blocks.length - 1, exerciseIndex: 0, setIndex: 0 };
-        return blocks;
-      }
+    let followUpPickerTarget: ExercisePickerTarget = null;
 
-      if (exercisePickerTarget.mode === 'append-superset-block') {
-        blocks.push(createSupersetBlock(exerciseId));
-        nextFocus = { blockIndex: blocks.length - 1, exerciseIndex: 0, setIndex: 0 };
-        return blocks;
-      }
-
-      if (exercisePickerTarget.mode === 'set-superset-slot') {
-        const block = blocks[exercisePickerTarget.blockIndex];
-        if (!block || block.type !== 'superset') return blocks;
-        const slot = exercisePickerTarget.slot;
+    if (target.mode === 'append-single-block') {
+      nextBlocks.push(createSingleBlock(exerciseId));
+      nextFocus = { blockIndex: nextBlocks.length - 1, exerciseIndex: 0, setIndex: 0 };
+    } else if (target.mode === 'append-superset-block') {
+      nextBlocks.push(createSupersetBlock(exerciseId));
+      const nextBlockIndex = nextBlocks.length - 1;
+      nextFocus = { blockIndex: nextBlockIndex, exerciseIndex: 0, setIndex: 0 };
+      followUpPickerTarget = { mode: 'set-superset-slot', blockIndex: nextBlockIndex, slot: 'A2' };
+    } else if (target.mode === 'set-superset-slot') {
+      const block = nextBlocks[target.blockIndex];
+      if (block && block.type === 'superset') {
+        const slot = target.slot;
         const sorted = normalizeSlotOrder(block.exercises);
         const existingIndex = sorted.findIndex((exercise) => exercise.slot === slot);
         const rounds = Math.max(
@@ -1129,63 +1390,142 @@ export default function ProgramsPage() {
               supersetGroup: block.id,
             })),
           }));
-        const exerciseIndex = block.exercises.findIndex((exercise) => exercise.exerciseId === exerciseId);
+        const nextExerciseIndex = block.exercises.findIndex((exercise) => exercise.slot === slot);
         nextFocus = {
-          blockIndex: exercisePickerTarget.blockIndex,
-          exerciseIndex: Math.max(0, exerciseIndex),
+          blockIndex: target.blockIndex,
+          exerciseIndex: Math.max(0, nextExerciseIndex),
           setIndex: 0,
         };
-        return blocks;
       }
+    } else {
+      const block = nextBlocks[target.blockIndex];
+      const exercise = block?.exercises[target.exerciseIndex];
+      if (block && exercise) {
+        exercise.exerciseId = exerciseId;
+        exercise.sets = exercise.sets.map((set, index) => ({
+          ...set,
+          exerciseId,
+          setIndex: index + 1,
+          setType: block.type === 'superset' ? 'superset' : set.setType,
+          supersetGroup: block.type === 'superset' ? block.id : undefined,
+        }));
+        nextFocus = {
+          blockIndex: target.blockIndex,
+          exerciseIndex: target.exerciseIndex,
+          setIndex: 0,
+        };
+      }
+    }
 
-      const block = blocks[exercisePickerTarget.blockIndex];
-      const exercise = block?.exercises[exercisePickerTarget.exerciseIndex];
-      if (!block || !exercise) return blocks;
-
-      exercise.exerciseId = exerciseId;
-      exercise.sets = exercise.sets.map((set, index) => ({
-        ...set,
-        exerciseId,
-        setIndex: index + 1,
-        setType: block.type === 'superset' ? 'superset' : set.setType,
-        supersetGroup: block.type === 'superset' ? block.id : undefined,
-      }));
-      nextFocus = {
-        blockIndex: exercisePickerTarget.blockIndex,
-        exerciseIndex: exercisePickerTarget.exerciseIndex,
-        setIndex: 0,
-      };
-      return blocks;
-    });
+    updateCurrentDay((day) => ({
+      ...day,
+      blocks: nextBlocks,
+    }));
     setEditorSetFocus(nextFocus);
+
+    if (followUpPickerTarget) {
+      setExercisePickerOpen(true);
+      setExercisePickerTarget(followUpPickerTarget);
+      setExerciseQuery('');
+      resetCustomExerciseBuilder();
+      return;
+    }
 
     setExercisePickerOpen(false);
     setExercisePickerTarget(null);
     setExerciseQuery('');
+    resetCustomExerciseBuilder();
   };
 
-  const createCustomExerciseFromQuery = () => {
-    const trimmed = exerciseQuery.trim();
-    if (!trimmed) return;
-    const existingByName = pickerExercises.find(
-      (exercise) => exercise.name.trim().toLowerCase() === trimmed.toLowerCase()
-    );
-    if (existingByName) {
-      applyPickedExercise(existingByName.id);
+  const openCreateCustomExerciseForm = () => {
+    const seedName = normalizedExerciseQuery || customExerciseDraft.name;
+    if (matchingExerciseByName) {
+      applyPickedExercise(matchingExerciseByName.id);
+      return;
+    }
+    setCustomExerciseDraft((current) => ({
+      ...current,
+      name: seedName,
+      movementPattern: current.movementPattern || 'other',
+    }));
+    setCustomExerciseError(null);
+    setShowCreateCustomExercise(true);
+  };
+
+  const handleCreateCustomExercise = async () => {
+    const name = customExerciseName;
+    if (!name) {
+      setCustomExerciseError('Add a name for this exercise.');
       return;
     }
 
-    const existingIds = new Set(pickerExercises.map((exercise) => exercise.id));
-    const customExerciseId = createUniqueQuickExerciseId(trimmed, existingIds);
-    setQuickCustomExerciseNames((current) => {
-      if (current[customExerciseId] === trimmed) return current;
-      return {
-        ...current,
-        [customExerciseId]: trimmed,
-      };
-    });
-    applyPickedExercise(customExerciseId);
+    const existingByDraftName = pickerExercises.find(
+      (exercise) => exercise.name.trim().toLowerCase() === name.toLowerCase()
+    );
+    if (existingByDraftName) {
+      applyPickedExercise(existingByDraftName.id);
+      return;
+    }
+
+    if (customExercisePrimaryMuscles.length === 0) {
+      setCustomExerciseError('Add at least one primary muscle (comma separated).');
+      return;
+    }
+
+    setCustomExerciseSaving(true);
+    setCustomExerciseError(null);
+    try {
+      const created = await createCustomExercise(user?.id ?? null, {
+        name,
+        equipment: customExerciseDraft.equipment,
+        exerciseType: customExerciseDraft.exerciseType,
+        primaryMuscles: customExercisePrimaryMuscles,
+        secondaryMuscles: parseMusclesFromInput(customExerciseDraft.secondaryMusclesText),
+        movementPattern: customExerciseDraft.movementPattern || undefined,
+        trackWeight: customExerciseDraft.equipment !== 'bodyweight',
+        trackReps: true,
+        trackTime: false,
+        defaultRestSeconds: 90,
+      });
+
+      setCustomExercises((current) => {
+        const exists = current.some((exercise) => exercise.id === created.id);
+        if (exists) return current;
+        return [...current, created];
+      });
+      applyPickedExercise(created.id);
+    } catch (createError) {
+      const message =
+        createError instanceof Error ? createError.message : 'Failed to create custom exercise.';
+      setCustomExerciseError(message);
+    } finally {
+      setCustomExerciseSaving(false);
+    }
   };
+
+  useEffect(() => {
+    if (!pendingExerciseUndo || !draft) return;
+    const week = draft.weeks[pendingExerciseUndo.weekIndex];
+    const day = week?.days[pendingExerciseUndo.dayIndex];
+    if (!day) {
+      setPendingExerciseUndo(null);
+      return;
+    }
+    const currentFingerprint = fingerprintBlocks(getDayBlocks(day));
+    if (currentFingerprint !== pendingExerciseUndo.afterBlocksFingerprint) {
+      setPendingExerciseUndo(null);
+    }
+  }, [draft, pendingExerciseUndo]);
+
+  useEffect(() => {
+    if (!pendingExerciseUndo) return;
+    const timeoutId = window.setTimeout(() => {
+      setPendingExerciseUndo((current) =>
+        current?.id === pendingExerciseUndo.id ? null : current
+      );
+    }, 7000);
+    return () => window.clearTimeout(timeoutId);
+  }, [pendingExerciseUndo]);
 
   const handleSaveDraft = async () => {
     if (!draft) return;
@@ -1256,45 +1596,173 @@ export default function ProgramsPage() {
       hasEditorSetFocus &&
       editorSetFocus?.blockIndex === blockIndex &&
       editorSetFocus.exerciseIndex === exerciseIndex;
+    const isMenuOpen =
+      exerciseActionMenu?.blockIndex === blockIndex &&
+      exerciseActionMenu.exerciseIndex === exerciseIndex;
+    const canReorderBlock =
+      block.type === 'single' || slotLabel === 'A1' || (block.type === 'superset' && block.exercises.length < 2);
+    const canMoveUp = blockIndex > 0;
+    const canMoveDown = blockIndex < currentDayBlocks.length - 1;
+    const showSupersetSettings =
+      block.type === 'superset' && (slotLabel === 'A1' || block.exercises.length < 2);
+    const canConvertSingleToSuperset = block.type === 'single';
+    const canBreakSupersetPair = block.type === 'superset';
 
     return (
       <article
         key={`${block.id}-${exercise.id}-${slotLabel ?? 'single'}`}
-        className={`rounded-2xl border border-zinc-900/90 bg-zinc-900/25 p-3 ${
-          hasFocusedSet ? 'border-cyan-400/30' : ''
+        className={`border-b border-zinc-900 py-3 ${
+          hasFocusedSet ? 'border-cyan-400/30 bg-cyan-500/[0.03]' : ''
         }`}
       >
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <button
-              type="button"
-              onClick={() => handleReplaceExercise(blockIndex, exerciseIndex)}
-              className="truncate text-left text-sm font-bold text-zinc-100"
-            >
-              {exerciseLabel}
-            </button>
+            <p className="truncate text-left text-base font-bold text-zinc-100">{exerciseLabel}</p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
               {slotLabel ? `${slotLabel} • ` : ''}{exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="relative flex shrink-0 items-center gap-1.5" data-exercise-action-menu="true">
             <button
               type="button"
               onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-              className="inline-flex h-8 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+              className="inline-flex h-11 items-center rounded-full border border-zinc-800 px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
             >
               Add Set
             </button>
             <button
               type="button"
-              onClick={() => handleRemoveExercise(blockIndex, exerciseIndex)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-              aria-label={`Remove ${exerciseLabel}`}
+              onClick={() =>
+                setExerciseActionMenu((current) =>
+                  current?.blockIndex === blockIndex && current.exerciseIndex === exerciseIndex
+                    ? null
+                    : { blockIndex, exerciseIndex }
+                )
+              }
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+              aria-label={`More actions for ${exerciseLabel}`}
             >
-              <Trash2 className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4" />
             </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 top-10 z-30 min-w-[12rem] rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleReplaceExercise(blockIndex, exerciseIndex);
+                    setExerciseActionMenu(null);
+                  }}
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
+                >
+                  Replace Exercise
+                </button>
+                {canConvertSingleToSuperset && (
+                  <button
+                    type="button"
+                    onClick={() => handleConvertSingleToSupersetPair(blockIndex)}
+                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
+                  >
+                    Convert to Superset Pair
+                  </button>
+                )}
+                {canBreakSupersetPair && (
+                  <button
+                    type="button"
+                    onClick={() => handleBreakSupersetPair(blockIndex)}
+                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
+                  >
+                    Break Superset Pair
+                  </button>
+                )}
+                {canReorderBlock && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={!canMoveUp}
+                      onClick={() => handleMoveBlock(blockIndex, -1)}
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
+                    >
+                      Move Up
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canMoveDown}
+                      onClick={() => handleMoveBlock(blockIndex, 1)}
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
+                    >
+                      Move Down
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveExercise(blockIndex, exerciseIndex)}
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
+                >
+                  Remove Exercise
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
+        {showSupersetSettings && (
+          <div className="mb-3 grid gap-2 border-y border-zinc-900 py-2 sm:grid-cols-3">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                Rounds
+              </label>
+              <EditableNumberInput
+                min={1}
+                step={1}
+                value={block.rounds ?? 1}
+                defaultValue={1}
+                onCommit={(value) =>
+                  handleUpdateSupersetMetadata(blockIndex, {
+                    rounds: value == null ? 1 : value,
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                Round Rest (s)
+              </label>
+              <EditableNumberInput
+                min={0}
+                step={5}
+                value={block.restAfterRoundSeconds ?? 60}
+                defaultValue={60}
+                onCommit={(value) =>
+                  handleUpdateSupersetMetadata(blockIndex, {
+                    restAfterRoundSeconds: value == null ? undefined : value,
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+              />
+            </div>
+            {editorDetailMode === 'advanced' && (
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                  A1→A2 Transition (s)
+                </label>
+                <EditableNumberInput
+                  min={0}
+                  step={5}
+                  value={block.transitionSeconds ?? 0}
+                  defaultValue={0}
+                  onCommit={(value) =>
+                    handleUpdateSupersetMetadata(blockIndex, {
+                      transitionSeconds: value == null ? undefined : value,
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           {exercise.sets.map((set, setIndex) => {
@@ -1314,7 +1782,7 @@ export default function ProgramsPage() {
                   <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
                     Set {setIndex + 1} • {getSetSummaryLine(set)}
                   </p>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() =>
@@ -1329,10 +1797,10 @@ export default function ProgramsPage() {
                           return { blockIndex, exerciseIndex, setIndex };
                         })
                       }
-                      className={`inline-flex h-7 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                      className={`inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
                         isFocusedRow
                           ? 'bg-cyan-500/10 text-cyan-300'
-                          : 'text-zinc-500 hover:bg-zinc-900/80 hover:text-zinc-200'
+                          : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-100'
                       }`}
                     >
                       {isFocusedRow ? 'Done' : 'Edit'}
@@ -1340,7 +1808,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-7 items-center rounded-full px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200"
+                      className="inline-flex h-10 items-center rounded-full px-3.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
                       aria-label={`Duplicate set ${setIndex + 1}`}
                     >
                       Copy
@@ -1348,7 +1816,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
                       aria-label={`Remove set ${setIndex + 1}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -2015,57 +2483,57 @@ export default function ProgramsPage() {
             <section className="border-b border-zinc-900 py-6">
               <div className="mb-5 space-y-2">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => stepEditorWeek(-1)}
-                    disabled={activeWeekIndex === 0}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                    aria-label="Previous week"
-                  >
+	                  <button
+	                    type="button"
+	                    onClick={() => stepEditorWeek(-1)}
+	                    disabled={activeWeekIndex === 0}
+	                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+	                    aria-label="Previous week"
+	                  >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditorJumpPicker('week')}
-                    className="flex-1 rounded-full border border-zinc-800 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
-                  >
+	                  <button
+	                    type="button"
+	                    onClick={() => setEditorJumpPicker('week')}
+	                    className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+	                  >
                     Week {activeWeekIndex + 1} of {draft.weeks.length}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => stepEditorWeek(1)}
-                    disabled={activeWeekIndex >= draft.weeks.length - 1}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                    aria-label="Next week"
-                  >
+	                  <button
+	                    type="button"
+	                    onClick={() => stepEditorWeek(1)}
+	                    disabled={activeWeekIndex >= draft.weeks.length - 1}
+	                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+	                    aria-label="Next week"
+	                  >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
                 {currentWeek && (
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => stepEditorSession(-1)}
-                      disabled={activeDayIndex === 0}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                      aria-label="Previous session"
-                    >
+	                    <button
+	                      type="button"
+	                      onClick={() => stepEditorSession(-1)}
+	                      disabled={activeDayIndex === 0}
+	                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+	                      aria-label="Previous session"
+	                    >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditorJumpPicker('session')}
-                      className="flex-1 rounded-full border border-zinc-800 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
-                    >
+	                    <button
+	                      type="button"
+	                      onClick={() => setEditorJumpPicker('session')}
+	                      className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+	                    >
                       Session {activeDayIndex + 1} of {currentWeek.days.length}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => stepEditorSession(1)}
-                      disabled={activeDayIndex >= currentWeek.days.length - 1}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                      aria-label="Next session"
-                    >
+	                    <button
+	                      type="button"
+	                      onClick={() => stepEditorSession(1)}
+	                      disabled={activeDayIndex >= currentWeek.days.length - 1}
+	                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+	                      aria-label="Next session"
+	                    >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -2085,12 +2553,12 @@ export default function ProgramsPage() {
                           className="w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 focus:outline-none"
                         />
 
-                        <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
                               {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
                             </span>
-                            <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
                               {currentSessionSetCount} {currentSessionSetCount === 1 ? 'set' : 'sets'}
                             </span>
                           </div>
@@ -2099,25 +2567,22 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={handleAddSingleBlock}
-                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/15"
+                              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
                             >
                               <CirclePlus className="h-3.5 w-3.5" />
-                              Add Single
+                              Add Exercise
                             </button>
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300 transition-colors hover:border-violet-500/60 hover:bg-violet-500/15"
+                              className="inline-flex h-10 shrink-0 items-center rounded-xl border border-zinc-800 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                             >
-                              <CirclePlus className="h-3.5 w-3.5" />
-                              Add Superset
+                              Add Superset Pair
                             </button>
                           </div>
                         </div>
 
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                          Build this session as ordered blocks. Superset blocks run A1, then A2, then round rest.
-                        </p>
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Ordered exercises for this session.</p>
                       </div>
 
                       <div className="mb-4 flex items-center justify-between gap-2">
@@ -2125,7 +2590,7 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('simple')}
-                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                            className={`h-10 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
                               editorDetailMode === 'simple'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -2136,7 +2601,7 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('advanced')}
-                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                            className={`h-10 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
                               editorDetailMode === 'advanced'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -2149,7 +2614,7 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorSetFocus(null)}
-                            className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:text-cyan-200"
+                            className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:text-cyan-200"
                           >
                             Exit Focus
                           </button>
@@ -2157,199 +2622,68 @@ export default function ProgramsPage() {
                       </div>
 
                       <div className="space-y-3">
-                        {currentDayBlocks.length === 0 && (
+                        {currentDayExerciseRows.length === 0 && (
                           <div className="grid gap-2 sm:grid-cols-2">
                             <button
                               type="button"
                               onClick={handleAddSingleBlock}
-                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-7 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-emerald-500/45 hover:text-emerald-300"
+                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                             >
-                              Add First Single Block
+                              Add First Exercise
                             </button>
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-7 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-violet-500/45 hover:text-violet-300"
+                              className="w-full rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                             >
-                              Add First Superset Block
+                              Add First Superset Pair
                             </button>
                           </div>
                         )}
 
-                        {currentDayBlocks.map((block, blockIndex) => {
-                          const blockTypeLabel = block.type === 'superset' ? 'Superset' : 'Single';
-                          const blockSetCount = countBlockSets([block]);
-                          const blockExerciseCount = block.exercises.length;
-                          const canMoveUp = blockIndex > 0;
-                          const canMoveDown = blockIndex < currentDayBlocks.length - 1;
+                        {currentDayExerciseRows.map((row) => {
+                          const block = currentDayBlocks[row.blockIndex];
+                          if (!block) return null;
+                          const isSupersetA1 = row.blockType === 'superset' && row.slot === 'A1';
+                          const missingA2 = isSupersetA1 && blocksMissingSupersetA2.has(row.blockIndex);
 
                           return (
-                            <article
-                              key={`${block.id}-${blockIndex}`}
-                              className="rounded-2xl border border-zinc-900 bg-zinc-950/35 p-3"
-                            >
-                              <div className="mb-3 flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-300">
-                                    Block {blockIndex + 1}
-                                  </p>
-                                  <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                    {blockTypeLabel} • {blockExerciseCount} {blockExerciseCount === 1 ? 'exercise' : 'exercises'} • {blockSetCount} {blockSetCount === 1 ? 'set' : 'sets'}
-                                  </p>
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMoveBlock(blockIndex, -1)}
-                                    disabled={!canMoveUp}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200 disabled:opacity-30"
-                                    aria-label="Move block up"
-                                  >
-                                    <ArrowUp className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMoveBlock(blockIndex, 1)}
-                                    disabled={!canMoveDown}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/80 hover:text-zinc-200 disabled:opacity-30"
-                                    aria-label="Move block down"
-                                  >
-                                    <ArrowDown className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveBlock(blockIndex)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-                                    aria-label="Remove block"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {block.type === 'superset' && (
-                                <div className={`mb-3 grid gap-2 ${editorDetailMode === 'advanced' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                                  <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                      Rounds
-                                    </label>
-                                    <EditableNumberInput
-                                      min={1}
-                                      step={1}
-                                      value={block.rounds ?? 1}
-                                      defaultValue={1}
-                                      onCommit={(value) =>
-                                        handleUpdateSupersetMetadata(blockIndex, {
-                                          rounds: value == null ? 1 : value,
-                                        })
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                      Round Rest (s)
-                                    </label>
-                                    <EditableNumberInput
-                                      min={0}
-                                      step={5}
-                                      value={block.restAfterRoundSeconds ?? 60}
-                                      defaultValue={60}
-                                      onCommit={(value) =>
-                                        handleUpdateSupersetMetadata(blockIndex, {
-                                          restAfterRoundSeconds: value == null ? undefined : value,
-                                        })
-                                      }
-                                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                    />
-                                  </div>
-                                  {editorDetailMode === 'advanced' && (
-                                    <div>
-                                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                                        A1→A2 Transition (s)
-                                      </label>
-                                      <EditableNumberInput
-                                        min={0}
-                                        step={5}
-                                        value={block.transitionSeconds ?? 0}
-                                        defaultValue={0}
-                                        onCommit={(value) =>
-                                          handleUpdateSupersetMetadata(blockIndex, {
-                                            transitionSeconds: value == null ? undefined : value,
-                                          })
-                                        }
-                                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
+                            <div key={row.key} className="space-y-2">
+                              {renderExerciseEditor(
+                                block,
+                                row.blockIndex,
+                                row.exercise,
+                                row.exerciseIndex,
+                                row.slot
                               )}
-
-                              {block.type === 'single' && (
-                                <>
-                                  {block.exercises[0] ? (
-                                    renderExerciseEditor(block, blockIndex, block.exercises[0], 0)
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleReplaceExercise(blockIndex, 0)}
-                                      className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                                    >
-                                      Pick Exercise
-                                    </button>
-                                  )}
-                                </>
+                              {missingA2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetSupersetSlotExercise(row.blockIndex, 'A2')}
+                                  className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                                >
+                                  Add A2 Exercise
+                                </button>
                               )}
-
-                              {block.type === 'superset' && (
-                                <div className="space-y-2">
-                                  {(['A1', 'A2'] as const).map((slot) => {
-                                    const slotExercise = block.exercises.find((exercise) => exercise.slot === slot);
-                                    const slotExerciseIndex = slotExercise
-                                      ? block.exercises.findIndex((exercise) => exercise.id === slotExercise.id)
-                                      : -1;
-                                    if (!slotExercise || slotExerciseIndex === -1) {
-                                      return (
-                                        <button
-                                          key={`${block.id}-${slot}-add`}
-                                          type="button"
-                                          onClick={() => handleSetSupersetSlotExercise(blockIndex, slot)}
-                                          className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-violet-500/45 hover:text-violet-200"
-                                        >
-                                          Add {slot}
-                                        </button>
-                                      );
-                                    }
-                                    return renderExerciseEditor(
-                                      block,
-                                      blockIndex,
-                                      slotExercise,
-                                      slotExerciseIndex,
-                                      slot
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </article>
+                            </div>
                           );
                         })}
 
-                        {currentDayBlocks.length > 0 && (
-                          <div className="grid gap-2 sm:grid-cols-2">
+                        {currentDayExerciseRows.length > 0 && (
+                          <div className="space-y-1">
                             <button
                               type="button"
                               onClick={handleAddSingleBlock}
-                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-emerald-500/45 hover:text-emerald-200"
+                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                             >
-                              Add Single Block
+                              Add Exercise
                             </button>
                             <button
                               type="button"
                               onClick={handleAddSupersetBlock}
-                              className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-violet-500/45 hover:text-violet-200"
+                              className="w-full rounded-xl border border-zinc-900 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-200"
                             >
-                              Add Superset Block
+                              Add Superset Pair
                             </button>
                           </div>
                         )}
@@ -2362,6 +2696,23 @@ export default function ProgramsPage() {
 
             {editorError && <p className="pt-4 text-sm text-rose-400">{editorError}</p>}
           </div>
+
+          {pendingExerciseUndo && (
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.4rem)] z-[140] px-4 sm:px-6">
+              <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+                <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
+                  {pendingExerciseUndo.message}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleUndoExerciseRemoval}
+                  className="inline-flex h-9 shrink-0 items-center rounded-full border border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100 transition-colors hover:border-zinc-500"
+                >
+                  Undo
+                </button>
+              </div>
+            </div>
+          )}
 
           <footer className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-xl sm:px-6">
             <div className="mx-auto flex w-full max-w-5xl items-center gap-3">
@@ -2471,13 +2822,16 @@ export default function ProgramsPage() {
           <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
             <div className="mx-auto w-full max-w-5xl">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">Pick Exercise</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
+                  {exercisePickerHeading}
+                </p>
                 <button
                   type="button"
                   onClick={() => {
                     setExercisePickerOpen(false);
                     setExercisePickerTarget(null);
                     setExerciseQuery('');
+                    resetCustomExerciseBuilder();
                   }}
                   className="rounded-full p-2 text-zinc-500"
                   aria-label="Close exercise picker"
@@ -2491,51 +2845,241 @@ export default function ProgramsPage() {
                 <input
                   autoFocus
                   value={exerciseQuery}
-                  onChange={(event) => setExerciseQuery(event.target.value)}
+                  onChange={(event) => {
+                    setExerciseQuery(event.target.value);
+                    setCustomExerciseError(null);
+                  }}
                   placeholder="Search exercises..."
                   className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
                 />
               </div>
 
-              {exerciseQuery.trim().length > 1 && (
+              {normalizedExerciseQuery.length > 1 && !showCreateCustomExercise && (
                 <button
                   type="button"
-                  onClick={createCustomExerciseFromQuery}
-                  className="mb-3 flex w-full items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-left"
+                  onClick={() => {
+                    if (matchingExerciseByName) {
+                      applyPickedExercise(matchingExerciseByName.id);
+                      return;
+                    }
+                    openCreateCustomExerciseForm();
+                  }}
+                  className="mb-3 flex h-11 w-full items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-left"
                 >
-                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">
-                    Use &quot;{exerciseQuery.trim()}&quot;
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                    {matchingExerciseByName
+                      ? `Use "${matchingExerciseByName.name}"`
+                      : `Create "${normalizedExerciseQuery}"`}
                   </span>
                   <CirclePlus className="h-4 w-4 text-emerald-300" />
                 </button>
               )}
 
-              <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
-                {filteredExercises.length === 0 && (
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
-                    <p className="text-sm text-zinc-300">No exercises found.</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                      Try another search or add a custom exercise.
+              {showCreateCustomExercise && (
+                <div className="mb-3 space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/20 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                      New Custom Exercise
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => resetCustomExerciseBuilder(exerciseQuery)}
+                      className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-200"
+                    >
+                      Back To Search
+                    </button>
                   </div>
-                )}
-                {filteredExercises.map((exercise) => (
+
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                    Required: name, equipment, lift type, and at least one primary muscle.
+                  </p>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Exercise Name *
+                      </label>
+                      <input
+                        aria-label="Exercise Name"
+                        value={customExerciseDraft.name}
+                        onChange={(event) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Incline Dumbbell Press"
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Equipment *
+                      </label>
+                      <FancySelect
+                        value={customExerciseDraft.equipment}
+                        options={CUSTOM_EXERCISE_EQUIPMENT_OPTIONS.map((equipment) => ({
+                          value: equipment,
+                          label: formatTokenLabel(equipment),
+                        }))}
+                        onChange={(value) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            equipment: value as CustomExercise['equipment'],
+                          }))
+                        }
+                        ariaLabel="Custom exercise equipment"
+                        buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                        listClassName="max-h-56 overflow-y-auto"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Movement
+                      </label>
+                      <FancySelect
+                        value={customExerciseDraft.movementPattern || 'other'}
+                        options={CUSTOM_EXERCISE_MOVEMENT_OPTIONS.map((movement) => ({
+                          value: movement,
+                          label: formatTokenLabel(movement),
+                        }))}
+                        onChange={(value) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            movementPattern:
+                              value as NonNullable<CustomExercise['movementPattern']>,
+                          }))
+                        }
+                        ariaLabel="Custom exercise movement pattern"
+                        buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                        listClassName="max-h-56 overflow-y-auto"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Lift Type *
+                    </label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
+                        <button
+                          key={`custom-type-${typeOption}`}
+                          type="button"
+                          onClick={() =>
+                            setCustomExerciseDraft((current) => ({
+                              ...current,
+                              exerciseType: typeOption,
+                            }))
+                          }
+                          className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                            customExerciseDraft.exerciseType === typeOption
+                              ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
+                              : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                          }`}
+                        >
+                          {formatTokenLabel(typeOption)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Primary Muscles *
+                      </label>
+                      <input
+                        aria-label="Primary Muscles"
+                        value={customExerciseDraft.primaryMusclesText}
+                        onChange={(event) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            primaryMusclesText: event.target.value,
+                          }))
+                        }
+                        placeholder="chest, shoulders, triceps"
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                      />
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                        {customExercisePrimaryMuscles.length > 0
+                          ? `${customExercisePrimaryMuscles.length} primary ${
+                              customExercisePrimaryMuscles.length === 1 ? 'muscle' : 'muscles'
+                            }`
+                          : 'Comma separated'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Secondary Muscles
+                      </label>
+                      <input
+                        aria-label="Secondary Muscles"
+                        value={customExerciseDraft.secondaryMusclesText}
+                        onChange={(event) =>
+                          setCustomExerciseDraft((current) => ({
+                            ...current,
+                            secondaryMusclesText: event.target.value,
+                          }))
+                        }
+                        placeholder="upper chest, front delts"
+                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {customExerciseError && <p className="text-sm text-rose-400">{customExerciseError}</p>}
+
                   <button
-                    key={exercise.id}
                     type="button"
-                    onClick={() => applyPickedExercise(exercise.id)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                    onClick={() => {
+                      void handleCreateCustomExercise();
+                    }}
+                    disabled={customExerciseSaving || !canCreateCustomExercise}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                      {exercise.type}
-                      {exercise.muscleGroups.length > 0 ? ` • ${exercise.muscleGroups.join(', ')}` : ''}
-                      {exercise.equipment.length > 0 ? ` • ${exercise.equipment.join(', ')}` : ''}
-                      {exercise.source !== 'default' ? ` • ${formatTokenLabel(exercise.source)}` : ''}
-                    </p>
+                    {customExerciseSaving ? 'Creating...' : 'Create and Use Exercise'}
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {!showCreateCustomExercise && (
+                <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
+                  {filteredExercises.length === 0 && (
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
+                      <p className="text-sm text-zinc-300">No exercises found.</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                        Try another search or add a custom exercise.
+                      </p>
+                    </div>
+                  )}
+                  {filteredExercises.map((exercise) => (
+                    <button
+                      key={exercise.id}
+                      type="button"
+                      onClick={() => applyPickedExercise(exercise.id)}
+                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                    >
+                      <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                        {exercise.type}
+                        {exercise.muscleGroups.length > 0 ? ` • ${exercise.muscleGroups.join(', ')}` : ''}
+                        {exercise.equipment.length > 0 ? ` • ${exercise.equipment.join(', ')}` : ''}
+                        {exercise.source !== 'default' ? ` • ${formatTokenLabel(exercise.source)}` : ''}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showCreateCustomExercise && (
+                <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/10 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                    Picker results are hidden while creating to keep this flow focused.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
