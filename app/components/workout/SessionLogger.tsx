@@ -263,6 +263,24 @@ function createProgramSliceForDay(program: ProgramTemplate, context: ProgramDayC
   };
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
 type ExerciseStyle = {
   icon: LucideIcon;
   label: string;
@@ -525,6 +543,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     field: 'weight' | 'reps';
   } | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isFinishingWorkout, setIsFinishingWorkout] = useState(false);
+  const [finishStatusMessage, setFinishStatusMessage] = useState<string | null>(null);
   const [isAddMovementOpen, setIsAddMovementOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
@@ -1464,42 +1484,73 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   };
 
   const handleFinishWorkout = async () => {
-    if (saveInFlightRef.current) {
+    if (saveInFlightRef.current || isFinishingWorkout) {
       return;
     }
     saveInFlightRef.current = true;
+    setIsFinishingWorkout(true);
+    setFinishStatusMessage('Saving workout...');
+    setActiveInput(null);
+
     try {
-      const payload = buildWorkoutSession();
-      const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
-      const hasCompletedSets = payload.sets.some((set) => set.completed);
-      if (hasCompletedSets && initialData && programDayContext) {
-        const nextProgress = advanceProgramProgress(
-          initialData,
-          {
-            cycleNumber: programDayContext.cycleNumber,
-            weekIndex: programDayContext.weekIndex,
-            dayIndex: programDayContext.dayIndex,
-          },
-          namespaceId
-        );
-        if (user?.id) {
-          await syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId);
-        }
-      }
-      if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
-        localStorage.setItem(
-          'iron_brain_last_pr_hits',
-          JSON.stringify({
-            createdAt: new Date().toISOString(),
-            hits: saveResult.newPersonalRecords,
-          })
-        );
-      }
+      await withTimeout(
+        (async () => {
+          const payload = buildWorkoutSession();
+          const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
+          const hasCompletedSets = payload.sets.some((set) => set.completed);
+          if (hasCompletedSets && initialData && programDayContext) {
+            const nextProgress = advanceProgramProgress(
+              initialData,
+              {
+                cycleNumber: programDayContext.cycleNumber,
+                weekIndex: programDayContext.weekIndex,
+                dayIndex: programDayContext.dayIndex,
+              },
+              namespaceId
+            );
+            if (user?.id) {
+              await syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId);
+            }
+          }
+          if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
+            localStorage.setItem(
+              'iron_brain_last_pr_hits',
+              JSON.stringify({
+                createdAt: new Date().toISOString(),
+                hits: saveResult.newPersonalRecords,
+              })
+            );
+          }
+        })(),
+        12000,
+        'Workout save timed out'
+      );
+      setFinishStatusMessage('Saved. Finishing up...');
+    } catch (error) {
+      console.error('Workout finish flow failed; continuing to exit session:', error);
+      setFinishStatusMessage('Saved locally. Exiting...');
     } finally {
       saveInFlightRef.current = false;
-      router.push('/');
+      setTimeout(() => {
+        setIsFinishingWorkout(false);
+        router.push('/');
+      }, 150);
     }
   };
+
+  const handleCloseSummary = () => {
+    if (isFinishingWorkout) return;
+    setIsSummaryOpen(false);
+    setFinishStatusMessage(null);
+  };
+
+  useEffect(() => {
+    if (!isSummaryOpen || !finishStatusMessage) return;
+    const timer = window.setTimeout(() => {
+      setFinishStatusMessage((current) => (current === finishStatusMessage ? null : current));
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [finishStatusMessage, isSummaryOpen]);
 
   const handleShare = async () => {
     const text = `IRON BRAIN SESSION\nVolume: ${sessionStats.totalVolume.toLocaleString()} ${sessionWeightUnit.toUpperCase()}\nSets: ${sessionStats.totalSets}\nReps: ${sessionStats.totalReps}\n\nCompleted with Iron Brain app.`;
@@ -1814,6 +1865,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   type="button"
                   onClick={() => {
                     setActiveInput(null);
+                    setFinishStatusMessage(null);
                     setIsSummaryOpen(true);
                   }}
                   className="w-full bg-emerald-500 text-zinc-950 font-black tracking-widest uppercase py-4 rounded-2xl shadow-lg shadow-emerald-500/20"
@@ -2211,6 +2263,16 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           >
             <div className="pt-[calc(env(safe-area-inset-top)+3rem)] px-6 pb-[calc(8rem+env(safe-area-inset-bottom))]">
               <div className="mx-auto w-full max-w-xl">
+                <div className="mb-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCloseSummary}
+                    disabled={isFinishingWorkout}
+                    className="rounded-full border border-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-40"
+                  >
+                    Back
+                  </button>
+                </div>
                 <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500 text-center">
                   SESSION REPORT
                 </p>
@@ -2369,6 +2431,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                     {sessionStats.totalSets} SETS
                   </p>
                 </div>
+                {finishStatusMessage && (
+                  <p className="mt-5 text-center text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+                    {finishStatusMessage}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -2377,16 +2444,18 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="w-full rounded-2xl bg-zinc-900 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 hover:bg-zinc-800 transition-colors"
+                  disabled={isFinishingWorkout}
+                  className="w-full rounded-2xl bg-zinc-900 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:bg-zinc-800 disabled:opacity-40"
                 >
                   Share
                 </button>
                 <button
                   type="button"
                   onClick={handleFinishWorkout}
-                  className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all"
+                  disabled={isFinishingWorkout}
+                  className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-65"
                 >
-                  Finish
+                  {isFinishingWorkout ? 'Finishing...' : 'Finish'}
                 </button>
               </div>
             </div>

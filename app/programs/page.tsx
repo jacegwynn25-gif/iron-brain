@@ -650,6 +650,7 @@ export default function ProgramsPage() {
   );
   const [customExerciseSaving, setCustomExerciseSaving] = useState(false);
   const [customExerciseError, setCustomExerciseError] = useState<string | null>(null);
+  const [showBuilderCoach, setShowBuilderCoach] = useState(false);
   const [pendingExerciseUndo, setPendingExerciseUndo] = useState<ExerciseRemovalUndoPayload | null>(
     null
   );
@@ -853,6 +854,13 @@ export default function ProgramsPage() {
     setCustomExerciseDraft(createCustomExerciseDraft(seedName));
     setCustomExerciseError(null);
     setCustomExerciseSaving(false);
+  };
+
+  const dismissBuilderCoach = () => {
+    setShowBuilderCoach(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iron_brain_builder_coach_dismissed_v1', 'true');
+    }
   };
 
   const openCreateEditor = () => {
@@ -1535,6 +1543,15 @@ export default function ProgramsPage() {
     }, 7000);
     return () => window.clearTimeout(timeoutId);
   }, [pendingExerciseUndo]);
+
+  useEffect(() => {
+    if (!editorMode || typeof window === 'undefined') {
+      setShowBuilderCoach(false);
+      return;
+    }
+    const dismissed = localStorage.getItem('iron_brain_builder_coach_dismissed_v1') === 'true';
+    setShowBuilderCoach(!dismissed);
+  }, [editorMode]);
 
   const handleSaveDraft = async () => {
     if (!draft) return;
@@ -2365,12 +2382,42 @@ export default function ProgramsPage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
                   {editorMode === 'create' ? 'Create Program' : 'Edit Program'}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSaveDraft();
+                  }}
+                  disabled={editorSaving}
+                  className="inline-flex h-9 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-3 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
+                >
+                  {editorSaving ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </header>
 
             {editorNotice && (
               <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
                 {editorNotice}
+              </div>
+            )}
+
+            {showBuilderCoach && (
+              <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                      Builder Quick Start
+                    </p>
+                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap edit for sets. 3. Save at top or bottom.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={dismissBuilderCoach}
+                    className="shrink-0 rounded-full border border-zinc-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-100"
+                  >
+                    Got It
+                  </button>
+                </div>
               </div>
             )}
 
