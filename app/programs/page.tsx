@@ -11,7 +11,6 @@ import {
   CirclePlus,
   MoreHorizontal,
   Play,
-  Save,
   Search,
   Trash2,
   X,
@@ -189,6 +188,22 @@ function parseMusclesFromInput(value: string): string[] {
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
   return Array.from(new Set(cleaned));
+}
+
+function inferPrimaryMusclesFromMovement(
+  movementPattern: CustomExerciseDraft['movementPattern']
+): string[] {
+  if (movementPattern === 'push') return ['chest'];
+  if (movementPattern === 'pull') return ['back'];
+  if (movementPattern === 'squat') return ['quads'];
+  if (movementPattern === 'hinge') return ['hamstrings'];
+  if (movementPattern === 'carry') return ['core'];
+  if (movementPattern === 'rotation') return ['obliques'];
+  return ['other'];
+}
+
+function fingerprintProgram(program: ProgramTemplate): string {
+  return JSON.stringify(normalizeProgramForSave(program));
 }
 
 function cloneSetTemplate(set: SetTemplate): SetTemplate {
@@ -634,6 +649,7 @@ export default function ProgramsPage() {
   const [filter, setFilter] = useState<ProgramFilter>('all');
   const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [draft, setDraft] = useState<ProgramTemplate | null>(null);
+  const [editorBaselineFingerprint, setEditorBaselineFingerprint] = useState<string | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
@@ -645,6 +661,7 @@ export default function ProgramsPage() {
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [showCreateCustomExercise, setShowCreateCustomExercise] = useState(false);
+  const [showCustomExerciseAdvanced, setShowCustomExerciseAdvanced] = useState(false);
   const [customExerciseDraft, setCustomExerciseDraft] = useState<CustomExerciseDraft>(
     createCustomExerciseDraft()
   );
@@ -817,27 +834,14 @@ export default function ProgramsPage() {
     if (!currentDay) return 0;
     return countDaySets(currentDay);
   }, [currentDay]);
-  const focusedExerciseContext = useMemo(() => {
-    if (!editorSetFocus) return null;
-    const block = currentDayBlocks[editorSetFocus.blockIndex];
-    const exercise = block?.exercises[editorSetFocus.exerciseIndex];
-    if (!block || !exercise) return null;
-    return {
-      block,
-      exercise,
-      blockIndex: editorSetFocus.blockIndex,
-      exerciseIndex: editorSetFocus.exerciseIndex,
-      exerciseLabel: exerciseNameById.get(exercise.exerciseId) ?? humanizeExerciseId(exercise.exerciseId),
-    };
-  }, [currentDayBlocks, editorSetFocus, exerciseNameById]);
   const builderGuidanceText = useMemo(() => {
     if (currentDayExerciseRows.length === 0) {
       return 'Start with Add Exercise. Add superset pairs from the secondary action.';
     }
     if (!hasEditorSetFocus) {
-      return 'Tap Edit on an exercise. Focused exercise actions appear below the list.';
+      return 'Tap Edit on an exercise to tune sets and details.';
     }
-    return 'Update set details, then tap Done.';
+    return 'Adjust set details, then tap Done to collapse.';
   }, [currentDayExerciseRows.length, hasEditorSetFocus]);
   const normalizedExerciseQuery = exerciseQuery.trim();
   const exercisePickerHeading = useMemo(() => {
@@ -860,10 +864,11 @@ export default function ProgramsPage() {
     () => parseMusclesFromInput(customExerciseDraft.primaryMusclesText),
     [customExerciseDraft.primaryMusclesText]
   );
-  const canCreateCustomExercise = customExerciseName.length > 0 && customExercisePrimaryMuscles.length > 0;
+  const canCreateCustomExercise = customExerciseName.length > 0;
 
   const resetCustomExerciseBuilder = (seedName = '') => {
     setShowCreateCustomExercise(false);
+    setShowCustomExerciseAdvanced(false);
     setCustomExerciseDraft(createCustomExerciseDraft(seedName));
     setCustomExerciseError(null);
     setCustomExerciseSaving(false);
@@ -877,7 +882,9 @@ export default function ProgramsPage() {
   };
 
   const openCreateEditor = () => {
-    setDraft(createBlankProgram());
+    const blank = createBlankProgram();
+    setDraft(blank);
+    setEditorBaselineFingerprint(fingerprintProgram(blank));
     setEditorMode('create');
     setEditorError(null);
     setEditorNotice(null);
@@ -898,6 +905,7 @@ export default function ProgramsPage() {
     const draftProgram = normalizeProgramForSave(deepClone(resolved));
     selectProgram(resolved);
     setDraft(draftProgram);
+    setEditorBaselineFingerprint(fingerprintProgram(draftProgram));
     setEditorMode('edit');
     setEditorError(null);
     setEditorNotice(
@@ -916,10 +924,11 @@ export default function ProgramsPage() {
     setExerciseActionMenu(null);
   };
 
-  const closeEditor = () => {
+  const resetEditorState = () => {
     if (editorSaving) return;
     setEditorMode(null);
     setDraft(null);
+    setEditorBaselineFingerprint(null);
     setEditorError(null);
     setEditorNotice(null);
     setPendingExerciseUndo(null);
@@ -931,6 +940,15 @@ export default function ProgramsPage() {
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
     setExerciseActionMenu(null);
+  };
+
+  const closeEditor = () => {
+    if (editorSaving) return;
+    if (draft && editorBaselineFingerprint && fingerprintProgram(draft) !== editorBaselineFingerprint) {
+      const discardConfirmed = window.confirm('Discard unsaved changes?');
+      if (!discardConfirmed) return;
+    }
+    resetEditorState();
   };
 
   const updateDraft = (updater: (current: ProgramTemplate) => ProgramTemplate) => {
@@ -1479,6 +1497,7 @@ export default function ProgramsPage() {
       movementPattern: current.movementPattern || 'other',
     }));
     setCustomExerciseError(null);
+    setShowCustomExerciseAdvanced(false);
     setShowCreateCustomExercise(true);
   };
 
@@ -1497,19 +1516,18 @@ export default function ProgramsPage() {
       return;
     }
 
-    if (customExercisePrimaryMuscles.length === 0) {
-      setCustomExerciseError('Add at least one primary muscle (comma separated).');
-      return;
-    }
-
     setCustomExerciseSaving(true);
     setCustomExerciseError(null);
     try {
+      const resolvedPrimaryMuscles =
+        customExercisePrimaryMuscles.length > 0
+          ? customExercisePrimaryMuscles
+          : inferPrimaryMusclesFromMovement(customExerciseDraft.movementPattern);
       const created = await createCustomExercise(user?.id ?? null, {
         name,
         equipment: customExerciseDraft.equipment,
         exerciseType: customExerciseDraft.exerciseType,
-        primaryMuscles: customExercisePrimaryMuscles,
+        primaryMuscles: resolvedPrimaryMuscles,
         secondaryMuscles: parseMusclesFromInput(customExerciseDraft.secondaryMusclesText),
         movementPattern: customExerciseDraft.movementPattern || undefined,
         trackWeight: customExerciseDraft.equipment !== 'bodyweight',
@@ -1584,7 +1602,8 @@ export default function ProgramsPage() {
     try {
       await saveProgram(normalized);
       selectProgram(normalized);
-      closeEditor();
+      setEditorBaselineFingerprint(fingerprintProgram(normalized));
+      resetEditorState();
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : 'Failed to save program';
       setEditorError(message);
@@ -1678,7 +1697,7 @@ export default function ProgramsPage() {
                   : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
               }`}
             >
-              {hasFocusedSet ? 'Exit Exercise' : 'Edit Exercise'}
+              {hasFocusedSet ? 'Close' : 'Edit'}
             </button>
             <button
               type="button"
@@ -1711,15 +1730,40 @@ export default function ProgramsPage() {
                 >
                   Replace Exercise
                 </button>
+                {block.type === 'single' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExerciseActionMenu(null);
+                      handleConvertSingleToSupersetPair(blockIndex);
+                    }}
+                    className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
+                  >
+                    Convert To Superset Pair
+                  </button>
+                )}
                 {canBreakSupersetPair && (
                   <button
                     type="button"
-                    onClick={() => handleBreakSupersetPair(blockIndex)}
+                    onClick={() => {
+                      setExerciseActionMenu(null);
+                      handleBreakSupersetPair(blockIndex);
+                    }}
                     className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
                   >
                     Break Superset Pair
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExerciseActionMenu(null);
+                    handleRemoveExercise(blockIndex, exerciseIndex);
+                  }}
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
+                >
+                  Remove Exercise
+                </button>
                 {canReorderBlock && (
                   <>
                     <button
@@ -1842,7 +1886,7 @@ export default function ProgramsPage() {
                           : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-100'
                       }`}
                     >
-                      {isFocusedRow ? 'Collapse Set' : 'Edit Set'}
+                      {isFocusedRow ? 'Done' : 'Edit Set'}
                     </button>
                     {canShowSetQuickActions && isFocusedRow && (
                       <>
@@ -2077,6 +2121,15 @@ export default function ProgramsPage() {
               </div>
             );
           })}
+          {hasFocusedSet && (
+            <button
+              type="button"
+              onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
+              className="mt-1 inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
+            >
+              Add Set
+            </button>
+          )}
         </div>
       </article>
     );
@@ -2353,7 +2406,7 @@ export default function ProgramsPage() {
       {editorMode && draft && (
         <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
           <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
-            <header className="border-b border-zinc-900 pb-4">
+            <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/95 pb-4 pt-1 backdrop-blur-xl">
               <div className="flex items-center justify-between">
                 <button
                   type="button"
@@ -2361,10 +2414,10 @@ export default function ProgramsPage() {
                   className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Close
+                  Back
                 </button>
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
-                  {editorMode === 'create' ? 'Create Program' : 'Edit Program'}
+                  {editorMode === 'create' ? 'Creating' : 'Editing'}
                 </p>
                 <button
                   type="button"
@@ -2374,7 +2427,7 @@ export default function ProgramsPage() {
                   disabled={editorSaving}
                   className="inline-flex h-9 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-3 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
                 >
-                  {editorSaving ? 'Saving...' : 'Save Program'}
+                  {editorSaving ? 'Saving...' : 'Done'}
                 </button>
               </div>
             </header>
@@ -2392,7 +2445,7 @@ export default function ProgramsPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
                       Builder Quick Start
                     </p>
-                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap edit for sets. 3. Save at top or bottom.</p>
+                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap edit for sets. 3. Tap Done in the header.</p>
                   </div>
                   <button
                     type="button"
@@ -2423,7 +2476,7 @@ export default function ProgramsPage() {
               />
 
               <div className="mt-4 space-y-3">
-                <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/25 p-3">
+                <div className="space-y-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
                   <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
                     Set length and training frequency first.
@@ -2516,7 +2569,7 @@ export default function ProgramsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/20 p-3">
+                <div className="space-y-3 border-t border-zinc-900 pt-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
                   <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
                     Define goal, experience, and intensity style.
@@ -2671,7 +2724,6 @@ export default function ProgramsPage() {
                           </div>
                         </div>
 
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Ordered exercises for this session.</p>
                         <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{builderGuidanceText}</p>
                       </div>
 
@@ -2700,15 +2752,6 @@ export default function ProgramsPage() {
                             Advanced
                           </button>
                         </div>
-                        {hasEditorSetFocus && (
-                          <button
-                            type="button"
-                            onClick={() => setEditorSetFocus(null)}
-                            className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:text-cyan-200"
-                          >
-                            Exit Focus
-                          </button>
-                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -2759,62 +2802,6 @@ export default function ProgramsPage() {
                           );
                         })}
 
-                        {currentDayExerciseRows.length > 0 && focusedExerciseContext && (
-                          <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/20 px-3 py-3">
-                            <p className="truncate text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Focused: {focusedExerciseContext.exerciseLabel}
-                            </p>
-                            <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleAddSetToExercise(
-                                    focusedExerciseContext.blockIndex,
-                                    focusedExerciseContext.exerciseIndex
-                                  )
-                                }
-                                className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-500 px-3 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
-                              >
-                                Add Set
-                              </button>
-                              {focusedExerciseContext.block.type === 'single' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setExerciseActionMenu(null);
-                                    handleConvertSingleToSupersetPair(focusedExerciseContext.blockIndex);
-                                  }}
-                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200 transition-colors hover:bg-indigo-500/18"
-                                >
-                                  Convert Pair
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setExerciseActionMenu(null);
-                                    handleBreakSupersetPair(focusedExerciseContext.blockIndex);
-                                  }}
-                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-200 transition-colors hover:bg-indigo-500/18"
-                                >
-                                  Break Pair
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveExercise(
-                                    focusedExerciseContext.blockIndex,
-                                    focusedExerciseContext.exerciseIndex
-                                  )
-                                }
-                                className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-500/45 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:bg-rose-500/18"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </>
                   )}
@@ -2826,7 +2813,7 @@ export default function ProgramsPage() {
           </div>
 
           {pendingExerciseUndo && (
-            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.4rem)] z-[140] px-4 sm:px-6">
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[140] px-4 sm:px-6">
               <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
                 <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
                   {pendingExerciseUndo.message}
@@ -2841,31 +2828,6 @@ export default function ProgramsPage() {
               </div>
             </div>
           )}
-
-          <footer className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 backdrop-blur-xl sm:px-6">
-            <div className="mx-auto flex w-full max-w-5xl items-center gap-3">
-              <button
-                type="button"
-                onClick={closeEditor}
-                className="flex-1 rounded-2xl border border-zinc-800 py-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleSaveDraft();
-                }}
-                disabled={editorSaving}
-                className="flex-[2] rounded-2xl bg-emerald-500 py-3 text-xs font-black uppercase tracking-[0.25em] text-zinc-950 shadow-lg shadow-emerald-500/20 disabled:opacity-60"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  {editorSaving ? 'Saving...' : 'Save Program'}
-                </span>
-              </button>
-            </div>
-          </footer>
         </div>
       )}
 
@@ -3019,7 +2981,7 @@ export default function ProgramsPage() {
                   </div>
 
                   <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                    Required: name, equipment, lift type, and at least one primary muscle.
+                    Required: exercise name. Add extra details now or later.
                   </p>
 
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -3043,7 +3005,7 @@ export default function ProgramsPage() {
 
                     <div>
                       <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Equipment *
+                        Equipment
                       </label>
                       <FancySelect
                         value={customExerciseDraft.equipment}
@@ -3062,101 +3024,107 @@ export default function ProgramsPage() {
                         listClassName="max-h-56 overflow-y-auto"
                       />
                     </div>
-
                     <div>
                       <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Movement
+                        Lift Type
                       </label>
-                      <FancySelect
-                        value={customExerciseDraft.movementPattern || 'other'}
-                        options={CUSTOM_EXERCISE_MOVEMENT_OPTIONS.map((movement) => ({
-                          value: movement,
-                          label: formatTokenLabel(movement),
-                        }))}
-                        onChange={(value) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            movementPattern:
-                              value as NonNullable<CustomExercise['movementPattern']>,
-                          }))
-                        }
-                        ariaLabel="Custom exercise movement pattern"
-                        buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                        listClassName="max-h-56 overflow-y-auto"
-                      />
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
+                          <button
+                            key={`custom-type-${typeOption}`}
+                            type="button"
+                            onClick={() =>
+                              setCustomExerciseDraft((current) => ({
+                                ...current,
+                                exerciseType: typeOption,
+                              }))
+                            }
+                            className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
+                              customExerciseDraft.exerciseType === typeOption
+                                ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
+                                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                            }`}
+                          >
+                            {formatTokenLabel(typeOption)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      Lift Type *
-                    </label>
-                    <div className="mt-1 grid grid-cols-2 gap-2">
-                      {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
-                        <button
-                          key={`custom-type-${typeOption}`}
-                          type="button"
-                          onClick={() =>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomExerciseAdvanced((current) => !current)}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                  >
+                    {showCustomExerciseAdvanced ? 'Hide Advanced Details' : 'Add Movement + Muscles (Optional)'}
+                  </button>
+
+                  {showCustomExerciseAdvanced && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Movement Pattern
+                        </label>
+                        <FancySelect
+                          value={customExerciseDraft.movementPattern || 'other'}
+                          options={CUSTOM_EXERCISE_MOVEMENT_OPTIONS.map((movement) => ({
+                            value: movement,
+                            label: formatTokenLabel(movement),
+                          }))}
+                          onChange={(value) =>
                             setCustomExerciseDraft((current) => ({
                               ...current,
-                              exerciseType: typeOption,
+                              movementPattern:
+                                value as NonNullable<CustomExercise['movementPattern']>,
                             }))
                           }
-                          className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                            customExerciseDraft.exerciseType === typeOption
-                              ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
-                              : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          {formatTokenLabel(typeOption)}
-                        </button>
-                      ))}
+                          ariaLabel="Custom exercise movement pattern"
+                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          listClassName="max-h-56 overflow-y-auto"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Primary Muscles
+                        </label>
+                        <input
+                          aria-label="Primary Muscles"
+                          value={customExerciseDraft.primaryMusclesText}
+                          onChange={(event) =>
+                            setCustomExerciseDraft((current) => ({
+                              ...current,
+                              primaryMusclesText: event.target.value,
+                            }))
+                          }
+                          placeholder="chest, shoulders, triceps"
+                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                        />
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                          {customExercisePrimaryMuscles.length > 0
+                            ? `${customExercisePrimaryMuscles.length} selected`
+                            : 'Optional comma separated'}
+                        </p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Secondary Muscles
+                        </label>
+                        <input
+                          aria-label="Secondary Muscles"
+                          value={customExerciseDraft.secondaryMusclesText}
+                          onChange={(event) =>
+                            setCustomExerciseDraft((current) => ({
+                              ...current,
+                              secondaryMusclesText: event.target.value,
+                            }))
+                          }
+                          placeholder="upper chest, front delts"
+                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Primary Muscles *
-                      </label>
-                      <input
-                        aria-label="Primary Muscles"
-                        value={customExerciseDraft.primaryMusclesText}
-                        onChange={(event) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            primaryMusclesText: event.target.value,
-                          }))
-                        }
-                        placeholder="chest, shoulders, triceps"
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                      />
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
-                        {customExercisePrimaryMuscles.length > 0
-                          ? `${customExercisePrimaryMuscles.length} primary ${
-                              customExercisePrimaryMuscles.length === 1 ? 'muscle' : 'muscles'
-                            }`
-                          : 'Comma separated'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Secondary Muscles
-                      </label>
-                      <input
-                        aria-label="Secondary Muscles"
-                        value={customExerciseDraft.secondaryMusclesText}
-                        onChange={(event) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            secondaryMusclesText: event.target.value,
-                          }))
-                        }
-                        placeholder="upper chest, front delts"
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   {customExerciseError && <p className="text-sm text-rose-400">{customExerciseError}</p>}
 

@@ -1531,10 +1531,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       setFinishStatusMessage('Saved locally. Exiting...');
     } finally {
       saveInFlightRef.current = false;
-      setTimeout(() => {
-        setIsFinishingWorkout(false);
-        router.push('/');
-      }, 150);
+      setIsSummaryOpen(false);
+      setIsFinishingWorkout(false);
+      router.replace('/');
+      // Fallback in case navigation is interrupted in mobile webviews.
+      window.setTimeout(() => {
+        if (window.location.pathname.startsWith('/workout')) {
+          window.location.assign('/');
+        }
+      }, 900);
     }
   };
 
@@ -1870,7 +1875,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   }}
                   className="w-full bg-emerald-500 text-zinc-950 font-black tracking-widest uppercase py-4 rounded-2xl shadow-lg shadow-emerald-500/20"
                 >
-                  Finish Workout
+                  Review Finish
                 </button>
               </div>
             </motion.div>
@@ -2455,7 +2460,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   disabled={isFinishingWorkout}
                   className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-65"
                 >
-                  {isFinishingWorkout ? 'Finishing...' : 'Finish'}
+                  {isFinishingWorkout ? 'Finishing...' : 'Complete Workout'}
                 </button>
               </div>
             </div>

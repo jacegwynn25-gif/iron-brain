@@ -19,7 +19,7 @@ async function expectVisible(locator, label) {
 
   console.log('▶️  Opening workout logger...');
   await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await expectVisible(page.getByRole('button', { name: /Finish Workout/i }), 'Overview loaded');
+  await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Overview loaded');
 
   console.log('▶️  Adding exercise...');
   await page.getByRole('button', { name: /Add Exercise/i }).click();
@@ -57,7 +57,7 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: /LOG SET/i }).click();
   await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer after bonus set');
   await page.getByRole('button', { name: /Skip Rest/i }).click();
-  await expectVisible(page.getByRole('button', { name: /Finish Workout/i }), 'Back to overview');
+  await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Back to overview');
 
   console.log('▶️  Editing previous set...');
   const setChip = page.getByRole('button', { name: /185/i }).first();
@@ -66,14 +66,14 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: /SAVE CHANGES/i }).click();
   await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer after edit');
   await page.getByRole('button', { name: /Skip Rest/i }).click();
-  await expectVisible(page.getByRole('button', { name: /Finish Workout/i }), 'Returned to overview after edit');
+  await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Returned to overview after edit');
 
   console.log('▶️  Opening summary...');
-  await page.getByRole('button', { name: /Finish Workout/i }).click();
+  await page.getByRole('button', { name: /Review Finish/i }).click();
   await expectVisible(page.getByText(/SESSION REPORT/i), 'Summary modal shown');
 
   console.log('▶️  Finishing workout...');
-  await page.getByRole('button', { name: /^Finish$/i }).click();
+  await page.getByRole('button', { name: /^Complete Workout$/i }).click();
   await page.waitForURL('http://localhost:3000/', { timeout: 15000 });
   console.log('✅ Returned to dashboard');
 

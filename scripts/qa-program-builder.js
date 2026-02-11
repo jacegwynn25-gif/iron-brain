@@ -47,25 +47,33 @@ async function clickFirstByRole(page, role, options, label) {
   await clickFirstByRole(page, 'button', { name: /Create "/i }, 'Entered custom exercise form');
   await expectVisible(page.getByText(/New Custom Exercise/i), 'Custom exercise form visible');
   await page.getByLabel('Exercise Name').fill(customExerciseName);
-  await page.getByLabel('Primary Muscles').fill('chest, triceps');
+  const advancedToggle = page
+    .getByRole('button', { name: /Add Movement \+ Muscles \(Optional\)|Hide Advanced Details/i })
+    .first();
+  if (await advancedToggle.isVisible().catch(() => false)) {
+    await advancedToggle.click();
+    await page.getByLabel('Primary Muscles').fill('chest, triceps');
+  }
   await clickFirstByRole(page, 'button', { name: /Create and Use Exercise/i }, 'Created and inserted custom exercise');
   await expectVisible(page.getByText(new RegExp(customExerciseName, 'i')).first(), 'Custom exercise row visible');
 
   console.log('▶️ Removing and undoing custom exercise...');
   const customExerciseRow = page.locator('article', { hasText: new RegExp(customExerciseName, 'i') }).first();
-  const focusToggle = customExerciseRow.getByRole('button', { name: /(Edit Exercise|Exit Exercise)/i }).first();
+  const focusToggle = customExerciseRow.getByRole('button', { name: /^(Edit|Close)$/i }).first();
   const focusLabel = (await focusToggle.textContent()) ?? '';
-  if (/Edit Exercise/i.test(focusLabel)) {
+  if (/Edit/i.test(focusLabel)) {
     await focusToggle.click();
   }
   console.log('✅ Focused custom exercise');
-  await clickFirstByRole(page, 'button', { name: /^Remove$/i }, 'Removed exercise');
+  await customExerciseRow.getByRole('button', { name: /More/i }).first().click();
+  await clickFirstByRole(page, 'button', { name: /Remove Exercise/i }, 'Removed exercise');
   await expectVisible(page.getByRole('button', { name: /Undo/i }), 'Undo prompt visible');
   await clickFirstByRole(page, 'button', { name: /Undo/i }, 'Undo applied');
   await expectVisible(page.getByText(new RegExp(customExerciseName, 'i')).first(), 'Custom exercise restored');
 
   console.log('▶️ Saving program...');
-  await clickFirstByRole(page, 'button', { name: /Save Program/i }, 'Save submitted');
+  await page.locator('header').getByRole('button', { name: /^Done$/i }).first().click();
+  console.log('✅ Save submitted');
   await expectVisible(page.getByText(new RegExp(programName, 'i')).first(), 'Saved program visible in list');
 
   console.log('✅ Program builder QA flow passed');
