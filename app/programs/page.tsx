@@ -1678,7 +1678,7 @@ export default function ProgramsPage() {
                   : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
               }`}
             >
-              {hasFocusedSet ? 'Done Exercise' : 'Edit Exercise'}
+              {hasFocusedSet ? 'Exit Exercise' : 'Edit Exercise'}
             </button>
             <button
               type="button"
@@ -1842,7 +1842,7 @@ export default function ProgramsPage() {
                           : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-100'
                       }`}
                     >
-                      {isFocusedRow ? 'Done Set' : 'Edit Set'}
+                      {isFocusedRow ? 'Collapse Set' : 'Edit Set'}
                     </button>
                     {canShowSetQuickActions && isFocusedRow && (
                       <>
