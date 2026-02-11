@@ -301,7 +301,7 @@ function clearStaleActiveSessions(): void {
 export async function saveWorkout(
   session: WorkoutSession,
   providedUserId?: string | null,
-  options?: { skipAnalytics?: boolean }
+  options?: { skipAnalytics?: boolean; criticalPathOnly?: boolean }
 ): Promise<{
   workoutId: string;
   queued: boolean;
@@ -314,6 +314,32 @@ export async function saveWorkout(
     queued: false,
     syncedToCloud: false,
     newPersonalRecords: [] as PersonalRecordHit[],
+  };
+  let queueReason: string | null = null;
+  let localSaveDurationMs: number | null = null;
+  let cloudAttemptDurationMs: number | null = null;
+  let cloudAttemptStartedAt: number | null = null;
+  let completedSetsSent = session.sets?.filter((set) => set.completed !== false).length ?? 0;
+
+  const finishCloudAttempt = () => {
+    if (cloudAttemptStartedAt != null && cloudAttemptDurationMs == null) {
+      cloudAttemptDurationMs = Date.now() - cloudAttemptStartedAt;
+    }
+  };
+
+  const finalizeResult = (stage: string) => {
+    logger.debug('workout_save_telemetry', {
+      stage,
+      workoutId: result.workoutId,
+      queued: result.queued,
+      syncedToCloud: result.syncedToCloud,
+      localSaveDurationMs,
+      cloudAttemptDurationMs,
+      queueReason,
+      completedSetsSent,
+      criticalPathOnly: options?.criticalPathOnly === true,
+    });
+    return result;
   };
 
   try {
@@ -336,25 +362,32 @@ export async function saveWorkout(
     }
     result.workoutId = sessionToSave.id;
     sessionToQueue = sessionToSave;
+    completedSetsSent = sessionToSave.sets?.filter((set) => set.completed !== false).length ?? 0;
 
     // Always save to localStorage first (for offline support)
+    const localSaveStartedAt = Date.now();
     const history = getWorkoutHistory();
     history.push(sessionToSave);
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(history));
+    localSaveDurationMs = Date.now() - localSaveStartedAt;
     logger.debug('✅ Saved to localStorage');
 
-    const queueWorkout = () => {
-      result.queued = true;
-      queueOperation('create', 'workout_sessions', sessionToSave);
+    const queueWorkout = (reason: string) => {
+      if (!result.queued) {
+        result.queued = true;
+        queueOperation('create', 'workout_sessions', sessionToSave);
+      }
+      queueReason = queueReason ?? reason;
     };
 
     if (!isOnline()) {
       logger.debug('📥 Offline - queued workout for sync');
-      queueWorkout();
-      return result;
+      queueWorkout('offline');
+      return finalizeResult('queued_offline');
     }
 
     // Also save to Supabase if user is logged in
+    cloudAttemptStartedAt = Date.now();
     let user: { id: string } | null = null;
 
     if (providedUserId) {
@@ -376,20 +409,21 @@ export async function saveWorkout(
 
         if (userError) {
           console.error('Error getting user:', userError);
-          queueWorkout();
-          return result;
+          queueWorkout('auth_lookup_error');
+          finishCloudAttempt();
+          return finalizeResult('queued_auth_error');
         }
 
         user = authUser;
       } catch (error) {
         console.error('Auth check timed out or failed:', error);
-        queueWorkout();
-        return result;
+        queueWorkout('auth_lookup_timeout');
+        finishCloudAttempt();
+        return finalizeResult('queued_auth_timeout');
       }
     }
 
     if (user) {
-
       // Prepare program metadata for storage
       const metadata: WorkoutMetadata = {};
       if (sessionToSave.programId) metadata.programId = sessionToSave.programId;
@@ -467,8 +501,9 @@ export async function saveWorkout(
           code: sessionError.code,
         };
         console.error('Failed to save workout session to Supabase:', errorPayload);
-        queueWorkout();
-        return result; // Don't try to save sets if session failed
+        queueWorkout('cloud_session_upsert_failed');
+        finishCloudAttempt();
+        return finalizeResult('queued_session_error'); // Don't try to save sets if session failed
       }
 
       const sessionId = (sessionData as { id?: string } | null)?.id ?? workoutUuid;
@@ -535,20 +570,22 @@ export async function saveWorkout(
         if (setError) {
           setLogsSynced = false;
           console.error('Failed to save set logs:', setError);
-          queueWorkout();
+          queueWorkout('cloud_set_logs_insert_failed');
         } else {
           logger.debug(`✅ Saved ${sessionToSave.sets.length} sets to Supabase`);
-          try {
-            result.newPersonalRecords = await upsertPersonalRecordsForSetLogs(user.id, insertedSetRows ?? []);
-            if (result.newPersonalRecords.length > 0) {
-              logger.debug(`🏆 Saved ${result.newPersonalRecords.length} new personal records`);
+          if (!options?.criticalPathOnly) {
+            try {
+              result.newPersonalRecords = await upsertPersonalRecordsForSetLogs(user.id, insertedSetRows ?? []);
+              if (result.newPersonalRecords.length > 0) {
+                logger.debug(`🏆 Saved ${result.newPersonalRecords.length} new personal records`);
+              }
+            } catch (prError) {
+              console.error('Could not update personal records:', prError);
             }
-          } catch (prError) {
-            console.error('Could not update personal records:', prError);
           }
         }
 
-        if (!options?.skipAnalytics) {
+        if (!options?.skipAnalytics && !options?.criticalPathOnly) {
           // PHASE 2: Save fatigue snapshot for cross-session tracking
           try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -598,20 +635,25 @@ export async function saveWorkout(
       }
 
       result.syncedToCloud = setLogsSynced;
+      finishCloudAttempt();
       logger.debug('✅ Workout synced to Supabase!');
     } else {
-      queueWorkout();
+      queueWorkout('no_authenticated_user');
+      finishCloudAttempt();
+      return finalizeResult('queued_no_user');
     }
   } catch (error) {
     console.error('Failed to save workout:', error);
     // Don't throw - we want localStorage save to succeed even if Supabase fails
+    queueReason = queueReason ?? 'unexpected_save_error';
     if (!result.queued) {
       result.queued = true;
       queueOperation('create', 'workout_sessions', sessionToQueue);
     }
+    finishCloudAttempt();
   }
 
-  return result;
+  return finalizeResult('completed');
 }
 
 const normalizeWorkoutSessionId = (id: string) =>
@@ -743,6 +785,199 @@ export async function updateWorkoutDetails(
     return updatedSession;
   } catch (error) {
     console.error('Failed to update workout details:', error);
+    return null;
+  }
+}
+
+function calculateWorkoutSummaryFromSets(sets: SetLog[]): {
+  totalVolumeLoad: number;
+  averageRPE: number | undefined;
+  totalSets: number;
+  totalReps: number;
+} {
+  const completedSets = sets.filter((set) => set.completed !== false);
+  const totalReps = completedSets.reduce((sum, set) => sum + (Number(set.actualReps) || 0), 0);
+  const totalVolumeLoad = completedSets.reduce((sum, set) => {
+    const reps = Number(set.actualReps) || 0;
+    const weight = Number(set.actualWeight) || 0;
+    if (reps <= 0 || weight <= 0) return sum;
+    const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+    return sum + (weightLbs * reps);
+  }, 0);
+  const averageRPE =
+    completedSets.length > 0
+      ? completedSets.reduce((sum, set) => sum + (Number(set.actualRPE) || 0), 0) / completedSets.length
+      : undefined;
+
+  return {
+    totalVolumeLoad,
+    averageRPE,
+    totalSets: completedSets.length,
+    totalReps: Math.round(totalReps),
+  };
+}
+
+export async function updateWorkoutSessionContent(
+  id: string,
+  updates: Partial<
+    Pick<
+      WorkoutSession,
+      'date' | 'startTime' | 'endTime' | 'durationMinutes' | 'notes' | 'dayName' | 'programName' | 'sets'
+    >
+  >
+): Promise<WorkoutSession | null> {
+  try {
+    const normalizeId = (value: string) => (value.startsWith('session_') ? value.substring(8) : value);
+    const matches = (a: string, b: string) => normalizeId(a) === normalizeId(b);
+
+    const history = getWorkoutHistory();
+    const index = history.findIndex((session) => matches(session.id, id));
+    if (index === -1) {
+      logger.debug('Workout not found for content update:', id);
+      return null;
+    }
+
+    const baseSession = history[index];
+    const nextSets = updates.sets ?? baseSession.sets;
+    const summary = calculateWorkoutSummaryFromSets(nextSets);
+
+    const updatedSession: WorkoutSession = {
+      ...baseSession,
+      ...updates,
+      sets: nextSets,
+      totalVolumeLoad: summary.totalVolumeLoad,
+      averageRPE: summary.averageRPE,
+      updatedAt: new Date().toISOString(),
+    };
+
+    history[index] = updatedSession;
+    setWorkoutHistory(history);
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('Error getting user for workout content update:', userError);
+      return updatedSession;
+    }
+
+    if (user) {
+      const metadata: WorkoutMetadata = {};
+      if (updatedSession.programId) metadata.programId = updatedSession.programId;
+      if (updatedSession.programName) metadata.programName = updatedSession.programName;
+      if (updatedSession.cycleNumber) metadata.cycleNumber = updatedSession.cycleNumber;
+      if (updatedSession.weekNumber) metadata.weekNumber = updatedSession.weekNumber;
+      if (updatedSession.dayOfWeek) metadata.dayOfWeek = updatedSession.dayOfWeek;
+      if (updatedSession.dayName) metadata.dayName = updatedSession.dayName;
+
+      const normalizedId = normalizeId(id);
+      const sessionPayload: Partial<{
+        date: string;
+        start_time: string | null;
+        end_time: string | null;
+        duration_minutes: number | null;
+        notes: string | null;
+        name: string;
+        metadata: WorkoutMetadata;
+        total_sets: number;
+        total_reps: number;
+        total_volume_load: number;
+        average_rpe: number | null;
+      }> = {
+        date: updatedSession.date,
+        start_time: updatedSession.startTime ?? null,
+        end_time: updatedSession.endTime ?? null,
+        duration_minutes: updatedSession.durationMinutes ?? null,
+        notes: updatedSession.notes ?? null,
+        name: updatedSession.dayName || updatedSession.programName || 'Workout',
+        metadata,
+        total_sets: summary.totalSets,
+        total_reps: summary.totalReps,
+        total_volume_load: Math.round(summary.totalVolumeLoad),
+        average_rpe: summary.averageRPE ?? null,
+      };
+
+      const { error: sessionError } = await supabase
+        .from('workout_sessions')
+        .update(sessionPayload)
+        .eq('id', normalizedId)
+        .eq('user_id', user.id);
+
+      if (sessionError) {
+        console.error('Failed to update workout session in Supabase:', sessionError);
+        return updatedSession;
+      }
+
+      if (updates.sets !== undefined) {
+        const { error: deleteError } = await supabase
+          .from('set_logs')
+          .delete()
+          .eq('workout_session_id', normalizedId);
+
+        if (deleteError) {
+          console.error('Failed to clear existing set logs during workout edit:', deleteError);
+          return updatedSession;
+        }
+
+        const cleanSets = updatedSession.sets ?? [];
+        if (cleanSets.length > 0) {
+          const exerciseRefs = Array.from(new Set(cleanSets.map((set) => set.exerciseId).filter(Boolean)));
+          const exerciseIdByRef = await resolveExerciseIds(supabase, exerciseRefs);
+
+          const setPayloads = cleanSets.map((set, index): TablesInsert<'set_logs'> => {
+            const payload: TablesInsert<'set_logs'> = {
+              workout_session_id: normalizedId,
+              exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
+              exercise_slug: set.exerciseId,
+              program_set_id: null,
+              order_index: index,
+              set_index: set.setIndex ? Math.round(Number(set.setIndex)) : index + 1,
+              prescribed_reps: set.prescribedReps != null ? String(set.prescribedReps) : null,
+              prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
+              prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
+              prescribed_percentage: set.prescribedPercentage ?? null,
+              actual_weight: set.actualWeight != null ? Number(set.actualWeight) : null,
+              weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
+              actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
+              actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
+              actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
+              e1rm: set.e1rm != null ? Number(set.e1rm) : null,
+              volume_load: (() => {
+                const reps = Number(set.actualReps) || 0;
+                const weight = Number(set.actualWeight) || 0;
+                if (reps <= 0 || weight <= 0) return null;
+                const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
+                return Math.round(weightLbs * reps);
+              })(),
+              set_type: set.setType || 'straight',
+              tempo: set.tempo ?? null,
+              rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
+              actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
+              notes: set.notes ?? null,
+              performed_at: set.timestamp ?? updatedSession.endTime ?? new Date().toISOString(),
+              completed: set.completed !== false,
+              skipped: set.completed === false,
+            };
+
+            if (set.id && isValidUuid(set.id)) {
+              payload.id = set.id;
+            }
+
+            return payload;
+          });
+
+          const { error: insertError } = await supabase
+            .from('set_logs')
+            .insert(setPayloads);
+
+          if (insertError) {
+            console.error('Failed to save edited set logs to Supabase:', insertError);
+          }
+        }
+      }
+    }
+
+    return updatedSession;
+  } catch (error) {
+    console.error('Failed to update workout session content:', error);
     return null;
   }
 }
@@ -1287,6 +1522,7 @@ export const storage = {
   setWorkoutHistory,
   getWorkoutById,
   updateWorkoutDetails,
+  updateWorkoutSessionContent,
   deleteWorkout,
   deleteWorkoutSession: deleteWorkout, // Alias for clarity
 

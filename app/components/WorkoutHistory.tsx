@@ -19,6 +19,40 @@ interface WorkoutHistoryProps {
   isLoading?: boolean;
 }
 
+type EditableWorkoutSet = {
+  localId: string;
+  sourceId?: string;
+  weightUnit: WeightUnit;
+  actualWeight: string;
+  actualReps: string;
+  actualRPE: string;
+  completed: boolean;
+  notes: string;
+  setType?: SetLog['setType'];
+  timestamp?: string;
+};
+
+type EditableWorkoutExercise = {
+  localId: string;
+  exerciseId: string;
+  exerciseName: string;
+  sets: EditableWorkoutSet[];
+};
+
+const createLocalId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `tmp_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const slugifyExerciseId = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || `exercise_${Math.random().toString(36).slice(2, 8)}`;
+
 export default function WorkoutHistory({
   workoutHistory,
   onHistoryUpdate,
@@ -38,7 +72,60 @@ export default function WorkoutHistory({
   const [editDuration, setEditDuration] = useState('');
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [contentEditTarget, setContentEditTarget] = useState<WorkoutSession | null>(null);
+  const [contentWorkoutName, setContentWorkoutName] = useState('');
+  const [contentWorkoutNotes, setContentWorkoutNotes] = useState('');
+  const [contentExercises, setContentExercises] = useState<EditableWorkoutExercise[]>([]);
+  const [contentNewExerciseName, setContentNewExerciseName] = useState('');
+  const [contentEditBusy, setContentEditBusy] = useState(false);
+  const [contentEditError, setContentEditError] = useState<string | null>(null);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const isAnyModalOpen = Boolean(deleteTarget || editTarget || contentEditTarget);
+
+  useEffect(() => {
+    if (!isAnyModalOpen || typeof window === 'undefined') return;
+
+    const body = document.body;
+    const html = document.documentElement;
+    const scrollY = window.scrollY;
+    const previousHideBottomNav = body.getAttribute('data-hide-bottom-nav');
+    const previousStyles = {
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      htmlOverflow: html.style.overflow,
+    };
+
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    html.style.overflow = 'hidden';
+    body.setAttribute('data-hide-bottom-nav', 'true');
+
+    return () => {
+      body.style.overflow = previousStyles.bodyOverflow;
+      body.style.position = previousStyles.bodyPosition;
+      body.style.top = previousStyles.bodyTop;
+      body.style.left = previousStyles.bodyLeft;
+      body.style.right = previousStyles.bodyRight;
+      body.style.width = previousStyles.bodyWidth;
+      html.style.overflow = previousStyles.htmlOverflow;
+
+      if (previousHideBottomNav == null) {
+        body.removeAttribute('data-hide-bottom-nav');
+      } else {
+        body.setAttribute('data-hide-bottom-nav', previousHideBottomNav);
+      }
+
+      window.scrollTo(0, scrollY);
+    };
+  }, [isAnyModalOpen]);
 
   useEffect(() => {
     let isMounted = true;
@@ -64,6 +151,74 @@ export default function WorkoutHistory({
     customExercises.forEach(ex => map.set(ex.id, ex.name));
     return map;
   }, [customExercises]);
+  const exerciseIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    exerciseNameById.forEach((name, id) => {
+      map.set(name.toLowerCase(), id);
+    });
+    return map;
+  }, [exerciseNameById]);
+
+  const createEmptyEditableSet = (unit: WeightUnit): EditableWorkoutSet => ({
+    localId: createLocalId(),
+    weightUnit: unit,
+    actualWeight: '',
+    actualReps: '',
+    actualRPE: '',
+    completed: false,
+    notes: '',
+    setType: 'straight',
+    timestamp: new Date().toISOString(),
+  });
+
+  const buildEditableExercises = (session: WorkoutSession): EditableWorkoutExercise[] => {
+    const map = new Map<string, EditableWorkoutExercise>();
+    const normalizedSets = [...session.sets].sort((a, b) => {
+      if (a.exerciseId === b.exerciseId) return (a.setIndex || 0) - (b.setIndex || 0);
+      return a.exerciseId.localeCompare(b.exerciseId);
+    });
+
+    normalizedSets.forEach((set) => {
+      const exerciseId = set.exerciseId || slugifyExerciseId(set.exerciseName || 'exercise');
+      const exerciseName = set.exerciseName || exerciseNameById.get(exerciseId) || exerciseId;
+
+      if (!map.has(exerciseId)) {
+        map.set(exerciseId, {
+          localId: createLocalId(),
+          exerciseId,
+          exerciseName,
+          sets: [],
+        });
+      }
+
+      const entry = map.get(exerciseId)!;
+      entry.sets.push({
+        localId: createLocalId(),
+        sourceId: set.id,
+        weightUnit: set.weightUnit ?? weightUnit,
+        actualWeight: set.actualWeight != null ? String(set.actualWeight) : '',
+        actualReps: set.actualReps != null ? String(set.actualReps) : '',
+        actualRPE: set.actualRPE != null ? String(set.actualRPE) : '',
+        completed: set.completed === true,
+        notes: set.notes ?? '',
+        setType: set.setType ?? 'straight',
+        timestamp: set.timestamp,
+      });
+    });
+
+    if (map.size === 0) {
+      return [
+        {
+          localId: createLocalId(),
+          exerciseId: 'exercise',
+          exerciseName: 'Exercise',
+          sets: [createEmptyEditableSet(weightUnit)],
+        },
+      ];
+    }
+
+    return Array.from(map.values());
+  };
 
   const personalRecordsByExercise = useMemo(() => {
     type PersonalRecordSnapshot = {
@@ -223,6 +378,7 @@ export default function WorkoutHistory({
     const session = workoutHistory.find(w => w.id === sessionId);
     if (!session) return;
     setEditTarget(null);
+    setContentEditTarget(null);
     setDeleteTarget(session);
     setDeleteError(null);
   };
@@ -259,11 +415,23 @@ export default function WorkoutHistory({
 
   const openEditSession = (session: WorkoutSession) => {
     setDeleteTarget(null);
+    setContentEditTarget(null);
     setEditTarget(session);
     setEditDate(session.date);
     setEditStartTime(formatTime(session.startTime));
     setEditDuration(session.durationMinutes ? String(session.durationMinutes) : '');
     setEditError(null);
+  };
+
+  const openContentEditSession = (session: WorkoutSession) => {
+    setDeleteTarget(null);
+    setEditTarget(null);
+    setContentEditTarget(session);
+    setContentWorkoutName(session.dayName || 'Workout');
+    setContentWorkoutNotes(session.notes ?? '');
+    setContentExercises(buildEditableExercises(session));
+    setContentNewExerciseName('');
+    setContentEditError(null);
   };
 
   const handleConfirmEdit = async () => {
@@ -311,6 +479,179 @@ export default function WorkoutHistory({
       setEditError('Could not save changes. Please try again.');
     } finally {
       setEditBusy(false);
+    }
+  };
+
+  const handleAddExerciseToContentEdit = () => {
+    const exerciseName = contentNewExerciseName.trim();
+    if (!exerciseName) return;
+
+    const resolvedExerciseId = exerciseIdByName.get(exerciseName.toLowerCase()) ?? slugifyExerciseId(exerciseName);
+    const existingIndex = contentExercises.findIndex((entry) => entry.exerciseId === resolvedExerciseId);
+
+    if (existingIndex !== -1) {
+      setContentEditError('Exercise already exists in this workout.');
+      return;
+    }
+
+    setContentExercises((current) => [
+      ...current,
+      {
+        localId: createLocalId(),
+        exerciseId: resolvedExerciseId,
+        exerciseName,
+        sets: [createEmptyEditableSet(weightUnit)],
+      },
+    ]);
+    setContentNewExerciseName('');
+    setContentEditError(null);
+  };
+
+  const handleRemoveExerciseFromContentEdit = (exerciseLocalId: string) => {
+    setContentExercises((current) => current.filter((exercise) => exercise.localId !== exerciseLocalId));
+  };
+
+  const handleAddSetToContentEditExercise = (exerciseLocalId: string) => {
+    setContentExercises((current) =>
+      current.map((exercise) =>
+        exercise.localId === exerciseLocalId
+          ? {
+              ...exercise,
+              sets: [...exercise.sets, createEmptyEditableSet(weightUnit)],
+            }
+          : exercise
+      )
+    );
+  };
+
+  const handleRemoveSetFromContentEditExercise = (exerciseLocalId: string, setLocalId: string) => {
+    setContentExercises((current) =>
+      current.map((exercise) => {
+        if (exercise.localId !== exerciseLocalId) return exercise;
+        if (exercise.sets.length <= 1) return exercise;
+        return {
+          ...exercise,
+          sets: exercise.sets.filter((set) => set.localId !== setLocalId),
+        };
+      })
+    );
+  };
+
+  const handleContentSetFieldChange = (
+    exerciseLocalId: string,
+    setLocalId: string,
+    field: keyof Pick<EditableWorkoutSet, 'actualWeight' | 'actualReps' | 'actualRPE' | 'completed' | 'notes'>
+      | 'weightUnit',
+    value: string | boolean
+  ) => {
+    setContentExercises((current) =>
+      current.map((exercise) => {
+        if (exercise.localId !== exerciseLocalId) return exercise;
+        return {
+          ...exercise,
+          sets: exercise.sets.map((set) => {
+            if (set.localId !== setLocalId) return set;
+            if (field === 'completed') {
+              return { ...set, completed: Boolean(value) };
+            }
+            if (field === 'weightUnit') {
+              return { ...set, weightUnit: value === 'kg' ? 'kg' : 'lbs' };
+            }
+            return { ...set, [field]: String(value) };
+          }),
+        };
+      })
+    );
+  };
+
+  const handleConfirmContentEdit = async () => {
+    if (!contentEditTarget) return;
+
+    setContentEditBusy(true);
+    setContentEditError(null);
+
+    try {
+      const nextSets: SetLog[] = [];
+      const nowIso = new Date().toISOString();
+
+      contentExercises.forEach((exercise) => {
+        const usableSets = exercise.sets
+          .map((set) => {
+            const parsedWeight = set.actualWeight.trim() === '' ? null : Number(set.actualWeight);
+            const parsedReps = set.actualReps.trim() === '' ? null : Number(set.actualReps);
+            const parsedRpe = set.actualRPE.trim() === '' ? null : Number(set.actualRPE);
+            const normalizedWeight =
+              parsedWeight != null && Number.isFinite(parsedWeight) ? Math.max(0, parsedWeight) : null;
+            const normalizedReps =
+              parsedReps != null && Number.isFinite(parsedReps) ? Math.max(0, Math.round(parsedReps)) : null;
+            const normalizedRpe =
+              parsedRpe != null && Number.isFinite(parsedRpe)
+                ? Math.max(1, Math.min(10, Math.round(parsedRpe * 2) / 2))
+                : null;
+            const meaningfulInput =
+              (normalizedWeight != null && normalizedWeight > 0) ||
+              (normalizedReps != null && normalizedReps > 0) ||
+              normalizedRpe != null ||
+              set.notes.trim().length > 0;
+            const completed = set.completed || meaningfulInput;
+
+            if (!meaningfulInput && !set.completed) {
+              return null;
+            }
+
+            return {
+              sourceId: set.sourceId,
+              weightUnit: set.weightUnit,
+              actualWeight: normalizedWeight,
+              actualReps: normalizedReps,
+              actualRPE: normalizedRpe,
+              notes: set.notes.trim(),
+              completed,
+              setType: set.setType,
+              timestamp: set.timestamp ?? nowIso,
+            };
+          })
+          .filter((set): set is NonNullable<typeof set> => set !== null);
+
+        usableSets.forEach((set, index) => {
+          nextSets.push({
+            id: set.sourceId,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            setIndex: index + 1,
+            prescribedReps: set.actualReps != null ? String(set.actualReps) : '0',
+            prescribedRPE: set.actualRPE,
+            actualWeight: set.actualWeight,
+            weightUnit: set.weightUnit,
+            actualReps: set.actualReps,
+            actualRPE: set.actualRPE,
+            completed: set.completed,
+            notes: set.notes || undefined,
+            setType: set.setType ?? 'straight',
+            timestamp: set.timestamp,
+          });
+        });
+      });
+
+      if (nextSets.length === 0) {
+        setContentEditError('Add at least one set with values before saving.');
+        setContentEditBusy(false);
+        return;
+      }
+
+      await storage.updateWorkoutSessionContent(contentEditTarget.id, {
+        dayName: contentWorkoutName.trim() || contentEditTarget.dayName,
+        notes: contentWorkoutNotes.trim() || undefined,
+        sets: nextSets,
+      });
+
+      setContentEditTarget(null);
+      onHistoryUpdate();
+    } catch (err) {
+      console.error('Failed to update workout content:', err);
+      setContentEditError('Could not save workout edits. Please try again.');
+    } finally {
+      setContentEditBusy(false);
     }
   };
 
@@ -463,6 +804,16 @@ export default function WorkoutHistory({
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openContentEditSession(session);
+                      }}
+                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:text-emerald-200 active:scale-[0.98]"
+                      title="Edit exercises and sets"
+                    >
+                      Sets
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -627,7 +978,10 @@ export default function WorkoutHistory({
       </div>
       </div>
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4">
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+          data-swipe-scope="local"
+        >
           <div className="w-full max-w-lg max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="p-6 sm:p-8 text-white">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-rose-300">
@@ -672,7 +1026,10 @@ export default function WorkoutHistory({
         </div>
       )}
       {editTarget && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4">
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+          data-swipe-scope="local"
+        >
           <div className="w-full max-w-xl max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="p-6 sm:p-8 text-white">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-sky-300">
@@ -758,6 +1115,239 @@ export default function WorkoutHistory({
                 className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
               >
                 {editBusy ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {contentEditTarget && (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+          data-swipe-scope="local"
+        >
+          <div className="flex w-full max-w-5xl max-h-[100dvh] flex-col overflow-hidden rounded-t-3xl border border-zinc-800 bg-zinc-950/95 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-8 text-white sm:p-8">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                Full Session Edit
+              </div>
+              <h3 className="text-2xl font-black sm:text-3xl">Edit exercises, sets, and values</h3>
+              <p className="mt-2 text-sm text-zinc-400">
+                Update workout details, add/remove exercises, and fix set data for missed logs.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Workout Name
+                  </label>
+                  <input
+                    type="text"
+                    value={contentWorkoutName}
+                    onChange={(e) => setContentWorkoutName(e.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Add Exercise
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Exercise name"
+                      value={contentNewExerciseName}
+                      onChange={(e) => setContentNewExerciseName(e.target.value)}
+                      className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddExerciseToContentEdit}
+                      className="rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-all active:scale-[0.98]"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Notes
+                  </label>
+                  <textarea
+                    value={contentWorkoutNotes}
+                    onChange={(e) => setContentWorkoutNotes(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-5">
+                {contentExercises.map((exercise) => (
+                  <div key={exercise.localId} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-bold text-white">{exercise.exerciseName}</p>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+                          {exercise.exerciseId}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExerciseFromContentEdit(exercise.localId)}
+                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-300 transition-all active:scale-[0.98]"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {exercise.sets.map((set, setIndex) => (
+                        <div key={set.localId} className="grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-12">
+                          <div className="sm:col-span-1 flex items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-zinc-300">
+                            #{setIndex + 1}
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Weight
+                            </label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={set.actualWeight}
+                              onChange={(e) =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'actualWeight', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-1">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Unit
+                            </label>
+                            <select
+                              value={set.weightUnit}
+                              onChange={(e) =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'weightUnit', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            >
+                              <option value="lbs">lbs</option>
+                              <option value="kg">kg</option>
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Reps
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={set.actualReps}
+                              onChange={(e) =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'actualReps', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              RPE
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              step="0.5"
+                              value={set.actualRPE}
+                              onChange={(e) =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'actualRPE', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Completed
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'completed', !set.completed)
+                              }
+                              className={`w-full rounded-lg border px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${
+                                set.completed
+                                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                  : 'border-zinc-800 bg-zinc-900/70 text-zinc-400'
+                              }`}
+                            >
+                              {set.completed ? 'Yes' : 'No'}
+                            </button>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Remove
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSetFromContentEditExercise(exercise.localId, set.localId)}
+                              className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] text-rose-300 transition-colors hover:text-rose-200"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <div className="sm:col-span-12">
+                            <label className="mb-1 block text-[10px] font-mono uppercase tracking-[0.25em] text-zinc-500">
+                              Notes
+                            </label>
+                            <input
+                              type="text"
+                              value={set.notes}
+                              onChange={(e) =>
+                                handleContentSetFieldChange(exercise.localId, set.localId, 'notes', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddSetToContentEditExercise(exercise.localId)}
+                      className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-all active:scale-[0.98]"
+                    >
+                      Add Set
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {contentEditError && (
+                <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/20 px-4 py-3 text-sm text-rose-100">
+                  {contentEditError}
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] sm:flex-row sm:justify-end sm:p-6">
+              <button
+                onClick={() => setContentEditTarget(null)}
+                disabled={contentEditBusy}
+                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmContentEdit}
+                disabled={contentEditBusy}
+                className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {contentEditBusy ? 'Saving...' : 'Save Full Workout'}
               </button>
             </div>
           </div>

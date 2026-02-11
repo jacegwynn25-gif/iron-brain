@@ -293,14 +293,28 @@ function transformCloudWorkouts(sessions: Array<{
   });
 }
 
-// Helper: merge cloud and local workouts (cloud takes precedence for duplicates)
+// Helper: merge cloud and local workouts.
+// Cloud wins for duplicates unless cloud session has no set logs and local does.
 function mergeWorkouts(local: WorkoutSession[], cloud: WorkoutSession[]): WorkoutSession[] {
-  const stripPrefix = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
-  const cloudIds = new Set(cloud.map(w => w.id));
+  const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
+  const mergedById = new Map<string, WorkoutSession>();
 
-  // Keep local workouts that don't exist in cloud
-  const localOnly = local.filter(w => !cloudIds.has(stripPrefix(w.id)));
+  cloud.forEach((workout) => {
+    mergedById.set(normalizeWorkoutId(workout.id), workout);
+  });
 
-  // Merge: cloud first (takes precedence), then unique local
-  return [...cloud, ...localOnly].sort((a, b) => getSortTime(b) - getSortTime(a));
+  local.forEach((workout) => {
+    const normalizedId = normalizeWorkoutId(workout.id);
+    const cloudWorkout = mergedById.get(normalizedId);
+    if (!cloudWorkout) {
+      mergedById.set(normalizedId, workout);
+      return;
+    }
+
+    if ((cloudWorkout.sets?.length ?? 0) === 0 && (workout.sets?.length ?? 0) > 0) {
+      mergedById.set(normalizedId, workout);
+    }
+  });
+
+  return Array.from(mergedById.values()).sort((a, b) => getSortTime(b) - getSortTime(a));
 }

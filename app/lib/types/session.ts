@@ -12,6 +12,9 @@ export interface Set {
   weight: number | null;
   reps: number | null;
   rpe: number | null; // 1-10
+  touchedWeight: boolean;
+  touchedReps: boolean;
+  touchedRpe: boolean;
   tempo: string | null;
   supersetGroup: string | null;
   cluster: ClusterConfig | null;

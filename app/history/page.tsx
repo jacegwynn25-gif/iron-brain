@@ -116,11 +116,28 @@ export default function HistoryPage() {
         };
       });
 
-      const stripPrefix = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
-      const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
-      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id)));
+      const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
+      const mergedById = new Map<string, WorkoutSession>();
 
-      const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
+      supabaseWorkouts.forEach((workout) => {
+        mergedById.set(normalizeWorkoutId(workout.id), workout);
+      });
+
+      localWorkouts.forEach((workout) => {
+        const normalizedId = normalizeWorkoutId(workout.id);
+        const cloudWorkout = mergedById.get(normalizedId);
+        if (!cloudWorkout) {
+          mergedById.set(normalizedId, workout);
+          return;
+        }
+
+        // Guard against partial cloud writes that created a session row without set logs.
+        if ((cloudWorkout.sets?.length ?? 0) === 0 && (workout.sets?.length ?? 0) > 0) {
+          mergedById.set(normalizedId, workout);
+        }
+      });
+
+      const mergedWorkouts = Array.from(mergedById.values()).sort(
         (a, b) => getSortTime(b) - getSortTime(a)
       );
 

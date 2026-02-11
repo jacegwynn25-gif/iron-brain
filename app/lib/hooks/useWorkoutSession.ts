@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer } from 'react';
 import type { ProgramTemplate, SetTemplate, WeightUnit } from '../types';
 import { KG_TO_LBS } from '../units';
 import type {
@@ -225,6 +225,9 @@ function buildSessionSetFromTemplate(
         : null,
     reps: effectiveReps,
     rpe: clampRpe(templateSet.targetRPE ?? null),
+    touchedWeight: false,
+    touchedReps: false,
+    touchedRpe: false,
     tempo: parseTempoCue(templateSet),
     supersetGroup: templateSet.supersetGroup ?? defaults?.supersetGroup ?? null,
     cluster,
@@ -320,6 +323,14 @@ function toActiveCell(ref: SetRef, field: ActiveCell['field'] = 'weight'): Activ
 function findFirstSetRef(blocks: Block[]): SetRef | null {
   const order = buildTraversalOrder(blocks);
   return order[0] ?? null;
+}
+
+function hasCompletedOrTouchedSets(blocks: Block[]): boolean {
+  return blocks.some((block) =>
+    block.exercises.some((exercise) =>
+      exercise.sets.some((set) => set.completed || set.touchedWeight || set.touchedReps || set.touchedRpe)
+    )
+  );
 }
 
 function findFirstIncompleteSetRef(blocks: Block[]): SetRef | null {
@@ -514,6 +525,10 @@ function workoutSessionReducer(
 ): SessionState {
   switch (action.type) {
     case 'INITIALIZE_SESSION': {
+      // Guard against accidental data loss when inputs (program/readiness) change mid-session.
+      if (hasCompletedOrTouchedSets(state.blocks)) {
+        return state;
+      }
       return createInitialSessionState(action.payload.program, action.payload.readinessModifier, weightUnit);
     }
 
@@ -530,9 +545,18 @@ function workoutSessionReducer(
       const set = blocks[location.blockIndex].exercises[location.exerciseIndex].sets[location.setIndex];
       const updates = action.payload.updates;
 
-      if (updates.weight !== undefined) set.weight = updates.weight;
-      if (updates.reps !== undefined) set.reps = updates.reps;
-      if (updates.rpe !== undefined) set.rpe = clampRpe(updates.rpe);
+      if (updates.weight !== undefined) {
+        set.weight = updates.weight;
+        set.touchedWeight = true;
+      }
+      if (updates.reps !== undefined) {
+        set.reps = updates.reps;
+        set.touchedReps = true;
+      }
+      if (updates.rpe !== undefined) {
+        set.rpe = clampRpe(updates.rpe);
+        set.touchedRpe = true;
+      }
       if (updates.type !== undefined) set.type = updates.type;
 
       return {
@@ -584,6 +608,9 @@ function workoutSessionReducer(
         weight: lastSet?.weight ?? null,
         reps: lastSet?.reps ?? null,
         rpe: lastSet?.rpe ?? null,
+        touchedWeight: false,
+        touchedReps: false,
+        touchedRpe: false,
         tempo: lastSet?.tempo ?? null,
         supersetGroup: lastSet?.supersetGroup ?? null,
         cluster: lastSet?.cluster
@@ -624,6 +651,9 @@ function workoutSessionReducer(
         weight: null,
         reps: 8,
         rpe: null,
+        touchedWeight: false,
+        touchedReps: false,
+        touchedRpe: false,
         tempo: null,
         supersetGroup: null,
         cluster: null,
@@ -770,7 +800,7 @@ export function useWorkoutSession(
     () => createInitialSessionState(program, readinessModifier, weightUnit)
   );
 
-  useEffect(() => {
+  const reinitializeSession = useCallback(() => {
     dispatch({
       type: 'INITIALIZE_SESSION',
       payload: {
@@ -860,5 +890,6 @@ export function useWorkoutSession(
     removeExercise,
     setActiveCell,
     finishSession,
+    reinitializeSession,
   };
 }

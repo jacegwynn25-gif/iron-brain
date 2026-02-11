@@ -479,6 +479,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const { readiness } = useRecoveryState();
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
+  const sessionReadinessModifierRef = useRef<number | null>(null);
+  if (sessionReadinessModifierRef.current == null) {
+    sessionReadinessModifierRef.current = readinessModifier;
+  }
+  const sessionReadinessModifier = sessionReadinessModifierRef.current;
   const namespaceId = user?.id ?? 'guest';
   const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(preferredWeightUnit);
   const baseProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
@@ -508,33 +513,45 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     addExercise,
     removeExercise,
     setActiveCell,
-  } = useWorkoutSession(sessionProgram, readinessModifier, sessionWeightUnit);
+    reinitializeSession,
+  } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit);
 
   const hasCompletedSets = useMemo(
     () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),
     [session.blocks]
   );
+  const hasTouchedSets = useMemo(
+    () =>
+      session.blocks.some((block) =>
+        block.exercises.some((exercise) =>
+          exercise.sets.some((set) => set.touchedWeight || set.touchedReps || set.touchedRpe)
+        )
+      ),
+    [session.blocks]
+  );
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
+  const prevSessionProgramRef = useRef(sessionProgram);
 
   useEffect(() => {
-    if (hasCompletedSets) return;
+    if (prevSessionProgramRef.current === sessionProgram) return;
+    prevSessionProgramRef.current = sessionProgram;
+    if (hasCompletedSets || hasTouchedSets) return;
+    reinitializeSession();
+  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram]);
+
+  useEffect(() => {
+    if (hasCompletedSets || hasTouchedSets) return;
     if (preferredWeightUnit !== sessionWeightUnit) {
       setSessionWeightUnit(preferredWeightUnit);
     }
-  }, [hasCompletedSets, preferredWeightUnit, sessionWeightUnit]);
+  }, [hasCompletedSets, hasTouchedSets, preferredWeightUnit, sessionWeightUnit]);
 
   useEffect(() => {
     if (prevWeightUnitRef.current === sessionWeightUnit) return;
     prevWeightUnitRef.current = sessionWeightUnit;
-    if (hasCompletedSets) return;
-    dispatch({
-      type: 'INITIALIZE_SESSION',
-      payload: {
-        program: sessionProgram,
-        readinessModifier,
-      },
-    });
-  }, [dispatch, hasCompletedSets, readinessModifier, sessionProgram, sessionWeightUnit]);
+    if (hasCompletedSets || hasTouchedSets) return;
+    reinitializeSession();
+  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionWeightUnit]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -1396,7 +1413,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     setIsNotesOpen(false);
   };
 
-  const buildWorkoutSession = (): WorkoutSession => {
+  const buildWorkoutSession = (): { payload: WorkoutSession; autoCompletedSets: number } => {
     const now = new Date();
     const startTime = session.startTime ?? now;
     const date = startTime.toISOString().split('T')[0];
@@ -1409,16 +1426,24 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     const activeDayName = programDayContext?.day.name ?? programName;
 
     const sets: SetLog[] = [];
+    let autoCompletedSets = 0;
     session.blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
         const bodyweightExercise = isBodyweight(exercise.name);
         exercise.sets.forEach((set, index) => {
-          const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
+          const rawReps = set.reps === null || set.reps === undefined ? null : Number(set.reps);
+          const reps = rawReps == null ? 8 : rawReps;
           const weight = Number(set.weight) || 0;
           const weightLbs = weight > 0 ? convertWeight(weight, sessionWeightUnit, 'lbs') : 0;
           const volumeLoad = weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
           const e1rm =
             weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
+          const touched = set.touchedWeight || set.touchedReps || set.touchedRpe;
+          const hasMeaningfulInput = (rawReps != null && rawReps > 0) || weight > 0 || set.rpe != null;
+          const autoCompleted = set.completed !== true && touched && hasMeaningfulInput;
+          if (autoCompleted) {
+            autoCompletedSets += 1;
+          }
 
           sets.push({
             id: set.id,
@@ -1432,7 +1457,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
             actualReps: reps,
             actualRPE: set.rpe ?? null,
-            completed: set.completed === true,
+            completed: set.completed === true || autoCompleted,
             e1rm: e1rm ? Math.round(e1rm) : null,
             volumeLoad,
             setType: set.cluster ? 'cluster' : mapSetType(set.type),
@@ -1458,31 +1483,34 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         : undefined;
 
     return {
-      id: sessionId,
-      programId,
-      programName,
-      cycleNumber: activeCycleNumber,
-      weekNumber: activeWeekNumber,
-      dayOfWeek: activeDayOfWeek,
-      dayName: activeDayName,
-      date,
-      startTime: startTime.toISOString(),
-      endTime: now.toISOString(),
-      durationMinutes: Math.max(1, Math.round((now.getTime() - startTime.getTime()) / 60000)),
-      sets,
-      totalVolumeLoad,
-      averageRPE,
-      metadata: programDayContext
-        ? {
-            dayIndex: programDayContext.dayIndex,
-            weekIndex: programDayContext.weekIndex,
-            cycleNumber: programDayContext.cycleNumber,
-            dayOfWeek: programDayContext.day.dayOfWeek,
-            dayName: programDayContext.day.name,
-          }
-        : undefined,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
+      payload: {
+        id: sessionId,
+        programId,
+        programName,
+        cycleNumber: activeCycleNumber,
+        weekNumber: activeWeekNumber,
+        dayOfWeek: activeDayOfWeek,
+        dayName: activeDayName,
+        date,
+        startTime: startTime.toISOString(),
+        endTime: now.toISOString(),
+        durationMinutes: Math.max(1, Math.round((now.getTime() - startTime.getTime()) / 60000)),
+        sets,
+        totalVolumeLoad,
+        averageRPE,
+        metadata: programDayContext
+          ? {
+              dayIndex: programDayContext.dayIndex,
+              weekIndex: programDayContext.weekIndex,
+              cycleNumber: programDayContext.cycleNumber,
+              dayOfWeek: programDayContext.day.dayOfWeek,
+              dayName: programDayContext.day.name,
+            }
+          : undefined,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
+      autoCompletedSets,
     };
   };
 
@@ -1522,77 +1550,90 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         user.id
       );
     }
+    let builtSession: WorkoutSession | null = null;
+    let autoCompletedSets = 0;
+    let completedSetsSent = 0;
 
     try {
-      await withTimeout(
-        (async () => {
-          const payload = buildWorkoutSession();
-          const saveResult = await saveWorkout(payload, undefined, { skipAnalytics: true });
-          setFinishStatusMessage('Saving program progress...');
-          const hasCompletedSets = payload.sets.some((set) => set.completed);
-          if (hasCompletedSets && initialData && programDayContext) {
-            const nextProgress = advanceProgramProgress(
-              initialData,
-              {
-                cycleNumber: programDayContext.cycleNumber,
-                weekIndex: programDayContext.weekIndex,
-                dayIndex: programDayContext.dayIndex,
-              },
-              namespaceId
-            );
-            if (user?.id) {
-              await syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId);
-            }
-          }
-          if (FEATURES.programCalendar && hasCompletedSets && programDayContext && payload.programId) {
-            setFinishStatusMessage('Updating schedule...');
-            try {
-              await updateScheduleEvent({
-                match: {
-                  programId: payload.programId,
-                  weekIndex: programDayContext.weekIndex,
-                  dayIndex: programDayContext.dayIndex,
-                  scheduledDate: payload.date,
-                },
-                status: 'completed',
-                completedWorkoutSessionId: payload.id,
-                metadata: {
-                  completed_from: 'workout_finish',
-                },
-              });
-            } catch (scheduleError) {
-              console.warn('Failed to sync schedule completion from workout finish:', scheduleError);
-            }
-          }
-          if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
-            localStorage.setItem(
-              'iron_brain_last_pr_hits',
-              JSON.stringify({
-                createdAt: new Date().toISOString(),
-                hits: saveResult.newPersonalRecords,
-              })
-            );
-          }
-          if (user?.id) {
-            void trackUiEvent(
-              {
-                name: 'workout_finish_success',
-                source: 'workout',
-                properties: {
-                  ...finishEventBase,
-                  durationMs: Date.now() - startedAt,
-                  completedSets: payload.sets.filter((set) => set.completed).length,
-                  totalSets: payload.sets.length,
-                  prHits: saveResult.newPersonalRecords.length,
-                },
-              },
-              user.id
-            );
-          }
-        })(),
+      const buildResult = buildWorkoutSession();
+      builtSession = buildResult.payload;
+      autoCompletedSets = buildResult.autoCompletedSets;
+      completedSetsSent = builtSession.sets.filter((set) => set.completed).length;
+
+      const criticalPathStartedAt = Date.now();
+      const saveResult = await withTimeout(
+        saveWorkout(builtSession, user?.id, { skipAnalytics: true, criticalPathOnly: true }),
         12000,
         'Workout save timed out'
       );
+      const criticalPathDurationMs = Date.now() - criticalPathStartedAt;
+      const hasCompletedSetsInPayload = completedSetsSent > 0;
+
+      if (saveResult.newPersonalRecords.length > 0 && typeof window !== 'undefined') {
+        localStorage.setItem(
+          'iron_brain_last_pr_hits',
+          JSON.stringify({
+            createdAt: new Date().toISOString(),
+            hits: saveResult.newPersonalRecords,
+          })
+        );
+      }
+
+      if (hasCompletedSetsInPayload && initialData && programDayContext && user?.id) {
+        const nextProgress = advanceProgramProgress(
+          initialData,
+          {
+            cycleNumber: programDayContext.cycleNumber,
+            weekIndex: programDayContext.weekIndex,
+            dayIndex: programDayContext.dayIndex,
+          },
+          namespaceId
+        );
+        void syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId).catch((progressError) => {
+          console.warn('Failed to sync program progress from workout finish:', progressError);
+        });
+      }
+
+      if (FEATURES.programCalendar && hasCompletedSetsInPayload && programDayContext && builtSession.programId) {
+        void updateScheduleEvent({
+          match: {
+            programId: builtSession.programId,
+            weekIndex: programDayContext.weekIndex,
+            dayIndex: programDayContext.dayIndex,
+            scheduledDate: builtSession.date,
+          },
+          status: 'completed',
+          completedWorkoutSessionId: builtSession.id,
+          metadata: {
+            completed_from: 'workout_finish',
+          },
+        }).catch((scheduleError) => {
+          console.warn('Failed to sync schedule completion from workout finish:', scheduleError);
+        });
+      }
+
+      if (user?.id) {
+        void trackUiEvent(
+          {
+            name: 'workout_finish_success',
+            source: 'workout',
+            properties: {
+              ...finishEventBase,
+              durationMs: Date.now() - startedAt,
+              criticalPathDurationMs,
+              completedSets: completedSetsSent,
+              completedSetsSent,
+              autoCompletedSets,
+              totalSets: builtSession.sets.length,
+              prHits: saveResult.newPersonalRecords.length,
+              queued: saveResult.queued,
+              syncedToCloud: saveResult.syncedToCloud,
+            },
+          },
+          user.id
+        );
+      }
+
       setFinishStatusMessage('Saved. Finishing up...');
     } catch (error) {
       console.error('Workout finish flow failed; continuing to exit session:', error);
@@ -1606,6 +1647,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               ...finishEventBase,
               durationMs: Date.now() - startedAt,
               error: message,
+              completedSetsSent,
+              autoCompletedSets,
+              totalSets: builtSession?.sets.length ?? 0,
             },
           },
           user.id
