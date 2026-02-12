@@ -223,15 +223,17 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
       localStorage.setItem(storageKeys.USER_PROGRAMS, JSON.stringify(updatedPrograms));
     }
 
-    // Sync to cloud if logged in
+    // Sync to cloud in background so UI never blocks on network latency.
     if (effectiveUserId) {
-      try {
-        await saveProgramToCloud(programToSave, effectiveUserId);
-        console.log(`✅ Saved program "${programToSave.name}" to cloud`);
-      } catch (e) {
-        console.error('Failed to save program to cloud:', e);
-        // Local save succeeded, cloud failed - acceptable for offline-first
-      }
+      void (async () => {
+        try {
+          await saveProgramToCloud(programToSave, effectiveUserId);
+          console.log(`✅ Saved program "${programToSave.name}" to cloud`);
+        } catch (e) {
+          console.error('Failed to save program to cloud:', e);
+          // Local save succeeded, cloud failed - acceptable for offline-first
+        }
+      })();
     }
 
     // Update original to match saved state

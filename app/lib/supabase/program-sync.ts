@@ -8,6 +8,22 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import type { Json } from './database.types';
 import { normalizeProgramMetadata, normalizePrograms } from '../programs/normalize';
 
+const PROGRAM_SYNC_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const operationPromise = Promise.resolve(promise);
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(label)), timeoutMs);
+  });
+
+  return Promise.race([operationPromise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 /**
  * Program Cloud Sync
  *
@@ -31,16 +47,20 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
     const { program: normalizedProgram } = normalizeProgramMetadata(program);
     const programData: Json = JSON.parse(JSON.stringify(normalizedProgram));
 
-    const { error } = await supabase
-      .from('custom_programs')
-      .upsert({
-        id: normalizedProgram.id,
-        user_id: userId,
-        program_data: programData,
-        name: normalizedProgram.name,
-        is_custom: normalizedProgram.isCustom ?? true,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await withTimeout(
+      supabase
+        .from('custom_programs')
+        .upsert({
+          id: normalizedProgram.id,
+          user_id: userId,
+          program_data: programData,
+          name: normalizedProgram.name,
+          is_custom: normalizedProgram.isCustom ?? true,
+          updated_at: new Date().toISOString(),
+        }),
+      PROGRAM_SYNC_TIMEOUT_MS,
+      'Timed out saving program to cloud'
+    );
 
     if (error) {
       const errorPayload: Pick<PostgrestError, 'message' | 'details' | 'hint' | 'code'> = {
@@ -59,6 +79,7 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
     return true;
   } catch (err) {
     console.error('Error syncing program:', err);
+    queueOperation('update', 'custom_programs', { program });
     return false;
   }
 }
@@ -116,11 +137,15 @@ export async function loadProgramsFromCloudWithCleanup(userId: string): Promise<
   changedPrograms: ProgramTemplate[];
 }> {
   try {
-    const { data, error } = await supabase
-      .from('custom_programs')
-      .select('program_data, updated_at')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
+    const { data, error } = await withTimeout(
+      supabase
+        .from('custom_programs')
+        .select('program_data, updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false }),
+      PROGRAM_SYNC_TIMEOUT_MS,
+      'Timed out loading programs from cloud'
+    );
 
     if (error) {
       console.error('Failed to load programs from cloud:', error);
@@ -151,11 +176,15 @@ export async function deleteProgramFromCloud(programId: string, userId: string):
       return true;
     }
 
-    const { error } = await supabase
-      .from('custom_programs')
-      .delete()
-      .eq('id', programId)
-      .eq('user_id', userId);
+    const { error } = await withTimeout(
+      supabase
+        .from('custom_programs')
+        .delete()
+        .eq('id', programId)
+        .eq('user_id', userId),
+      PROGRAM_SYNC_TIMEOUT_MS,
+      'Timed out deleting program from cloud'
+    );
 
     if (error) {
       console.error('Failed to delete program from cloud:', error);
@@ -167,6 +196,7 @@ export async function deleteProgramFromCloud(programId: string, userId: string):
     return true;
   } catch (err) {
     console.error('Error deleting program from cloud:', err);
+    queueOperation('delete', 'custom_programs', { programId });
     return false;
   }
 }
