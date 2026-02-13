@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { WorkoutSession, SetLog, type WeightUnit } from './types';
+import { WorkoutSession, SetLog, type CustomExercise, type WeightUnit } from './types';
 import { shouldTriggerAutoReduction, calculateAdjustedWeight, calculateMuscleFatigue } from './fatigueModel';
 import { supabase } from './supabase/client';
 import { saveFatigueSnapshot, getRecoveryProfiles } from './fatigue/cross-session';
@@ -10,6 +10,7 @@ import { queueOperation, isOnline } from './sync/offline-queue';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { convertWeight } from './units';
 import type { TablesInsert } from './supabase/database.types';
+import { buildExerciseCatalog, resolveExerciseDisplayName } from './exercises/catalog';
 import {
   resolveExerciseIds,
   upsertPersonalRecordsForSetLogs,
@@ -24,6 +25,7 @@ const STORAGE_KEYS = {
   SESSION_TIMESTAMP: 'iron_brain_session_timestamp',
   SESSION_VERSION: 'iron_brain_session_version',
 } as const;
+const CUSTOM_EXERCISES_STORAGE_KEY = 'iron_brain_custom_exercises';
 
 let activeUserNamespace = 'default';
 let isNamespaceInitialized = false;
@@ -659,13 +661,118 @@ export async function saveWorkout(
 const normalizeWorkoutSessionId = (id: string) =>
   id.startsWith('session_') ? id.substring(8) : id;
 
+function readLocalCustomExercises(): CustomExercise[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(CUSTOM_EXERCISES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((value): value is Partial<CustomExercise> & { id: string; name: string } => {
+        if (!value || typeof value !== 'object') return false;
+        const entry = value as { id?: unknown; name?: unknown };
+        return typeof entry.id === 'string' && typeof entry.name === 'string';
+      })
+      .map((entry) => ({
+        id: entry.id,
+        userId: typeof entry.userId === 'string' ? entry.userId : 'local',
+        name: entry.name,
+        slug: typeof entry.slug === 'string' ? entry.slug : entry.name.toLowerCase().replace(/\\s+/g, '-'),
+        equipment: entry.equipment ?? 'other',
+        exerciseType: entry.exerciseType ?? 'compound',
+        primaryMuscles: Array.isArray(entry.primaryMuscles) ? entry.primaryMuscles : [],
+        secondaryMuscles: Array.isArray(entry.secondaryMuscles) ? entry.secondaryMuscles : [],
+        movementPattern: entry.movementPattern,
+        trackWeight: entry.trackWeight ?? true,
+        trackReps: entry.trackReps ?? true,
+        trackTime: entry.trackTime ?? false,
+        defaultRestSeconds: entry.defaultRestSeconds ?? 90,
+        createdAt: typeof entry.createdAt === 'string' ? entry.createdAt : new Date().toISOString(),
+        updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : new Date().toISOString(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function shouldBackfillExerciseName(cachedName: string | null | undefined, exerciseId: string): boolean {
+  const normalizedId = exerciseId.trim().toLowerCase();
+  const trimmedName = (cachedName ?? '').trim();
+  if (!trimmedName) return true;
+
+  const normalizedName = trimmedName.toLowerCase();
+  if (normalizedName === normalizedId) return true;
+  if (normalizedName.startsWith('custom_') || normalizedName.startsWith('custom-')) return true;
+
+  const slugPattern = /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/;
+  return slugPattern.test(normalizedName);
+}
+
+function backfillWorkoutHistoryExerciseNames(sessions: WorkoutSession[]): {
+  sessions: WorkoutSession[];
+  changed: boolean;
+} {
+  if (sessions.length === 0) {
+    return { sessions, changed: false };
+  }
+
+  const customExercises = readLocalCustomExercises();
+  const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
+  let changed = false;
+
+  const nextSessions = sessions.map((session) => {
+    let sessionChanged = false;
+    const nextSets = session.sets.map((set) => {
+      if (!set.exerciseId || !shouldBackfillExerciseName(set.exerciseName, set.exerciseId)) {
+        return set;
+      }
+
+      const resolvedName = resolveExerciseDisplayName(set.exerciseId, {
+        catalog: exerciseCatalog,
+        cachedName: set.exerciseName,
+      });
+
+      if ((set.exerciseName ?? '').trim() === resolvedName) {
+        return set;
+      }
+
+      sessionChanged = true;
+      return {
+        ...set,
+        exerciseName: resolvedName,
+      };
+    });
+
+    if (!sessionChanged) return session;
+    changed = true;
+    return {
+      ...session,
+      sets: nextSets,
+    };
+  });
+
+  return { sessions: nextSessions, changed };
+}
+
 const readWorkoutHistoryFromKey = (key: string): WorkoutSession[] => {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as WorkoutSession[]) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const baseSessions = parsed as WorkoutSession[];
+    const { sessions, changed } = backfillWorkoutHistoryExerciseNames(baseSessions);
+
+    if (changed) {
+      localStorage.setItem(key, JSON.stringify(sessions));
+    }
+
+    return sessions;
   } catch (error) {
     console.error('Failed to parse workout history key:', key, error);
     return [];

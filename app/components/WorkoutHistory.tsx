@@ -9,6 +9,8 @@ import { storage } from '../lib/storage';
 import { parseLocalDate } from '../lib/dateUtils';
 import { useAuth } from '../lib/supabase/auth-context';
 import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import { buildExerciseCatalog, resolveExerciseDisplayName } from '../lib/exercises/catalog';
+import { useBodyScrollLock } from '../lib/hooks/useBodyScrollLock';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { convertWeight } from '../lib/units';
 
@@ -81,51 +83,7 @@ export default function WorkoutHistory({
   const [contentEditError, setContentEditError] = useState<string | null>(null);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const isAnyModalOpen = Boolean(deleteTarget || editTarget || contentEditTarget);
-
-  useEffect(() => {
-    if (!isAnyModalOpen || typeof window === 'undefined') return;
-
-    const body = document.body;
-    const html = document.documentElement;
-    const scrollY = window.scrollY;
-    const previousHideBottomNav = body.getAttribute('data-hide-bottom-nav');
-    const previousStyles = {
-      bodyOverflow: body.style.overflow,
-      bodyPosition: body.style.position,
-      bodyTop: body.style.top,
-      bodyLeft: body.style.left,
-      bodyRight: body.style.right,
-      bodyWidth: body.style.width,
-      htmlOverflow: html.style.overflow,
-    };
-
-    body.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.left = '0';
-    body.style.right = '0';
-    body.style.width = '100%';
-    html.style.overflow = 'hidden';
-    body.setAttribute('data-hide-bottom-nav', 'true');
-
-    return () => {
-      body.style.overflow = previousStyles.bodyOverflow;
-      body.style.position = previousStyles.bodyPosition;
-      body.style.top = previousStyles.bodyTop;
-      body.style.left = previousStyles.bodyLeft;
-      body.style.right = previousStyles.bodyRight;
-      body.style.width = previousStyles.bodyWidth;
-      html.style.overflow = previousStyles.htmlOverflow;
-
-      if (previousHideBottomNav == null) {
-        body.removeAttribute('data-hide-bottom-nav');
-      } else {
-        body.setAttribute('data-hide-bottom-nav', previousHideBottomNav);
-      }
-
-      window.scrollTo(0, scrollY);
-    };
-  }, [isAnyModalOpen]);
+  useBodyScrollLock(isAnyModalOpen, 'history-modal');
 
   useEffect(() => {
     let isMounted = true;
@@ -145,19 +103,23 @@ export default function WorkoutHistory({
     };
   }, [user?.id]);
 
-  const exerciseNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    defaultExercises.forEach(ex => map.set(ex.id, ex.name));
-    customExercises.forEach(ex => map.set(ex.id, ex.name));
-    return map;
-  }, [customExercises]);
+  const exerciseCatalog = useMemo(
+    () => buildExerciseCatalog(defaultExercises, customExercises),
+    [customExercises]
+  );
   const exerciseIdByName = useMemo(() => {
     const map = new Map<string, string>();
-    exerciseNameById.forEach((name, id) => {
-      map.set(name.toLowerCase(), id);
+    exerciseCatalog.entriesById.forEach((entry, id) => {
+      map.set(entry.name.toLowerCase(), id);
     });
     return map;
-  }, [exerciseNameById]);
+  }, [exerciseCatalog]);
+
+  const resolveExerciseName = (exerciseId: string, cachedName?: string) =>
+    resolveExerciseDisplayName(exerciseId, {
+      catalog: exerciseCatalog,
+      cachedName,
+    });
 
   const createEmptyEditableSet = (unit: WeightUnit): EditableWorkoutSet => ({
     localId: createLocalId(),
@@ -180,7 +142,7 @@ export default function WorkoutHistory({
 
     normalizedSets.forEach((set) => {
       const exerciseId = set.exerciseId || slugifyExerciseId(set.exerciseName || 'exercise');
-      const exerciseName = set.exerciseName || exerciseNameById.get(exerciseId) || exerciseId;
+      const exerciseName = resolveExerciseName(exerciseId, set.exerciseName);
 
       if (!map.has(exerciseId)) {
         map.set(exerciseId, {
@@ -281,8 +243,8 @@ export default function WorkoutHistory({
     setExpandedSessions(newExpanded);
   };
 
-  const getExerciseName = (exerciseId: string): string => {
-    return exerciseNameById.get(exerciseId) || exerciseId;
+  const getExerciseName = (exerciseId: string, cachedName?: string): string => {
+    return resolveExerciseName(exerciseId, cachedName);
   };
 
   const getExercisePRs = (exerciseId: string) => {
@@ -861,7 +823,7 @@ export default function WorkoutHistory({
                       const completedSets = exerciseSets.filter(s => s.completed);
                       if (completedSets.length === 0) return null;
 
-                      const exerciseName = getExerciseName(exerciseId);
+                      const exerciseName = getExerciseName(exerciseId, exerciseSets[0]?.exerciseName);
                       const exerciseVolume = completedSets.reduce(
                         (sum, set) => {
                           const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);

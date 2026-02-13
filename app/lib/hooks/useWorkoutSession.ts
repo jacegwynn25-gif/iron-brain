@@ -18,12 +18,17 @@ type SetRef = {
 
 type UpdateSetPayload = Partial<Pick<SessionSet, 'weight' | 'reps' | 'rpe' | 'type'>>;
 
+export interface UseWorkoutSessionOptions {
+  resolveExerciseName?: (exerciseId: string) => string;
+}
+
 type WorkoutSessionAction =
   | {
       type: 'INITIALIZE_SESSION';
       payload: {
         program: ProgramTemplate;
         readinessModifier: number;
+        resolveExerciseName?: (exerciseId: string) => string;
       };
     }
   | {
@@ -371,7 +376,8 @@ function findNextIncompleteSetRef(blocks: Block[], current: SetRef): SetRef | nu
 function buildBlocksFromProgram(
   program: ProgramTemplate,
   readinessModifier: number,
-  weightUnit: WeightUnit
+  weightUnit: WeightUnit,
+  resolveExerciseName: (exerciseId: string) => string
 ): Block[] {
   const sortedWeeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const day = sortedWeeks[0]?.days[0];
@@ -421,7 +427,7 @@ function buildBlocksFromProgram(
 
         sessionBlock.exercises.push({
           id: exerciseId,
-          name: formatExerciseName(exerciseId),
+          name: resolveExerciseName(exerciseId),
           slot: templateExercise.slot,
           notes: templateExercise.notes ?? '',
           historyNote: `Last session: ${lastWeight}x${setsForExercise[0]?.reps ?? 8}`,
@@ -468,7 +474,7 @@ function buildBlocksFromProgram(
     if (!exercise) {
       exercise = {
         id: exerciseId,
-        name: formatExerciseName(exerciseId),
+        name: resolveExerciseName(exerciseId),
         notes: '',
         historyNote: `Last session: ${lastWeight}x${repsTarget ?? 8}`,
         sets: [],
@@ -485,9 +491,10 @@ function buildBlocksFromProgram(
 function createInitialSessionState(
   program: ProgramTemplate,
   readinessModifier: number,
-  weightUnit: WeightUnit
+  weightUnit: WeightUnit,
+  resolveExerciseName: (exerciseId: string) => string = formatExerciseName
 ): SessionState {
-  const blocks = buildBlocksFromProgram(program, readinessModifier, weightUnit);
+  const blocks = buildBlocksFromProgram(program, readinessModifier, weightUnit, resolveExerciseName);
   const firstSetRef = findFirstSetRef(blocks);
 
   return {
@@ -521,7 +528,8 @@ function buildSessionPayload(state: SessionState): SessionPayload | null {
 function workoutSessionReducer(
   state: SessionState,
   action: WorkoutSessionAction,
-  weightUnit: WeightUnit
+  weightUnit: WeightUnit,
+  resolveExerciseName: (exerciseId: string) => string
 ): SessionState {
   switch (action.type) {
     case 'INITIALIZE_SESSION': {
@@ -529,7 +537,12 @@ function workoutSessionReducer(
       if (hasCompletedOrTouchedSets(state.blocks)) {
         return state;
       }
-      return createInitialSessionState(action.payload.program, action.payload.readinessModifier, weightUnit);
+      return createInitialSessionState(
+        action.payload.program,
+        action.payload.readinessModifier,
+        weightUnit,
+        action.payload.resolveExerciseName ?? resolveExerciseName
+      );
     }
 
     case 'UPDATE_SET': {
@@ -791,13 +804,15 @@ function workoutSessionReducer(
 export function useWorkoutSession(
   program: ProgramTemplate,
   readinessModifier: number,
-  weightUnit: WeightUnit = 'lbs'
+  weightUnit: WeightUnit = 'lbs',
+  options: UseWorkoutSessionOptions = {}
 ) {
+  const resolveExerciseName = options.resolveExerciseName ?? formatExerciseName;
   const [state, dispatch] = useReducer(
     (stateValue: SessionState, action: WorkoutSessionAction) =>
-      workoutSessionReducer(stateValue, action, weightUnit),
+      workoutSessionReducer(stateValue, action, weightUnit, resolveExerciseName),
     program,
-    () => createInitialSessionState(program, readinessModifier, weightUnit)
+    () => createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
   );
 
   const reinitializeSession = useCallback(() => {
@@ -806,9 +821,10 @@ export function useWorkoutSession(
       payload: {
         program,
         readinessModifier,
+        resolveExerciseName,
       },
     });
-  }, [program, readinessModifier]);
+  }, [program, readinessModifier, resolveExerciseName]);
 
   const updateSet = useCallback(
     (blockId: string, exerciseId: string, setId: string, updates: UpdateSetPayload) => {

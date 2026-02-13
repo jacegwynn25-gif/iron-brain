@@ -1320,31 +1320,6 @@ export default function ProgramsPage() {
     setEditorSetFocus(nextFocus);
   };
 
-  const handleDuplicateSetRow = (blockIndex: number, exerciseIndex: number, setIndex: number) => {
-    let nextFocus: EditorSetFocus = null;
-    updateCurrentDayBlocks((blocks) => {
-      const block = blocks[blockIndex];
-      const exercise = block?.exercises[exerciseIndex];
-      const sourceSet = exercise?.sets[setIndex];
-      if (!block || !exercise || !sourceSet) return blocks;
-
-      const duplicated = cloneSetTemplate(sourceSet);
-      const insertionIndex = setIndex + 1;
-      const nextSets = [...exercise.sets];
-      nextSets.splice(insertionIndex, 0, {
-        ...duplicated,
-        exerciseId: exercise.exerciseId,
-        setIndex: insertionIndex + 1,
-        setType: block.type === 'superset' ? 'superset' : duplicated.setType,
-        supersetGroup: block.type === 'superset' ? block.id : undefined,
-      });
-      exercise.sets = nextSets.map((set, index) => ({ ...set, setIndex: index + 1 }));
-      nextFocus = { blockIndex, exerciseIndex, setIndex: insertionIndex };
-      return blocks;
-    });
-    setEditorSetFocus(nextFocus);
-  };
-
   const handleRemoveSetRow = (blockIndex: number, exerciseIndex: number, setIndex: number) => {
     updateCurrentDayBlocks((blocks) => {
       const block = blocks[blockIndex];
@@ -1772,14 +1747,6 @@ export default function ProgramsPage() {
                     Set {setIndex + 1} • {getSetSummaryLine(set)}
                   </p>
                   <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDuplicateSetRow(blockIndex, exerciseIndex, setIndex)}
-                      className="inline-flex h-11 items-center rounded-lg border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
-                      aria-label={`Duplicate set ${setIndex + 1}`}
-                    >
-                      Duplicate
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}

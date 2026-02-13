@@ -6,11 +6,62 @@ import WorkoutHistory from '../components/WorkoutHistory';
 import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
+import { defaultExercises } from '../lib/programs';
+import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import { buildExerciseCatalog, resolveExerciseDisplayName, type ExerciseCatalog } from '../lib/exercises/catalog';
 import type {
   WorkoutSession,
   SessionMetadata,
   SupabaseWorkoutSessionRow
 } from '../lib/types';
+
+type WorkoutSet = WorkoutSession['sets'][number];
+
+const normalizeSetKey = (set: WorkoutSet): string => {
+  if (set.id) return `id:${set.id}`;
+  return `fallback:${set.exerciseId}:${set.setIndex}`;
+};
+
+function enrichWorkoutSetNames(workout: WorkoutSession, catalog: ExerciseCatalog): WorkoutSession {
+  return {
+    ...workout,
+    sets: workout.sets.map((set) => ({
+      ...set,
+      exerciseName: resolveExerciseDisplayName(set.exerciseId, {
+        catalog,
+        cachedName: set.exerciseName,
+      }),
+    })),
+  };
+}
+
+function mergeCloudWorkoutNames(
+  localWorkout: WorkoutSession,
+  cloudWorkout: WorkoutSession,
+  catalog: ExerciseCatalog
+): WorkoutSession {
+  const localNameByKey = new Map<string, string>();
+  localWorkout.sets.forEach((set) => {
+    const name = (set.exerciseName ?? '').trim();
+    if (!name) return;
+    localNameByKey.set(normalizeSetKey(set), name);
+  });
+
+  return {
+    ...cloudWorkout,
+    sets: cloudWorkout.sets.map((set) => {
+      const key = normalizeSetKey(set);
+      const localName = localNameByKey.get(key);
+      return {
+        ...set,
+        exerciseName: resolveExerciseDisplayName(set.exerciseId, {
+          catalog,
+          cachedName: set.exerciseName || localName,
+        }),
+      };
+    }),
+  };
+}
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -48,7 +99,14 @@ export default function HistoryPage() {
 
     try {
       const resolvedUserId = await resolveUserId();
-      const localWorkouts = storage.getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId);
+      const customExercises = await getCustomExercises(resolvedUserId ?? namespaceId).catch((error) => {
+        console.error('Failed to load custom exercise catalog for history page:', error);
+        return [];
+      });
+      const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
+      const localWorkouts = storage
+        .getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId)
+        .map((workout) => enrichWorkoutSetNames(workout, exerciseCatalog));
       const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
       if (!resolvedUserId) {
@@ -77,7 +135,7 @@ export default function HistoryPage() {
         const metadata = (s.metadata ?? {}) as SessionMetadata;
         const resolvedProgramName = metadata.programName || s.name || 'Workout';
 
-        return {
+        return enrichWorkoutSetNames({
           id: s.id,
           date: s.date ?? (s.start_time ? s.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
           startTime: s.start_time ?? undefined,
@@ -113,7 +171,7 @@ export default function HistoryPage() {
             notes: set.notes ?? undefined,
             completed: set.completed !== false,
           })),
-        };
+        }, exerciseCatalog);
       });
 
       const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
@@ -134,7 +192,10 @@ export default function HistoryPage() {
         // Guard against partial cloud writes that created a session row without set logs.
         if ((cloudWorkout.sets?.length ?? 0) === 0 && (workout.sets?.length ?? 0) > 0) {
           mergedById.set(normalizedId, workout);
+          return;
         }
+
+        mergedById.set(normalizedId, mergeCloudWorkoutNames(workout, cloudWorkout, exerciseCatalog));
       });
 
       const mergedWorkouts = Array.from(mergedById.values()).sort(

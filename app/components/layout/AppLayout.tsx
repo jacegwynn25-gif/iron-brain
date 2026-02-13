@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
+import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -60,6 +61,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-hide-bottom-nav'] });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    restoreLeakedBodyScrollLock();
+  }, [pathname]);
 
   const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
 

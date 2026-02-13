@@ -5,6 +5,9 @@ import { useDataReady } from '../lib/hooks/useDataReady';
 import { useAsyncLock } from '../lib/hooks/useAsyncLock';
 import { storage } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
+import { defaultExercises } from '../lib/programs';
+import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import { buildExerciseCatalog, resolveExerciseDisplayName, type ExerciseCatalog } from '../lib/exercises/catalog';
 import type { WorkoutSession } from '../lib/types';
 
 interface WorkoutDataContextValue {
@@ -28,6 +31,53 @@ const WorkoutDataContext = createContext<WorkoutDataContextValue | null>(null);
 
 const getSortTime = (session: WorkoutSession) =>
   new Date(session.endTime || session.startTime || session.date).getTime();
+
+type WorkoutSet = WorkoutSession['sets'][number];
+
+const normalizeSetKey = (set: WorkoutSet): string => {
+  if (set.id) return `id:${set.id}`;
+  return `fallback:${set.exerciseId}:${set.setIndex}`;
+};
+
+function enrichWorkoutSetNames(workout: WorkoutSession, catalog: ExerciseCatalog): WorkoutSession {
+  return {
+    ...workout,
+    sets: workout.sets.map((set) => ({
+      ...set,
+      exerciseName: resolveExerciseDisplayName(set.exerciseId, {
+        catalog,
+        cachedName: set.exerciseName,
+      }),
+    })),
+  };
+}
+
+function mergeCloudWorkoutNames(
+  localWorkout: WorkoutSession,
+  cloudWorkout: WorkoutSession,
+  catalog: ExerciseCatalog
+): WorkoutSession {
+  const localNameByKey = new Map<string, string>();
+  localWorkout.sets.forEach((set) => {
+    const name = (set.exerciseName ?? '').trim();
+    if (!name) return;
+    localNameByKey.set(normalizeSetKey(set), name);
+  });
+
+  return {
+    ...cloudWorkout,
+    sets: cloudWorkout.sets.map((set) => {
+      const localName = localNameByKey.get(normalizeSetKey(set));
+      return {
+        ...set,
+        exerciseName: resolveExerciseDisplayName(set.exerciseId, {
+          catalog,
+          cachedName: set.exerciseName || localName,
+        }),
+      };
+    }),
+  };
+}
 
 interface WorkoutDataProviderProps {
   children: ReactNode;
@@ -55,8 +105,16 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
       setError(null);
 
       try {
+        const customExercises = await getCustomExercises(userId ?? null).catch((catalogError) => {
+          console.error('[WorkoutData] Failed to load custom exercise catalog:', catalogError);
+          return [];
+        });
+        const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
+
         // Step 1: Local data (instant)
-        const localWorkouts = storage.getWorkoutHistory();
+        const localWorkouts = storage
+          .getWorkoutHistory()
+          .map((workout) => enrichWorkoutSetNames(workout, exerciseCatalog));
         const sortedLocal = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
         // Show local data immediately
@@ -108,8 +166,8 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
         }
 
         // Step 4: Transform and merge
-        const cloudWorkouts = transformCloudWorkouts(sessions ?? []);
-        const merged = mergeWorkouts(localWorkouts, cloudWorkouts);
+        const cloudWorkouts = transformCloudWorkouts(sessions ?? [], exerciseCatalog);
+        const merged = mergeWorkouts(localWorkouts, cloudWorkouts, exerciseCatalog);
         setWorkouts(merged);
 
         return merged;
@@ -257,7 +315,7 @@ function transformCloudWorkouts(sessions: Array<{
     actual_rpe: number | null;
     completed: boolean | null;
   }>;
-}>): WorkoutSession[] {
+}>, catalog: ExerciseCatalog): WorkoutSession[] {
   return sessions.map((s) => {
     const metadata = (s.metadata ?? {}) as SessionMetadata;
     const resolvedProgramName = metadata.programName || s.name || 'Workout';
@@ -278,24 +336,32 @@ function transformCloudWorkouts(sessions: Array<{
       dayName: metadata.dayName || '',
       createdAt: s.created_at || new Date().toISOString(),
       updatedAt: s.updated_at || new Date().toISOString(),
-      sets: (s.set_logs || []).map((set) => ({
-        id: set.id ?? undefined,
-        exerciseId: set.exercise_slug || set.exercise_id || '',
-        setIndex: set.set_index ?? 0,
-        prescribedReps: set.prescribed_reps ?? '0',
-        actualWeight: set.actual_weight ?? undefined,
-        weightUnit: (set.weight_unit === 'kg' ? 'kg' : 'lbs') as 'lbs' | 'kg',
-        actualReps: set.actual_reps ?? undefined,
-        actualRPE: set.actual_rpe ?? undefined,
-        completed: set.completed !== false,
-      })),
+      sets: (s.set_logs || []).map((set) => {
+        const exerciseId = set.exercise_slug || set.exercise_id || '';
+        return {
+          id: set.id ?? undefined,
+          exerciseId,
+          exerciseName: resolveExerciseDisplayName(exerciseId, { catalog }),
+          setIndex: set.set_index ?? 0,
+          prescribedReps: set.prescribed_reps ?? '0',
+          actualWeight: set.actual_weight ?? undefined,
+          weightUnit: (set.weight_unit === 'kg' ? 'kg' : 'lbs') as 'lbs' | 'kg',
+          actualReps: set.actual_reps ?? undefined,
+          actualRPE: set.actual_rpe ?? undefined,
+          completed: set.completed !== false,
+        };
+      }),
     };
   });
 }
 
 // Helper: merge cloud and local workouts.
 // Cloud wins for duplicates unless cloud session has no set logs and local does.
-function mergeWorkouts(local: WorkoutSession[], cloud: WorkoutSession[]): WorkoutSession[] {
+function mergeWorkouts(
+  local: WorkoutSession[],
+  cloud: WorkoutSession[],
+  catalog: ExerciseCatalog
+): WorkoutSession[] {
   const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
   const mergedById = new Map<string, WorkoutSession>();
 
@@ -313,7 +379,10 @@ function mergeWorkouts(local: WorkoutSession[], cloud: WorkoutSession[]): Workou
 
     if ((cloudWorkout.sets?.length ?? 0) === 0 && (workout.sets?.length ?? 0) > 0) {
       mergedById.set(normalizedId, workout);
+      return;
     }
+
+    mergedById.set(normalizedId, mergeCloudWorkoutNames(workout, cloudWorkout, catalog));
   });
 
   return Array.from(mergedById.values()).sort((a, b) => getSortTime(b) - getSortTime(a));

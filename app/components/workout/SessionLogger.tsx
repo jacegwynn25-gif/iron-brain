@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -15,12 +15,19 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { DayTemplate, ProgramTemplate, WeightUnit } from '@/app/lib/types';
-import type { SetLog, WorkoutSession } from '@/app/lib/types';
+import type { CustomExercise, DayTemplate, ProgramTemplate, SetLog, WeightUnit, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
 import { useUnitPreference } from '@/app/lib/hooks/useUnitPreference';
+import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
+import {
+  buildExerciseCatalog,
+  resolveExerciseDisplayName,
+  resolveExerciseMuscleProfile,
+  type ExerciseMuscleGroup,
+} from '@/app/lib/exercises/catalog';
+import { defaultExercises } from '@/app/lib/programs';
 import {
   advanceProgramProgress,
   getProgramProgress,
@@ -60,48 +67,38 @@ const METRONOME_BEAT_MS = 600;
 type CommonExercise = {
   id: string;
   name: string;
-  target: 'push' | 'pull' | 'legs' | 'core';
 };
 
-type MuscleGroup =
-  | 'chest'
-  | 'shoulders'
-  | 'triceps'
-  | 'biceps'
-  | 'back'
-  | 'quads'
-  | 'hamstrings'
-  | 'glutes'
-  | 'calves'
-  | 'core'
-  | 'other';
+type MuscleGroup = ExerciseMuscleGroup;
 
 type ExerciseIdentity = Pick<Exercise, 'id' | 'name'>;
+type MuscleProfile = { primary: MuscleGroup; secondary?: MuscleGroup };
+type ResolveMuscleProfile = (exercise: ExerciseIdentity) => MuscleProfile;
 
 const COMMON_EXERCISES: CommonExercise[] = [
-  { id: 'back_squat', name: 'Back Squat', target: 'legs' },
-  { id: 'deadlift', name: 'Deadlift', target: 'legs' },
-  { id: 'bench_press', name: 'Bench Press', target: 'push' },
-  { id: 'overhead_press', name: 'Overhead Press', target: 'push' },
-  { id: 'pull_up', name: 'Pull-up', target: 'pull' },
-  { id: 'chin_up', name: 'Chin-up', target: 'pull' },
-  { id: 'barbell_row', name: 'Barbell Row', target: 'pull' },
-  { id: 'dumbbell_row', name: 'Dumbbell Row', target: 'pull' },
-  { id: 'lat_pulldown', name: 'Lat Pulldown', target: 'pull' },
-  { id: 'dips', name: 'Dip', target: 'push' },
-  { id: 'tricep_extension', name: 'Tricep Extension', target: 'push' },
-  { id: 'bicep_curl', name: 'Bicep Curl', target: 'pull' },
-  { id: 'leg_press', name: 'Leg Press', target: 'legs' },
-  { id: 'lunges', name: 'Lunge', target: 'legs' },
-  { id: 'split_squat', name: 'Split Squat', target: 'legs' },
-  { id: 'calf_raise', name: 'Calf Raise', target: 'legs' },
-  { id: 'hip_thrust', name: 'Hip Thrust', target: 'legs' },
-  { id: 'leg_extension', name: 'Leg Extension', target: 'legs' },
-  { id: 'leg_curl', name: 'Leg Curl', target: 'legs' },
-  { id: 'face_pull', name: 'Face Pull', target: 'pull' },
-  { id: 'lateral_raise', name: 'Lateral Raise', target: 'push' },
-  { id: 'plank', name: 'Plank', target: 'core' },
-  { id: 'ab_wheel', name: 'Ab Wheel', target: 'core' },
+  { id: 'back_squat', name: 'Back Squat' },
+  { id: 'deadlift', name: 'Deadlift' },
+  { id: 'bench_press', name: 'Bench Press' },
+  { id: 'overhead_press', name: 'Overhead Press' },
+  { id: 'pull_up', name: 'Pull-up' },
+  { id: 'chin_up', name: 'Chin-up' },
+  { id: 'barbell_row', name: 'Barbell Row' },
+  { id: 'dumbbell_row', name: 'Dumbbell Row' },
+  { id: 'lat_pulldown', name: 'Lat Pulldown' },
+  { id: 'dips', name: 'Dip' },
+  { id: 'tricep_extension', name: 'Tricep Extension' },
+  { id: 'bicep_curl', name: 'Bicep Curl' },
+  { id: 'leg_press', name: 'Leg Press' },
+  { id: 'lunges', name: 'Lunge' },
+  { id: 'split_squat', name: 'Split Squat' },
+  { id: 'calf_raise', name: 'Calf Raise' },
+  { id: 'hip_thrust', name: 'Hip Thrust' },
+  { id: 'leg_extension', name: 'Leg Extension' },
+  { id: 'leg_curl', name: 'Leg Curl' },
+  { id: 'face_pull', name: 'Face Pull' },
+  { id: 'lateral_raise', name: 'Lateral Raise' },
+  { id: 'plank', name: 'Plank' },
+  { id: 'ab_wheel', name: 'Ab Wheel' },
 ];
 
 const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
@@ -146,84 +143,6 @@ const LEGEND_ITEMS: Array<{ key: MuscleGroup; label: string }> = [
   { key: 'core', label: 'Core' },
   { key: 'calves', label: 'Calves' },
 ];
-
-const MUSCLE_BLEND_BY_ID: Record<string, [MuscleGroup, MuscleGroup]> = {
-  bench_press: ['chest', 'triceps'],
-  dips: ['chest', 'triceps'],
-  overhead_press: ['shoulders', 'triceps'],
-  pull_up: ['back', 'biceps'],
-  chin_up: ['back', 'biceps'],
-  barbell_row: ['back', 'biceps'],
-  dumbbell_row: ['back', 'biceps'],
-  lat_pulldown: ['back', 'biceps'],
-  face_pull: ['back', 'biceps'],
-  back_squat: ['quads', 'glutes'],
-  split_squat: ['quads', 'glutes'],
-  lunges: ['quads', 'glutes'],
-  leg_press: ['quads', 'glutes'],
-  leg_extension: ['quads', 'glutes'],
-  deadlift: ['hamstrings', 'glutes'],
-  hip_thrust: ['glutes', 'hamstrings'],
-  leg_curl: ['hamstrings', 'glutes'],
-};
-
-const MUSCLE_PRIMARY_BY_ID: Record<string, MuscleGroup> = {
-  lateral_raise: 'shoulders',
-  tricep_extension: 'triceps',
-  bicep_curl: 'biceps',
-  calf_raise: 'calves',
-  plank: 'core',
-  ab_wheel: 'core',
-};
-
-const resolveMuscleBlend = (exercise: Exercise): { primary: MuscleGroup; secondary?: MuscleGroup } => {
-  if (MUSCLE_BLEND_BY_ID[exercise.id]) {
-    const [primary, secondary] = MUSCLE_BLEND_BY_ID[exercise.id];
-    return { primary, secondary };
-  }
-  if (MUSCLE_PRIMARY_BY_ID[exercise.id]) {
-    return { primary: MUSCLE_PRIMARY_BY_ID[exercise.id] };
-  }
-
-  const name = exercise.name.toLowerCase();
-  if (name.includes('bench') || name.includes('chest') || name.includes('dip')) {
-    return { primary: 'chest', secondary: 'triceps' };
-  }
-  if (name.includes('overhead') || name.includes('shoulder press') || name.includes('press')) {
-    if (name.includes('leg press')) {
-      return { primary: 'quads', secondary: 'glutes' };
-    }
-    return { primary: 'shoulders', secondary: 'triceps' };
-  }
-  if (name.includes('squat') || name.includes('leg press') || name.includes('lunge') || name.includes('split squat')) {
-    return { primary: 'quads', secondary: 'glutes' };
-  }
-  if (name.includes('deadlift') || name.includes('rdl')) {
-    return { primary: 'hamstrings', secondary: 'glutes' };
-  }
-  if (name.includes('row') || name.includes('pull') || name.includes('lat') || name.includes('chin')) {
-    return { primary: 'back', secondary: 'biceps' };
-  }
-  if (name.includes('tricep')) return { primary: 'triceps' };
-  if (name.includes('bicep') || name.includes('curl')) return { primary: 'biceps' };
-  if (name.includes('calf')) return { primary: 'calves' };
-  if (name.includes('plank') || name.includes('ab ') || name.includes('core') || name.includes('hanging leg')) {
-    return { primary: 'core' };
-  }
-  if (name.includes('hip thrust') || name.includes('glute')) return { primary: 'glutes' };
-  if (name.includes('hamstring') || name.includes('leg curl')) return { primary: 'hamstrings' };
-
-  const normalizedName = name;
-  const foundTarget = COMMON_EXERCISES.find(
-    (entry) => entry.id === exercise.id || entry.name.toLowerCase() === normalizedName
-  )?.target;
-  if (foundTarget === 'core') return { primary: 'core' };
-  if (foundTarget === 'legs') return { primary: 'quads', secondary: 'glutes' };
-  if (foundTarget === 'pull') return { primary: 'back', secondary: 'biceps' };
-  if (foundTarget === 'push') return { primary: 'chest', secondary: 'triceps' };
-
-  return { primary: 'other' };
-};
 
 function createQuickStartProgram(): ProgramTemplate {
   return {
@@ -354,8 +273,8 @@ const MUSCLE_ICONS: Record<MuscleGroup, LucideIcon> = {
   other: Dumbbell,
 };
 
-const getExerciseStyle = (exercise: ExerciseIdentity): ExerciseStyle => {
-  const { primary, secondary } = resolveMuscleBlend(exercise as Exercise);
+const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: ResolveMuscleProfile): ExerciseStyle => {
+  const { primary, secondary } = resolveMuscleProfile(exercise);
   const primaryKey = MUSCLE_COLORS[primary] ? primary : 'other';
   const secondaryKey = secondary && MUSCLE_COLORS[secondary] ? secondary : primaryKey;
   const primaryPalette = MUSCLE_COLORS[primaryKey];
@@ -384,8 +303,8 @@ const isBodyweight = (name: string): boolean => {
   ].some((keyword) => lower.includes(keyword));
 };
 
-const getRestDurationSeconds = (exercise: Exercise): number => {
-  const { primary, secondary } = resolveMuscleBlend(exercise);
+const getRestDurationSeconds = (exercise: ExerciseIdentity, resolveMuscleProfile: ResolveMuscleProfile): number => {
+  const { primary, secondary } = resolveMuscleProfile(exercise);
   const isCompound = Boolean(secondary);
   if (isCompound) return COMPOUND_REST_SECONDS;
   if (primary === 'core') return CORE_REST_SECONDS;
@@ -477,6 +396,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const { user } = useAuth();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness } = useRecoveryState();
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
   const sessionReadinessModifierRef = useRef<number | null>(null);
@@ -504,6 +424,50 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     if (!initialData || !programDayContext) return baseProgram;
     return createProgramSliceForDay(initialData, programDayContext);
   }, [baseProgram, initialData, programDayContext]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCustom = async () => {
+      try {
+        const loaded = await getCustomExercises(user?.id ?? null);
+        if (!active) return;
+        setCustomExercises(loaded);
+      } catch (error) {
+        console.error('Failed to load custom exercises for logger:', error);
+        if (active) {
+          setCustomExercises([]);
+        }
+      }
+    };
+
+    void loadCustom();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  const exerciseCatalog = useMemo(
+    () => buildExerciseCatalog(defaultExercises, customExercises),
+    [customExercises]
+  );
+  const resolveExerciseName = useCallback(
+    (exerciseId: string) => resolveExerciseDisplayName(exerciseId, { catalog: exerciseCatalog }),
+    [exerciseCatalog]
+  );
+  const getExerciseDisplayName = useCallback(
+    (exercise: ExerciseIdentity) =>
+      resolveExerciseDisplayName(exercise.id, {
+        catalog: exerciseCatalog,
+        cachedName: exercise.name,
+      }),
+    [exerciseCatalog]
+  );
+  const resolveMuscleProfile = useCallback<ResolveMuscleProfile>(
+    (exercise) => resolveExerciseMuscleProfile(exercise, { catalog: exerciseCatalog }),
+    [exerciseCatalog]
+  );
   const {
     state: session,
     dispatch,
@@ -514,7 +478,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     removeExercise,
     setActiveCell,
     reinitializeSession,
-  } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit);
+  } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit, {
+    resolveExerciseName,
+  });
 
   const hasCompletedSets = useMemo(
     () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),
@@ -531,6 +497,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   );
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
   const prevSessionProgramRef = useRef(sessionProgram);
+  const prevResolveExerciseNameRef = useRef(resolveExerciseName);
 
   useEffect(() => {
     if (prevSessionProgramRef.current === sessionProgram) return;
@@ -552,6 +519,13 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     if (hasCompletedSets || hasTouchedSets) return;
     reinitializeSession();
   }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionWeightUnit]);
+
+  useEffect(() => {
+    if (prevResolveExerciseNameRef.current === resolveExerciseName) return;
+    prevResolveExerciseNameRef.current = resolveExerciseName;
+    if (hasCompletedSets || hasTouchedSets) return;
+    reinitializeSession();
+  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, resolveExerciseName]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -596,7 +570,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const saveInFlightRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const calculateSessionStats = (blocks: Block[]) => {
+  const calculateSessionStats = useCallback((blocks: Block[]) => {
     let totalVolume = 0;
     let totalSets = 0;
     let totalReps = 0;
@@ -627,8 +601,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
     blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
-        const { primary, secondary } = resolveMuscleBlend(exercise);
-        const bodyweightExercise = isBodyweight(exercise.name);
+        const { primary, secondary } = resolveMuscleProfile(exercise);
+        const resolvedExerciseName = resolveExerciseDisplayName(exercise.id, {
+          catalog: exerciseCatalog,
+          cachedName: exercise.name,
+        });
+        const bodyweightExercise = isBodyweight(resolvedExerciseName);
         exercise.sets.forEach((set) => {
           if (!set.completed) return;
           const weight = Number(set.weight) || 0;
@@ -658,9 +636,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       pulseMap,
       maxWeight: Math.max(1, maxWeight),
     };
-  };
+  }, [exerciseCatalog, resolveMuscleProfile]);
 
-  const sessionStats = useMemo(() => calculateSessionStats(session.blocks), [session.blocks]);
+  const sessionStats = useMemo(
+    () => calculateSessionStats(session.blocks),
+    [calculateSessionStats, session.blocks]
+  );
   const maxSessionVolume = useMemo(
     () => Math.max(1, ...sessionStats.pulseMap.map((entry) => entry.volume)),
     [sessionStats.pulseMap]
@@ -853,7 +834,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           const volume = weightLbs > 0 ? weightLbs * reps : 0;
 
           const current = currentByExercise.get(exercise.id) ?? {
-            exerciseName: exercise.name,
+            exerciseName: resolveExerciseDisplayName(exercise.id, {
+              catalog: exerciseCatalog,
+              cachedName: exercise.name,
+            }),
             maxWeight: 0,
             maxReps: 0,
             maxE1RM: 0,
@@ -919,7 +903,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     return hits
       .sort((a, b) => (b.current - b.previous) - (a.current - a.previous))
       .slice(0, 8);
-  }, [cloudPrBaseline, isSummaryOpen, session.blocks, sessionWeightUnit]);
+  }, [cloudPrBaseline, exerciseCatalog, isSummaryOpen, session.blocks, sessionWeightUnit]);
   const legendItems = useMemo(() => {
     const activeGroups = new Set<MuscleGroup>();
     const groupCounts = new Map<MuscleGroup, number>();
@@ -1429,7 +1413,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     let autoCompletedSets = 0;
     session.blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
-        const bodyweightExercise = isBodyweight(exercise.name);
+        const resolvedExerciseName = resolveExerciseDisplayName(exercise.id, {
+          catalog: exerciseCatalog,
+          cachedName: exercise.name,
+        });
+        const bodyweightExercise = isBodyweight(resolvedExerciseName);
         exercise.sets.forEach((set, index) => {
           const rawReps = set.reps === null || set.reps === undefined ? null : Number(set.reps);
           const reps = rawReps == null ? 8 : rawReps;
@@ -1448,7 +1436,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           sets.push({
             id: set.id,
             exerciseId: exercise.id,
-            exerciseName: exercise.name,
+            exerciseName: resolveExerciseDisplayName(exercise.id, {
+              catalog: exerciseCatalog,
+              cachedName: resolvedExerciseName,
+            }),
             setIndex: index + 1,
             prescribedReps: String(reps),
             prescribedRPE: set.rpe ?? null,
@@ -1740,7 +1731,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     focusedRef?.blockType === 'superset' && focusContext?.exercise.slot
       ? focusContext.exercise.slot
       : null;
-  const bodyweightExercise = focusedRef ? isBodyweight(focusedRef.exercise.name) : false;
+  const bodyweightExercise = focusedRef ? isBodyweight(getExerciseDisplayName(focusedRef.exercise)) : false;
   const isWeightActive = activeInput?.field === 'weight';
   const isRepsActive = activeInput?.field === 'reps';
 
@@ -1748,6 +1739,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
     : null;
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
+  const nextExerciseDisplayName = nextSetContext ? getExerciseDisplayName(nextSetContext.exercise) : undefined;
+  const focusedExerciseDisplayName = focusedRef ? getExerciseDisplayName(focusedRef.exercise) : undefined;
   const restDurationSeconds = useMemo(() => {
     if (!restContext) return DEFAULT_REST_SECONDS;
     if (restContext.clusterTransition && restContext.clusterRestSeconds) {
@@ -1759,14 +1752,25 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     }
     const exercise = block?.exercises.find((entry) => entry.id === restContext.exerciseId);
     if (!exercise) return DEFAULT_REST_SECONDS;
-    return getRestDurationSeconds(exercise);
-  }, [restContext, session.blocks]);
+    return getRestDurationSeconds(exercise, resolveMuscleProfile);
+  }, [resolveMuscleProfile, restContext, session.blocks]);
+
+  const availableExercises = useMemo<CommonExercise[]>(() => {
+    const byId = new Map<string, CommonExercise>();
+    COMMON_EXERCISES.forEach((exercise) => {
+      byId.set(exercise.id, exercise);
+    });
+    customExercises.forEach((exercise) => {
+      byId.set(exercise.id, { id: exercise.id, name: exercise.name });
+    });
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [customExercises]);
 
   const filteredExercises = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return COMMON_EXERCISES;
-    return COMMON_EXERCISES.filter((exercise) => exercise.name.toLowerCase().includes(query));
-  }, [searchQuery]);
+    if (!query) return availableExercises;
+    return availableExercises.filter((exercise) => exercise.name.toLowerCase().includes(query));
+  }, [availableExercises, searchQuery]);
 
   useEffect(() => {
     if (isBackNavRef.current) {
@@ -1841,10 +1845,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 onClick={() => setRevealedId(null)}
               >
                 {exerciseRefs.map((entry) => {
-                  const style = getExerciseStyle(entry.exercise);
+                  const style = getExerciseStyle(entry.exercise, resolveMuscleProfile);
                   const StyleIcon = style.icon;
                   const isRevealed = revealedId === entry.exercise.id;
-                  const bodyweightExercise = isBodyweight(entry.exercise.name);
+                  const displayName = getExerciseDisplayName(entry.exercise);
+                  const bodyweightExercise = isBodyweight(displayName);
 
                   return (
                     <div key={entry.exercise.id} className="relative overflow-hidden rounded-2xl">
@@ -1853,7 +1858,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         onClick={() => handleRemoveExercise(entry.blockId, entry.exercise.id)}
                         onPointerDown={(event) => event.stopPropagation()}
                         className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-rose-600/90"
-                        aria-label={`Delete ${entry.exercise.name}`}
+                        aria-label={`Delete ${displayName}`}
                       >
                         <Trash2 className="h-5 w-5 text-white" />
                       </button>
@@ -1918,7 +1923,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                                   {style.isCompound ? 'COMP' : 'ISO'}
                                 </span>
                               </div>
-                              <p className="text-3xl font-black italic text-white">{entry.exercise.name}</p>
+                              <p className="text-3xl font-black italic text-white">{displayName}</p>
                             </div>
                             <div
                               className="data-stream flex gap-2 overflow-x-auto pr-8 pb-1"
@@ -2015,7 +2020,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 w-full flex flex-col overflow-hidden relative select-none touch-none pb-32"
+              className="flex-1 w-full flex flex-col overflow-hidden relative select-none pb-32"
             >
             <header className="mb-6 flex items-center gap-4 px-4">
               <button
@@ -2032,7 +2037,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
               <div>
                 {focusedRef && (() => {
-                  const style = getExerciseStyle(focusedRef.exercise);
+                  const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
                   const StyleIcon = style.icon;
                   return (
                     <div className="mb-1 flex items-center gap-2">
@@ -2059,7 +2064,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                     </div>
                   );
                 })()}
-                <h2 className="text-4xl font-black text-white">{focusedRef?.exercise.name ?? 'Exercise'}</h2>
+                <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
               </div>
             </header>
 
@@ -2211,8 +2216,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 showUpNext={!restContext?.wasEditing}
                 nextSetInfo={{
                   exerciseName: restContext?.clusterTransition
-                    ? nextSetContext?.exercise.name ?? focusedRef?.exercise.name
-                    : nextSetContext?.exercise.name,
+                    ? nextExerciseDisplayName ?? focusedExerciseDisplayName
+                    : nextExerciseDisplayName,
                   setNumber: restContext?.clusterTransition ? undefined : nextSetNumber,
                   weight: restContext?.clusterTransition ? undefined : nextSetContext?.set.weight ?? undefined,
                   reps: restContext?.clusterTransition
@@ -2334,7 +2339,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
             <div className="mt-8 flex-1 overflow-y-auto">
               {filteredExercises.map((exercise) => {
-                const style = getExerciseStyle(exercise);
+                const style = getExerciseStyle(exercise, resolveMuscleProfile);
                 const StyleIcon = style.icon;
                 return (
                   <button
@@ -2605,7 +2610,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             transition={{ duration: 0.2 }}
             className="fixed bottom-0 left-0 right-0 z-[200] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800 pb-safe"
           >
-            <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] touch-none">
+            <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[0.65rem] font-mono uppercase tracking-[0.4em] text-zinc-500">
                   {activeInput.field === 'weight' ? 'WEIGHT' : 'REPS'}
