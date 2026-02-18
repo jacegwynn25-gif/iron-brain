@@ -59,6 +59,7 @@ type WorkoutSessionAction =
     type: 'ADD_EXERCISE';
     payload: {
       name: string;
+      setCount?: number;
     };
   }
   | {
@@ -663,10 +664,10 @@ function workoutSessionReducer(
       const blocks = cloneBlocks(state.blocks);
       const blockId = createId('block');
       const exerciseId = createId('exercise');
-      const setId = createId('set');
-      const newSet: SessionSet = {
-        id: setId,
-        type: 'working',
+      const count = Math.max(1, action.payload.setCount ?? 1);
+      const sets: SessionSet[] = Array.from({ length: count }, () => ({
+        id: createId('set'),
+        type: 'working' as const,
         weight: null,
         reps: 8,
         rpe: null,
@@ -678,13 +679,13 @@ function workoutSessionReducer(
         cluster: null,
         completed: false,
         previous: null,
-      };
+      }));
       const newExercise: Exercise = {
         id: exerciseId,
         name: action.payload.name,
         notes: '',
         historyNote: null,
-        sets: [newSet],
+        sets,
       };
       const newBlock: Block = {
         id: blockId,
@@ -870,10 +871,10 @@ export function useWorkoutSession(
     });
   }, []);
 
-  const addExercise = useCallback((name: string) => {
+  const addExercise = useCallback((name: string, setCount = 1) => {
     dispatch({
       type: 'ADD_EXERCISE',
-      payload: { name },
+      payload: { name, setCount },
     });
   }, []);
 

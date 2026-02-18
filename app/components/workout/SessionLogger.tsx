@@ -555,6 +555,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const [keypadArmed, setKeypadArmed] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
+  const [pendingAddName, setPendingAddName] = useState<string | null>(null);
+  const [pendingSetCount, setPendingSetCount] = useState(3);
   const [cloudPrBaseline, setCloudPrBaseline] = useState<Record<string, PrBaseline>>({});
   const [isPrBaselineSyncing, setIsPrBaselineSyncing] = useState(false);
   const [clusterProgressBySetId, setClusterProgressBySetId] = useState<Record<string, number>>({});
@@ -1372,7 +1374,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       return;
     }
     if (isAddMovementOpen) {
-      setIsAddMovementOpen(false);
+      if (pendingAddName !== null) {
+        setPendingAddName(null);
+      } else {
+        setIsAddMovementOpen(false);
+      }
       return;
     }
     if (activeInput) {
@@ -1713,10 +1719,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     }
   };
 
-  const handleAddExercise = (name: string) => {
-    addExercise(name);
+  const handleAddExercise = (name: string, setCount = 1) => {
+    addExercise(name, setCount);
     setPendingExerciseName(name);
     setIsAddMovementOpen(false);
+    setPendingAddName(null);
     setSearchQuery('');
     setTimeout(() => {
       overviewScrollRef.current?.scrollTo({
@@ -2335,81 +2342,140 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+4rem)] flex flex-col"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-black text-white">ADD MOVEMENT</h3>
-              <button
-                type="button"
-                onClick={() => setIsAddMovementOpen(false)}
-                className="text-zinc-500 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <input
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search"
-                className="w-full bg-transparent text-3xl text-white placeholder:text-zinc-800 focus:outline-none"
-              />
-            </div>
-
-            <div className="mt-8 flex-1 overflow-y-auto">
-              {customExercisesLoading && (
-                <div className="mb-4 space-y-2">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className="h-[72px] rounded-2xl bg-zinc-900 animate-pulse" />
-                  ))}
-                </div>
-              )}
-              {filteredExercises.map((exercise) => {
-                const style = getExerciseStyle(exercise, resolveMuscleProfile);
-                const StyleIcon = style.icon;
-                return (
+            {pendingAddName !== null ? (
+              /* ── Set-count step ── */
+              <>
+                <div className="flex items-center justify-between">
                   <button
-                    key={exercise.id}
                     type="button"
-                    onClick={() => handleAddExercise(exercise.name)}
-                    className="w-full py-4 border-b border-zinc-900 text-left"
+                    onClick={() => setPendingAddName(null)}
+                    className="text-zinc-500 active:opacity-60 transition-opacity"
                   >
-                    <div className="flex items-center gap-3 mb-1">
-                      <ExerciseBadge icon={StyleIcon} style={style} />
-                      <span
-                        className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
-                          }`}
-                        style={{
-                          color: style.isCompound ? undefined : style.primaryColor,
-                          backgroundImage: style.isCompound
-                            ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                            : undefined,
-                        }}
-                      >
-                        {style.label}
-                      </span>
-                      <span
-                        className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                        style={{ color: style.secondaryColor }}
-                      >
-                        {style.isCompound ? 'COMP' : 'ISO'}
-                      </span>
-                    </div>
-                    <p className="text-white text-xl font-bold">{exercise.name}</p>
+                    ← Back
                   </button>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddMovementOpen(false); setPendingAddName(null); }}
+                    className="text-zinc-500 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
 
-              {searchQuery.trim().length > 0 && filteredExercises.length === 0 && (
-                <button
-                  type="button"
-                  onClick={() => handleAddExercise(searchQuery.trim())}
-                  className="mt-6 text-emerald-400 text-lg font-semibold"
-                >
-                  Create &quot;{searchQuery.trim()}&quot;
-                </button>
-              )}
-            </div>
+                <div className="flex flex-1 flex-col items-center justify-center gap-10">
+                  <div className="text-center">
+                    <p className="text-xs font-mono uppercase tracking-[0.35em] text-zinc-500">Adding</p>
+                    <p className="mt-2 text-2xl font-black text-white">{pendingAddName}</p>
+                  </div>
+
+                  <p className="text-sm text-zinc-400">How many sets?</p>
+
+                  <div className="grid grid-cols-4 gap-3 w-full max-w-xs">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setPendingSetCount(n)}
+                        className={`rounded-2xl py-4 text-xl font-black transition-all active:scale-95 ${
+                          pendingSetCount === n
+                            ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30'
+                            : 'bg-zinc-900 text-zinc-300'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddExercise(pendingAddName, pendingSetCount)}
+                    className="w-full max-w-xs rounded-2xl bg-emerald-500 py-4 text-sm font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                  >
+                    Add {pendingSetCount} Set{pendingSetCount !== 1 ? 's' : ''}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* ── Exercise search step ── */
+              <>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black text-white">ADD MOVEMENT</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMovementOpen(false)}
+                    className="text-zinc-500 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-6">
+                  <input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search"
+                    className="w-full bg-transparent text-3xl text-white placeholder:text-zinc-800 focus:outline-none"
+                  />
+                </div>
+
+                <div className="mt-8 flex-1 overflow-y-auto">
+                  {customExercisesLoading && (
+                    <div className="mb-4 space-y-2">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="h-[72px] rounded-2xl bg-zinc-900 animate-pulse" />
+                      ))}
+                    </div>
+                  )}
+                  {filteredExercises.map((exercise) => {
+                    const style = getExerciseStyle(exercise, resolveMuscleProfile);
+                    const StyleIcon = style.icon;
+                    return (
+                      <button
+                        key={exercise.id}
+                        type="button"
+                        onClick={() => { setPendingAddName(exercise.name); setPendingSetCount(3); }}
+                        className="w-full py-4 border-b border-zinc-900 text-left"
+                      >
+                        <div className="flex items-center gap-3 mb-1">
+                          <ExerciseBadge icon={StyleIcon} style={style} />
+                          <span
+                            className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                              }`}
+                            style={{
+                              color: style.isCompound ? undefined : style.primaryColor,
+                              backgroundImage: style.isCompound
+                                ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                                : undefined,
+                            }}
+                          >
+                            {style.label}
+                          </span>
+                          <span
+                            className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                            style={{ color: style.secondaryColor }}
+                          >
+                            {style.isCompound ? 'COMP' : 'ISO'}
+                          </span>
+                        </div>
+                        <p className="text-white text-xl font-bold">{exercise.name}</p>
+                      </button>
+                    );
+                  })}
+
+                  {searchQuery.trim().length > 0 && filteredExercises.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setPendingAddName(searchQuery.trim()); setPendingSetCount(3); }}
+                      className="mt-6 text-emerald-400 text-lg font-semibold"
+                    >
+                      Create &quot;{searchQuery.trim()}&quot;
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
