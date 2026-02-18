@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BookOpen, ChevronRight, Play, RotateCcw } from 'lucide-react';
-import { getProgramProgress, resolveProgramDay } from '../lib/programs/progress';
+import { ArrowRight, BookOpen, ChevronDown, ChevronRight, ChevronUp, Play, RotateCcw } from 'lucide-react';
+import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../lib/programs/progress';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
 
@@ -17,6 +17,8 @@ export default function StartWorkoutPage() {
   const { user } = useAuth();
   const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
   const namespaceId = user?.id ?? 'guest';
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
+  const [overrideProgress, setOverrideProgress] = useState<ProgramProgress | null>(null);
 
   const selectedProgramProgress = useMemo(() => {
     if (!selectedProgram) return null;
@@ -25,8 +27,13 @@ export default function StartWorkoutPage() {
 
   const selectedProgramDay = useMemo(() => {
     if (!selectedProgram || !selectedProgramProgress) return null;
-    return resolveProgramDay(selectedProgram, selectedProgramProgress);
-  }, [selectedProgram, selectedProgramProgress]);
+    return resolveProgramDay(selectedProgram, overrideProgress ?? selectedProgramProgress);
+  }, [selectedProgram, selectedProgramProgress, overrideProgress]);
+
+  const effectiveProgress = useMemo(() => {
+    if (!selectedProgram) return null;
+    return overrideProgress ?? selectedProgramProgress;
+  }, [overrideProgress, selectedProgramProgress, selectedProgram]);
 
   const recentPrograms = useMemo<RecentProgram[]>(() => {
     const selected = selectedProgram ? [{ id: selectedProgram.id, name: selectedProgram.name }] : [];
@@ -44,10 +51,9 @@ export default function StartWorkoutPage() {
   }, [allPrograms, selectedProgram]);
 
   const handleStartSession = () => {
-    if (selectedProgram?.id) {
-      const progress = getProgramProgress(selectedProgram, namespaceId);
+    if (selectedProgram?.id && effectiveProgress) {
       router.push(
-        `/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`
+        `/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}&week=${effectiveProgress.weekIndex}&day=${effectiveProgress.dayIndex}&cycle=${effectiveProgress.cycleNumber}`
       );
       return;
     }
@@ -85,8 +91,8 @@ export default function StartWorkoutPage() {
           {loading
             ? 'Loading your program library...'
             : selectedProgram
-            ? `Current Program: ${selectedProgram.name}`
-            : 'No program selected. Launch now and build in-session.'}
+              ? `Current Program: ${selectedProgram.name}`
+              : 'No program selected. Launch now and build in-session.'}
         </p>
       </header>
 
@@ -107,6 +113,91 @@ export default function StartWorkoutPage() {
           </div>
           <ChevronRight className="h-4 w-4 text-zinc-600" />
         </button>
+
+        {selectedProgram && selectedProgramDay?.day && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setDayPickerOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
+            >
+              <span>{overrideProgress ? 'Undo Day Change' : 'Change Day'}</span>
+              {dayPickerOpen ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+
+            {overrideProgress && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOverrideProgress(null);
+                  setDayPickerOpen(false);
+                }}
+                className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-400"
+              >
+                Reset
+              </button>
+            )}
+
+            {dayPickerOpen && (
+              <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/80 p-3">
+                {selectedProgram.weeks.map((week, wIdx) => (
+                  <div key={wIdx} className="mb-3 last:mb-0">
+                    <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.35em] text-zinc-600">
+                      Week {week.weekNumber}
+                    </p>
+                    <div className="space-y-1">
+                      {week.days.map((day, dIdx) => {
+                        const isAutoDay =
+                          !overrideProgress &&
+                          selectedProgramProgress &&
+                          wIdx === selectedProgramProgress.weekIndex &&
+                          dIdx === selectedProgramProgress.dayIndex;
+                        const isSelected =
+                          overrideProgress &&
+                          wIdx === overrideProgress.weekIndex &&
+                          dIdx === overrideProgress.dayIndex;
+                        const isHighlighted = isAutoDay || isSelected;
+
+                        return (
+                          <button
+                            key={`${wIdx}-${dIdx}`}
+                            type="button"
+                            onClick={() => {
+                              setOverrideProgress({
+                                weekIndex: wIdx,
+                                dayIndex: dIdx,
+                                cycleNumber: selectedProgramProgress?.cycleNumber ?? 1,
+                              });
+                              setDayPickerOpen(false);
+                            }}
+                            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${isHighlighted
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                              }`}
+                          >
+                            <span className="w-8 shrink-0 font-bold text-zinc-600">
+                              {day.dayOfWeek}
+                            </span>
+                            <span className="font-medium">{day.name}</span>
+                            {isAutoDay && (
+                              <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                                Next
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="pt-8 space-y-3">

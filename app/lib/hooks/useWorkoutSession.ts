@@ -24,73 +24,73 @@ export interface UseWorkoutSessionOptions {
 
 type WorkoutSessionAction =
   | {
-      type: 'INITIALIZE_SESSION';
-      payload: {
-        program: ProgramTemplate;
-        readinessModifier: number;
-        resolveExerciseName?: (exerciseId: string) => string;
-      };
-    }
-  | {
-      type: 'UPDATE_SET';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-        setId: string;
-        updates: UpdateSetPayload;
-      };
-    }
-  | {
-      type: 'TOGGLE_COMPLETE';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-        setId: string;
-      };
-    }
-  | {
-      type: 'ADD_SET';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-      };
-    }
-  | {
-      type: 'ADD_EXERCISE';
-      payload: {
-        name: string;
-      };
-    }
-  | {
-      type: 'REMOVE_EXERCISE';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-      };
-    }
-  | {
-      type: 'REMOVE_SET';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-        setId: string;
-      };
-    }
-  | {
-      type: 'UPDATE_NOTE';
-      payload: {
-        blockId: string;
-        exerciseId: string;
-        notes: string;
-      };
-    }
-  | {
-      type: 'SET_ACTIVE_CELL';
-      payload: ActiveCell | null;
-    }
-  | {
-      type: 'FINISH_SESSION';
+    type: 'INITIALIZE_SESSION';
+    payload: {
+      program: ProgramTemplate;
+      readinessModifier: number;
+      resolveExerciseName?: (exerciseId: string) => string;
     };
+  }
+  | {
+    type: 'UPDATE_SET';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      setId: string;
+      updates: UpdateSetPayload;
+    };
+  }
+  | {
+    type: 'TOGGLE_COMPLETE';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      setId: string;
+    };
+  }
+  | {
+    type: 'ADD_SET';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+    };
+  }
+  | {
+    type: 'ADD_EXERCISE';
+    payload: {
+      name: string;
+    };
+  }
+  | {
+    type: 'REMOVE_EXERCISE';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+    };
+  }
+  | {
+    type: 'REMOVE_SET';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      setId: string;
+    };
+  }
+  | {
+    type: 'UPDATE_NOTE';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      notes: string;
+    };
+  }
+  | {
+    type: 'SET_ACTIVE_CELL';
+    payload: ActiveCell | null;
+  }
+  | {
+    type: 'FINISH_SESSION';
+  };
 
 interface SessionPayload {
   status: 'finished';
@@ -392,10 +392,10 @@ function buildBlocksFromProgram(
       const templateExercises =
         templateBlock.type === 'superset'
           ? [...(templateBlock.exercises ?? [])].sort((a, b) => {
-              const rankA = a.slot === 'A1' ? 0 : a.slot === 'A2' ? 1 : 9;
-              const rankB = b.slot === 'A1' ? 0 : b.slot === 'A2' ? 1 : 9;
-              return rankA - rankB;
-            })
+            const rankA = a.slot === 'A1' ? 0 : a.slot === 'A2' ? 1 : 9;
+            const rankB = b.slot === 'A1' ? 0 : b.slot === 'A2' ? 1 : 9;
+            return rankA - rankB;
+          })
           : templateBlock.exercises ?? [];
       const sessionBlock: Block = {
         id: createId('block'),
@@ -417,8 +417,8 @@ function buildBlocksFromProgram(
             weightUnit,
             templateBlock.type === 'superset'
               ? {
-                  supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
-                }
+                supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
+              }
               : undefined
           )
         );
@@ -537,6 +537,12 @@ function workoutSessionReducer(
       if (hasCompletedOrTouchedSets(state.blocks)) {
         return state;
       }
+      // Don't reinitialize if session was created very recently — the user may
+      // already be viewing it even though they haven't interacted with a set yet.
+      const ageMs = Date.now() - state.startTime.getTime();
+      if (state.blocks.length > 0 && ageMs < 2000) {
+        return state;
+      }
       return createInitialSessionState(
         action.payload.program,
         action.payload.readinessModifier,
@@ -628,9 +634,9 @@ function workoutSessionReducer(
         supersetGroup: lastSet?.supersetGroup ?? null,
         cluster: lastSet?.cluster
           ? {
-              reps: [...lastSet.cluster.reps],
-              restSeconds: lastSet.cluster.restSeconds,
-            }
+            reps: [...lastSet.cluster.reps],
+            restSeconds: lastSet.cluster.restSeconds,
+          }
           : null,
         completed: false,
         previous:
@@ -745,10 +751,10 @@ function workoutSessionReducer(
       const fallbackSet = exercise.sets[removeIndex] ?? exercise.sets[removeIndex - 1] ?? null;
       const fallbackRef = fallbackSet
         ? {
-            blockId: action.payload.blockId,
-            exerciseId: action.payload.exerciseId,
-            setId: fallbackSet.id,
-          }
+          blockId: action.payload.blockId,
+          exerciseId: action.payload.exerciseId,
+          setId: fallbackSet.id,
+        }
         : findFirstSetRef(blocks);
 
       return {

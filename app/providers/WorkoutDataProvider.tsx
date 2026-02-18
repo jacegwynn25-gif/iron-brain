@@ -32,6 +32,23 @@ const WorkoutDataContext = createContext<WorkoutDataContextValue | null>(null);
 const getSortTime = (session: WorkoutSession) =>
   new Date(session.endTime || session.startTime || session.date).getTime();
 
+const CLOUD_SYNC_LIMIT = 120;
+const CLOUD_SYNC_STALE_MS = 120_000;
+const PASSIVE_RELOAD_DEBOUNCE_MS = 500;
+
+type ReloadReason =
+  | 'initial'
+  | 'user-change'
+  | 'focus'
+  | 'visibility'
+  | 'sync-event'
+  | 'manual';
+
+type LoadWorkoutsOptions = {
+  reason?: ReloadReason;
+  skipCloudIfFresh?: boolean;
+};
+
 type WorkoutSet = WorkoutSession['sets'][number];
 
 const normalizeSetKey = (set: WorkoutSet): string => {
@@ -92,16 +109,25 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
   const [error, setError] = useState<Error | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const initialLoadDone = useRef(false);
+  const lastCloudSyncAtRef = useRef<number>(0);
+  const passiveReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadWorkouts = useCallback(async () => {
+  const loadWorkouts = useCallback(async (options?: LoadWorkoutsOptions) => {
     // Gate: wait for data layer to be ready
     if (!isReady) {
       await waitForReady();
     }
 
+    const loadStartedAt = performance.now();
+
     // withLock guarantees cleanup even on errors/early returns
     const result = await withLock(async () => {
-      setLoading(true);
+      // Passive reloads (focus/visibility/sync) update data silently to avoid
+      // cascading re-renders through the provider tree during active workouts.
+      const isPassive = options?.reason === 'focus' || options?.reason === 'visibility' || options?.reason === 'sync-event';
+      if (!isPassive) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -125,10 +151,17 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
           return sortedLocal;
         }
 
+        if (
+          options?.skipCloudIfFresh &&
+          Date.now() - lastCloudSyncAtRef.current < CLOUD_SYNC_STALE_MS
+        ) {
+          return sortedLocal;
+        }
+
         // Step 3: Cloud sync
         setIsSyncing(true);
 
-        const { data: sessions, error: cloudError } = await supabase
+        const cloudRequest = supabase
           .from('workout_sessions')
           .select(`
             id,
@@ -157,13 +190,25 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
           `)
           .eq('user_id', userId)
           .is('deleted_at', null)
-          .order('date', { ascending: false });
+          .order('date', { ascending: false })
+          .limit(CLOUD_SYNC_LIMIT);
+
+        type CloudResponse = Awaited<typeof cloudRequest>;
+        const timeoutPromise: Promise<never> = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Cloud workout fetch timed out')), 10000)
+        );
+        const { data: sessions, error: cloudError }: CloudResponse = await Promise.race([
+          cloudRequest,
+          timeoutPromise,
+        ]);
 
         if (cloudError) {
           console.error('[WorkoutData] Cloud sync error:', cloudError);
           // Continue with local data
           return sortedLocal;
         }
+
+        lastCloudSyncAtRef.current = Date.now();
 
         // Step 4: Transform and merge
         const cloudWorkouts = transformCloudWorkouts(sessions ?? [], exerciseCatalog);
@@ -185,38 +230,51 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
         setLoading(false);
         setIsSyncing(false);
         initialLoadDone.current = true;
+        const loadDurationMs = Math.round(performance.now() - loadStartedAt);
+        console.debug('[WorkoutData] load completed', {
+          reason: options?.reason ?? 'unknown',
+          durationMs: loadDurationMs,
+        });
       }
     });
 
     return result;
   }, [isReady, waitForReady, withLock, userId]);
 
+  const schedulePassiveReload = useCallback((reason: ReloadReason) => {
+    if (!isReady) return;
+    if (passiveReloadTimerRef.current) {
+      clearTimeout(passiveReloadTimerRef.current);
+    }
+    passiveReloadTimerRef.current = setTimeout(() => {
+      void loadWorkouts({ reason, skipCloudIfFresh: true });
+    }, PASSIVE_RELOAD_DEBOUNCE_MS);
+  }, [isReady, loadWorkouts]);
+
   // Initial load when ready
   useEffect(() => {
     if (isReady && !initialLoadDone.current) {
-      loadWorkouts();
+      void loadWorkouts({ reason: 'initial' });
     }
   }, [isReady, loadWorkouts]);
 
   // Reload on user change
   useEffect(() => {
     if (isReady && initialLoadDone.current) {
-      loadWorkouts();
+      void loadWorkouts({ reason: 'user-change' });
     }
   }, [userId, isReady, loadWorkouts]);
 
   // Reload on visibility/focus
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && isReady) {
-        loadWorkouts();
+      if (document.visibilityState === 'visible') {
+        schedulePassiveReload('visibility');
       }
     };
 
     const handleFocus = () => {
-      if (isReady) {
-        loadWorkouts();
-      }
+      schedulePassiveReload('focus');
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
@@ -226,14 +284,12 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isReady, loadWorkouts]);
+  }, [schedulePassiveReload]);
 
   // Listen for sync status changes (e.g., after saving a workout)
   useEffect(() => {
     const handleSyncChange = () => {
-      if (isReady) {
-        loadWorkouts();
-      }
+      schedulePassiveReload('sync-event');
     };
 
     window.addEventListener('syncStatusChanged', handleSyncChange);
@@ -243,14 +299,22 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
       window.removeEventListener('syncStatusChanged', handleSyncChange);
       window.removeEventListener('workoutSaved', handleSyncChange);
     };
-  }, [isReady, loadWorkouts]);
+  }, [schedulePassiveReload]);
+
+  useEffect(() => {
+    return () => {
+      if (passiveReloadTimerRef.current) {
+        clearTimeout(passiveReloadTimerRef.current);
+      }
+    };
+  }, []);
 
   const value: WorkoutDataContextValue = {
     workouts,
     loading: loading || isInitializing,
     error,
     isSyncing,
-    reload: loadWorkouts,
+    reload: () => loadWorkouts({ reason: 'manual' }),
     isReady,
     isInitializing,
   };

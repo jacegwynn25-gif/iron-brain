@@ -628,6 +628,7 @@ export default function ProgramsPage() {
     builtInProgramIds,
     loading,
     error,
+    cloudSaveError,
     selectProgram,
     saveProgram,
     deleteProgram,
@@ -2371,6 +2372,9 @@ export default function ProgramsPage() {
             </section>
 
             {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
+            {cloudSaveError && (
+              <p className="border-t border-zinc-900 pt-4 text-xs text-amber-400">{cloudSaveError}</p>
+            )}
           </>
         )}
 

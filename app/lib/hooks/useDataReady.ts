@@ -36,7 +36,7 @@ interface DataReadyState {
  * ```
  */
 export function useDataReady(): DataReadyState {
-  const { user, loading: authLoading, namespaceReady, isSyncing } = useAuth();
+  const { user, loading: authLoading, namespaceReady } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const initRef = useRef(false);
   const resolversRef = useRef<Array<() => void>>([]);
@@ -45,8 +45,9 @@ export function useDataReady(): DataReadyState {
   const namespaceId = user?.id ?? 'default';
 
   useEffect(() => {
-    // All conditions must be true for data to be ready
-    const ready = !authLoading && namespaceReady && !isSyncing;
+    // Data is ready once auth has loaded and namespace is set.
+    // Syncing happens in the background and should NOT block readiness.
+    const ready = !authLoading && namespaceReady;
 
     if (ready && !initRef.current) {
       // Initialize namespace ONCE when ready
@@ -67,7 +68,7 @@ export function useDataReady(): DataReadyState {
       lastUserIdRef.current = user?.id ?? null;
       // No need to set isReady to false here - the namespace is immediately updated
     }
-  }, [authLoading, namespaceReady, isSyncing, user?.id]);
+  }, [authLoading, namespaceReady, user?.id]);
 
   const waitForReady = useCallback((): Promise<void> => {
     if (isReady) return Promise.resolve();
@@ -78,7 +79,7 @@ export function useDataReady(): DataReadyState {
 
   return {
     isReady,
-    isInitializing: authLoading || !namespaceReady || isSyncing,
+    isInitializing: authLoading || !namespaceReady,
     namespaceId,
     userId: user?.id ?? null,
     waitForReady,

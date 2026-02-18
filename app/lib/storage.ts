@@ -441,18 +441,20 @@ export async function saveWorkout(
 
       try {
         const completedSets = sessionToSave.sets?.filter((set) => set.completed !== false) ?? [];
-        const totalReps = completedSets.reduce((sum, set) => sum + (Number(set.actualReps) || 0), 0);
-        const totalVolume = completedSets.reduce((sum, set) => {
-          const reps = Number(set.actualReps) || 0;
-          const weight = Number(set.actualWeight) || 0;
-          if (reps <= 0 || weight <= 0) return sum;
-          const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
-          return sum + (weightLbs * reps);
-        }, 0);
-        const averageRpe =
-          completedSets.length > 0
-            ? completedSets.reduce((sum, set) => sum + (Number(set.actualRPE) || 0), 0) / completedSets.length
-            : null;
+        const { totalReps, totalVolume, rpeSum } = completedSets.reduce(
+          (acc, set) => {
+            const reps = Number(set.actualReps) || 0;
+            const weight = Number(set.actualWeight) || 0;
+            acc.totalReps += reps;
+            if (reps > 0 && weight > 0) {
+              acc.totalVolume += convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs') * reps;
+            }
+            acc.rpeSum += Number(set.actualRPE) || 0;
+            return acc;
+          },
+          { totalReps: 0, totalVolume: 0, rpeSum: 0 }
+        );
+        const averageRpe = completedSets.length > 0 ? rpeSum / completedSets.length : null;
 
         const upsertPromise = supabase
           .from('workout_sessions')
@@ -588,49 +590,7 @@ export async function saveWorkout(
         }
 
         if (!options?.skipAnalytics && !options?.criticalPathOnly) {
-          // PHASE 2: Save fatigue snapshot for cross-session tracking
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user && sessionToSave.sets.length > 0) {
-              // Calculate fatigue for all trained muscles
-              const completedSets = sessionToSave.sets.filter(s => s.completed && s.setType !== 'warmup');
-              if (completedSets.length > 0) {
-                // Track fatigue for all major muscle groups
-                const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
-                const fatigueScores = calculateMuscleFatigue(completedSets, muscleGroupsToTrack);
-
-                // Filter to only muscles with meaningful fatigue (>5)
-                const significantFatigue = fatigueScores.filter(f => f.fatigueLevel > 5);
-
-                if (significantFatigue.length > 0) {
-                  await saveFatigueSnapshot(user.id, sessionId, significantFatigue);
-                  logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
-                }
-
-                // PHASE 2.5: Save to NEW recovery system (fatigue_events table)
-                try {
-                  await saveFatigueEventsToNewSystem(user.id, sessionId, completedSets);
-                } catch (newSystemError) {
-                  console.error('Could not save to new recovery system:', newSystemError);
-                  // Non-critical - continue
-                }
-
-                // PHASE 3: Calculate and save SFR analysis
-                try {
-                  const sfrSummary = calculateWorkoutSFR(completedSets);
-                  if (sfrSummary.exerciseAnalyses.length > 0) {
-                    await saveSFRAnalysis(user.id, sessionId, sfrSummary);
-                  }
-                } catch (sfrError) {
-                  console.warn('Could not save SFR analysis:', sfrError);
-                  // Non-critical - continue
-                }
-              }
-            }
-          } catch (fatigueError) {
-            console.warn('Could not save fatigue snapshot:', fatigueError);
-            // Non-critical - continue
-          }
+          void runPostSaveAnalytics(user.id, sessionId, sessionToSave.sets);
         }
       } else {
         console.warn('No sets to save or session failed');
@@ -656,6 +616,45 @@ export async function saveWorkout(
   }
 
   return finalizeResult('completed');
+}
+
+async function runPostSaveAnalytics(
+  userId: string,
+  sessionId: string,
+  sets: SetLog[]
+): Promise<void> {
+  if (!userId || sets.length === 0) return;
+
+  try {
+    const completedSets = sets.filter((s) => s.completed && s.setType !== 'warmup');
+    if (completedSets.length === 0) return;
+
+    const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
+    const fatigueScores = calculateMuscleFatigue(completedSets, muscleGroupsToTrack);
+    const significantFatigue = fatigueScores.filter((f) => f.fatigueLevel > 5);
+
+    if (significantFatigue.length > 0) {
+      await saveFatigueSnapshot(userId, sessionId, significantFatigue);
+      logger.debug(`✅ Saved fatigue snapshot for ${significantFatigue.length} muscle groups`);
+    }
+
+    try {
+      await saveFatigueEventsToNewSystem(userId, sessionId, completedSets);
+    } catch (newSystemError) {
+      console.error('Could not save to new recovery system:', newSystemError);
+    }
+
+    try {
+      const sfrSummary = calculateWorkoutSFR(completedSets);
+      if (sfrSummary.exerciseAnalyses.length > 0) {
+        await saveSFRAnalysis(userId, sessionId, sfrSummary);
+      }
+    } catch (sfrError) {
+      console.warn('Could not save SFR analysis:', sfrError);
+    }
+  } catch (fatigueError) {
+    console.warn('Could not save fatigue snapshot:', fatigueError);
+  }
 }
 
 const normalizeWorkoutSessionId = (id: string) =>

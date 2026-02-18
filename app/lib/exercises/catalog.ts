@@ -48,13 +48,19 @@ const KNOWN_ACRONYMS = new Set(['rdl', 'ssb', 'ohp', 'db', 'bb', 'ez', 'pr', 'rm
 const HEURISTIC_BLEND_BY_ID: Record<string, [ExerciseMuscleGroup, ExerciseMuscleGroup]> = {
   bench_press: ['chest', 'triceps'],
   dips: ['chest', 'triceps'],
+  dip: ['chest', 'triceps'],
+  weighted_dip: ['chest', 'triceps'],
   overhead_press: ['shoulders', 'triceps'],
   pull_up: ['back', 'biceps'],
+  pullup: ['back', 'biceps'],
+  weighted_pullup: ['back', 'biceps'],
   chin_up: ['back', 'biceps'],
+  chinup: ['back', 'biceps'],
+  weighted_chinup: ['back', 'biceps'],
   barbell_row: ['back', 'biceps'],
   dumbbell_row: ['back', 'biceps'],
   lat_pulldown: ['back', 'biceps'],
-  face_pull: ['back', 'biceps'],
+  face_pull: ['shoulders', 'back'],
   back_squat: ['quads', 'glutes'],
   split_squat: ['quads', 'glutes'],
   lunges: ['quads', 'glutes'],
@@ -67,11 +73,28 @@ const HEURISTIC_BLEND_BY_ID: Record<string, [ExerciseMuscleGroup, ExerciseMuscle
 
 const HEURISTIC_PRIMARY_BY_ID: Record<string, ExerciseMuscleGroup> = {
   lateral_raise: 'shoulders',
+  lateral_raise_machine: 'shoulders',
+  db_lateral_raise: 'shoulders',
+  cable_lateral_raise: 'shoulders',
+  front_raise: 'shoulders',
+  rear_delt_fly: 'shoulders',
+  rear_delt_machine: 'shoulders',
+  arnold_press: 'shoulders',
+  shoulder_press_machine: 'shoulders',
   tricep_extension: 'triceps',
+  tricep_pressdown: 'triceps',
+  tricep_overhead_cable: 'triceps',
   bicep_curl: 'biceps',
+  db_curl: 'biceps',
+  bicep_curl_cable: 'biceps',
+  barbell_curl: 'biceps',
+  bicep_curl_hammer: 'biceps',
   calf_raise: 'calves',
+  seated_calf_raise: 'calves',
+  standing_calf_raise: 'calves',
   plank: 'core',
   ab_wheel: 'core',
+  hanging_leg_raise: 'core',
 };
 
 const COMMON_TARGET_BY_ID: Record<string, 'push' | 'pull' | 'legs' | 'core'> = {
@@ -163,21 +186,29 @@ export function buildExerciseCatalog(
   const entriesById = new Map<string, ExerciseCatalogEntry>();
   const lookupByKey = new Map<string, ExerciseCatalogEntry>();
 
-  const registerEntry = (entry: ExerciseCatalogEntry, aliases: string[] = []) => {
+  // Built-in exercises only need id + name-slug registered. The _/- variants are
+  // resolved at lookup time in resolveCatalogEntry, so pre-registering them is redundant.
+  const registerBuiltIn = (entry: ExerciseCatalogEntry) => {
     entriesById.set(entry.id, entry);
+    const nameDash = toSlug(entry.name, '-');
+    registerLookupKey(lookupByKey, entry.id, entry);
+    registerLookupKey(lookupByKey, nameDash, entry);
+  };
 
+  // Custom exercises need all alias variants since they may be referenced by
+  // user-defined slugs stored in historical set logs.
+  const registerCustom = (entry: ExerciseCatalogEntry, aliases: string[]) => {
+    entriesById.set(entry.id, entry);
     const idDash = entry.id.replace(/_/g, '-');
     const idUnderscore = entry.id.replace(/-/g, '_');
     const nameDash = toSlug(entry.name, '-');
     const nameUnderscore = toSlug(entry.name, '_');
     const keys = [entry.id, idDash, idUnderscore, nameDash, nameUnderscore, ...aliases];
-
     keys.forEach((key) => registerLookupKey(lookupByKey, key, entry));
   };
 
   builtInExercises.forEach((exercise) => {
-    const entry = createCatalogEntryFromDefault(exercise);
-    registerEntry(entry);
+    registerBuiltIn(createCatalogEntryFromDefault(exercise));
   });
 
   customExercises.forEach((exercise) => {
@@ -185,7 +216,7 @@ export function buildExerciseCatalog(
     const customSlugDash = toSlug(exercise.slug || exercise.name, '-');
     const customSlugUnderscore = toSlug(exercise.slug || exercise.name, '_');
 
-    registerEntry(entry, [
+    registerCustom(entry, [
       exercise.slug,
       customSlugDash,
       customSlugUnderscore,
@@ -400,10 +431,21 @@ function inferMuscleProfileFromHeuristics(
 
   const name = exerciseName.toLowerCase();
 
-  if (name.includes('bench') || name.includes('chest') || name.includes('dip')) {
+  // Shoulders — check BEFORE the back/pull group so 'lateral' isn't caught by 'lat'
+  if (name.includes('lateral') || name.includes('side delt') || name.includes('front raise') || name.includes('rear delt') || name.includes('raise')) {
+    return { primary: 'shoulders' };
+  }
+  if (name.includes('shoulder') || name.includes('ohp') || name.includes('military')) {
+    return { primary: 'shoulders', secondary: 'triceps' };
+  }
+
+  if (name.includes('bench') || name.includes('chest') || name.includes('pec')) {
     return { primary: 'chest', secondary: 'triceps' };
   }
-  if (name.includes('overhead') || name.includes('shoulder press') || name.includes('press')) {
+  if (name.includes('dip')) {
+    return { primary: 'chest', secondary: 'triceps' };
+  }
+  if (name.includes('overhead') || name.includes('press')) {
     if (name.includes('leg press')) {
       return { primary: 'quads', secondary: 'glutes' };
     }
@@ -415,7 +457,8 @@ function inferMuscleProfileFromHeuristics(
   if (name.includes('deadlift') || name.includes('rdl')) {
     return { primary: 'hamstrings', secondary: 'glutes' };
   }
-  if (name.includes('row') || name.includes('pull') || name.includes('lat') || name.includes('chin')) {
+  // Back — use word-boundary matching for 'lat' to avoid matching 'lateral'
+  if (name.includes('row') || name.includes('pulldown') || name.includes('pull-up') || name.includes('pull up') || name.includes('pullup') || name.includes('chin') || /\blat\b/.test(name) || name.includes('lat ')) {
     return { primary: 'back', secondary: 'biceps' };
   }
   if (name.includes('tricep')) return { primary: 'triceps' };

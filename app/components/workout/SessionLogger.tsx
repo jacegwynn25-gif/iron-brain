@@ -397,6 +397,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const [customExercisesLoading, setCustomExercisesLoading] = useState(true);
   const readinessModifier = readiness?.modifier ?? 0.85;
   const readinessScore = readiness?.score ?? 35;
   const sessionReadinessModifierRef = useRef<number | null>(null);
@@ -438,6 +439,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         if (active) {
           setCustomExercises([]);
         }
+      } finally {
+        if (active) setCustomExercisesLoading(false);
       }
     };
 
@@ -452,9 +455,17 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     () => buildExerciseCatalog(defaultExercises, customExercises),
     [customExercises]
   );
-  const resolveExerciseName = useCallback(
+  const resolveExerciseNameLatest = useCallback(
     (exerciseId: string) => resolveExerciseDisplayName(exerciseId, { catalog: exerciseCatalog }),
     [exerciseCatalog]
+  );
+  // Stable reference that always delegates to the latest catalog.
+  // Prevents callback identity changes from triggering session reinitialize.
+  const resolveExerciseNameRef = useRef(resolveExerciseNameLatest);
+  useEffect(() => { resolveExerciseNameRef.current = resolveExerciseNameLatest; }, [resolveExerciseNameLatest]);
+  const resolveExerciseName = useCallback(
+    (exerciseId: string) => resolveExerciseNameRef.current(exerciseId),
+    []
   );
   const getExerciseDisplayName = useCallback(
     (exercise: ExerciseIdentity) =>
@@ -497,7 +508,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   );
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
   const prevSessionProgramRef = useRef(sessionProgram);
-  const prevResolveExerciseNameRef = useRef(resolveExerciseName);
+
 
   useEffect(() => {
     if (prevSessionProgramRef.current === sessionProgram) return;
@@ -520,12 +531,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     reinitializeSession();
   }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionWeightUnit]);
 
-  useEffect(() => {
-    if (prevResolveExerciseNameRef.current === resolveExerciseName) return;
-    prevResolveExerciseNameRef.current = resolveExerciseName;
-    if (hasCompletedSets || hasTouchedSets) return;
-    reinitializeSession();
-  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, resolveExerciseName]);
+  // NOTE: The resolveExerciseName effect was removed. The callback is now
+  // stabilized via useRef so its identity never changes, preventing
+  // accidental session reinitializations when custom exercises load async.
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -1456,9 +1464,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             supersetGroup: set.supersetGroup ?? (block.type === 'superset' ? block.id : undefined),
             clusterRounds: set.cluster
               ? set.cluster.reps.map((clusterReps) => ({
-                  reps: clusterReps,
-                  restSeconds: set.cluster?.restSeconds ?? 20,
-                }))
+                reps: clusterReps,
+                restSeconds: set.cluster?.restSeconds ?? 20,
+              }))
               : undefined,
             timestamp: now.toISOString(),
           });
@@ -1491,12 +1499,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         averageRPE,
         metadata: programDayContext
           ? {
-              dayIndex: programDayContext.dayIndex,
-              weekIndex: programDayContext.weekIndex,
-              cycleNumber: programDayContext.cycleNumber,
-              dayOfWeek: programDayContext.day.dayOfWeek,
-              dayName: programDayContext.day.name,
-            }
+            dayIndex: programDayContext.dayIndex,
+            weekIndex: programDayContext.weekIndex,
+            cycleNumber: programDayContext.cycleNumber,
+            dayOfWeek: programDayContext.day.dayOfWeek,
+            dayName: programDayContext.day.name,
+          }
           : undefined,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
@@ -1626,8 +1634,17 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       }
 
       setFinishStatusMessage('Saved. Finishing up...');
+      // Save succeeded — navigate out
+      setIsSummaryOpen(false);
+      router.replace('/');
+      // Fallback in case navigation is interrupted in mobile webviews.
+      window.setTimeout(() => {
+        if (window.location.pathname.startsWith('/workout')) {
+          window.location.assign('/');
+        }
+      }, 900);
     } catch (error) {
-      console.error('Workout finish flow failed; continuing to exit session:', error);
+      console.error('Workout finish flow failed:', error);
       if (user?.id) {
         const message = error instanceof Error ? error.message : String(error);
         void trackUiEvent(
@@ -1646,18 +1663,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           user.id
         );
       }
-      setFinishStatusMessage('Saved locally. Exiting...');
+      // Stay on the workout screen so the user can retry
+      setFinishStatusMessage('Save failed \u2013 your data is safe. Try again.');
     } finally {
       saveInFlightRef.current = false;
-      setIsSummaryOpen(false);
       setIsFinishingWorkout(false);
-      router.replace('/');
-      // Fallback in case navigation is interrupted in mobile webviews.
-      window.setTimeout(() => {
-        if (window.location.pathname.startsWith('/workout')) {
-          window.location.assign('/');
-        }
-      }, 900);
     }
   };
 
@@ -1826,15 +1836,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       >
         <AnimatePresence mode="wait" initial={false}>
           {viewMode === 'overview' && (
-          <motion.div
-            key="overview"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
-            ref={overviewScrollRef}
-          >
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
+              ref={overviewScrollRef}
+            >
               <div className="px-4 pt-12 pb-4">
                 <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
                 <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
@@ -1904,9 +1914,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                               <div className="mb-1 flex items-center gap-2">
                                 <ExerciseBadge icon={StyleIcon} style={style} />
                                 <span
-                                  className={`text-xs font-bold tracking-[0.2em] ${
-                                    style.isCompound ? 'bg-clip-text text-transparent' : ''
-                                  }`}
+                                  className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                                    }`}
                                   style={{
                                     color: style.isCompound ? undefined : style.primaryColor,
                                     backgroundImage: style.isCompound
@@ -1969,11 +1978,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                                       setRevealedId(null);
                                       handleOpenFocus(entry, set.id);
                                     }}
-                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${
-                                      set.completed
-                                        ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                                        : 'border-zinc-800 bg-zinc-900 text-zinc-600'
-                                    }`}
+                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.completed
+                                      ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                      : 'border-zinc-800 bg-zinc-900 text-zinc-600'
+                                      }`}
                                   >
                                     {label}
                                   </button>
@@ -2022,169 +2030,167 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               transition={{ duration: 0.2 }}
               className="flex-1 w-full flex flex-col overflow-hidden relative select-none pb-32"
             >
-            <header className="mb-6 flex items-center gap-4 px-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode('overview');
-                  setFocusedExerciseId(null);
-                }}
-                className="inline-flex items-center text-zinc-400 transition-colors hover:text-white"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-              </button>
+              <header className="mb-6 flex items-center gap-4 px-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('overview');
+                    setFocusedExerciseId(null);
+                  }}
+                  className="inline-flex items-center text-zinc-400 transition-colors hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </button>
 
-              <div>
-                {focusedRef && (() => {
-                  const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
-                  const StyleIcon = style.icon;
-                  return (
-                    <div className="mb-1 flex items-center gap-2">
-                      <ExerciseBadge icon={StyleIcon} style={style} />
-                      <span
-                        className={`text-xs font-bold tracking-[0.2em] ${
-                          style.isCompound ? 'bg-clip-text text-transparent' : ''
-                        }`}
-                        style={{
-                          color: style.isCompound ? undefined : style.primaryColor,
-                          backgroundImage: style.isCompound
-                            ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                            : undefined,
-                        }}
-                      >
-                        {style.label}
-                      </span>
-                      <span
-                        className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                        style={{ color: style.secondaryColor }}
-                      >
-                        {style.isCompound ? 'COMP' : 'ISO'}
-                      </span>
-                    </div>
-                  );
-                })()}
-                <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
-              </div>
-            </header>
-
-            <div className="px-4 mt-6">
-              <div className="flex flex-col justify-center gap-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-zinc-500 text-xs uppercase">Current Set</p>
-                  <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
+                <div>
+                  {focusedRef && (() => {
+                    const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
+                    const StyleIcon = style.icon;
+                    return (
+                      <div className="mb-1 flex items-center gap-2">
+                        <ExerciseBadge icon={StyleIcon} style={style} />
+                        <span
+                          className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                            }`}
+                          style={{
+                            color: style.isCompound ? undefined : style.primaryColor,
+                            backgroundImage: style.isCompound
+                              ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                              : undefined,
+                          }}
+                        >
+                          {style.label}
+                        </span>
+                        <span
+                          className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                          style={{ color: style.secondaryColor }}
+                        >
+                          {style.isCompound ? 'COMP' : 'ISO'}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
                 </div>
+              </header>
 
-                {(supersetSlotLabel || focusTempo || isClusterSet) && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {supersetSlotLabel && (
-                      <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
-                        Superset {supersetSlotLabel}
-                      </span>
-                    )}
-                    {focusTempo && (
-                      <span className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-                        Tempo {focusTempo}
-                      </span>
-                    )}
-                    {isClusterSet && (
-                      <span className="rounded-full border border-amber-400/35 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                        Cluster {Math.min(completedClusterRounds + 1, clusterTotalRounds)}/{clusterTotalRounds}
-                      </span>
-                    )}
+              <div className="px-4 mt-6">
+                <div className="flex flex-col justify-center gap-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-zinc-500 text-xs uppercase">Current Set</p>
+                    <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                   </div>
-                )}
 
-                <div className={`grid gap-6 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                  {!bodyweightExercise && (
-                    <HardyStepper
-                      layout="vertical"
-                      value={weightValue}
-                      onChange={handleWeightChange}
-                      step={sessionWeightUnit === 'kg' ? 0.25 : 0.5}
-                      label={sessionWeightUnit.toUpperCase()}
-                      valueClassName={isWeightActive ? 'text-emerald-400' : undefined}
-                      onLabelClick={() => openKeypad('weight')}
-                    />
+                  {(supersetSlotLabel || focusTempo || isClusterSet) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {supersetSlotLabel && (
+                        <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
+                          Superset {supersetSlotLabel}
+                        </span>
+                      )}
+                      {focusTempo && (
+                        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                          Tempo {focusTempo}
+                        </span>
+                      )}
+                      {isClusterSet && (
+                        <span className="rounded-full border border-amber-400/35 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
+                          Cluster {Math.min(completedClusterRounds + 1, clusterTotalRounds)}/{clusterTotalRounds}
+                        </span>
+                      )}
+                    </div>
                   )}
 
-                  <HardyStepper
-                    layout="vertical"
-                    value={repsValue}
-                    onChange={handleRepsChange}
-                    step={1}
-                    label={isClusterSet && activeClusterRepTarget != null ? `REPS (TARGET ${activeClusterRepTarget})` : 'REPS'}
-                    valueClassName={isRepsActive ? 'text-emerald-400' : undefined}
-                    onLabelClick={() => openKeypad('reps')}
-                  />
-                </div>
+                  <div className={`grid gap-6 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {!bodyweightExercise && (
+                      <HardyStepper
+                        layout="vertical"
+                        value={weightValue}
+                        onChange={handleWeightChange}
+                        step={sessionWeightUnit === 'kg' ? 0.25 : 0.5}
+                        label={sessionWeightUnit.toUpperCase()}
+                        valueClassName={isWeightActive ? 'text-emerald-400' : undefined}
+                        onLabelClick={() => openKeypad('weight')}
+                      />
+                    )}
 
-                {focusTempo && (
-                  <div className="space-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">Tempo Cue</p>
-                      <button
-                        type="button"
-                        onClick={() => setTempoMetronomeEnabled((current) => !current)}
-                        className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                          tempoMetronomeEnabled
+                    <HardyStepper
+                      layout="vertical"
+                      value={repsValue}
+                      onChange={handleRepsChange}
+                      step={1}
+                      label={isClusterSet && activeClusterRepTarget != null ? `REPS (TARGET ${activeClusterRepTarget})` : 'REPS'}
+                      valueClassName={isRepsActive ? 'text-emerald-400' : undefined}
+                      onLabelClick={() => openKeypad('reps')}
+                    />
+                  </div>
+
+                  {focusTempo && (
+                    <div className="space-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">Tempo Cue</p>
+                        <button
+                          type="button"
+                          onClick={() => setTempoMetronomeEnabled((current) => !current)}
+                          className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${tempoMetronomeEnabled
                             ? 'bg-cyan-500/20 text-cyan-200'
                             : 'bg-zinc-900/70 text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        {tempoMetronomeEnabled ? 'Metronome On' : 'Metronome Off'}
-                      </button>
+                            }`}
+                        >
+                          {tempoMetronomeEnabled ? 'Metronome On' : 'Metronome Off'}
+                        </button>
+                      </div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">
+                        {focusTempoSteps.length > 0
+                          ? `Eccentric ${focusTempoSteps[0] ?? 0} • Pause ${focusTempoSteps[1] ?? 0} • Concentric ${focusTempoSteps[2] ?? 0} • Top ${focusTempoSteps[3] ?? 0}`
+                          : `Tempo ${focusTempo}`}
+                      </p>
                     </div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">
-                      {focusTempoSteps.length > 0
-                        ? `Eccentric ${focusTempoSteps[0] ?? 0} • Pause ${focusTempoSteps[1] ?? 0} • Concentric ${focusTempoSteps[2] ?? 0} • Top ${focusTempoSteps[3] ?? 0}`
-                        : `Tempo ${focusTempo}`}
-                    </p>
-                  </div>
-                )}
+                  )}
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
-                    <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
-                  </div>
-                  <div>
-                    <RpeSlider value={rpeValue} onChange={handleRpeChange} />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
+                      <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
+                    </div>
+                    <div>
+                      <RpeSlider value={rpeValue} onChange={handleRpeChange} />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <footer className="w-full px-4 mt-12">
-              <div className="w-full h-20 bg-zinc-900/80 rounded-[2.5rem] flex items-center p-2 backdrop-blur-md">
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen(true)}
-                  className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
-                >
-                  <History className="w-7 h-7" />
-                </button>
+              <footer className="w-full px-4 mt-12">
+                <div className="w-full h-20 bg-zinc-900/80 rounded-[2.5rem] flex items-center p-2 backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                  >
+                    <History className="w-7 h-7" />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleLogSet}
-                  disabled={!focusContext}
-                  className="flex-[2] mx-2 h-full bg-emerald-500 hover:bg-emerald-400 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40"
-                >
-                  {isEditingSet ? 'SAVE CHANGES' : 'LOG SET'}
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleLogSet}
+                    disabled={!focusContext}
+                    className="flex-[2] mx-2 h-full bg-emerald-500 hover:bg-emerald-400 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40"
+                  >
+                    {isEditingSet ? 'SAVE CHANGES' : 'LOG SET'}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleOpenNotes}
-                  className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
-                >
-                  <FileText className="w-7 h-7" />
-                </button>
-              </div>
-            </footer>
-          </motion.div>
-        )}
+                  <button
+                    type="button"
+                    onClick={handleOpenNotes}
+                    className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                  >
+                    <FileText className="w-7 h-7" />
+                  </button>
+                </div>
+              </footer>
+            </motion.div>
+          )}
 
           {viewMode === 'rest' && (
             <motion.div
@@ -2338,6 +2344,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             </div>
 
             <div className="mt-8 flex-1 overflow-y-auto">
+              {customExercisesLoading && (
+                <p className="mb-4 text-xs text-zinc-500">Loading exercises...</p>
+              )}
               {filteredExercises.map((exercise) => {
                 const style = getExerciseStyle(exercise, resolveMuscleProfile);
                 const StyleIcon = style.icon;
@@ -2345,15 +2354,14 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   <button
                     key={exercise.id}
                     type="button"
-                  onClick={() => handleAddExercise(exercise.name)}
+                    onClick={() => handleAddExercise(exercise.name)}
                     className="w-full py-4 border-b border-zinc-900 text-left"
                   >
                     <div className="flex items-center gap-3 mb-1">
                       <ExerciseBadge icon={StyleIcon} style={style} />
                       <span
-                        className={`text-xs font-bold tracking-[0.2em] ${
-                          style.isCompound ? 'bg-clip-text text-transparent' : ''
-                        }`}
+                        className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                          }`}
                         style={{
                           color: style.isCompound ? undefined : style.primaryColor,
                           backgroundImage: style.isCompound

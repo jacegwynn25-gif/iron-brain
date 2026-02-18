@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkoutHistory from '../components/WorkoutHistory';
 import { storage, setUserNamespace } from '../lib/storage';
@@ -11,9 +11,11 @@ import { getCustomExercises } from '../lib/exercises/custom-exercises';
 import { buildExerciseCatalog, resolveExerciseDisplayName, type ExerciseCatalog } from '../lib/exercises/catalog';
 import type {
   WorkoutSession,
-  SessionMetadata,
-  SupabaseWorkoutSessionRow
+  SessionMetadata
 } from '../lib/types';
+
+const HISTORY_CLOUD_LIMIT = 180;
+const HISTORY_QUERY_TIMEOUT_MS = 10000;
 
 type WorkoutSet = WorkoutSession['sets'][number];
 
@@ -68,7 +70,9 @@ export default function HistoryPage() {
   const { user, loading: authLoading, namespaceReady } = useAuth();
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [cloudFetchFailed, setCloudFetchFailed] = useState(false);
   const namespaceId = user?.id ?? null;
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     if (!namespaceReady) return;
@@ -77,6 +81,9 @@ export default function HistoryPage() {
 
   const loadWorkoutsFromBothSources = useCallback(async () => {
     if (!namespaceReady || authLoading) return;
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    const loadStartedAt = performance.now();
     setHistoryLoading(true);
 
     const getSortTime = (session: WorkoutSession) =>
@@ -93,6 +100,7 @@ export default function HistoryPage() {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error('Failed to resolve Supabase user:', error);
+        return null;
       }
       return data.user?.id ?? null;
     };
@@ -114,23 +122,65 @@ export default function HistoryPage() {
         return;
       }
 
-      const { data: sessions, error } = await supabase
+      const sessionsQuery = supabase
         .from('workout_sessions')
         .select(`
-          *,
-          set_logs (*)
+          id,
+          date,
+          start_time,
+          end_time,
+          duration_minutes,
+          bodyweight,
+          notes,
+          name,
+          metadata,
+          created_at,
+          updated_at,
+          set_logs (
+            id,
+            exercise_slug,
+            exercise_id,
+            set_index,
+            prescribed_reps,
+            prescribed_rpe,
+            prescribed_rir,
+            prescribed_percentage,
+            actual_weight,
+            weight_unit,
+            actual_reps,
+            actual_rpe,
+            actual_rir,
+            e1rm,
+            volume_load,
+            rest_seconds,
+            actual_seconds,
+            notes,
+            completed
+          )
         `)
         .eq('user_id', resolvedUserId)
         .is('deleted_at', null)
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(HISTORY_CLOUD_LIMIT);
+
+      type SessionsResponse = Awaited<typeof sessionsQuery>;
+      const timeoutPromise: Promise<never> = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('History cloud fetch timed out')), HISTORY_QUERY_TIMEOUT_MS)
+      );
+      const { data: sessions, error }: SessionsResponse = await Promise.race([
+        sessionsQuery,
+        timeoutPromise,
+      ]);
 
       if (error) {
         console.error('Failed to load workouts from Supabase:', error);
+        setCloudFetchFailed(true);
         setWorkoutHistory(sortedLocalWorkouts);
         return;
       }
+      setCloudFetchFailed(false);
 
-      const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
+      const sessionRows = sessions ?? [];
       const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
         const metadata = (s.metadata ?? {}) as SessionMetadata;
         const resolvedProgramName = metadata.programName || s.name || 'Workout';
@@ -205,12 +255,17 @@ export default function HistoryPage() {
       setWorkoutHistory(mergedWorkouts);
     } catch (err) {
       console.error('Error loading workouts:', err);
+      setCloudFetchFailed(true);
       const fallbackLocal = storage
         .getWorkoutHistoryForNamespace(namespaceId)
         .sort((a, b) => getSortTime(b) - getSortTime(a));
       setWorkoutHistory(fallbackLocal);
     } finally {
+      loadingRef.current = false;
       setHistoryLoading(false);
+      console.debug('[HistoryPage] load completed', {
+        durationMs: Math.round(performance.now() - loadStartedAt),
+      });
     }
   }, [authLoading, namespaceId, namespaceReady, user]);
 
@@ -237,6 +292,17 @@ export default function HistoryPage() {
             Start Workout
           </button>
         </header>
+        {cloudFetchFailed && (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+            <span>Showing local history only — cloud sync unavailable.</span>
+            <button
+              onClick={() => { setCloudFetchFailed(false); void loadWorkoutsFromBothSources(); }}
+              className="ml-auto text-xs font-semibold underline underline-offset-2 hover:text-amber-300"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <WorkoutHistory
           workoutHistory={workoutHistory}
           onHistoryUpdate={loadWorkoutsFromBothSources}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ProgramTemplate } from '../types';
 import { useAuth } from '../supabase/auth-context';
 import {
@@ -33,6 +33,7 @@ export interface UseProgramsReturn {
   originalProgram: ProgramTemplate | null;
   loading: boolean;
   error: string | null;
+  cloudSaveError: string | null;
 
   // Computed
   hasUnsavedChanges: boolean;
@@ -67,6 +68,9 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
   const [originalProgram, setOriginalProgram] = useState<ProgramTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
+  const initialLoadRef = useRef(false);
+  const prevEffectiveUserIdRef = useRef(effectiveUserId);
 
   // Memoized storage keys
   const storageKeys = useMemo(() => getStorageKeys(namespaceId), [namespaceId]);
@@ -148,7 +152,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
         const selectedId = localStorage.getItem(storageKeys.SELECTED_PROGRAM);
         if (selectedId) {
           const found = localPrograms.find(p => p.id === selectedId) ||
-                        BUILT_IN_TEMPLATES.find(p => p.id === selectedId);
+            BUILT_IN_TEMPLATES.find(p => p.id === selectedId);
           if (found) {
             setSelectedProgram(found);
             setOriginalProgram(JSON.parse(JSON.stringify(found)));
@@ -179,9 +183,8 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     }
 
     // Clone program to avoid mutations
-    const cloned = JSON.parse(JSON.stringify(program));
-    setSelectedProgram(cloned);
-    setOriginalProgram(JSON.parse(JSON.stringify(program)));
+    setSelectedProgram(structuredClone(program));
+    setOriginalProgram(structuredClone(program));
 
     // Persist selection
     if (typeof window !== 'undefined') {
@@ -228,17 +231,18 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
       void (async () => {
         try {
           await saveProgramToCloud(programToSave, effectiveUserId);
+          setCloudSaveError(null);
           console.log(`✅ Saved program "${programToSave.name}" to cloud`);
         } catch (e) {
           console.error('Failed to save program to cloud:', e);
-          // Local save succeeded, cloud failed - acceptable for offline-first
+          setCloudSaveError('Program saved locally but failed to sync to cloud. Check your connection.');
         }
       })();
     }
 
     // Update original to match saved state
     if (selectedProgram?.id === programToSave.id) {
-      setOriginalProgram(JSON.parse(JSON.stringify(programToSave)));
+      setOriginalProgram(structuredClone(programToSave));
       setSelectedProgram(programToSave);
     }
   }, [userPrograms, effectiveUserId, storageKeys, selectedProgram?.id]);
@@ -276,9 +280,11 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     if (effectiveUserId) {
       try {
         await deleteProgramFromCloud(programId, effectiveUserId);
+        setCloudSaveError(null);
         console.log(`🗑️ Deleted program ${programId} from cloud`);
       } catch (e) {
         console.error('Failed to delete program from cloud:', e);
+        setCloudSaveError('Program removed locally but failed to sync deletion to cloud. Check your connection.');
       }
     }
   }, [userPrograms, effectiveUserId, storageKeys, selectedProgram?.id]);
@@ -289,7 +295,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
 
   const discardChanges = useCallback(() => {
     if (originalProgram) {
-      setSelectedProgram(JSON.parse(JSON.stringify(originalProgram)));
+      setSelectedProgram(structuredClone(originalProgram));
     }
   }, [originalProgram]);
 
@@ -346,8 +352,17 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
   // ============================================
 
   useEffect(() => {
-    loadPrograms();
-  }, [loadPrograms]);
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      loadPrograms();
+      return;
+    }
+    // Only reload if user actually changed (login/logout), not on initial auth resolution
+    if (prevEffectiveUserIdRef.current !== effectiveUserId) {
+      prevEffectiveUserIdRef.current = effectiveUserId;
+      loadPrograms();
+    }
+  }, [loadPrograms, effectiveUserId]);
 
   // ============================================
   // RETURN
@@ -360,6 +375,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     originalProgram,
     loading,
     error,
+    cloudSaveError,
 
     // Computed
     hasUnsavedChanges,
