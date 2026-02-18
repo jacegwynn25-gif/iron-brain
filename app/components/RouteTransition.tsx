@@ -8,13 +8,12 @@ export default function RouteTransition({ children }: { children: React.ReactNod
   const reduceMotion = useReducedMotion();
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="sync" initial={false}>
       <motion.div
         key={pathname}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
         className="min-h-dvh"
         style={{ willChange: reduceMotion ? 'auto' : 'opacity' }}
         suppressHydrationWarning

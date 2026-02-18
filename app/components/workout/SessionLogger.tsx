@@ -48,6 +48,7 @@ import { convertWeight } from '@/app/lib/units';
 import { trackUiEvent } from '@/app/lib/analytics/ui-events';
 import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
+import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -558,6 +559,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const [isPrBaselineSyncing, setIsPrBaselineSyncing] = useState(false);
   const [clusterProgressBySetId, setClusterProgressBySetId] = useState<Record<string, number>>({});
   const [tempoMetronomeEnabled, setTempoMetronomeEnabled] = useState(false);
+  const [justLogged, setJustLogged] = useState(false);
   const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
@@ -571,12 +573,16 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     clusterTotalRounds?: number;
   } | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement>(null);
+  const overviewScrollPositionRef = useRef<number>(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const viewHistoryRef = useRef<ViewMode[]>(['overview']);
   const isBackNavRef = useRef(false);
   const saveInFlightRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen;
+  useBodyScrollLock(isAnyModalOpen);
 
   const calculateSessionStats = useCallback((blocks: Block[]) => {
     let totalVolume = 0;
@@ -1205,6 +1211,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       addSet(entry.blockId, entry.exercise.id);
     }
 
+    overviewScrollPositionRef.current = overviewScrollRef.current?.scrollTop ?? 0;
     setFocusedExerciseId(entry.exercise.id);
     setViewMode('cockpit');
   };
@@ -1242,6 +1249,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
   const handleLogSet = () => {
     if (!focusContext) return;
+
+    setJustLogged(true);
+    setTimeout(() => setJustLogged(false), 600);
 
     const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
     const wasLastSet = setIndex === focusContext.exercise.sets.length - 1;
@@ -1867,7 +1877,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         type="button"
                         onClick={() => handleRemoveExercise(entry.blockId, entry.exercise.id)}
                         onPointerDown={(event) => event.stopPropagation()}
-                        className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-rose-600/90"
+                        className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-rose-600/90 active:brightness-75 transition-all"
                         aria-label={`Delete ${displayName}`}
                       >
                         <Trash2 className="h-5 w-5 text-white" />
@@ -1875,7 +1885,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                       <motion.div
                         drag="x"
                         dragConstraints={{ left: -80, right: 0 }}
-                        dragElastic={0.08}
+                        dragElastic={0.15}
                         dragSnapToOrigin
                         dragMomentum={false}
                         animate={{ x: isRevealed ? -80 : 0 }}
@@ -1907,7 +1917,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                               handleOpenFocus(entry);
                             }
                           }}
-                          className="group relative w-full text-left rounded-2xl bg-zinc-950"
+                          className="group relative w-full text-left rounded-2xl bg-zinc-950 active:scale-[0.99] transition-transform"
                         >
                           <div className="flex flex-col gap-3 p-1">
                             <div>
@@ -2036,8 +2046,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   onClick={() => {
                     setViewMode('overview');
                     setFocusedExerciseId(null);
+                    requestAnimationFrame(() => {
+                      overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
+                    });
                   }}
-                  className="inline-flex items-center text-zinc-400 transition-colors hover:text-white"
+                  className="inline-flex items-center text-zinc-400 transition-all hover:text-white active:opacity-60"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   <span className="sr-only">Back</span>
@@ -2175,7 +2188,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                     type="button"
                     onClick={handleLogSet}
                     disabled={!focusContext}
-                    className="flex-[2] mx-2 h-full bg-emerald-500 hover:bg-emerald-400 rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40"
+                    className={`flex-[2] mx-2 h-full rounded-2xl flex items-center justify-center text-zinc-950 font-black text-xl tracking-wider active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 ${justLogged ? 'bg-emerald-400 shadow-[0_0_20px_6px_rgba(52,211,153,0.45)]' : 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'}`}
                   >
                     {isEditingSet ? 'SAVE CHANGES' : 'LOG SET'}
                   </button>
@@ -2345,7 +2358,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
             <div className="mt-8 flex-1 overflow-y-auto">
               {customExercisesLoading && (
-                <p className="mb-4 text-xs text-zinc-500">Loading exercises...</p>
+                <div className="mb-4 space-y-2">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="h-[72px] rounded-2xl bg-zinc-900 animate-pulse" />
+                  ))}
+                </div>
               )}
               {filteredExercises.map((exercise) => {
                 const style = getExerciseStyle(exercise, resolveMuscleProfile);
@@ -2600,7 +2617,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   disabled={isFinishingWorkout}
                   className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-65"
                 >
-                  {isFinishingWorkout ? 'Finishing...' : 'Complete Workout'}
+                  {isFinishingWorkout ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Finishing...
+                    </span>
+                  ) : 'Complete Workout'}
                 </button>
               </div>
             </div>

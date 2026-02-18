@@ -92,8 +92,8 @@ body {
   /* Better mobile text rendering */
   -webkit-text-size-adjust: 100%;
   letter-spacing: -0.011em;
-  /* Prevent overscroll/rubber-band effect on iOS */
-  overscroll-behavior: none;
+  /* Contain overscroll — prevents propagation to parent without blocking natural iOS bounce within scrollable elements */
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 

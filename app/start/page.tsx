@@ -87,13 +87,15 @@ export default function StartWorkoutPage() {
           </div>
           <Play className="mt-1 h-6 w-6 text-zinc-300" />
         </div>
-        <p className="mt-3 text-sm text-zinc-500">
-          {loading
-            ? 'Loading your program library...'
-            : selectedProgram
+        {loading ? (
+          <div className="mt-3 h-4 w-48 rounded-full bg-zinc-800 animate-pulse" />
+        ) : (
+          <p className="mt-3 text-sm text-zinc-500">
+            {selectedProgram
               ? `Current Program: ${selectedProgram.name}`
               : 'No program selected. Launch now and build in-session.'}
-        </p>
+          </p>
+        )}
       </header>
 
       <section className="pt-8">
