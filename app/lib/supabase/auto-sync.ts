@@ -86,6 +86,8 @@ function markWorkoutAsSynced(workoutId: string) {
   localStorage.setItem(SYNCED_WORKOUT_IDS_KEY, JSON.stringify([...syncedIds]));
 }
 
+import { resolveExerciseIds } from './workouts';
+
 /**
  * Upload a single workout to Supabase
  */
@@ -147,11 +149,15 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
       .delete()
       .eq('workout_session_id', workoutUuid);
 
+    // Resolve exercise UUIDs for Sets
+    const exerciseRefs = Array.from(new Set(workout.sets?.map(s => s.exerciseId).filter(Boolean)));
+    const exerciseIdByRef = await resolveExerciseIds(supabase, exerciseRefs as string[]);
+
     // Insert set logs
     if (workout.sets && workout.sets.length > 0) {
       const setLogs = workout.sets.map((set, index) => ({
         workout_session_id: workoutUuid,
-        exercise_id: null, // Will be NULL - we use exercise_slug instead
+        exercise_id: exerciseIdByRef.get(set.exerciseId) || null, // correctly assign resolved UUID
         exercise_slug: set.exerciseId,
         order_index: index, // Position in workout (required NOT NULL field)
         set_index: set.setIndex ? Math.round(Number(set.setIndex)) : index + 1,

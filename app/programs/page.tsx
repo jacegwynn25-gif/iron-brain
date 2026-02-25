@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CirclePlus,
+  Copy,
   MoreHorizontal,
   Play,
   Search,
@@ -1026,6 +1027,51 @@ export default function ProgramsPage() {
     });
   };
 
+  const handleDuplicateWeek = (sourceWeekIndex: number) => {
+    if (!draft) return;
+    const existingWeeks = draft.weeks;
+    if (existingWeeks.length >= 24) {
+      setEditorError('Maximum of 24 weeks allowed.');
+      return;
+    }
+
+    const sourceWeek = existingWeeks[sourceWeekIndex];
+    if (!sourceWeek) return;
+
+    // Clone the week, regenerating IDs inside sets and blocks if needed by the builder logic later.
+    // For this context, standard deep copy is sufficient as resizeProgramStructure handles cloning similarly.
+    const clonedDays = sourceWeek.days.map((day) => ({
+      ...day,
+      sets: day.sets ? day.sets.map(cloneSetTemplate) : [],
+      blocks: cloneBlockTemplates(getDayBlocks(day)),
+    }));
+
+    const nextWeeks = [
+      ...existingWeeks.slice(0, sourceWeekIndex + 1),
+      {
+        weekNumber: existingWeeks.length + 1, // Temporarily invalid, fixed in map below
+        days: clonedDays,
+      } as WeekTemplate,
+      ...existingWeeks.slice(sourceWeekIndex + 1),
+    ].map((week, index) => ({
+      ...week,
+      weekNumber: index + 1,
+    }));
+
+    const nextDraft: ProgramTemplate = {
+      ...draft,
+      weekCount: nextWeeks.length,
+      weeks: nextWeeks,
+    };
+
+    setDraft(nextDraft);
+    setActiveWeekIndex(sourceWeekIndex + 1);
+    setEditorSetFocus(null);
+    setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
+    setEditorError(null);
+  };
+
   const handleSetTemplateUpdate = (
     blockIndex: number,
     exerciseIndex: number,
@@ -1302,18 +1348,18 @@ export default function ProgramsPage() {
       const nextSet =
         previous != null
           ? {
-              ...cloneSetTemplate(previous),
-              setIndex: exercise.sets.length + 1,
-              exerciseId: exercise.exerciseId,
-              setType: block.type === 'superset' ? 'superset' : previous.setType,
-              supersetGroup: block.type === 'superset' ? block.id : undefined,
-            }
+            ...cloneSetTemplate(previous),
+            setIndex: exercise.sets.length + 1,
+            exerciseId: exercise.exerciseId,
+            setType: block.type === 'superset' ? 'superset' : previous.setType,
+            supersetGroup: block.type === 'superset' ? block.id : undefined,
+          }
           : createDefaultSetTemplate(
-              exercise.exerciseId,
-              1,
-              block.type,
-              block.type === 'superset' ? block.id : undefined
-            );
+            exercise.exerciseId,
+            1,
+            block.type,
+            block.type === 'superset' ? block.id : undefined
+          );
       exercise.sets = [...exercise.sets, nextSet];
       nextFocus = { blockIndex, exerciseIndex, setIndex: exercise.sets.length - 1 };
       return blocks;
@@ -1635,16 +1681,15 @@ export default function ProgramsPage() {
       exercise.sets.length === 0
         ? 'No set prescription yet.'
         : exercise.sets
-            .slice(0, 2)
-            .map((set, index) => `S${index + 1} ${getSetSummaryLine(set)}`)
-            .join(' • ');
+          .slice(0, 2)
+          .map((set, index) => `S${index + 1} ${getSetSummaryLine(set)}`)
+          .join(' • ');
 
     return (
       <article
         key={`${block.id}-${exercise.id}-${slotLabel ?? 'single'}`}
-        className={`border-b border-zinc-900 py-3 ${
-          hasFocusedSet ? 'border-cyan-400/30 bg-cyan-500/[0.03]' : ''
-        }`}
+        className={`border-b border-zinc-900 py-3 ${hasFocusedSet ? 'border-cyan-400/30 bg-cyan-500/[0.03]' : ''
+          }`}
       >
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1664,11 +1709,10 @@ export default function ProgramsPage() {
                   return { blockIndex, exerciseIndex, setIndex: 0 };
                 })
               }
-              className={`inline-flex h-11 items-center rounded-full border px-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                hasFocusedSet
+              className={`inline-flex h-11 items-center rounded-full border px-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${hasFocusedSet
                   ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
                   : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
-              }`}
+                }`}
             >
               {hasFocusedSet ? 'Collapse' : 'Edit Sets'}
             </button>
@@ -1761,9 +1805,8 @@ export default function ProgramsPage() {
                 </div>
 
                 <div
-                  className={`grid gap-2 ${
-                    editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
-                  }`}
+                  className={`grid gap-2 ${editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
+                    }`}
                 >
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
@@ -1985,11 +2028,10 @@ export default function ProgramsPage() {
                         : { blockIndex, exerciseIndex }
                     )
                   }
-                  className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                    isMenuOpen
+                  className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${isMenuOpen
                       ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
                       : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
-                  }`}
+                    }`}
                   aria-label={`Exercise actions for ${exerciseLabel}`}
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -2096,11 +2138,10 @@ export default function ProgramsPage() {
             <button
               type="button"
               onClick={() => setWorkspaceView('builder')}
-              className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
-                workspaceView === 'builder'
+              className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'builder'
                   ? 'bg-zinc-100 text-zinc-950'
                   : 'text-zinc-500 hover:text-zinc-200'
-              }`}
+                }`}
             >
               Builder
             </button>
@@ -2108,11 +2149,10 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => setWorkspaceView('calendar')}
-                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
-                  workspaceView === 'calendar'
+                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'calendar'
                     ? 'bg-zinc-100 text-zinc-950'
                     : 'text-zinc-500 hover:text-zinc-200'
-                }`}
+                  }`}
               >
                 Calendar
               </button>
@@ -2121,11 +2161,10 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => setWorkspaceView('collab')}
-                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
-                  workspaceView === 'collab'
+                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'collab'
                     ? 'bg-zinc-100 text-zinc-950'
                     : 'text-zinc-500 hover:text-zinc-200'
-                }`}
+                  }`}
               >
                 Collaboration
               </button>
@@ -2150,11 +2189,10 @@ export default function ProgramsPage() {
                     key={option}
                     type="button"
                     onClick={() => setFilter(option)}
-                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                      filter === option
+                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${filter === option
                         ? 'bg-zinc-100 text-zinc-950'
                         : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                    }`}
+                      }`}
                   >
                     {option === 'built-in' ? 'Built-In' : option}
                   </button>
@@ -2223,148 +2261,145 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${
-                        detailsOpen
+                      className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${detailsOpen
                           ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
                           : 'z-[30] border-b border-zinc-900'
-                      }`}
-                    >
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectProgram(program)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <p
-                        className={`break-words text-lg font-black leading-tight ${isSelected ? 'text-emerald-300' : 'text-zinc-100'}`}
-                      >
-                        {program.name}
-                      </p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                        {getFrequencyLabel(program)}
-                      </p>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectProgram(program)}
-                        className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
-                          isSelected
-                            ? 'bg-emerald-500/10 text-emerald-300'
-                            : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                         }`}
-                      >
-                        {isSelected ? 'Selected' : 'Use'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
-                        className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${
-                          detailsOpen
-                            ? 'bg-cyan-500/10 text-cyan-300'
-                            : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
-                        }`}
-                        aria-expanded={detailsOpen}
-                        aria-controls={detailsId}
-                      >
-                        {detailsOpen ? 'Hide' : 'Details'}
-                      </button>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-emerald-300">
-                      <Check className="h-3.5 w-3.5" />
-                      Selected
-                    </div>
-                  )}
-
-                  <AnimatePresence initial={false} mode="wait">
-                    {detailsOpen && (
-                      <motion.div
-                        key={`details-${program.id}`}
-                        id={detailsId}
-                        initial={prefersReducedMotion ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={prefersReducedMotion ? { opacity: 1, height: 0 } : { opacity: 0, height: 0 }}
-                        transition={{
-                          opacity: { duration: prefersReducedMotion ? 0 : 0.18 },
-                          height: {
-                            duration: prefersReducedMotion ? 0 : 0.28,
-                            ease: [0.25, 0.8, 0.2, 1],
-                          },
-                        }}
-                        className="mt-4 overflow-hidden"
-                      >
-                        <motion.div
-                          initial={prefersReducedMotion ? { y: 0 } : { y: 10 }}
-                          animate={{ y: 0 }}
-                          exit={prefersReducedMotion ? { y: 0 } : { y: 6 }}
-                          transition={{
-                            duration: prefersReducedMotion ? 0 : 0.22,
-                            ease: [0.25, 0.8, 0.2, 1],
-                          }}
-                          className="border-t border-cyan-400/20 pt-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectProgram(program)}
+                          className="min-w-0 flex-1 text-left"
                         >
-                          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
+                          <p
+                            className={`break-words text-lg font-black leading-tight ${isSelected ? 'text-emerald-300' : 'text-zinc-100'}`}
+                          >
+                            {program.name}
+                          </p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                            {getFrequencyLabel(program)}
+                          </p>
+                        </button>
 
-                          {program.description && (
-                            <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectProgram(program)}
+                            className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${isSelected
+                                ? 'bg-emerald-500/10 text-emerald-300'
+                                : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                              }`}
+                          >
+                            {isSelected ? 'Selected' : 'Use'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
+                            className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${detailsOpen
+                                ? 'bg-cyan-500/10 text-cyan-300'
+                                : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                              }`}
+                            aria-expanded={detailsOpen}
+                            aria-controls={detailsId}
+                          >
+                            {detailsOpen ? 'Hide' : 'Details'}
+                          </button>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-emerald-300">
+                          <Check className="h-3.5 w-3.5" />
+                          Selected
+                        </div>
+                      )}
 
-                          {detailTokens.length > 0 && (
-                            <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                              {detailTokens.join(' • ')}
-                            </p>
-                          )}
+                      <AnimatePresence initial={false} mode="wait">
+                        {detailsOpen && (
+                          <motion.div
+                            key={`details-${program.id}`}
+                            id={detailsId}
+                            initial={prefersReducedMotion ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={prefersReducedMotion ? { opacity: 1, height: 0 } : { opacity: 0, height: 0 }}
+                            transition={{
+                              opacity: { duration: prefersReducedMotion ? 0 : 0.18 },
+                              height: {
+                                duration: prefersReducedMotion ? 0 : 0.28,
+                                ease: [0.25, 0.8, 0.2, 1],
+                              },
+                            }}
+                            className="mt-4 overflow-hidden"
+                          >
+                            <motion.div
+                              initial={prefersReducedMotion ? { y: 0 } : { y: 10 }}
+                              animate={{ y: 0 }}
+                              exit={prefersReducedMotion ? { y: 0 } : { y: 6 }}
+                              transition={{
+                                duration: prefersReducedMotion ? 0 : 0.22,
+                                ease: [0.25, 0.8, 0.2, 1],
+                              }}
+                              className="border-t border-cyan-400/20 pt-4"
+                            >
+                              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
 
-                          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleStartProgram(program);
-                                setDetailsProgramId(null);
-                              }}
-                              className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
-                            >
-                              Start
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                openEditEditor(program);
-                                setDetailsProgramId(null);
-                              }}
-                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleDuplicateProgram(program);
-                                setDetailsProgramId(null);
-                              }}
-                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                            >
-                              Duplicate
-                            </button>
-                            <button
-                              type="button"
-                              disabled={builtInProgramIds.has(program.id)}
-                              onClick={() => {
-                                void handleDeleteProgram(program);
-                                setDetailsProgramId(null);
-                              }}
-                              className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </motion.div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                              {program.description && (
+                                <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
+                              )}
+
+                              {detailTokens.length > 0 && (
+                                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                                  {detailTokens.join(' • ')}
+                                </p>
+                              )}
+
+                              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleStartProgram(program);
+                                    setDetailsProgramId(null);
+                                  }}
+                                  className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                                >
+                                  Start
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    openEditEditor(program);
+                                    setDetailsProgramId(null);
+                                  }}
+                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void handleDuplicateProgram(program);
+                                    setDetailsProgramId(null);
+                                  }}
+                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                >
+                                  Duplicate
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={builtInProgramIds.has(program.id)}
+                                  onClick={() => {
+                                    void handleDeleteProgram(program);
+                                    setDetailsProgramId(null);
+                                  }}
+                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                     </motion.article>
                   );
@@ -2394,11 +2429,10 @@ export default function ProgramsPage() {
           onClick={() => setDetailsProgramId(null)}
           aria-hidden={!detailsProgramId}
           tabIndex={detailsProgramId ? 0 : -1}
-          className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${
-            detailsProgramId
+          className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${detailsProgramId
               ? 'pointer-events-auto bg-black/60 opacity-100'
               : 'pointer-events-none bg-black/0 opacity-0'
-          }`}
+            }`}
         />
       )}
 
@@ -2624,57 +2658,57 @@ export default function ProgramsPage() {
             <section className="border-b border-zinc-900 py-6">
               <div className="mb-5 space-y-2">
                 <div className="flex items-center gap-2">
-	                  <button
-	                    type="button"
-	                    onClick={() => stepEditorWeek(-1)}
-	                    disabled={activeWeekIndex === 0}
-	                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-	                    aria-label="Previous week"
-	                  >
+                  <button
+                    type="button"
+                    onClick={() => stepEditorWeek(-1)}
+                    disabled={activeWeekIndex === 0}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                    aria-label="Previous week"
+                  >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-	                  <button
-	                    type="button"
-	                    onClick={() => setEditorJumpPicker('week')}
-	                    className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
-	                  >
+                  <button
+                    type="button"
+                    onClick={() => setEditorJumpPicker('week')}
+                    className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                  >
                     Week {activeWeekIndex + 1} of {draft.weeks.length}
                   </button>
-	                  <button
-	                    type="button"
-	                    onClick={() => stepEditorWeek(1)}
-	                    disabled={activeWeekIndex >= draft.weeks.length - 1}
-	                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-	                    aria-label="Next week"
-	                  >
+                  <button
+                    type="button"
+                    onClick={() => stepEditorWeek(1)}
+                    disabled={activeWeekIndex >= draft.weeks.length - 1}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                    aria-label="Next week"
+                  >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
                 {currentWeek && (
                   <div className="flex items-center gap-2">
-	                    <button
-	                      type="button"
-	                      onClick={() => stepEditorSession(-1)}
-	                      disabled={activeDayIndex === 0}
-	                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-	                      aria-label="Previous session"
-	                    >
+                    <button
+                      type="button"
+                      onClick={() => stepEditorSession(-1)}
+                      disabled={activeDayIndex === 0}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      aria-label="Previous session"
+                    >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-	                    <button
-	                      type="button"
-	                      onClick={() => setEditorJumpPicker('session')}
-	                      className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
-	                    >
+                    <button
+                      type="button"
+                      onClick={() => setEditorJumpPicker('session')}
+                      className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                    >
                       Session {activeDayIndex + 1} of {currentWeek.days.length}
                     </button>
-	                    <button
-	                      type="button"
-	                      onClick={() => stepEditorSession(1)}
-	                      disabled={activeDayIndex >= currentWeek.days.length - 1}
-	                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-	                      aria-label="Next session"
-	                    >
+                    <button
+                      type="button"
+                      onClick={() => stepEditorSession(1)}
+                      disabled={activeDayIndex >= currentWeek.days.length - 1}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      aria-label="Next session"
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -2731,22 +2765,20 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('simple')}
-                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
-                              editorDetailMode === 'simple'
+                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'simple'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
-                            }`}
+                              }`}
                           >
                             Simple
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditorDetailMode('advanced')}
-                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${
-                              editorDetailMode === 'advanced'
+                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'advanced'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
-                            }`}
+                              }`}
                           >
                             Advanced
                           </button>
@@ -2850,21 +2882,30 @@ export default function ProgramsPage() {
                     const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
                     const isActive = index === activeWeekIndex;
                     return (
-                      <button
-                        key={`jump-week-${week.weekNumber}`}
-                        type="button"
-                        onClick={() => selectEditorWeek(index)}
-                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${
-                          isActive
-                            ? 'bg-cyan-500/10 text-cyan-200'
-                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
-                        }`}
-                      >
-                        <p className="text-sm font-bold">Week {index + 1}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                          {week.days.length} sessions • {weekSetCount} sets
-                        </p>
-                      </button>
+                      <div key={`jump-week-${week.weekNumber}`} className="flex items-stretch gap-2">
+                        <button
+                          type="button"
+                          onClick={() => selectEditorWeek(index)}
+                          className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
+                              ? 'bg-cyan-500/10 text-cyan-200'
+                              : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                            }`}
+                        >
+                          <p className="text-sm font-bold">Week {index + 1}</p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                            {week.days.length} sessions • {weekSetCount} sets
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateWeek(index)}
+                          aria-label={`Duplicate Week ${index + 1}`}
+                          title="Duplicate Week"
+                          className="flex w-14 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
                     );
                   })}
 
@@ -2877,11 +2918,10 @@ export default function ProgramsPage() {
                         key={`jump-session-${index}`}
                         type="button"
                         onClick={() => selectEditorSession(index)}
-                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${
-                          isActive
+                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
                             ? 'bg-emerald-500/10 text-emerald-200'
                             : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
-                        }`}
+                          }`}
                       >
                         <p className="text-sm font-bold">Session {index + 1}</p>
                         <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
@@ -3028,11 +3068,10 @@ export default function ProgramsPage() {
                                 exerciseType: typeOption,
                               }))
                             }
-                            className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
-                              customExerciseDraft.exerciseType === typeOption
+                            className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${customExerciseDraft.exerciseType === typeOption
                                 ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
                                 : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                            }`}
+                              }`}
                           >
                             {formatTokenLabel(typeOption)}
                           </button>

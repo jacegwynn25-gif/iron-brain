@@ -15,7 +15,6 @@ import type {
 } from '../lib/types';
 
 const HISTORY_CLOUD_LIMIT = 180;
-const HISTORY_QUERY_TIMEOUT_MS = 10000;
 
 type WorkoutSet = WorkoutSession['sets'][number];
 
@@ -164,8 +163,9 @@ export default function HistoryPage() {
         .limit(HISTORY_CLOUD_LIMIT);
 
       type SessionsResponse = Awaited<typeof sessionsQuery>;
+      // Increased from 10s to 30s to prevent false-positives under heavy payload
       const timeoutPromise: Promise<never> = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('History cloud fetch timed out')), HISTORY_QUERY_TIMEOUT_MS)
+        setTimeout(() => reject(new Error('History cloud fetch timed out')), 30000)
       );
       const { data: sessions, error }: SessionsResponse = await Promise.race([
         sessionsQuery,

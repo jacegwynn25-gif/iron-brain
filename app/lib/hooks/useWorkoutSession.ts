@@ -188,14 +188,7 @@ function getBlockIdentity(templateSet: SetTemplate): { key: string; type: 'singl
   };
 }
 
-function getMockHistory(exerciseId: string, unit: WeightUnit): number {
-  void exerciseId;
-  const mockPool = [185, 195, 205, 215, 225, 235, 245];
-  const index = Math.floor(Math.random() * mockPool.length);
-  const valueLbs = mockPool[index] ?? 225;
-  const converted = unit === 'lbs' ? valueLbs : valueLbs / KG_TO_LBS;
-  return roundToIncrement(converted, unit);
-}
+import { storage } from '../storage';
 
 function getLastWeightForExercise(
   historyMap: Map<string, number>,
@@ -203,9 +196,29 @@ function getLastWeightForExercise(
   unit: WeightUnit
 ): number {
   if (!historyMap.has(exerciseId)) {
-    historyMap.set(exerciseId, getMockHistory(exerciseId, unit));
+    // Try to get actual history for this exercise
+    const lastWorkout = storage.getLastWorkoutForExercise(exerciseId);
+
+    if (lastWorkout && lastWorkout.bestSet && lastWorkout.bestSet.actualWeight != null) {
+      const bestSet = lastWorkout.bestSet;
+      const actualWeight = Number(bestSet.actualWeight);
+      const recordedUnit = bestSet.weightUnit ?? 'lbs';
+
+      // Convert if necessary to match the requested unit
+      let convertedWeight = actualWeight;
+      if (unit !== recordedUnit) {
+        convertedWeight = unit === 'lbs'
+          ? actualWeight * KG_TO_LBS
+          : actualWeight / KG_TO_LBS;
+      }
+      historyMap.set(exerciseId, roundToIncrement(convertedWeight, unit));
+    } else {
+      // Default fallback if no history exists: empty bar or simple generic
+      // (Using 45 lbs as a reasonable default for barbell exercises, can be adjusted)
+      historyMap.set(exerciseId, roundToIncrement(unit === 'lbs' ? 45 : 20, unit));
+    }
   }
-  return historyMap.get(exerciseId) ?? roundToIncrement(unit === 'lbs' ? 225 : 225 / KG_TO_LBS, unit);
+  return historyMap.get(exerciseId) ?? roundToIncrement(unit === 'lbs' ? 45 : 20, unit);
 }
 
 function buildSessionSetFromTemplate(

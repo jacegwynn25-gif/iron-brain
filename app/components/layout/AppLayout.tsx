@@ -108,7 +108,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     if (!touch) return;
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
-    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+    // Don't allow swipe back on active workout screens or any full-screen view
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3 && !hideBottomNav) {
       const history = routeHistoryRef.current;
       if (history.length <= 1) return;
       history.pop();
@@ -158,11 +159,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.id}
                   href={item.href}
                   data-coach={item.coach}
-                  className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 transition-colors ${
-                    active
+                  className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 transition-colors ${active
                       ? 'text-emerald-300'
                       : 'text-zinc-500 hover:text-zinc-200'
-                  }`}
+                    }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'}`} />
                   <span className={`text-[10px] font-semibold leading-none ${active ? 'tracking-[0.02em]' : ''}`}>
