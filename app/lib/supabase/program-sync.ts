@@ -128,6 +128,7 @@ function parseProgramTemplate(value: Json): ProgramTemplate | null {
       ? (record.intensityMethod as ProgramTemplate['intensityMethod'])
       : undefined,
     isCustom: typeof record.isCustom === 'boolean' ? record.isCustom : undefined,
+    updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : undefined,
     weeks,
   };
 }
@@ -216,16 +217,31 @@ export function mergeProgramsWithCloud(
   const localMap = new Map<string, ProgramTemplate>();
   localPrograms.forEach(p => localMap.set(p.id, p));
 
-  // Merge: prefer cloud version for conflicts, keep local-only programs
+  // Merge: prefer newer version for conflicts
   const mergedMap = new Map<string, ProgramTemplate>();
 
-  // Add all cloud programs (they win conflicts)
-  cloudPrograms.forEach(p => mergedMap.set(p.id, p));
+  cloudPrograms.forEach(cp => {
+    const lp = localMap.get(cp.id);
+    if (!lp) {
+      mergedMap.set(cp.id, cp);
+      return;
+    }
+
+    // Compare timestamps if available
+    const cloudTime = cp.updatedAt ? new Date(cp.updatedAt).getTime() : 0;
+    const localTime = lp.updatedAt ? new Date(lp.updatedAt).getTime() : 0;
+
+    if (cloudTime > localTime) {
+      mergedMap.set(cp.id, cp);
+    } else {
+      mergedMap.set(lp.id, lp);
+    }
+  });
 
   // Add local-only programs (not in cloud)
-  localPrograms.forEach(p => {
-    if (!cloudMap.has(p.id)) {
-      mergedMap.set(p.id, p);
+  localPrograms.forEach(lp => {
+    if (!cloudMap.has(lp.id)) {
+      mergedMap.set(lp.id, lp);
     }
   });
 

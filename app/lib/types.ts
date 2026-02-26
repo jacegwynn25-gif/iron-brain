@@ -146,6 +146,7 @@ export interface ProgramTemplate {
   sourceAssignmentId?: string;
   assignedByUserId?: string;
   assignedAt?: string;
+  updatedAt?: string;
   weeks: WeekTemplate[];
 }
 

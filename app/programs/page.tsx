@@ -14,6 +14,7 @@ import {
   Play,
   Search,
   X,
+  Trash2,
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
 import { createCustomExercise, getCustomExercises, getLocalCustomExercises } from '@/app/lib/exercises/custom-exercises';
@@ -1072,6 +1073,76 @@ export default function ProgramsPage() {
     setActiveWeekIndex(sourceWeekIndex + 1);
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
+    setEditorError(null);
+  };
+
+  const handleDeleteWeek = (targetWeekIndex: number) => {
+    if (!draft) return;
+    const existingWeeks = draft.weeks;
+    if (existingWeeks.length <= 1) {
+      setEditorError('Program must have at least one week.');
+      return;
+    }
+
+    const nextWeeks = existingWeeks
+      .filter((_, index) => index !== targetWeekIndex)
+      .map((week, index) => ({
+        ...week,
+        weekNumber: index + 1,
+      }));
+
+    const nextDraft: ProgramTemplate = {
+      ...draft,
+      weekCount: nextWeeks.length,
+      weeks: nextWeeks,
+    };
+
+    setDraft(nextDraft);
+    setWeekCountInput(String(nextWeeks.length));
+
+    // Adjust active week if the deleted week was selected or past the deleted week
+    if (activeWeekIndex === targetWeekIndex) {
+      setActiveWeekIndex(Math.max(0, targetWeekIndex - 1));
+    } else if (activeWeekIndex > targetWeekIndex) {
+      setActiveWeekIndex(activeWeekIndex - 1);
+    }
+
+    setEditorSetFocus(null);
+    setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
+    setEditorError(null);
+  };
+
+  const handleDeleteDay = (targetWeekIndex: number, targetDayIndex: number) => {
+    if (!draft) return;
+    const week = draft.weeks[targetWeekIndex];
+    if (!week) return;
+    if (week.days.length <= 1) {
+      setEditorError('A week must have at least one day.');
+      return;
+    }
+
+    updateDraft((current) => {
+      const nextWeeks = current.weeks.map((entry, wIndex) => {
+        if (wIndex !== targetWeekIndex) return entry;
+        return {
+          ...entry,
+          days: entry.days.filter((_, dIndex) => dIndex !== targetDayIndex),
+        };
+      });
+      return { ...current, weeks: nextWeeks };
+    });
+
+    if (activeWeekIndex === targetWeekIndex) {
+      if (activeDayIndex === targetDayIndex) {
+        setActiveDayIndex(Math.max(0, targetDayIndex - 1));
+      } else if (activeDayIndex > targetDayIndex) {
+        setActiveDayIndex(activeDayIndex - 1);
+      }
+    }
+
+    setEditorSetFocus(null);
     setExerciseActionMenu(null);
     setEditorError(null);
   };
@@ -2690,11 +2761,25 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={() => handleDuplicateWeek(activeWeekIndex)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
                     aria-label="Duplicate current week"
                     title="Duplicate current week"
                   >
                     <Copy className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this week?')) {
+                        handleDeleteWeek(activeWeekIndex);
+                      }
+                    }}
+                    disabled={draft.weeks.length <= 1}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                    aria-label="Delete current week"
+                    title="Delete current week"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
                 {currentWeek && (
@@ -2723,6 +2808,20 @@ export default function ProgramsPage() {
                       aria-label="Next session"
                     >
                       <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this specific day/session?')) {
+                          handleDeleteDay(activeWeekIndex, activeDayIndex);
+                        }
+                      }}
+                      disabled={currentWeek.days.length <= 1}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                      aria-label="Delete current session"
+                      title="Delete current session"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 )}

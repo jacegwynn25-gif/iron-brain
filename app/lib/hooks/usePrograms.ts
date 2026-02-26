@@ -206,10 +206,11 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     const existingIndex = userPrograms.findIndex(p => p.id === normalizedProgram.id);
     const isNew = existingIndex === -1;
 
-    // Mark as custom
+    // Mark as custom and stamp save time for merge resolution
     const programToSave: ProgramTemplate = {
       ...normalizedProgram,
       isCustom: true,
+      updatedAt: new Date().toISOString(),
     };
 
     // Update local state
