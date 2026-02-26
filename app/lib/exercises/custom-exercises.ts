@@ -57,7 +57,7 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: strin
   });
 }
 
-function readLocalCustomExercises(): CustomExercise[] {
+export function getLocalCustomExercises(): CustomExercise[] {
   if (typeof window === 'undefined') return [];
   try {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -89,7 +89,7 @@ function mergeCustomExercises(
  * Loads from Supabase if logged in and merges with localStorage backup
  */
 export async function getCustomExercises(userId: string | null): Promise<CustomExercise[]> {
-  const localExercises = readLocalCustomExercises();
+  const localExercises = getLocalCustomExercises();
 
   // Try Supabase first if logged in
   if (userId) {
@@ -124,9 +124,58 @@ export async function getCustomExercises(userId: string | null): Promise<CustomE
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         }));
+
+        // Background sync: Upload any local exercises that aren't in the cloud yet
+        const cloudIds = new Set(cloudExercises.map((e) => e.id));
+        const unsynced = localExercises.filter(
+          (e) => !cloudIds.has(e.id) && (e.userId === userId || e.userId === 'local')
+        );
+
+        if (unsynced.length > 0) {
+          void (async () => {
+            try {
+              const payload = unsynced.map((e) => ({
+                id: e.id,
+                user_id: userId,
+                name: e.name,
+                slug: e.slug,
+                equipment: e.equipment,
+                exercise_type: e.exerciseType,
+                primary_muscles: e.primaryMuscles,
+                secondary_muscles: e.secondaryMuscles,
+                movement_pattern: e.movementPattern,
+                track_weight: e.trackWeight,
+                track_reps: e.trackReps,
+                track_time: e.trackTime,
+                default_rest_seconds: e.defaultRestSeconds,
+              }));
+
+              const { error: syncError } = await withTimeout(
+                supabase.from('custom_exercises').upsert(payload, { onConflict: 'id' }),
+                CLOUD_REQUEST_TIMEOUT_MS,
+                'Timed out background syncing custom exercises'
+              );
+
+              if (syncError) {
+                console.error('Failed to background sync unsaved custom exercises:', syncError);
+              } else {
+                console.log(`Successfully synced ${unsynced.length} pending custom exercises to cloud`);
+              }
+            } catch (err) {
+              console.error('Error in background sync of custom exercises:', err);
+            }
+          })();
+        }
+
         const merged = mergeCustomExercises(cloudExercises, localExercises);
-        persistLocalCustomExercises(merged);
-        return merged;
+
+        // Ensure local exercises claim the current user ID globally if they just synced
+        const fixedMerged = merged.map((e) =>
+          e.userId === 'local' && unsynced.some((u) => u.id === e.id) ? { ...e, userId } : e
+        );
+
+        persistLocalCustomExercises(fixedMerged);
+        return fixedMerged;
       }
     } catch (err) {
       console.error('Failed to load custom exercises from Supabase:', err);
@@ -159,7 +208,7 @@ export async function createCustomExercise(
 
   // Save locally first so the UI never blocks on network/cloud.
   try {
-    const existing = readLocalCustomExercises();
+    const existing = getLocalCustomExercises();
     const merged = mergeCustomExercises([newExercise], existing);
     persistLocalCustomExercises(merged);
   } catch (err) {
@@ -173,7 +222,7 @@ export async function createCustomExercise(
         const { error } = await withTimeout(
           supabase
             .from('custom_exercises')
-            .insert({
+            .upsert({
               id,
               user_id: userId,
               name: exercise.name,
@@ -187,7 +236,7 @@ export async function createCustomExercise(
               track_reps: exercise.trackReps,
               track_time: exercise.trackTime,
               default_rest_seconds: exercise.defaultRestSeconds,
-            }),
+            }, { onConflict: 'id' }),
           CLOUD_REQUEST_TIMEOUT_MS,
           'Timed out saving custom exercise to cloud'
         );

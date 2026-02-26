@@ -120,34 +120,9 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
         localStorage.setItem(storageKeys.USER_PROGRAMS, JSON.stringify(localPrograms));
       }
 
-      // 2. If user is logged in, merge with cloud
-      if (effectiveUserId) {
-        try {
-          const { programs: cloudPrograms, changedPrograms } =
-            await loadProgramsFromCloudWithCleanup(effectiveUserId);
-          const merged = mergeProgramsWithCloud(localPrograms, cloudPrograms);
-          const mergedNormalized = normalizePrograms(merged);
-          localPrograms = mergedNormalized.programs;
-
-          // Persist merged result
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(storageKeys.USER_PROGRAMS, JSON.stringify(localPrograms));
-          }
-
-          if (changedPrograms.length > 0) {
-            await Promise.all(changedPrograms.map((program) => saveProgramToCloud(program, effectiveUserId)));
-          }
-
-          await hydrateProgramProgressFromCloud(effectiveUserId, namespaceId);
-        } catch (e) {
-          console.error('Failed to load cloud programs:', e);
-          // Continue with local programs
-        }
-      }
-
+      // Immediately set local state so UI doesn't block
       setUserPrograms(localPrograms);
 
-      // 3. Restore selected program
       if (typeof window !== 'undefined') {
         const selectedId = localStorage.getItem(storageKeys.SELECTED_PROGRAM);
         if (selectedId) {
@@ -157,6 +132,33 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
             setSelectedProgram(found);
             setOriginalProgram(JSON.parse(JSON.stringify(found)));
           }
+        }
+      }
+
+      setLoading(false);
+
+      // 2. If user is logged in, merge with cloud background sync
+      if (effectiveUserId) {
+        try {
+          const { programs: cloudPrograms, changedPrograms } =
+            await loadProgramsFromCloudWithCleanup(effectiveUserId);
+          const merged = mergeProgramsWithCloud(localPrograms, cloudPrograms);
+          const mergedNormalized = normalizePrograms(merged);
+
+          setUserPrograms(mergedNormalized.programs);
+
+          // Persist merged result
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKeys.USER_PROGRAMS, JSON.stringify(mergedNormalized.programs));
+          }
+
+          if (changedPrograms.length > 0) {
+            await Promise.all(changedPrograms.map((program) => saveProgramToCloud(program, effectiveUserId)));
+          }
+
+          await hydrateProgramProgressFromCloud(effectiveUserId, namespaceId);
+        } catch (e) {
+          console.error('Failed to load cloud programs:', e);
         }
       }
     } catch (e) {

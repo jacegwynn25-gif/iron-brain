@@ -7,7 +7,7 @@ import { storage, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
 import { defaultExercises } from '../lib/programs';
-import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import { getCustomExercises, getLocalCustomExercises } from '../lib/exercises/custom-exercises';
 import { buildExerciseCatalog, resolveExerciseDisplayName, type ExerciseCatalog } from '../lib/exercises/catalog';
 import type {
   WorkoutSession,
@@ -106,20 +106,27 @@ export default function HistoryPage() {
 
     try {
       const resolvedUserId = await resolveUserId();
-      const customExercises = await getCustomExercises(resolvedUserId ?? namespaceId).catch((error) => {
+      const localCustomExercises = getLocalCustomExercises();
+      const localExerciseCatalog = buildExerciseCatalog(defaultExercises, localCustomExercises);
+      const localWorkouts = storage
+        .getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId)
+        .map((workout) => enrichWorkoutSetNames(workout, localExerciseCatalog));
+      const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
+
+      // Render local cache immediately
+      setWorkoutHistory(sortedLocalWorkouts);
+      setHistoryLoading(false);
+
+      if (!resolvedUserId) {
+        return;
+      }
+
+      // Background cloud sync
+      const customExercises = await getCustomExercises(resolvedUserId).catch((error) => {
         console.error('Failed to load custom exercise catalog for history page:', error);
         return [];
       });
       const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
-      const localWorkouts = storage
-        .getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId)
-        .map((workout) => enrichWorkoutSetNames(workout, exerciseCatalog));
-      const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
-
-      if (!resolvedUserId) {
-        setWorkoutHistory(sortedLocalWorkouts);
-        return;
-      }
 
       const sessionsQuery = supabase
         .from('workout_sessions')
@@ -256,10 +263,7 @@ export default function HistoryPage() {
     } catch (err) {
       console.error('Error loading workouts:', err);
       setCloudFetchFailed(true);
-      const fallbackLocal = storage
-        .getWorkoutHistoryForNamespace(namespaceId)
-        .sort((a, b) => getSortTime(b) - getSortTime(a));
-      setWorkoutHistory(fallbackLocal);
+      // Already rendered local state immediately
     } finally {
       loadingRef.current = false;
       setHistoryLoading(false);

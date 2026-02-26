@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, X, Plus } from 'lucide-react';
 import { defaultExercises } from '../../lib/programs';
-import { getCustomExercises } from '../../lib/exercises/custom-exercises';
+import { getCustomExercises, getLocalCustomExercises } from '../../lib/exercises/custom-exercises';
 import type { Exercise, CustomExercise } from '../../lib/types';
 import CreateExerciseModal from './CreateExerciseModal';
 
@@ -29,6 +29,7 @@ export default function ExercisePicker({
   useEffect(() => {
     if (!isOpen) return;
 
+    setCustomExercises(getLocalCustomExercises());
     setLoadingCustom(true);
     getCustomExercises(userId)
       .then(exercises => {

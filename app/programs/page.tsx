@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
-import { createCustomExercise, getCustomExercises } from '@/app/lib/exercises/custom-exercises';
+import { createCustomExercise, getCustomExercises, getLocalCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import { getProgramProgress } from '@/app/lib/programs/progress';
 import { blocksToProgramSets, setsToProgramBlocks } from '@/app/lib/programs/structure';
 import type {
@@ -681,6 +681,9 @@ export default function ProgramsPage() {
     let cancelled = false;
     const loadCustomExercises = async () => {
       try {
+        if (!cancelled) {
+          setCustomExercises(getLocalCustomExercises());
+        }
         const loaded = await getCustomExercises(user?.id ?? null);
         if (!cancelled) {
           setCustomExercises(loaded);
@@ -1065,6 +1068,7 @@ export default function ProgramsPage() {
     };
 
     setDraft(nextDraft);
+    setWeekCountInput(String(nextWeeks.length));
     setActiveWeekIndex(sourceWeekIndex + 1);
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
@@ -1710,8 +1714,8 @@ export default function ProgramsPage() {
                 })
               }
               className={`inline-flex h-11 items-center rounded-full border px-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${hasFocusedSet
-                  ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
-                  : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
+                ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
+                : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
                 }`}
             >
               {hasFocusedSet ? 'Collapse' : 'Edit Sets'}
@@ -2029,8 +2033,8 @@ export default function ProgramsPage() {
                     )
                   }
                   className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${isMenuOpen
-                      ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
-                      : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                    ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
+                    : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
                     }`}
                   aria-label={`Exercise actions for ${exerciseLabel}`}
                 >
@@ -2139,8 +2143,8 @@ export default function ProgramsPage() {
               type="button"
               onClick={() => setWorkspaceView('builder')}
               className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'builder'
-                  ? 'bg-zinc-100 text-zinc-950'
-                  : 'text-zinc-500 hover:text-zinc-200'
+                ? 'bg-zinc-100 text-zinc-950'
+                : 'text-zinc-500 hover:text-zinc-200'
                 }`}
             >
               Builder
@@ -2150,8 +2154,8 @@ export default function ProgramsPage() {
                 type="button"
                 onClick={() => setWorkspaceView('calendar')}
                 className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'calendar'
-                    ? 'bg-zinc-100 text-zinc-950'
-                    : 'text-zinc-500 hover:text-zinc-200'
+                  ? 'bg-zinc-100 text-zinc-950'
+                  : 'text-zinc-500 hover:text-zinc-200'
                   }`}
               >
                 Calendar
@@ -2162,8 +2166,8 @@ export default function ProgramsPage() {
                 type="button"
                 onClick={() => setWorkspaceView('collab')}
                 className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'collab'
-                    ? 'bg-zinc-100 text-zinc-950'
-                    : 'text-zinc-500 hover:text-zinc-200'
+                  ? 'bg-zinc-100 text-zinc-950'
+                  : 'text-zinc-500 hover:text-zinc-200'
                   }`}
               >
                 Collaboration
@@ -2190,8 +2194,8 @@ export default function ProgramsPage() {
                     type="button"
                     onClick={() => setFilter(option)}
                     className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${filter === option
-                        ? 'bg-zinc-100 text-zinc-950'
-                        : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-100 text-zinc-950'
+                      : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
                       }`}
                   >
                     {option === 'built-in' ? 'Built-In' : option}
@@ -2262,8 +2266,8 @@ export default function ProgramsPage() {
                     <motion.article
                       key={program.id}
                       className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${detailsOpen
-                          ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
-                          : 'z-[30] border-b border-zinc-900'
+                        ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
+                        : 'z-[30] border-b border-zinc-900'
                         }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -2287,8 +2291,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => handleSelectProgram(program)}
                             className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${isSelected
-                                ? 'bg-emerald-500/10 text-emerald-300'
-                                : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                              ? 'bg-emerald-500/10 text-emerald-300'
+                              : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                           >
                             {isSelected ? 'Selected' : 'Use'}
@@ -2297,8 +2301,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
                             className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${detailsOpen
-                                ? 'bg-cyan-500/10 text-cyan-300'
-                                : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
+                              ? 'bg-cyan-500/10 text-cyan-300'
+                              : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                             aria-expanded={detailsOpen}
                             aria-controls={detailsId}
@@ -2430,8 +2434,8 @@ export default function ProgramsPage() {
           aria-hidden={!detailsProgramId}
           tabIndex={detailsProgramId ? 0 : -1}
           className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${detailsProgramId
-              ? 'pointer-events-auto bg-black/60 opacity-100'
-              : 'pointer-events-none bg-black/0 opacity-0'
+            ? 'pointer-events-auto bg-black/60 opacity-100'
+            : 'pointer-events-none bg-black/0 opacity-0'
             }`}
         />
       )}
@@ -2683,6 +2687,15 @@ export default function ProgramsPage() {
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicateWeek(activeWeekIndex)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200"
+                    aria-label="Duplicate current week"
+                    title="Duplicate current week"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
                 </div>
                 {currentWeek && (
                   <div className="flex items-center gap-2">
@@ -2766,8 +2779,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => setEditorDetailMode('simple')}
                             className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'simple'
-                                ? 'bg-zinc-100 text-zinc-950'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                              ? 'bg-zinc-100 text-zinc-950'
+                              : 'text-zinc-500 hover:text-zinc-300'
                               }`}
                           >
                             Simple
@@ -2776,8 +2789,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => setEditorDetailMode('advanced')}
                             className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'advanced'
-                                ? 'bg-zinc-100 text-zinc-950'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                              ? 'bg-zinc-100 text-zinc-950'
+                              : 'text-zinc-500 hover:text-zinc-300'
                               }`}
                           >
                             Advanced
@@ -2887,8 +2900,8 @@ export default function ProgramsPage() {
                           type="button"
                           onClick={() => selectEditorWeek(index)}
                           className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                              ? 'bg-cyan-500/10 text-cyan-200'
-                              : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                            ? 'bg-cyan-500/10 text-cyan-200'
+                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
                             }`}
                         >
                           <p className="text-sm font-bold">Week {index + 1}</p>
@@ -2919,8 +2932,8 @@ export default function ProgramsPage() {
                         type="button"
                         onClick={() => selectEditorSession(index)}
                         className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                            ? 'bg-emerald-500/10 text-emerald-200'
-                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                          ? 'bg-emerald-500/10 text-emerald-200'
+                          : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
                           }`}
                       >
                         <p className="text-sm font-bold">Session {index + 1}</p>
@@ -3069,8 +3082,8 @@ export default function ProgramsPage() {
                               }))
                             }
                             className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${customExerciseDraft.exerciseType === typeOption
-                                ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
-                                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                              ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
+                              : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
                               }`}
                           >
                             {formatTokenLabel(typeOption)}
