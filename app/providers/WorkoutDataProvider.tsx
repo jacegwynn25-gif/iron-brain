@@ -213,6 +213,11 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
         // Step 4: Transform and merge
         const cloudWorkouts = transformCloudWorkouts(sessions ?? [], exerciseCatalog);
         const merged = mergeWorkouts(localWorkouts, cloudWorkouts, exerciseCatalog);
+
+        // Persist merged history back to local storage so other hooks (like useWorkoutSession)
+        // can use the latest cloud-synced data for weight suggestions.
+        storage.setWorkoutHistory(merged);
+
         setWorkouts(merged);
 
         return merged;

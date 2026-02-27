@@ -2321,31 +2321,102 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       </div>
 
       <AnimatePresence>
-        {isHistoryOpen && (
+        {isHistoryOpen && focusedRef && (
           <motion.div
             key="history"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-0 z-50 bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)]"
+            className="fixed inset-0 z-[120] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)] flex flex-col"
+            data-swipe-ignore="true"
           >
-            <div className="flex items-center justify-between">
-              <p className="text-white text-xl font-black">History</p>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-[0.4em]">EXERCISE HISTORY</p>
+                <h3 className="text-white text-2xl font-black mt-1 uppercase italic tracking-tighter">
+                  {focusedExerciseDisplayName}
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsHistoryOpen(false)}
-                className="text-zinc-500 hover:text-white"
+                className="rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:text-white active:scale-95"
               >
                 Close
               </button>
             </div>
-            <div className="mt-6">
-              {(focusedRef?.exercise.sets ?? []).map((set, index) => (
-                <div key={set.id} className="border-b border-zinc-900 py-4">
-                  <p className="text-white font-bold">{set.previous ?? `Set ${index + 1}`}</p>
-                  <p className="text-zinc-400 text-sm uppercase tracking-[0.2em]">Type: {set.type}</p>
-                </div>
-              ))}
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+              {(() => {
+                const logs = storage.getExerciseHistory(focusedRef.exercise.id);
+                if (logs.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <History className="w-10 h-10 text-zinc-800 mb-4" />
+                      <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">No previous data found</p>
+                    </div>
+                  );
+                }
+
+                return logs.map((session) => {
+                  const daySets = session.sets.filter(s => s.exerciseId === focusedRef.exercise.id && s.completed);
+                  if (daySets.length === 0) return null;
+
+                  return (
+                    <div key={session.id} className="group relative">
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-mono uppercase tracking-[0.2em] text-emerald-400">
+                          {new Date(session.date).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
+                          {session.dayName || 'Workout'}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2">
+                        {daySets.map((set, setIdx) => (
+                          <div
+                            key={`${session.id}-set-${setIdx}`}
+                            className="flex items-center justify-between rounded-xl bg-zinc-900/40 border border-zinc-900/50 px-4 py-3"
+                          >
+                            <div className="flex items-center gap-4">
+                              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest w-4">
+                                {setIdx + 1}
+                              </span>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-black text-zinc-200">
+                                  {set.actualWeight ?? '--'}<span className="text-[10px] font-bold text-zinc-500 ml-0.5">{set.weightUnit?.toUpperCase() ?? 'LBS'}</span>
+                                </span>
+                                <span className="text-zinc-700 mx-1">×</span>
+                                <span className="text-sm font-black text-white">
+                                  {set.actualReps ?? '--'}<span className="text-[10px] font-bold text-zinc-500 ml-0.5">REPS</span>
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {set.actualRPE && (
+                                <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-[9px] font-black tracking-wider text-zinc-400">
+                                  RPE {set.actualRPE}
+                                </span>
+                              )}
+                              {set.e1rm && (
+                                <span className="text-[9px] font-mono text-emerald-500/60 font-bold uppercase tracking-wider">
+                                  {Math.round(set.e1rm)} E1RM
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </motion.div>
         )}
