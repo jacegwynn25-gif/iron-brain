@@ -191,10 +191,10 @@ function getBlockIdentity(templateSet: SetTemplate): { key: string; type: 'singl
 import { storage } from '../storage';
 
 function getLastWeightForExercise(
-  historyMap: Map<string, number>,
+  historyMap: Map<string, number | null>,
   exerciseId: string,
   unit: WeightUnit
-): number {
+): number | null {
   if (!historyMap.has(exerciseId)) {
     // Try to get actual history for this exercise
     const lastWorkout = storage.getLastWorkoutForExercise(exerciseId);
@@ -213,17 +213,16 @@ function getLastWeightForExercise(
       }
       historyMap.set(exerciseId, roundToIncrement(convertedWeight, unit));
     } else {
-      // Default fallback if no history exists: empty bar or simple generic
-      // (Using 45 lbs as a reasonable default for barbell exercises, can be adjusted)
-      historyMap.set(exerciseId, roundToIncrement(unit === 'lbs' ? 45 : 20, unit));
+      // No history exists — return null instead of fabricating a value
+      historyMap.set(exerciseId, null);
     }
   }
-  return historyMap.get(exerciseId) ?? roundToIncrement(unit === 'lbs' ? 45 : 20, unit);
+  return historyMap.get(exerciseId) ?? null;
 }
 
 function buildSessionSetFromTemplate(
   templateSet: SetTemplate,
-  lastWeight: number,
+  lastWeight: number | null,
   readinessModifier: number,
   weightUnit: WeightUnit,
   defaults?: {
@@ -235,13 +234,16 @@ function buildSessionSetFromTemplate(
   const mappedSetType = mapTemplateSetType(templateSet);
   const effectiveReps = cluster && cluster.reps.length > 0 ? cluster.reps[0] : repsTarget;
 
+  // Only compute weight if we have real history data
+  const computedWeight =
+    mappedSetType === 'working' && lastWeight != null
+      ? roundToIncrement(lastWeight * readinessModifier, weightUnit)
+      : null;
+
   return {
     id: createId('set'),
     type: mappedSetType,
-    weight:
-      mappedSetType === 'working'
-        ? roundToIncrement(lastWeight * readinessModifier, weightUnit)
-        : null,
+    weight: computedWeight,
     reps: effectiveReps,
     rpe: clampRpe(templateSet.targetRPE ?? null),
     touchedWeight: false,
@@ -251,7 +253,7 @@ function buildSessionSetFromTemplate(
     supersetGroup: templateSet.supersetGroup ?? defaults?.supersetGroup ?? null,
     cluster,
     completed: false,
-    previous: `${lastWeight}x${effectiveReps ?? 8}`,
+    previous: lastWeight != null ? `${lastWeight}x${effectiveReps ?? 8}` : null,
   };
 }
 
@@ -397,7 +399,7 @@ function buildBlocksFromProgram(
   const day = sortedWeeks[0]?.days[0];
   if (!day) return [];
 
-  const mockHistoryByExercise = new Map<string, number>();
+  const mockHistoryByExercise = new Map<string, number | null>();
 
   if (Array.isArray(day.blocks) && day.blocks.length > 0) {
     const blocksFromSchema: Block[] = [];
@@ -444,7 +446,7 @@ function buildBlocksFromProgram(
           name: resolveExerciseName(exerciseId),
           slot: templateExercise.slot,
           notes: templateExercise.notes ?? '',
-          historyNote: `Last session: ${lastWeight}x${setsForExercise[0]?.reps ?? 8}`,
+          historyNote: lastWeight != null ? `Last session: ${lastWeight}x${setsForExercise[0]?.reps ?? 8}` : null,
           sets: setsForExercise,
         });
       }
@@ -490,7 +492,7 @@ function buildBlocksFromProgram(
         id: exerciseId,
         name: resolveExerciseName(exerciseId),
         notes: '',
-        historyNote: `Last session: ${lastWeight}x${repsTarget ?? 8}`,
+        historyNote: lastWeight != null ? `Last session: ${lastWeight}x${repsTarget ?? 8}` : null,
         sets: [],
       };
       block.exercises.push(exercise);

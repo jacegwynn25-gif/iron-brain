@@ -1909,8 +1909,9 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 w-full overflow-y-auto pb-20 space-y-8"
+              className="flex-1 w-full overflow-y-auto pb-32 space-y-8"
               ref={overviewScrollRef}
+              data-swipe-ignore="true"
             >
               <div className="px-4 pt-12 pb-4">
                 <div className="flex items-end justify-between">
@@ -2435,8 +2436,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         type="button"
                         onClick={() => setPendingSetCount(n)}
                         className={`rounded-2xl py-4 text-xl font-black transition-all active:scale-95 ${pendingSetCount === n
-                            ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30'
-                            : 'bg-zinc-900 text-zinc-300'
+                          ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30'
+                          : 'bg-zinc-900 text-zinc-300'
                           }`}
                       >
                         {n}
@@ -2544,9 +2545,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-zinc-950 overflow-y-auto text-white"
+            className="fixed inset-0 z-[100] bg-zinc-950 overflow-y-auto text-white scroll-smooth"
+            data-swipe-ignore="true"
           >
-            <div className="pt-[calc(env(safe-area-inset-top)+3rem)] px-6 pb-[calc(8rem+env(safe-area-inset-bottom))]">
+            <div className="pt-[calc(env(safe-area-inset-top)+3rem)] px-6 pb-[calc(12rem+env(safe-area-inset-bottom))]">
               <div className="mx-auto w-full max-w-xl">
                 <div className="mb-4 flex justify-end">
                   <button
@@ -2709,7 +2711,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 )}
 
                 <div className="grid gap-2 text-center">
-                  <p className="text-7xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+                  <p className="text-5xl sm:text-7xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent break-words">
                     {sessionStats.totalVolume.toLocaleString()} {sessionWeightUnit.toUpperCase()}
                   </p>
                   <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">
@@ -2724,7 +2726,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-[110] bg-zinc-950 border-t border-zinc-900 px-6 pt-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+            <div className="fixed bottom-0 left-0 right-0 z-[110] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-900 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
