@@ -10,55 +10,42 @@ import {
   Settings,
   Sparkles,
   X,
+  Plus,
+  BarChart3,
+  User,
 } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
-
-type Tone = {
-  color: string;
-  glow: string;
-  tag: string;
-};
-
-function getTone(score: number): Tone {
-  if (score < 50) {
-    return { color: '#f87171', glow: 'rgba(248,113,113,0.45)', tag: 'Recovery Focused' };
-  }
-
-  if (score > 80) {
-    return { color: '#34d399', glow: 'rgba(52,211,153,0.45)', tag: 'High Performance' };
-  }
-
-  return { color: '#facc15', glow: 'rgba(250,204,21,0.4)', tag: 'Balanced' };
-}
-
-function formatModifier(value?: number | null) {
-  if (value == null || Number.isNaN(value)) return '--';
-  return `${Math.round(value * 100)}%`;
-}
+import { ReadinessCard } from './dashboard/ReadinessCard';
+import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
+import { getWorkoutHistory } from '@/app/lib/storage';
+import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 
 export default function Dashboard() {
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
-  const score = readiness?.score ?? 0;
-  const tone = useMemo(() => getTone(score), [score]);
-  const message = readiness?.recommendation ?? tone.tag;
+  const { isSessionActive } = useActiveSession();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
-  const upperModifier = readiness?.focus_adjustments?.upper_body_modifier;
-  const lowerModifier = readiness?.focus_adjustments?.lower_body_modifier;
+  const [workoutDates, setWorkoutDates] = useState<string[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      // Load recent PR hits
       const raw = localStorage.getItem('iron_brain_last_pr_hits');
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as
-        | PersonalRecordHit[]
-        | { hits?: PersonalRecordHit[]; createdAt?: string };
-      const hits = Array.isArray(parsed) ? parsed : parsed.hits ?? [];
-      if (hits.length === 0) return;
-      setRecentPrHits(hits);
+      if (raw) {
+        const parsed = JSON.parse(raw) as
+          | PersonalRecordHit[]
+          | { hits?: PersonalRecordHit[]; createdAt?: string };
+        const hits = Array.isArray(parsed) ? parsed : parsed.hits ?? [];
+        if (hits.length > 0) setRecentPrHits(hits);
+      }
+
+      // Load workout history for consistency chart
+      const history = getWorkoutHistory();
+      const dates = history.map(w => w.date).filter(Boolean);
+      setWorkoutDates(dates);
     } catch (error) {
-      console.error('Failed to read recent PR hits:', error);
+      console.error('Failed to load dashboard data:', error);
     }
   }, []);
 
@@ -86,45 +73,57 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
-      <header className="flex items-start justify-between gap-4 border-b border-zinc-900 pb-6">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Iron Brain</p>
-          <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Dashboard</h1>
+    <div className="mx-auto w-full max-w-5xl space-y-8 pb-12 pt-6 sm:pt-10">
+      {/* Header */}
+      <header className="flex items-center justify-between px-1">
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-emerald-500/80">Command Center</p>
+          <h1 className="text-4xl font-black italic tracking-tighter text-zinc-100">
+            IRON BRAIN
+          </h1>
         </div>
-        <Link
-          href="/profile/settings"
-          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.24em] text-zinc-400 transition-colors hover:text-zinc-100"
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+          >
+            <User className="h-5 w-5 text-zinc-400" />
+          </Link>
+          <Link
+            href="/profile/settings"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+          >
+            <Settings className="h-5 w-5 text-zinc-400" />
+          </Link>
+        </div>
       </header>
 
+      {/* PR Alert */}
       {prSummary.length > 0 && (
-        <section className="border-b border-zinc-900 py-4">
+        <section className="animate-fadeIn rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-6 mx-1">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300">
-                <Sparkles className="h-3.5 w-3.5" />
-                New Personal Records
+            <div className="flex gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {prSummary.map((entry) => (
-                  <span
-                    key={entry.label}
-                    className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300"
-                  >
-                    {entry.label} {entry.count > 1 ? `x${entry.count}` : ''}
-                  </span>
-                ))}
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">New Personal Records</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {prSummary.map((entry) => (
+                    <span
+                      key={entry.label}
+                      className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-300"
+                    >
+                      {entry.label} {entry.count > 1 ? `x${entry.count}` : ''}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
             <button
               type="button"
               onClick={dismissPrSummary}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-800 text-zinc-500 transition-colors hover:text-zinc-200"
-              aria-label="Dismiss PR summary"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/50 hover:text-zinc-200"
             >
               <X className="h-4 w-4" />
             </button>
@@ -132,77 +131,111 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="pt-8">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-zinc-500">Session Readiness</p>
-        <div className="mt-3 flex items-end justify-between gap-4">
-          <p className="text-[clamp(4.5rem,18vw,8rem)] font-black italic leading-[0.9] text-zinc-100">
-            {loading ? '--' : Math.round(score)}
-          </p>
-          <div className="pb-2 text-right">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-500">Status</p>
-            <p
-              className="mt-2 text-base font-medium italic"
-              style={{ color: tone.color, textShadow: `0 0 18px ${tone.glow}` }}
-            >
-              {message}
-            </p>
-            {lastUpdated && (
-              <p className="mt-2 text-[11px] text-zinc-500">
-                Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center gap-8 border-t border-zinc-900 pt-4 text-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-zinc-500">Upper</span>
-            <span className="font-semibold text-zinc-100">{formatModifier(upperModifier)}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-zinc-500">Lower</span>
-            <span className="font-semibold text-zinc-100">{formatModifier(lowerModifier)}</span>
-          </div>
-        </div>
-
-        {error && <p className="mt-3 text-xs text-rose-400">Spotter data unavailable.</p>}
+      {/* Readiness Section */}
+      <section className="stagger-item mx-1">
+        <ReadinessCard readiness={readiness} loading={loading} />
       </section>
 
-      <section className="mt-10 space-y-3">
+      {/* Main Actions */}
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
+        {/* Primary CTA */}
         <Link
-          href="/start"
-          className="flex w-full items-center justify-between rounded-2xl bg-emerald-500 px-6 py-5 text-left text-sm font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400"
+          href={isSessionActive ? "/workout/active" : "/start"}
+          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[2rem] p-8 transition-all hover:scale-[1.02] active:scale-[0.98] ${isSessionActive
+            ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
+            : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
+            }`}
         >
-          <span>Start Session</span>
-          <ArrowRight className="h-5 w-5" />
+          <div className="relative z-10 flex flex-col gap-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+              <Plus className="h-6 w-6 text-white" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black italic tracking-tight text-white">
+                {isSessionActive ? "RESUME SESSION" : "START SESSION"}
+              </h3>
+              <p className="text-sm font-medium text-white/80">
+                {isSessionActive ? "Continue your training" : "Log a new workout"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="absolute bottom-8 right-8 h-6 w-6 text-white/50 transition-transform group-hover:translate-x-1" />
+
+          {/* Decorative background circle */}
+          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
         </Link>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Secondary Actions Grid */}
+        <div className="grid grid-cols-2 gap-4 sm:col-span-1 lg:col-span-2">
           <Link
             href="/programs"
-            className="flex items-center justify-between rounded-2xl border border-zinc-800 px-4 py-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-600"
+            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
           >
-            <span>Programs</span>
-            <BookOpen className="h-4 w-4 text-zinc-400" />
+            <BookOpen className="h-6 w-6 text-emerald-400" />
+            <div className="space-y-1 pt-8">
+              <h4 className="text-lg font-black italic text-zinc-100">PROGRAMS</h4>
+              <p className="text-xs text-zinc-500">View training plans</p>
+            </div>
           </Link>
 
           <Link
             href="/history"
-            className="flex items-center justify-between rounded-2xl border border-zinc-800 px-4 py-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-600"
+            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
           >
-            <span>History</span>
-            <HistoryIcon className="h-4 w-4 text-zinc-400" />
+            <HistoryIcon className="h-6 w-6 text-amber-400" />
+            <div className="space-y-1 pt-8">
+              <h4 className="text-lg font-black italic text-zinc-100">HISTORY</h4>
+              <p className="text-xs text-zinc-500">Previous sessions</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/analytics"
+            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+          >
+            <BarChart3 className="h-6 w-6 text-blue-400" />
+            <div className="space-y-1 pt-8">
+              <h4 className="text-lg font-black italic text-zinc-100">ANALYTICS</h4>
+              <p className="text-xs text-zinc-500">Track progress</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/workout/new?type=empty"
+            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+          >
+            <RotateCcw className="h-6 w-6 text-zinc-100/40" />
+            <div className="space-y-1 pt-8">
+              <h4 className="text-lg font-black italic text-zinc-100">QUICK LOG</h4>
+              <p className="text-xs text-zinc-500">Empty session</p>
+            </div>
           </Link>
         </div>
-
-        <Link
-          href="/workout/new?type=empty"
-          className="inline-flex items-center gap-2 border-b border-zinc-900 py-3 text-xs font-bold uppercase tracking-[0.24em] text-zinc-500 transition-colors hover:text-zinc-200"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Quick Start
-        </Link>
       </section>
+
+      {/* Consistency Chart */}
+      <section className="stagger-item mx-1">
+        <WeeklyConsistency workoutDates={workoutDates} />
+      </section>
+
+      {/* Status Footer */}
+      {lastUpdated && !loading && (
+        <footer className="flex flex-col items-center justify-center gap-4 pt-4 opacity-50 pb-8">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
+              System Active • {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <div className="h-px w-12 bg-zinc-900" />
+        </footer>
+      )}
+
+      {error && (
+        <p className="text-center text-xs text-rose-400/50">
+          Analytics server currently unreachable. Some data may be local.
+        </p>
+      )}
     </div>
   );
 }
