@@ -43,38 +43,38 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                 className={`absolute -right-20 -top-20 h-64 w-64 opacity-10 blur-[80px] rounded-full ${style.bg}`}
             />
 
-            <div className="surface-card relative h-full rounded-[1.65rem] p-5 sm:rounded-[1.85rem] sm:p-8">
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-3 sm:space-y-4">
+            <div className="surface-card relative h-full rounded-[1.65rem] p-4 sm:rounded-[1.85rem] sm:p-8">
+                <div className="flex items-center justify-between gap-4 sm:gap-6 sm:flex-row">
+                    <div className="min-w-0 flex-1 space-y-2.5 sm:space-y-4">
                         <div className="flex items-center gap-2">
-                            <Activity className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${style.primary}`} />
-                            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Training Readiness</span>
+                            <Activity className={`h-3 w-3 sm:h-4 sm:w-4 ${style.primary}`} />
+                            <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Readiness</span>
                         </div>
 
-                        <div className="space-y-1">
-                            <h2 className="text-2xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
+                        <div className="space-y-0.5 sm:space-y-1">
+                            <h2 className="line-clamp-1 text-lg font-black italic tracking-tight text-zinc-100 sm:line-clamp-none sm:text-4xl">
                                 {readiness?.recommendation || 'System Check...'}
                             </h2>
-                            <p className="max-w-md text-xs leading-relaxed text-zinc-400 sm:text-sm">
-                                {readiness?.reason || 'Wait while we analyze your latest recovery data.'}
+                            <p className="line-clamp-2 max-w-md text-[10px] leading-snug text-zinc-400 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
+                                {readiness?.reason || 'Analyzing recovery data.'}
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-3 pt-1 sm:gap-4 sm:pt-2">
-                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 sm:px-3 sm:py-1.5">
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Upper</span>
-                                <span className="text-[11px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.upper_body_modifier ?? 1) * 100)}%</span>
+                        <div className="flex flex-wrap gap-2 pt-0.5 sm:gap-4 sm:pt-2">
+                            <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1.5">
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">UP</span>
+                                <span className="text-[10px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.upper_body_modifier ?? 1) * 100)}%</span>
                             </div>
-                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 sm:px-3 sm:py-1.5">
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Lower</span>
-                                <span className="text-[11px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.lower_body_modifier ?? 1) * 100)}%</span>
+                            <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1.5">
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">LO</span>
+                                <span className="text-[10px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.lower_body_modifier ?? 1) * 100)}%</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative flex-shrink-0 flex items-center justify-center py-2 sm:py-0">
+                    <div className="relative flex-shrink-0 flex items-center justify-center">
                         {/* Score Ring */}
-                        <div className="relative h-28 w-28 sm:h-40 sm:w-40">
+                        <div className="relative h-20 w-20 sm:h-40 sm:w-40">
                             <svg className="h-full w-full" viewBox="0 0 100 100">
                                 {/* Background Track */}
                                 <circle
@@ -101,13 +101,13 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             </svg>
 
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-3xl font-black italic tracking-tighter text-zinc-100 sm:text-4xl">{score}</span>
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Score</span>
+                                <span className="text-2xl font-black italic tracking-tighter text-zinc-100 sm:text-4xl">{score}</span>
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Score</span>
                             </div>
                         </div>
 
                         {/* Decorative Glow */}
-                        <div className={`absolute inset-0 -z-10 blur-3xl opacity-20 ${style.bg}`} />
+                        <div className={`absolute inset-0 -z-10 blur-2xl opacity-20 sm:blur-3xl ${style.bg}`} />
                     </div>
                 </div>
             </div>

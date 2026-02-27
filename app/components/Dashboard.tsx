@@ -77,8 +77,8 @@ export default function Dashboard() {
       {/* Header */}
       <header className="flex items-center justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Command Center</p>
-          <h1 className="text-3xl font-black italic tracking-tighter text-zinc-100 sm:text-4xl">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Command Center</p>
+          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
             IRON BRAIN
           </h1>
         </div>
