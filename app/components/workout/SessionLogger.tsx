@@ -12,6 +12,7 @@ import {
   FileText,
   History,
   Plus,
+  Timer,
   Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -49,6 +50,7 @@ import { trackUiEvent } from '@/app/lib/analytics/ui-events';
 import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
+import { useActiveSession, type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -493,6 +495,52 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit, {
     resolveExerciseName,
   });
+
+  // ── Active session provider (persistent background session) ──
+  const { saveSnapshot, clearSession } = useActiveSession();
+
+  // ── Elapsed timer ──
+  const [elapsedDisplay, setElapsedDisplay] = useState('0:00');
+  useEffect(() => {
+    const tick = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - session.startTime.getTime()) / 1000));
+      const hours = Math.floor(elapsed / 3600);
+      const minutes = Math.floor((elapsed % 3600) / 60);
+      const seconds = elapsed % 60;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setElapsedDisplay(hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [session.startTime]);
+
+  // ── Sync session to provider so it persists across navigation ──
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (session.status === 'finished') return;
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      const snap: ActiveSessionSnapshot = {
+        status: session.status,
+        startTime: session.startTime.toISOString(),
+        blocks: session.blocks,
+        activeCell: session.activeCell,
+        meta: {
+          programId: baseProgram.id,
+          programName: baseProgram.name ?? 'Quick Start',
+          weekNumber: programDayContext?.weekNumber,
+          dayName: programDayContext?.day?.name,
+          cycleNumber: programDayContext?.cycleNumber,
+        },
+      };
+      saveSnapshot(snap);
+    }, 300);
+    return () => {
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.blocks, session.activeCell, session.status]);
 
   const hasCompletedSets = useMemo(
     () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),
@@ -1650,6 +1698,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       }
 
       setFinishStatusMessage('Saved. Finishing up...');
+      // Clear persistent session before navigating away
+      clearSession();
       // Save succeeded — navigate out
       setIsSummaryOpen(false);
       router.replace('/');
@@ -1863,8 +1913,16 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               ref={overviewScrollRef}
             >
               <div className="px-4 pt-12 pb-4">
-                <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
-                <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
+                    <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3.5 py-2">
+                    <Timer className="h-4 w-4 text-emerald-400" />
+                    <span className="font-mono text-lg font-bold tabular-nums text-emerald-300">{elapsedDisplay}</span>
+                  </div>
+                </div>
               </div>
 
               <div
@@ -2376,11 +2434,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         key={n}
                         type="button"
                         onClick={() => setPendingSetCount(n)}
-                        className={`rounded-2xl py-4 text-xl font-black transition-all active:scale-95 ${
-                          pendingSetCount === n
+                        className={`rounded-2xl py-4 text-xl font-black transition-all active:scale-95 ${pendingSetCount === n
                             ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30'
                             : 'bg-zinc-900 text-zinc-300'
-                        }`}
+                          }`}
                       >
                         {n}
                       </button>

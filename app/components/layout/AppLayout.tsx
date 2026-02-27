@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
+import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -146,6 +147,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
 
+      {!hideBottomNav && <WorkoutMiniBar />}
+
       {!hideBottomNav && (
         <nav className="app-bottom-nav fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
@@ -160,8 +163,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   href={item.href}
                   data-coach={item.coach}
                   className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 transition-colors ${active
-                      ? 'text-emerald-300'
-                      : 'text-zinc-500 hover:text-zinc-200'
+                    ? 'text-emerald-300'
+                    : 'text-zinc-500 hover:text-zinc-200'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'}`} />
