@@ -73,46 +73,46 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 pb-12 pt-6 sm:pt-10">
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       {/* Header */}
       <header className="flex items-center justify-between px-1">
-        <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-emerald-500/80">Command Center</p>
-          <h1 className="text-4xl font-black italic tracking-tighter text-zinc-100">
+        <div className="space-y-0.5 sm:space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Command Center</p>
+          <h1 className="text-3xl font-black italic tracking-tighter text-zinc-100 sm:text-4xl">
             IRON BRAIN
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/profile"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900 sm:h-10 sm:w-10"
           >
-            <User className="h-5 w-5 text-zinc-400" />
+            <User className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
           </Link>
           <Link
             href="/profile/settings"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900 sm:h-10 sm:w-10"
           >
-            <Settings className="h-5 w-5 text-zinc-400" />
+            <Settings className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
           </Link>
         </div>
       </header>
 
       {/* PR Alert */}
       {prSummary.length > 0 && (
-        <section className="animate-fadeIn rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-6 mx-1">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-                <Sparkles className="h-5 w-5" />
+        <section className="animate-fadeIn rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 sm:rounded-3xl sm:p-6 mx-1">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 sm:h-10 sm:w-10">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div className="min-w-0 space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-emerald-400">New Personal Records</p>
-                <div className="mt-2 flex flex-wrap gap-2">
+              <div className="min-w-0 space-y-0.5 sm:space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 sm:text-xs">New Personal Records</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {prSummary.map((entry) => (
                     <span
                       key={entry.label}
-                      className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-300"
+                      className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[9px] font-bold text-emerald-300 sm:text-[10px]"
                     >
                       {entry.label} {entry.count > 1 ? `x${entry.count}` : ''}
                     </span>
@@ -123,9 +123,9 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={dismissPrSummary}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/50 hover:text-zinc-200"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/50 hover:text-zinc-200 sm:h-8 sm:w-8"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </div>
         </section>
@@ -137,77 +137,77 @@ export default function Dashboard() {
       </section>
 
       {/* Main Actions */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
+      <section className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
         {/* Primary CTA */}
         <Link
           href={isSessionActive ? "/workout/active" : "/start"}
-          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[2rem] p-8 transition-all hover:scale-[1.02] active:scale-[0.98] ${isSessionActive
+          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[1.75rem] p-6 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[2rem] sm:p-8 ${isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
         >
-          <div className="relative z-10 flex flex-col gap-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
-              <Plus className="h-6 w-6 text-white" />
+          <div className="relative z-10 flex flex-col gap-4 sm:gap-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md sm:h-12 sm:w-12 sm:rounded-2xl">
+              <Plus className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black italic tracking-tight text-white">
+            <div className="space-y-0.5 sm:space-y-1">
+              <h3 className="text-xl font-black italic tracking-tight text-white sm:text-2xl">
                 {isSessionActive ? "RESUME SESSION" : "START SESSION"}
               </h3>
-              <p className="text-sm font-medium text-white/80">
-                {isSessionActive ? "Continue your training" : "Log a new workout"}
+              <p className="text-xs font-medium text-white/80 sm:text-sm">
+                {isSessionActive ? "Continue training" : "Log a new workout"}
               </p>
             </div>
           </div>
-          <ArrowRight className="absolute bottom-8 right-8 h-6 w-6 text-white/50 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="absolute bottom-6 right-6 h-5 w-5 text-white/50 transition-transform group-hover:translate-x-1 sm:bottom-8 sm:right-8 sm:h-6 sm:w-6" />
 
           {/* Decorative background circle */}
-          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-3xl sm:h-40 sm:w-40" />
         </Link>
 
         {/* Secondary Actions Grid */}
-        <div className="grid grid-cols-2 gap-4 sm:col-span-1 lg:col-span-2">
+        <div className="grid grid-cols-2 gap-3 sm:col-span-1 sm:gap-4 lg:col-span-2">
           <Link
             href="/programs"
-            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
           >
-            <BookOpen className="h-6 w-6 text-emerald-400" />
-            <div className="space-y-1 pt-8">
-              <h4 className="text-lg font-black italic text-zinc-100">PROGRAMS</h4>
-              <p className="text-xs text-zinc-500">View training plans</p>
+            <BookOpen className="h-5 w-5 text-emerald-400 sm:h-6 sm:w-6" />
+            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
+              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">PROGRAMS</h4>
+              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Training plans</p>
             </div>
           </Link>
 
           <Link
             href="/history"
-            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
           >
-            <HistoryIcon className="h-6 w-6 text-amber-400" />
-            <div className="space-y-1 pt-8">
-              <h4 className="text-lg font-black italic text-zinc-100">HISTORY</h4>
-              <p className="text-xs text-zinc-500">Previous sessions</p>
+            <HistoryIcon className="h-5 w-5 text-amber-400 sm:h-6 sm:w-6" />
+            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
+              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">HISTORY</h4>
+              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Session logs</p>
             </div>
           </Link>
 
           <Link
             href="/analytics"
-            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
           >
-            <BarChart3 className="h-6 w-6 text-blue-400" />
-            <div className="space-y-1 pt-8">
-              <h4 className="text-lg font-black italic text-zinc-100">ANALYTICS</h4>
-              <p className="text-xs text-zinc-500">Track progress</p>
+            <BarChart3 className="h-5 w-5 text-blue-400 sm:h-6 sm:w-6" />
+            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
+              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">ANALYTICS</h4>
+              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Progress trends</p>
             </div>
           </Link>
 
           <Link
             href="/workout/new?type=empty"
-            className="surface-card stagger-item group flex flex-col justify-between p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
           >
-            <RotateCcw className="h-6 w-6 text-zinc-100/40" />
-            <div className="space-y-1 pt-8">
-              <h4 className="text-lg font-black italic text-zinc-100">QUICK LOG</h4>
-              <p className="text-xs text-zinc-500">Empty session</p>
+            <RotateCcw className="h-5 w-5 text-zinc-100/40 sm:h-6 sm:w-6" />
+            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
+              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">QUICK LOG</h4>
+              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Empty session</p>
             </div>
           </Link>
         </div>

@@ -46,29 +46,29 @@ export function WeeklyConsistency({ workoutDates, loading }: WeeklyConsistencyPr
     }
 
     return (
-        <div className="surface-card overflow-hidden p-6 py-8">
-            <div className="mb-6 flex items-center justify-between">
+        <div className="surface-card overflow-hidden p-5 py-6 sm:p-6 sm:py-8">
+            <div className="mb-4 flex items-center justify-between sm:mb-6">
                 <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-emerald-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Activity & Consistency</span>
+                    <Calendar className="h-3.5 w-3.5 text-emerald-400 sm:h-4 sm:w-4" />
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.35em]">Activity & Consistency</span>
                 </div>
-                <span className="text-[10px] font-bold text-zinc-400">Past 14 Days</span>
+                <span className="text-[9px] font-bold text-zinc-400 sm:text-[10px]">Past 14 Days</span>
             </div>
 
-            <div className="flex items-end justify-between gap-1 sm:gap-2">
+            <div className="flex items-end justify-between gap-0.5 sm:gap-2">
                 {days.map((day) => (
-                    <div key={day.iso} className="flex flex-1 flex-col items-center gap-3">
+                    <div key={day.iso} className="flex flex-1 flex-col items-center gap-2.5 sm:gap-3">
                         <div
-                            className={`relative h-2.5 w-2.5 rounded-full transition-all duration-500 ${day.hasWorkout
-                                    ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-                                    : 'bg-zinc-800'
+                            className={`relative h-2 w-2 rounded-full transition-all duration-500 sm:h-2.5 sm:w-2.5 ${day.hasWorkout
+                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                                : 'bg-zinc-800'
                                 }`}
                         >
                             {day.isToday && (
-                                <div className="absolute -inset-1.5 animate-ping rounded-full border border-emerald-500/20" />
+                                <div className="absolute -inset-1 animate-ping rounded-full border border-emerald-500/20 sm:-inset-1.5" />
                             )}
                         </div>
-                        <span className={`text-[10px] font-bold uppercase ${day.isToday ? 'text-zinc-100' : 'text-zinc-500'}`}>
+                        <span className={`text-[9px] font-bold uppercase sm:text-[10px] ${day.isToday ? 'text-zinc-100' : 'text-zinc-500'}`}>
                             {day.dayName}
                         </span>
                     </div>

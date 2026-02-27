@@ -37,44 +37,44 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
     }
 
     return (
-        <div className="relative overflow-hidden rounded-[2rem] border border-zinc-900 bg-zinc-950/40 p-1">
+        <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-900 bg-zinc-950/40 p-0.5 sm:rounded-[2rem] sm:p-1">
             {/* Background Glow */}
             <div
                 className={`absolute -right-20 -top-20 h-64 w-64 opacity-10 blur-[80px] rounded-full ${style.bg}`}
             />
 
-            <div className="surface-card relative h-full rounded-[1.85rem] p-6 sm:p-8">
+            <div className="surface-card relative h-full rounded-[1.65rem] p-5 sm:rounded-[1.85rem] sm:p-8">
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                         <div className="flex items-center gap-2">
-                            <Activity className={`h-4 w-4 ${style.primary}`} />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Training Readiness</span>
+                            <Activity className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${style.primary}`} />
+                            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Training Readiness</span>
                         </div>
 
                         <div className="space-y-1">
-                            <h2 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
+                            <h2 className="text-2xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
                                 {readiness?.recommendation || 'System Check...'}
                             </h2>
-                            <p className="max-w-md text-sm leading-relaxed text-zinc-400">
+                            <p className="max-w-md text-xs leading-relaxed text-zinc-400 sm:text-sm">
                                 {readiness?.reason || 'Wait while we analyze your latest recovery data.'}
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-4 pt-2">
-                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Upper</span>
-                                <span className="text-xs font-bold text-zinc-100">{Math.round((readiness?.focus_adjustments.upper_body_modifier ?? 1) * 100)}%</span>
+                        <div className="flex flex-wrap gap-3 pt-1 sm:gap-4 sm:pt-2">
+                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 sm:px-3 sm:py-1.5">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Upper</span>
+                                <span className="text-[11px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.upper_body_modifier ?? 1) * 100)}%</span>
                             </div>
-                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Lower</span>
-                                <span className="text-xs font-bold text-zinc-100">{Math.round((readiness?.focus_adjustments.lower_body_modifier ?? 1) * 100)}%</span>
+                            <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 sm:px-3 sm:py-1.5">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Lower</span>
+                                <span className="text-[11px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.lower_body_modifier ?? 1) * 100)}%</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative flex-shrink-0 flex items-center justify-center py-4 sm:py-0">
+                    <div className="relative flex-shrink-0 flex items-center justify-center py-2 sm:py-0">
                         {/* Score Ring */}
-                        <div className="relative h-32 w-32 sm:h-40 sm:w-40">
+                        <div className="relative h-28 w-28 sm:h-40 sm:w-40">
                             <svg className="h-full w-full" viewBox="0 0 100 100">
                                 {/* Background Track */}
                                 <circle
@@ -101,8 +101,8 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             </svg>
 
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-4xl font-black italic tracking-tighter text-zinc-100">{score}</span>
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Score</span>
+                                <span className="text-3xl font-black italic tracking-tighter text-zinc-100 sm:text-4xl">{score}</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">Score</span>
                             </div>
                         </div>
 
