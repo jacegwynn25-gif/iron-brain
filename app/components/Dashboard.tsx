@@ -141,28 +141,23 @@ export default function Dashboard() {
         {/* Primary CTA */}
         <Link
           href={isSessionActive ? "/workout/active" : "/start"}
-          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[1.5rem] p-5 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[2rem] sm:p-6 ${isSessionActive
+          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.25rem] px-5 py-4 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
         >
-          <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md sm:h-11 sm:w-11 sm:rounded-2xl">
-              <Plus className="h-4.5 w-4.5 text-white sm:h-5.5 sm:w-5.5" />
+          <div className="relative z-10 flex items-center gap-3 sm:gap-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md sm:h-9 sm:w-9 sm:rounded-xl">
+              <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
             </div>
-            <div className="space-y-0.5">
-              <h3 className="text-lg font-black italic tracking-tight text-white sm:text-xl">
-                {isSessionActive ? "RESUME SESSION" : "START SESSION"}
-              </h3>
-              <p className="text-[10px] font-medium text-white/80 sm:text-xs">
-                {isSessionActive ? "Continue training" : "Log a new workout"}
-              </p>
-            </div>
+            <h3 className="text-base font-black italic tracking-tight text-white sm:text-lg">
+              {isSessionActive ? "RESUME SESSION" : "START SESSION"}
+            </h3>
           </div>
-          <ArrowRight className="absolute bottom-5 right-5 h-4.5 w-4.5 text-white/50 transition-transform group-hover:translate-x-1 sm:bottom-6 sm:right-6 sm:h-5 sm:w-5" />
+          <ArrowRight className="relative z-10 h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
 
           {/* Decorative background circle */}
-          <div className="absolute -bottom-10 -right-10 h-28 w-28 rounded-full bg-white/10 blur-3xl sm:h-36 sm:w-36" />
+          <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-white/10 blur-2xl sm:h-24 sm:w-24" />
         </Link>
 
         {/* Secondary Actions Grid */}
