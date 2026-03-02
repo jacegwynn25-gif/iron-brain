@@ -137,77 +137,77 @@ export default function Dashboard() {
       </section>
 
       {/* Main Actions */}
-      <section className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
+      <section className="grid gap-2.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
         {/* Primary CTA */}
         <Link
           href={isSessionActive ? "/workout/active" : "/start"}
-          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[1.75rem] p-6 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[2rem] sm:p-8 ${isSessionActive
+          className={`stagger-item group relative flex flex-col justify-between overflow-hidden rounded-[1.5rem] p-5 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[2rem] sm:p-6 ${isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
         >
-          <div className="relative z-10 flex flex-col gap-4 sm:gap-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md sm:h-12 sm:w-12 sm:rounded-2xl">
-              <Plus className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+          <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md sm:h-11 sm:w-11 sm:rounded-2xl">
+              <Plus className="h-4.5 w-4.5 text-white sm:h-5.5 sm:w-5.5" />
             </div>
-            <div className="space-y-0.5 sm:space-y-1">
-              <h3 className="text-xl font-black italic tracking-tight text-white sm:text-2xl">
+            <div className="space-y-0.5">
+              <h3 className="text-lg font-black italic tracking-tight text-white sm:text-xl">
                 {isSessionActive ? "RESUME SESSION" : "START SESSION"}
               </h3>
-              <p className="text-xs font-medium text-white/80 sm:text-sm">
+              <p className="text-[10px] font-medium text-white/80 sm:text-xs">
                 {isSessionActive ? "Continue training" : "Log a new workout"}
               </p>
             </div>
           </div>
-          <ArrowRight className="absolute bottom-6 right-6 h-5 w-5 text-white/50 transition-transform group-hover:translate-x-1 sm:bottom-8 sm:right-8 sm:h-6 sm:w-6" />
+          <ArrowRight className="absolute bottom-5 right-5 h-4.5 w-4.5 text-white/50 transition-transform group-hover:translate-x-1 sm:bottom-6 sm:right-6 sm:h-5 sm:w-5" />
 
           {/* Decorative background circle */}
-          <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-3xl sm:h-40 sm:w-40" />
+          <div className="absolute -bottom-10 -right-10 h-28 w-28 rounded-full bg-white/10 blur-3xl sm:h-36 sm:w-36" />
         </Link>
 
         {/* Secondary Actions Grid */}
-        <div className="grid grid-cols-2 gap-3 sm:col-span-1 sm:gap-4 lg:col-span-2">
+        <div className="grid grid-cols-2 gap-2.5 sm:col-span-1 sm:gap-4 lg:col-span-2">
           <Link
             href="/programs"
-            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
+            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <BookOpen className="h-5 w-5 text-emerald-400 sm:h-6 sm:w-6" />
-            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
-              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">PROGRAMS</h4>
-              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Training plans</p>
+            <BookOpen className="h-4.5 w-4.5 text-emerald-400 sm:h-5.5 sm:w-5.5" />
+            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
+              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">PROGRAMS</h4>
+              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Training plans</p>
             </div>
           </Link>
 
           <Link
             href="/history"
-            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
+            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <HistoryIcon className="h-5 w-5 text-amber-400 sm:h-6 sm:w-6" />
-            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
-              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">HISTORY</h4>
-              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Session logs</p>
+            <HistoryIcon className="h-4.5 w-4.5 text-amber-400 sm:h-5.5 sm:w-5.5" />
+            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
+              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">HISTORY</h4>
+              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Session logs</p>
             </div>
           </Link>
 
           <Link
             href="/analytics"
-            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
+            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <BarChart3 className="h-5 w-5 text-blue-400 sm:h-6 sm:w-6" />
-            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
-              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">ANALYTICS</h4>
-              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Progress trends</p>
+            <BarChart3 className="h-4.5 w-4.5 text-blue-400 sm:h-5.5 sm:w-5.5" />
+            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
+              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">ANALYTICS</h4>
+              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Progress trends</p>
             </div>
           </Link>
 
           <Link
             href="/workout/new?type=empty"
-            className="surface-card stagger-item group flex flex-col justify-between p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-6"
+            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <RotateCcw className="h-5 w-5 text-zinc-100/40 sm:h-6 sm:w-6" />
-            <div className="space-y-0.5 pt-6 sm:space-y-1 sm:pt-8">
-              <h4 className="text-base font-black italic text-zinc-100 sm:text-lg">QUICK LOG</h4>
-              <p className="hidden text-[10px] text-zinc-500 sm:block sm:text-xs">Empty session</p>
+            <RotateCcw className="h-4.5 w-4.5 text-zinc-100/40 sm:h-5.5 sm:w-5.5" />
+            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
+              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">QUICK LOG</h4>
+              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Empty session</p>
             </div>
           </Link>
         </div>
