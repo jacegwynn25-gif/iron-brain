@@ -482,10 +482,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     (exercise) => resolveExerciseMuscleProfile(exercise, { catalog: exerciseCatalog }),
     [exerciseCatalog]
   );
+  // ── Active session provider (persistent background session) ──
+  // Must be initialized before useWorkoutSession so we can inject the saved state
+  const { snapshot, saveSnapshot, clearSession } = useActiveSession();
+
   const {
     state: session,
     dispatch,
     toggleComplete,
+    skipSet,
     addSet,
     updateNote,
     addExercise,
@@ -494,10 +499,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     reinitializeSession,
   } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit, {
     resolveExerciseName,
+    initialState: snapshot ? {
+      ...snapshot,
+      startTime: new Date(snapshot.startTime)
+    } : undefined,
   });
-
-  // ── Active session provider (persistent background session) ──
-  const { saveSnapshot, clearSession } = useActiveSession();
 
   // ── Elapsed timer ──
   const [elapsedDisplay, setElapsedDisplay] = useState('0:00');
@@ -1410,6 +1416,50 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     }
   };
 
+  const handleSkipSet = () => {
+    if (!focusContext) return;
+
+    setJustLogged(true);
+    setTimeout(() => setJustLogged(false), 600);
+
+    const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
+    const wasLastSet = setIndex === focusContext.exercise.sets.length - 1;
+    const wasEditing = focusContext.set.completed;
+
+    // We don't advance clusters for skipped sets, so we just skip the whole cluster logic
+    const skipRestForSupersetTransition =
+      !wasEditing &&
+      shouldSkipRestForSupersetTransition(session.blocks, {
+        blockId: focusContext.blockId,
+        exerciseId: focusContext.exerciseId,
+        setId: focusContext.setId,
+      });
+
+    const block = session.blocks.find((entry) => entry.id === focusContext.blockId);
+    const isSupersetRoundRest = !wasEditing && !skipRestForSupersetTransition && block?.type === 'superset';
+
+    if (!wasEditing) {
+      skipSet(focusContext.blockId, focusContext.exerciseId, focusContext.setId);
+    }
+
+    if (skipRestForSupersetTransition) {
+      setRestContext(null);
+      setViewMode('cockpit');
+      return;
+    }
+
+    setRestContext({
+      blockId: focusContext.blockId,
+      exerciseId: focusContext.exerciseId,
+      setId: focusContext.setId,
+      wasLastSet,
+      wasEditing,
+      supersetRoundRest: isSupersetRoundRest,
+    });
+
+    setViewMode('rest');
+  };
+
   const handleBackNavigation = () => {
     if (isSummaryOpen) {
       setIsSummaryOpen(false);
@@ -1502,7 +1552,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
           const touched = set.touchedWeight || set.touchedReps || set.touchedRpe;
           const hasMeaningfulInput = (rawReps != null && rawReps > 0) || weight > 0 || set.rpe != null;
-          const autoCompleted = set.completed !== true && touched && hasMeaningfulInput;
+          const autoCompleted = !set.skipped && set.completed !== true && touched && hasMeaningfulInput;
           if (autoCompleted) {
             autoCompletedSets += 1;
           }
@@ -1522,7 +1572,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
             actualReps: reps,
             actualRPE: set.rpe ?? null,
-            completed: set.completed === true || autoCompleted,
+            completed: !set.skipped && (set.completed === true || autoCompleted),
             e1rm: e1rm ? Math.round(e1rm) : null,
             volumeLoad,
             setType: set.cluster ? 'cluster' : mapSetType(set.type),
@@ -1743,6 +1793,13 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     if (isFinishingWorkout) return;
     setIsSummaryOpen(false);
     setFinishStatusMessage(null);
+  };
+
+  const handleCancelWorkout = () => {
+    if (confirm('Are you sure you want to cancel this workout? All progress will be lost and it will not be saved to your history.')) {
+      clearSession();
+      router.push('/');
+    }
   };
 
   useEffect(() => {
@@ -2242,7 +2299,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 </div>
               </div>
 
-              <footer className="w-full px-4 mt-12">
+              <footer className="w-full px-4 mt-12 pb-6 flex flex-col items-center gap-3">
                 <div className="w-full h-20 bg-zinc-900/80 rounded-[2.5rem] flex items-center p-2 backdrop-blur-md">
                   <button
                     type="button"
@@ -2269,6 +2326,16 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                     <FileText className="w-7 h-7" />
                   </button>
                 </div>
+
+                {!isEditingSet && (
+                  <button
+                    type="button"
+                    onClick={handleSkipSet}
+                    className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-300 transition-colors px-6 py-2"
+                  >
+                    Skip Set
+                  </button>
+                )}
               </footer>
             </motion.div>
           )}
@@ -2826,6 +2893,17 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   ) : 'Complete Workout'}
                 </button>
               </div>
+            </div>
+
+            <div className="mt-6 border-t border-zinc-900/50 pt-6 px-4 pb-2">
+              <button
+                type="button"
+                onClick={handleCancelWorkout}
+                disabled={isFinishingWorkout}
+                className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
+              >
+                Cancel & Discard Workout
+              </button>
             </div>
           </motion.div>
         )}

@@ -20,6 +20,7 @@ type UpdateSetPayload = Partial<Pick<SessionSet, 'weight' | 'reps' | 'rpe' | 'ty
 
 export interface UseWorkoutSessionOptions {
   resolveExerciseName?: (exerciseId: string) => string;
+  initialState?: SessionState;
 }
 
 type WorkoutSessionAction =
@@ -53,6 +54,14 @@ type WorkoutSessionAction =
     payload: {
       blockId: string;
       exerciseId: string;
+    };
+  }
+  | {
+    type: 'SKIP_SET';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      setId: string;
     };
   }
   | {
@@ -631,6 +640,31 @@ function workoutSessionReducer(
       };
     }
 
+    case 'SKIP_SET': {
+      const blocks = cloneBlocks(state.blocks);
+      const ref: SetRef = {
+        blockId: action.payload.blockId,
+        exerciseId: action.payload.exerciseId,
+        setId: action.payload.setId,
+      };
+      const location = findSetLocation(blocks, ref);
+
+      if (!location) return state;
+
+      const set = blocks[location.blockIndex].exercises[location.exerciseIndex].sets[location.setIndex];
+      // Mark as skipped, and also completed so iterators move past it
+      set.skipped = true;
+      set.completed = true;
+
+      const nextRef = findNextIncompleteSetRef(blocks, ref);
+
+      return {
+        ...state,
+        blocks,
+        activeCell: nextRef ? toActiveCell(nextRef, 'weight') : null,
+      };
+    }
+
     case 'ADD_SET': {
       const blocks = cloneBlocks(state.blocks);
       const exercise = exerciseByIds(blocks, action.payload.blockId, action.payload.exerciseId);
@@ -834,7 +868,7 @@ export function useWorkoutSession(
     (stateValue: SessionState, action: WorkoutSessionAction) =>
       workoutSessionReducer(stateValue, action, weightUnit, resolveExerciseName),
     program,
-    () => createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
+    () => options.initialState ?? createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
   );
 
   const reinitializeSession = useCallback(() => {
@@ -861,6 +895,13 @@ export function useWorkoutSession(
   const toggleComplete = useCallback((blockId: string, exerciseId: string, setId: string) => {
     dispatch({
       type: 'TOGGLE_COMPLETE',
+      payload: { blockId, exerciseId, setId },
+    });
+  }, []);
+
+  const skipSet = useCallback((blockId: string, exerciseId: string, setId: string) => {
+    dispatch({
+      type: 'SKIP_SET',
       payload: { blockId, exerciseId, setId },
     });
   }, []);
@@ -921,6 +962,7 @@ export function useWorkoutSession(
     canFinish,
     updateSet,
     toggleComplete,
+    skipSet,
     addSet,
     removeSet,
     updateNote,

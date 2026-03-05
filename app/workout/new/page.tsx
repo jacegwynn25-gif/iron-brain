@@ -48,13 +48,14 @@ export default function NewWorkoutPage() {
     if (forceQuickStart) return null;
     // If resuming an active session, find the program by the stored programId
     if (resumeMeta) {
+      if (loading && allPrograms.length === 0) return undefined; // Indicate we are waiting
       return allPrograms.find((program) => program.id === resumeMeta.programId) ?? selectedProgram ?? null;
     }
     if (requestedProgramId) {
       return allPrograms.find((program) => program.id === requestedProgramId) ?? null;
     }
     return selectedProgram ?? null;
-  }, [allPrograms, forceQuickStart, requestedProgramId, resumeMeta, selectedProgram]);
+  }, [allPrograms, forceQuickStart, requestedProgramId, resumeMeta, selectedProgram, loading]);
 
   const resolvedProgress = useMemo<ProgramProgress | null>(() => {
     if (forceQuickStart || !resolvedProgram) return null;
@@ -81,6 +82,17 @@ export default function NewWorkoutPage() {
       <div className="mx-auto w-full max-w-3xl py-6">
         <div className="px-4 py-12 text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
           Loading Program...
+        </div>
+      </div>
+    );
+  }
+
+  // Wait for allPrograms to load if we are trying to resume an active session
+  if (resolvedProgram === undefined) {
+    return (
+      <div className="mx-auto w-full max-w-3xl py-6">
+        <div className="px-4 py-12 text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+          Resuming Workout...
         </div>
       </div>
     );

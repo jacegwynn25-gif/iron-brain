@@ -19,6 +19,7 @@ export interface Set {
   supersetGroup: string | null;
   cluster: ClusterConfig | null;
   completed: boolean;
+  skipped?: boolean;
   previous: string | null; // e.g. "200x8"
 }
 
