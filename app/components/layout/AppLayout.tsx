@@ -150,9 +150,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {!hideBottomNav && <WorkoutMiniBar />}
 
       {!hideBottomNav && (
-        <nav className="app-bottom-nav fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl">
+        <nav className="app-bottom-nav fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl touch-manipulation">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.12rem)] pt-1.5">
+          <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-2.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -162,13 +162,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.id}
                   href={item.href}
                   data-coach={item.coach}
-                  className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 transition-colors ${active
+                  className={`group relative flex min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 px-1 py-4 transition-all active:scale-95 active:brightness-90 ${active
                     ? 'text-emerald-300'
                     : 'text-zinc-500 hover:text-zinc-200'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'}`} />
-                  <span className={`text-[10px] font-semibold leading-none ${active ? 'tracking-[0.02em]' : ''}`}>
+                  <span className={`text-[10px] font-bold leading-none ${active ? 'tracking-[0.02em]' : ''}`}>
                     {item.label}
                   </span>
                   {active && (
@@ -180,6 +180,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </nav>
       )}
+
     </div>
   );
 }
