@@ -143,7 +143,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
-      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-8' : 'pb-28'}`}>
+      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-36'}`}>
         {children}
       </main>
 

@@ -14,7 +14,9 @@ import {
   Plus,
   Timer,
   Trash2,
+  X,
 } from 'lucide-react';
+
 import type { LucideIcon } from 'lucide-react';
 import type { CustomExercise, DayTemplate, ProgramTemplate, SetLog, WeightUnit, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
@@ -1968,11 +1970,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   return (
     <>
       <div
-        className="relative w-full h-[100dvh] bg-zinc-950 text-white flex flex-col overflow-hidden"
+        className="relative w-full min-h-[100dvh] bg-zinc-950 text-white flex flex-col"
         onTouchStart={handleSwipeStart}
         onTouchEnd={handleSwipeEnd}
         data-swipe-scope="local"
       >
+
         <AnimatePresence mode="wait" initial={false}>
           {viewMode === 'overview' && (
             <motion.div
@@ -1986,17 +1989,29 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               data-swipe-ignore="true"
             >
               <div className="px-4 pt-12 pb-4">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
-                    <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
-                  </div>
+                <div className="mb-8 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleCancelWorkout}
+                    className="group flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400 transition-all hover:border-rose-500/40 hover:bg-rose-500/10 active:scale-95"
+                  >
+                    <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
+                    <span>Discard</span>
+                  </button>
                   <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3.5 py-2">
                     <Timer className="h-4 w-4 text-emerald-400" />
                     <span className="font-mono text-lg font-bold tabular-nums text-emerald-300">{elapsedDisplay}</span>
                   </div>
                 </div>
+
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
+                    <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
+                  </div>
+                </div>
               </div>
+
 
               <div
                 className="space-y-6 px-4"
@@ -2178,53 +2193,67 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               transition={{ duration: 0.2 }}
               className="flex-1 w-full flex flex-col overflow-hidden relative select-none pb-32"
             >
-              <header className="mb-6 flex items-center gap-4 px-4">
+              <header className="mb-6 flex items-center justify-between gap-4 px-4">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('overview');
+                      setFocusedExerciseId(null);
+                      requestAnimationFrame(() => {
+                        overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
+                      });
+                    }}
+                    className="inline-flex items-center text-zinc-400 transition-all hover:text-white active:opacity-60"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="sr-only">Back</span>
+                  </button>
+
+                  <div>
+
+                    {focusedRef && (() => {
+                      const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
+                      const StyleIcon = style.icon;
+                      return (
+                        <div className="mb-1 flex items-center gap-2">
+                          <ExerciseBadge icon={StyleIcon} style={style} />
+                          <span
+                            className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                              }`}
+                            style={{
+                              color: style.isCompound ? undefined : style.primaryColor,
+                              backgroundImage: style.isCompound
+                                ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                                : undefined,
+                            }}
+                          >
+                            {style.label}
+                          </span>
+                          <span
+                            className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                            style={{ color: style.secondaryColor }}
+                          >
+                            {style.isCompound ? 'COMP' : 'ISO'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
+                  </div>
+                </div>
+
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setViewMode('overview');
-                    setFocusedExerciseId(null);
-                    requestAnimationFrame(() => {
-                      overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
-                    });
-                  }}
-                  className="inline-flex items-center text-zinc-400 transition-all hover:text-white active:opacity-60"
+                  onClick={handleCancelWorkout}
+                  className="group flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400 transition-all hover:border-rose-500/40 hover:bg-rose-500/10 active:scale-95"
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
+                  <X className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:rotate-90 transition-all font-black" />
+                  <span>Discard</span>
                 </button>
-
-                <div>
-                  {focusedRef && (() => {
-                    const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
-                    const StyleIcon = style.icon;
-                    return (
-                      <div className="mb-1 flex items-center gap-2">
-                        <ExerciseBadge icon={StyleIcon} style={style} />
-                        <span
-                          className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
-                            }`}
-                          style={{
-                            color: style.isCompound ? undefined : style.primaryColor,
-                            backgroundImage: style.isCompound
-                              ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                              : undefined,
-                          }}
-                        >
-                          {style.label}
-                        </span>
-                        <span
-                          className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                          style={{ color: style.secondaryColor }}
-                        >
-                          {style.isCompound ? 'COMP' : 'ISO'}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                  <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
-                </div>
               </header>
+
 
               <div className="px-4 mt-6">
                 <div className="flex flex-col justify-center gap-6">
@@ -2341,15 +2370,19 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 </div>
 
                 {!isEditingSet && (
-                  <button
-                    type="button"
-                    onClick={handleSkipSet}
-                    className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-zinc-300 transition-colors px-6 py-2"
-                  >
-                    Skip Set
-                  </button>
+                  <div className="flex justify-center mt-2">
+                    <button
+                      type="button"
+                      onClick={handleSkipSet}
+                      className="group flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/40 px-6 py-2.5 text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500 transition-all hover:bg-zinc-800 hover:text-zinc-300 active:scale-95"
+                    >
+                      <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+                      <span>Skip Set</span>
+                    </button>
+                  </div>
                 )}
               </footer>
+
             </motion.div>
           )}
 

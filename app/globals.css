@@ -81,7 +81,6 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
   /* Let the fixed gradient layer show through */
   background-color: transparent;
   color: var(--foreground);
@@ -90,10 +89,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   /* Better mobile text rendering */
+  /* Better mobile text rendering */
   -webkit-text-size-adjust: 100%;
   letter-spacing: -0.011em;
-  /* Contain overscroll — prevents propagation to parent without blocking natural iOS bounce within scrollable elements */
-  overscroll-behavior: contain;
+  /* Allow natural scrolling on iOS */
   -webkit-overflow-scrolling: touch;
 }
 
