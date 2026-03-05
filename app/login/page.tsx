@@ -42,7 +42,7 @@ export default function LoginPage() {
   }, [loading, user, router, resolvePostLoginTarget]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 safe-top">
+    <div className="min-h-dvh app-gradient safe-top">
       <AuthModal
         onSuccess={() => router.replace(resolvePostLoginTarget())}
         hideClose

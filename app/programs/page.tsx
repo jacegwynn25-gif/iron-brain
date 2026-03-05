@@ -2190,12 +2190,13 @@ export default function ProgramsPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
-        <header className="border-b border-zinc-900 pb-6">
+      <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+        <header className="stagger-item px-1">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Builder</p>
-              <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Programs</h1>
+            <div className="space-y-0.5 sm:space-y-1">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Builder</p>
+              <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">PROGRAMS</h1>
+              <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Manage your training templates.</p>
             </div>
             {workspaceView === 'builder' && (
               <button
@@ -2209,39 +2210,39 @@ export default function ProgramsPage() {
             )}
           </div>
 
-          <div className="mt-4 inline-flex h-11 items-center gap-1 rounded-full border border-zinc-800 p-1">
+          <div className="mt-6 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <button
               type="button"
               onClick={() => setWorkspaceView('builder')}
-              className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'builder'
-                ? 'bg-zinc-100 text-zinc-950'
-                : 'text-zinc-500 hover:text-zinc-200'
+              className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'builder'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                 }`}
             >
-              Builder
+              BUILDER
             </button>
             {FEATURES.programCalendar && (
               <button
                 type="button"
                 onClick={() => setWorkspaceView('calendar')}
-                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'calendar'
-                  ? 'bg-zinc-100 text-zinc-950'
-                  : 'text-zinc-500 hover:text-zinc-200'
+                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'calendar'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                   }`}
               >
-                Calendar
+                CALENDAR
               </button>
             )}
             {FEATURES.coachCollab && (
               <button
                 type="button"
                 onClick={() => setWorkspaceView('collab')}
-                className={`h-9 rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.2em] ${workspaceView === 'collab'
-                  ? 'bg-zinc-100 text-zinc-950'
-                  : 'text-zinc-500 hover:text-zinc-200'
+                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'collab'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                   }`}
               >
-                Collaboration
+                COLLABORATION
               </button>
             )}
           </div>
@@ -2274,8 +2275,9 @@ export default function ProgramsPage() {
                 ))}
               </div>
             </>
-          )}
-        </header>
+          )
+          }
+        </header >
 
         {workspaceView === 'builder' && (
           <>
@@ -2488,14 +2490,18 @@ export default function ProgramsPage() {
           </>
         )}
 
-        {workspaceView === 'calendar' && FEATURES.programCalendar && (
-          <ProgramsCalendarView programs={allPrograms} />
-        )}
+        {
+          workspaceView === 'calendar' && FEATURES.programCalendar && (
+            <ProgramsCalendarView programs={allPrograms} />
+          )
+        }
 
-        {workspaceView === 'collab' && FEATURES.coachCollab && (
-          <CoachCollabPanel programs={allPrograms} />
-        )}
-      </div>
+        {
+          workspaceView === 'collab' && FEATURES.coachCollab && (
+            <CoachCollabPanel programs={allPrograms} />
+          )
+        }
+      </div >
 
       {workspaceView === 'builder' && (
         <button
@@ -2509,818 +2515,825 @@ export default function ProgramsPage() {
             : 'pointer-events-none bg-black/0 opacity-0'
             }`}
         />
-      )}
+      )
+      }
 
-      {editorMode && draft && (
-        <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
-          <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
-            <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/95 pb-4 pt-1 backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={closeEditor}
-                  className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:bg-zinc-900/70 hover:text-zinc-100"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </button>
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
-                  {editorMode === 'create' ? 'Creating' : 'Editing'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSaveDraft();
-                  }}
-                  disabled={editorSaving}
-                  className="inline-flex h-11 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
-                >
-                  {editorSaving ? 'Saving...' : 'Done'}
-                </button>
-              </div>
-            </header>
-
-            {editorNotice && (
-              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
-                {editorNotice}
-              </div>
-            )}
-
-            {showBuilderCoach && (
-              <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                      Builder Quick Start
-                    </p>
-                    <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap Edit Sets. 3. Tap Done in the header.</p>
-                  </div>
+      {
+        editorMode && draft && (
+          <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
+            <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
+              <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/95 pb-4 pt-1 backdrop-blur-xl">
+                <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={dismissBuilderCoach}
-                    className="shrink-0 rounded-full border border-zinc-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-100"
+                    onClick={closeEditor}
+                    className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:bg-zinc-900/70 hover:text-zinc-100"
                   >
-                    Got It
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
                   </button>
-                </div>
-              </div>
-            )}
-
-            <section className="border-b border-zinc-900 py-6">
-              <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
-              <input
-                value={draft.name}
-                onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Program name"
-                className="mt-2 w-full bg-transparent text-3xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
-              />
-
-              <textarea
-                value={draft.description ?? ''}
-                onChange={(event) => updateDraft((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Description (optional)"
-                rows={2}
-                className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
-              />
-
-              <div className="mt-4 space-y-3">
-                <div className="space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                    Set length and training frequency first.
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
+                    {editorMode === 'create' ? 'Creating' : 'Editing'}
                   </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={24}
-                        value={weekCountInput}
-                        onFocus={() => setWeekCountFocused(true)}
-                        onBlur={() => {
-                          setWeekCountFocused(false);
-                          const trimmed = weekCountInput.trim();
-                          if (!trimmed) {
-                            setWeekCountInput(String(resolvedWeekCount));
-                            return;
-                          }
-                          const parsed = Number(trimmed);
-                          if (!Number.isFinite(parsed)) {
-                            setWeekCountInput(String(resolvedWeekCount));
-                            return;
-                          }
-                          const clamped = Math.min(24, Math.max(1, parsed));
-                          if (clamped !== resolvedWeekCount) {
-                            updateDraftWeekCount(clamped);
-                          }
-                          setWeekCountInput(String(clamped));
-                        }}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          if (!/^\d*$/.test(nextValue)) return;
-                          setWeekCountInput(nextValue);
-                          if (nextValue === '') return;
-                          const parsed = Number(nextValue);
-                          if (!Number.isFinite(parsed)) return;
-                          const clamped = Math.min(24, Math.max(1, parsed));
-                          if (clamped !== resolvedWeekCount) {
-                            updateDraftWeekCount(clamped);
-                          }
-                        }}
-                        className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Sessions / Week
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={7}
-                        value={daysPerWeekInput}
-                        onFocus={() => setDaysPerWeekFocused(true)}
-                        onBlur={() => {
-                          setDaysPerWeekFocused(false);
-                          const trimmed = daysPerWeekInput.trim();
-                          if (!trimmed) {
-                            setDaysPerWeekInput(String(resolvedDaysPerWeek));
-                            return;
-                          }
-                          const parsed = Number(trimmed);
-                          if (!Number.isFinite(parsed)) {
-                            setDaysPerWeekInput(String(resolvedDaysPerWeek));
-                            return;
-                          }
-                          const clamped = Math.min(7, Math.max(1, parsed));
-                          if (clamped !== resolvedDaysPerWeek) {
-                            updateDraftDaysPerWeek(clamped);
-                          }
-                          setDaysPerWeekInput(String(clamped));
-                        }}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          if (!/^\d*$/.test(nextValue)) return;
-                          setDaysPerWeekInput(nextValue);
-                          if (nextValue === '') return;
-                          const parsed = Number(nextValue);
-                          if (!Number.isFinite(parsed)) return;
-                          const clamped = Math.min(7, Math.max(1, parsed));
-                          if (clamped !== resolvedDaysPerWeek) {
-                            updateDraftDaysPerWeek(clamped);
-                          }
-                        }}
-                        className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 border-t border-zinc-900 pt-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                    Define goal, experience, and intensity style.
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <FancySelect
-                      value={draft.goal ?? 'general'}
-                      options={GOAL_OPTIONS.map((goal) => ({
-                        value: goal,
-                        label: GOAL_LABELS[goal] ?? formatTokenLabel(goal),
-                      }))}
-                      onChange={(value) =>
-                        updateDraft((current) => ({ ...current, goal: value as GoalOption }))
-                      }
-                      ariaLabel="Program goal"
-                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
-                    />
-                    <FancySelect
-                      value={draft.experienceLevel ?? 'intermediate'}
-                      options={EXPERIENCE_OPTIONS.map((level) => ({
-                        value: level,
-                        label: EXPERIENCE_LABELS[level] ?? formatTokenLabel(level),
-                      }))}
-                      onChange={(value) =>
-                        updateDraft((current) => ({
-                          ...current,
-                          experienceLevel: value as ExperienceOption,
-                        }))
-                      }
-                      ariaLabel="Experience level"
-                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
-                    />
-                    <FancySelect
-                      value={draft.intensityMethod ?? 'rpe'}
-                      options={INTENSITY_OPTIONS.map((method) => ({
-                        value: method,
-                        label: INTENSITY_LABELS[method] ?? formatTokenLabel(method),
-                      }))}
-                      onChange={(value) =>
-                        updateDraft((current) => ({
-                          ...current,
-                          intensityMethod: value as IntensityOption,
-                        }))
-                      }
-                      ariaLabel="Intensity method"
-                      buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="border-b border-zinc-900 py-6">
-              <div className="mb-5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => stepEditorWeek(-1)}
-                    disabled={activeWeekIndex === 0}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                    aria-label="Previous week"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditorJumpPicker('week')}
-                    className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
-                  >
-                    Week {activeWeekIndex + 1} of {draft.weeks.length}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => stepEditorWeek(1)}
-                    disabled={activeWeekIndex >= draft.weeks.length - 1}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                    aria-label="Next week"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDuplicateWeek(activeWeekIndex)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
-                    aria-label="Duplicate current week"
-                    title="Duplicate current week"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this week?')) {
-                        handleDeleteWeek(activeWeekIndex);
-                      }
+                      void handleSaveDraft();
                     }}
-                    disabled={draft.weeks.length <= 1}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
-                    aria-label="Delete current week"
-                    title="Delete current week"
+                    disabled={editorSaving}
+                    className="inline-flex h-11 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {editorSaving ? 'Saving...' : 'Done'}
                   </button>
                 </div>
-                {currentWeek && (
+              </header>
+
+              {editorNotice && (
+                <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                  {editorNotice}
+                </div>
+              )}
+
+              {showBuilderCoach && (
+                <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                        Builder Quick Start
+                      </p>
+                      <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap Edit Sets. 3. Tap Done in the header.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={dismissBuilderCoach}
+                      className="shrink-0 rounded-full border border-zinc-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-100"
+                    >
+                      Got It
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <section className="border-b border-zinc-900 py-6">
+                <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
+                <input
+                  value={draft.name}
+                  onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="Program name"
+                  className="mt-2 w-full bg-transparent text-3xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
+                />
+
+                <textarea
+                  value={draft.description ?? ''}
+                  onChange={(event) => updateDraft((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Description (optional)"
+                  rows={2}
+                  className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
+                />
+
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                      Set length and training frequency first.
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={24}
+                          value={weekCountInput}
+                          onFocus={() => setWeekCountFocused(true)}
+                          onBlur={() => {
+                            setWeekCountFocused(false);
+                            const trimmed = weekCountInput.trim();
+                            if (!trimmed) {
+                              setWeekCountInput(String(resolvedWeekCount));
+                              return;
+                            }
+                            const parsed = Number(trimmed);
+                            if (!Number.isFinite(parsed)) {
+                              setWeekCountInput(String(resolvedWeekCount));
+                              return;
+                            }
+                            const clamped = Math.min(24, Math.max(1, parsed));
+                            if (clamped !== resolvedWeekCount) {
+                              updateDraftWeekCount(clamped);
+                            }
+                            setWeekCountInput(String(clamped));
+                          }}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            if (!/^\d*$/.test(nextValue)) return;
+                            setWeekCountInput(nextValue);
+                            if (nextValue === '') return;
+                            const parsed = Number(nextValue);
+                            if (!Number.isFinite(parsed)) return;
+                            const clamped = Math.min(24, Math.max(1, parsed));
+                            if (clamped !== resolvedWeekCount) {
+                              updateDraftWeekCount(clamped);
+                            }
+                          }}
+                          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Sessions / Week
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={7}
+                          value={daysPerWeekInput}
+                          onFocus={() => setDaysPerWeekFocused(true)}
+                          onBlur={() => {
+                            setDaysPerWeekFocused(false);
+                            const trimmed = daysPerWeekInput.trim();
+                            if (!trimmed) {
+                              setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                              return;
+                            }
+                            const parsed = Number(trimmed);
+                            if (!Number.isFinite(parsed)) {
+                              setDaysPerWeekInput(String(resolvedDaysPerWeek));
+                              return;
+                            }
+                            const clamped = Math.min(7, Math.max(1, parsed));
+                            if (clamped !== resolvedDaysPerWeek) {
+                              updateDraftDaysPerWeek(clamped);
+                            }
+                            setDaysPerWeekInput(String(clamped));
+                          }}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            if (!/^\d*$/.test(nextValue)) return;
+                            setDaysPerWeekInput(nextValue);
+                            if (nextValue === '') return;
+                            const parsed = Number(nextValue);
+                            if (!Number.isFinite(parsed)) return;
+                            const clamped = Math.min(7, Math.max(1, parsed));
+                            if (clamped !== resolvedDaysPerWeek) {
+                              updateDraftDaysPerWeek(clamped);
+                            }
+                          }}
+                          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border-t border-zinc-900 pt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                      Define goal, experience, and intensity style.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <FancySelect
+                        value={draft.goal ?? 'general'}
+                        options={GOAL_OPTIONS.map((goal) => ({
+                          value: goal,
+                          label: GOAL_LABELS[goal] ?? formatTokenLabel(goal),
+                        }))}
+                        onChange={(value) =>
+                          updateDraft((current) => ({ ...current, goal: value as GoalOption }))
+                        }
+                        ariaLabel="Program goal"
+                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                      />
+                      <FancySelect
+                        value={draft.experienceLevel ?? 'intermediate'}
+                        options={EXPERIENCE_OPTIONS.map((level) => ({
+                          value: level,
+                          label: EXPERIENCE_LABELS[level] ?? formatTokenLabel(level),
+                        }))}
+                        onChange={(value) =>
+                          updateDraft((current) => ({
+                            ...current,
+                            experienceLevel: value as ExperienceOption,
+                          }))
+                        }
+                        ariaLabel="Experience level"
+                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                      />
+                      <FancySelect
+                        value={draft.intensityMethod ?? 'rpe'}
+                        options={INTENSITY_OPTIONS.map((method) => ({
+                          value: method,
+                          label: INTENSITY_LABELS[method] ?? formatTokenLabel(method),
+                        }))}
+                        onChange={(value) =>
+                          updateDraft((current) => ({
+                            ...current,
+                            intensityMethod: value as IntensityOption,
+                          }))
+                        }
+                        ariaLabel="Intensity method"
+                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="border-b border-zinc-900 py-6">
+                <div className="mb-5 space-y-2">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => stepEditorSession(-1)}
-                      disabled={activeDayIndex === 0}
+                      onClick={() => stepEditorWeek(-1)}
+                      disabled={activeWeekIndex === 0}
                       className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                      aria-label="Previous session"
+                      aria-label="Previous week"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditorJumpPicker('session')}
+                      onClick={() => setEditorJumpPicker('week')}
                       className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
                     >
-                      Session {activeDayIndex + 1} of {currentWeek.days.length}
+                      Week {activeWeekIndex + 1} of {draft.weeks.length}
                     </button>
                     <button
                       type="button"
-                      onClick={() => stepEditorSession(1)}
-                      disabled={activeDayIndex >= currentWeek.days.length - 1}
+                      onClick={() => stepEditorWeek(1)}
+                      disabled={activeWeekIndex >= draft.weeks.length - 1}
                       className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
-                      aria-label="Next session"
+                      aria-label="Next week"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleDuplicateWeek(activeWeekIndex)}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
+                      aria-label="Duplicate current week"
+                      title="Duplicate current week"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this specific day/session?')) {
-                          handleDeleteDay(activeWeekIndex, activeDayIndex);
+                        if (window.confirm('Are you sure you want to delete this week?')) {
+                          handleDeleteWeek(activeWeekIndex);
                         }
                       }}
-                      disabled={currentWeek.days.length <= 1}
+                      disabled={draft.weeks.length <= 1}
                       className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
-                      aria-label="Delete current session"
-                      title="Delete current session"
+                      aria-label="Delete current week"
+                      title="Delete current week"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                )}
-              </div>
-
-              {currentWeek && (
-                <>
-                  {currentDay && (
-                    <>
-                      <div className="mb-4 space-y-3">
-                        <input
-                          value={currentDay.name}
-                          onChange={(event) =>
-                            updateCurrentDay((day) => ({ ...day, name: event.target.value }))
+                  {currentWeek && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => stepEditorSession(-1)}
+                        disabled={activeDayIndex === 0}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        aria-label="Previous session"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorJumpPicker('session')}
+                        className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                      >
+                        Session {activeDayIndex + 1} of {currentWeek.days.length}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stepEditorSession(1)}
+                        disabled={activeDayIndex >= currentWeek.days.length - 1}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        aria-label="Next session"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this specific day/session?')) {
+                            handleDeleteDay(activeWeekIndex, activeDayIndex);
                           }
-                          className="w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 focus:outline-none"
-                        />
-
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
-                              {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
-                            </span>
-                            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
-                              {currentSessionSetCount} {currentSessionSetCount === 1 ? 'set' : 'sets'}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={handleAddSingleBlock}
-                              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
-                            >
-                              <CirclePlus className="h-3.5 w-3.5" />
-                              Add Exercise
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleAddSupersetBlock}
-                              className="inline-flex h-11 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
-                            >
-                              Add Superset Pair
-                            </button>
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{builderGuidanceText}</p>
-                      </div>
-
-                      <div className="mb-4 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setEditorDetailMode('simple')}
-                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'simple'
-                              ? 'bg-zinc-100 text-zinc-950'
-                              : 'text-zinc-500 hover:text-zinc-300'
-                              }`}
-                          >
-                            Simple
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditorDetailMode('advanced')}
-                            className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'advanced'
-                              ? 'bg-zinc-100 text-zinc-950'
-                              : 'text-zinc-500 hover:text-zinc-300'
-                              }`}
-                          >
-                            Advanced
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {currentDayExerciseRows.length === 0 && (
-                          <div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center">
-                            <p className="text-sm font-semibold text-zinc-300">No exercises in this session yet.</p>
-                            <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                              Use Add Exercise above to build this session.
-                            </p>
-                          </div>
-                        )}
-
-                        {currentDayExerciseRows.map((row) => {
-                          const block = currentDayBlocks[row.blockIndex];
-                          if (!block) return null;
-                          const isSupersetA1 = row.blockType === 'superset' && row.slot === 'A1';
-                          const missingA2 = isSupersetA1 && blocksMissingSupersetA2.has(row.blockIndex);
-
-                          return (
-                            <div key={row.key} className="space-y-2">
-                              {renderExerciseEditor(
-                                block,
-                                row.blockIndex,
-                                row.exercise,
-                                row.exerciseIndex,
-                                row.slot
-                              )}
-                              {missingA2 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSetSupersetSlotExercise(row.blockIndex, 'A2')}
-                                  className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                                >
-                                  Add A2 Exercise
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                      </div>
-                    </>
+                        }}
+                        disabled={currentWeek.days.length <= 1}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                        aria-label="Delete current session"
+                        title="Delete current session"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
-                </>
-              )}
-            </section>
+                </div>
 
-            {editorError && <p className="pt-4 text-sm text-rose-400">{editorError}</p>}
-          </div>
+                {currentWeek && (
+                  <>
+                    {currentDay && (
+                      <>
+                        <div className="mb-4 space-y-3">
+                          <input
+                            value={currentDay.name}
+                            onChange={(event) =>
+                              updateCurrentDay((day) => ({ ...day, name: event.target.value }))
+                            }
+                            className="w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 focus:outline-none"
+                          />
 
-          {pendingExerciseUndo && (
-            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[140] px-4 sm:px-6">
-              <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
-                <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
-                  {pendingExerciseUndo.message}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleUndoExerciseRemoval}
-                  className="inline-flex h-9 shrink-0 items-center rounded-full border border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100 transition-colors hover:border-zinc-500"
-                >
-                  Undo
-                </button>
-              </div>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+                                {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
+                              </span>
+                              <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+                                {currentSessionSetCount} {currentSessionSetCount === 1 ? 'set' : 'sets'}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handleAddSingleBlock}
+                                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
+                              >
+                                <CirclePlus className="h-3.5 w-3.5" />
+                                Add Exercise
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleAddSupersetBlock}
+                                className="inline-flex h-11 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
+                              >
+                                Add Superset Pair
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{builderGuidanceText}</p>
+                        </div>
+
+                        <div className="mb-4 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditorDetailMode('simple')}
+                              className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'simple'
+                                ? 'bg-zinc-100 text-zinc-950'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                            >
+                              Simple
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditorDetailMode('advanced')}
+                              className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'advanced'
+                                ? 'bg-zinc-100 text-zinc-950'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                            >
+                              Advanced
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {currentDayExerciseRows.length === 0 && (
+                            <div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center">
+                              <p className="text-sm font-semibold text-zinc-300">No exercises in this session yet.</p>
+                              <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                Use Add Exercise above to build this session.
+                              </p>
+                            </div>
+                          )}
+
+                          {currentDayExerciseRows.map((row) => {
+                            const block = currentDayBlocks[row.blockIndex];
+                            if (!block) return null;
+                            const isSupersetA1 = row.blockType === 'superset' && row.slot === 'A1';
+                            const missingA2 = isSupersetA1 && blocksMissingSupersetA2.has(row.blockIndex);
+
+                            return (
+                              <div key={row.key} className="space-y-2">
+                                {renderExerciseEditor(
+                                  block,
+                                  row.blockIndex,
+                                  row.exercise,
+                                  row.exerciseIndex,
+                                  row.slot
+                                )}
+                                {missingA2 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetSupersetSlotExercise(row.blockIndex, 'A2')}
+                                    className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                                  >
+                                    Add A2 Exercise
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </section>
+
+              {editorError && <p className="pt-4 text-sm text-rose-400">{editorError}</p>}
             </div>
-          )}
-        </div>
-      )}
 
-      {editorMode && draft && editorJumpPicker && (
-        <div className="fixed inset-0 z-[135] bg-black/65 backdrop-blur-md">
-          <button
-            type="button"
-            aria-label="Close picker"
-            onClick={() => setEditorJumpPicker(null)}
-            className="absolute inset-0"
-          />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
-            <div className="mx-auto w-full max-w-5xl">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
-                  {editorJumpPicker === 'week' ? 'Jump To Week' : 'Jump To Session'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setEditorJumpPicker(null)}
-                  className="rounded-full p-2 text-zinc-500"
-                  aria-label="Close jump picker"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+            {pendingExerciseUndo && (
+              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[140] px-4 sm:px-6">
+                <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+                  <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
+                    {pendingExerciseUndo.message}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleUndoExerciseRemoval}
+                    className="inline-flex h-9 shrink-0 items-center rounded-full border border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100 transition-colors hover:border-zinc-500"
+                  >
+                    Undo
+                  </button>
+                </div>
               </div>
+            )}
+          </div>
+        )
+      }
 
-              <div className="max-h-[46dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
-                {editorJumpPicker === 'week' &&
-                  draft.weeks.map((week, index) => {
-                    const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
-                    const isActive = index === activeWeekIndex;
-                    return (
-                      <div key={`jump-week-${week.weekNumber}`} className="flex items-stretch gap-2">
+      {
+        editorMode && draft && editorJumpPicker && (
+          <div className="fixed inset-0 z-[135] bg-black/65 backdrop-blur-md">
+            <button
+              type="button"
+              aria-label="Close picker"
+              onClick={() => setEditorJumpPicker(null)}
+              className="absolute inset-0"
+            />
+            <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+              <div className="mx-auto w-full max-w-5xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
+                    {editorJumpPicker === 'week' ? 'Jump To Week' : 'Jump To Session'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditorJumpPicker(null)}
+                    className="rounded-full p-2 text-zinc-500"
+                    aria-label="Close jump picker"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="max-h-[46dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
+                  {editorJumpPicker === 'week' &&
+                    draft.weeks.map((week, index) => {
+                      const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
+                      const isActive = index === activeWeekIndex;
+                      return (
+                        <div key={`jump-week-${week.weekNumber}`} className="flex items-stretch gap-2">
+                          <button
+                            type="button"
+                            onClick={() => selectEditorWeek(index)}
+                            className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
+                              ? 'bg-cyan-500/10 text-cyan-200'
+                              : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                              }`}
+                          >
+                            <p className="text-sm font-bold">Week {index + 1}</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                              {week.days.length} sessions • {weekSetCount} sets
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateWeek(index)}
+                            aria-label={`Duplicate Week ${index + 1}`}
+                            title="Duplicate Week"
+                            className="flex w-14 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                  {editorJumpPicker === 'session' &&
+                    (currentWeek?.days ?? []).map((day, index) => {
+                      const isActive = index === activeDayIndex;
+                      const dayLabel = day.name?.trim() || `Session ${index + 1}`;
+                      return (
                         <button
+                          key={`jump-session-${index}`}
                           type="button"
-                          onClick={() => selectEditorWeek(index)}
-                          className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                            ? 'bg-cyan-500/10 text-cyan-200'
+                          onClick={() => selectEditorSession(index)}
+                          className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
+                            ? 'bg-emerald-500/10 text-emerald-200'
                             : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
                             }`}
                         >
-                          <p className="text-sm font-bold">Week {index + 1}</p>
+                          <p className="text-sm font-bold">Session {index + 1}</p>
                           <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                            {week.days.length} sessions • {weekSetCount} sets
+                            {dayLabel} • {countDaySets(day)} sets
                           </p>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDuplicateWeek(index)}
-                          aria-label={`Duplicate Week ${index + 1}`}
-                          title="Duplicate Week"
-                          className="flex w-14 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  })}
-
-                {editorJumpPicker === 'session' &&
-                  (currentWeek?.days ?? []).map((day, index) => {
-                    const isActive = index === activeDayIndex;
-                    const dayLabel = day.name?.trim() || `Session ${index + 1}`;
-                    return (
-                      <button
-                        key={`jump-session-${index}`}
-                        type="button"
-                        onClick={() => selectEditorSession(index)}
-                        className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                          ? 'bg-emerald-500/10 text-emerald-200'
-                          : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
-                          }`}
-                      >
-                        <p className="text-sm font-bold">Session {index + 1}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                          {dayLabel} • {countDaySets(day)} sets
-                        </p>
-                      </button>
-                    );
-                  })}
+                      );
+                    })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {exercisePickerOpen && (
-        <div className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm">
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
-            <div className="mx-auto w-full max-w-5xl">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
-                  {exercisePickerHeading}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExercisePickerOpen(false);
-                    setExercisePickerTarget(null);
-                    setExerciseQuery('');
-                    resetCustomExerciseBuilder();
-                  }}
-                  className="rounded-full p-2 text-zinc-500"
-                  aria-label="Close exercise picker"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
-                <Search className="h-4 w-4 text-zinc-500" />
-                <input
-                  autoFocus
-                  value={exerciseQuery}
-                  onChange={(event) => {
-                    setExerciseQuery(event.target.value);
-                    setCustomExerciseError(null);
-                  }}
-                  placeholder="Search exercises..."
-                  className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
-                />
-              </div>
-
-              {normalizedExerciseQuery.length > 1 && !showCreateCustomExercise && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (matchingExerciseByName) {
-                      applyPickedExercise(matchingExerciseByName.id);
-                      return;
-                    }
-                    openCreateCustomExerciseForm();
-                  }}
-                  className="mb-3 flex h-11 w-full items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-left"
-                >
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
-                    {matchingExerciseByName
-                      ? `Use "${matchingExerciseByName.name}"`
-                      : `Create "${normalizedExerciseQuery}"`}
-                  </span>
-                  <CirclePlus className="h-4 w-4 text-emerald-300" />
-                </button>
-              )}
-
-              {showCreateCustomExercise && (
-                <div className="mb-3 space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/20 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                      New Custom Exercise
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => resetCustomExerciseBuilder(exerciseQuery)}
-                      className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-200"
-                    >
-                      Back To Search
-                    </button>
-                  </div>
-
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                    Required: name, equipment, lift type, and primary muscles.
+      {
+        exercisePickerOpen && (
+          <div className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm">
+            <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+              <div className="mx-auto w-full max-w-5xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
+                    {exercisePickerHeading}
                   </p>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Exercise Name *
-                      </label>
-                      <input
-                        aria-label="Exercise Name"
-                        value={customExerciseDraft.name}
-                        onChange={(event) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                        placeholder="e.g. Incline Dumbbell Press"
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Equipment
-                      </label>
-                      <FancySelect
-                        value={customExerciseDraft.equipment}
-                        options={CUSTOM_EXERCISE_EQUIPMENT_OPTIONS.map((equipment) => ({
-                          value: equipment,
-                          label: formatTokenLabel(equipment),
-                        }))}
-                        onChange={(value) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            equipment: value as CustomExercise['equipment'],
-                          }))
-                        }
-                        ariaLabel="Custom exercise equipment"
-                        buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
-                        listClassName="max-h-56 overflow-y-auto"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Lift Type *
-                      </label>
-                      <div className="mt-1 grid grid-cols-2 gap-2">
-                        {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
-                          <button
-                            key={`custom-type-${typeOption}`}
-                            type="button"
-                            onClick={() =>
-                              setCustomExerciseDraft((current) => ({
-                                ...current,
-                                exerciseType: typeOption,
-                              }))
-                            }
-                            className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${customExerciseDraft.exerciseType === typeOption
-                              ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
-                              : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                              }`}
-                          >
-                            {formatTokenLabel(typeOption)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Primary Muscles *
-                      </label>
-                      <input
-                        aria-label="Primary Muscles"
-                        value={customExerciseDraft.primaryMusclesText}
-                        onChange={(event) =>
-                          setCustomExerciseDraft((current) => ({
-                            ...current,
-                            primaryMusclesText: event.target.value,
-                          }))
-                        }
-                        placeholder="chest, shoulders, triceps"
-                        className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-                      />
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
-                        {customExercisePrimaryMuscles.length > 0
-                          ? `${customExercisePrimaryMuscles.length} selected`
-                          : 'Comma separated list'}
-                      </p>
-                    </div>
-                  </div>
-
                   <button
                     type="button"
-                    onClick={() => setShowCustomExerciseAdvanced((current) => !current)}
-                    className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                    onClick={() => {
+                      setExercisePickerOpen(false);
+                      setExercisePickerTarget(null);
+                      setExerciseQuery('');
+                      resetCustomExerciseBuilder();
+                    }}
+                    className="rounded-full p-2 text-zinc-500"
+                    aria-label="Close exercise picker"
                   >
-                    {showCustomExerciseAdvanced ? 'Hide Advanced Details' : 'Add Movement + Muscles (Optional)'}
+                    <X className="h-5 w-5" />
                   </button>
+                </div>
 
-                  {showCustomExerciseAdvanced && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                  <Search className="h-4 w-4 text-zinc-500" />
+                  <input
+                    autoFocus
+                    value={exerciseQuery}
+                    onChange={(event) => {
+                      setExerciseQuery(event.target.value);
+                      setCustomExerciseError(null);
+                    }}
+                    placeholder="Search exercises..."
+                    className="w-full bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+                  />
+                </div>
+
+                {normalizedExerciseQuery.length > 1 && !showCreateCustomExercise && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (matchingExerciseByName) {
+                        applyPickedExercise(matchingExerciseByName.id);
+                        return;
+                      }
+                      openCreateCustomExerciseForm();
+                    }}
+                    className="mb-3 flex h-11 w-full items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-left"
+                  >
+                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                      {matchingExerciseByName
+                        ? `Use "${matchingExerciseByName.name}"`
+                        : `Create "${normalizedExerciseQuery}"`}
+                    </span>
+                    <CirclePlus className="h-4 w-4 text-emerald-300" />
+                  </button>
+                )}
+
+                {showCreateCustomExercise && (
+                  <div className="mb-3 space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/20 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                        New Custom Exercise
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => resetCustomExerciseBuilder(exerciseQuery)}
+                        className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-200"
+                      >
+                        Back To Search
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                      Required: name, equipment, lift type, and primary muscles.
+                    </p>
+
                     <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Exercise Name *
+                        </label>
+                        <input
+                          aria-label="Exercise Name"
+                          value={customExerciseDraft.name}
+                          onChange={(event) =>
+                            setCustomExerciseDraft((current) => ({
+                              ...current,
+                              name: event.target.value,
+                            }))
+                          }
+                          placeholder="e.g. Incline Dumbbell Press"
+                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                        />
+                      </div>
+
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                          Movement Pattern
+                          Equipment
                         </label>
                         <FancySelect
-                          value={customExerciseDraft.movementPattern || 'other'}
-                          options={CUSTOM_EXERCISE_MOVEMENT_OPTIONS.map((movement) => ({
-                            value: movement,
-                            label: formatTokenLabel(movement),
+                          value={customExerciseDraft.equipment}
+                          options={CUSTOM_EXERCISE_EQUIPMENT_OPTIONS.map((equipment) => ({
+                            value: equipment,
+                            label: formatTokenLabel(equipment),
                           }))}
                           onChange={(value) =>
                             setCustomExerciseDraft((current) => ({
                               ...current,
-                              movementPattern:
-                                value as NonNullable<CustomExercise['movementPattern']>,
+                              equipment: value as CustomExercise['equipment'],
                             }))
                           }
-                          ariaLabel="Custom exercise movement pattern"
+                          ariaLabel="Custom exercise equipment"
                           buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                           listClassName="max-h-56 overflow-y-auto"
                         />
                       </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Lift Type *
+                        </label>
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          {CUSTOM_EXERCISE_TYPE_OPTIONS.map((typeOption) => (
+                            <button
+                              key={`custom-type-${typeOption}`}
+                              type="button"
+                              onClick={() =>
+                                setCustomExerciseDraft((current) => ({
+                                  ...current,
+                                  exerciseType: typeOption,
+                                }))
+                              }
+                              className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${customExerciseDraft.exerciseType === typeOption
+                                ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
+                                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                                }`}
+                            >
+                              {formatTokenLabel(typeOption)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <div className="sm:col-span-2">
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                          Secondary Muscles
+                          Primary Muscles *
                         </label>
                         <input
-                          aria-label="Secondary Muscles"
-                          value={customExerciseDraft.secondaryMusclesText}
+                          aria-label="Primary Muscles"
+                          value={customExerciseDraft.primaryMusclesText}
                           onChange={(event) =>
                             setCustomExerciseDraft((current) => ({
                               ...current,
-                              secondaryMusclesText: event.target.value,
+                              primaryMusclesText: event.target.value,
                             }))
                           }
-                          placeholder="upper chest, front delts"
+                          placeholder="chest, shoulders, triceps"
                           className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
                         />
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                          {customExercisePrimaryMuscles.length > 0
+                            ? `${customExercisePrimaryMuscles.length} selected`
+                            : 'Comma separated list'}
+                        </p>
                       </div>
                     </div>
-                  )}
 
-                  {customExerciseError && <p className="text-sm text-rose-400">{customExerciseError}</p>}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleCreateCustomExercise();
-                    }}
-                    disabled={customExerciseSaving || !canCreateCustomExercise}
-                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {customExerciseSaving ? 'Creating...' : 'Create and Use Exercise'}
-                  </button>
-                </div>
-              )}
-
-              {!showCreateCustomExercise && (
-                <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
-                  {filteredExercises.length === 0 && (
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
-                      <p className="text-sm text-zinc-300">No exercises found.</p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                        Try another search or add a custom exercise.
-                      </p>
-                    </div>
-                  )}
-                  {filteredExercises.map((exercise) => (
                     <button
-                      key={exercise.id}
                       type="button"
-                      onClick={() => applyPickedExercise(exercise.id)}
-                      className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                      onClick={() => setShowCustomExerciseAdvanced((current) => !current)}
+                      className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
                     >
-                      <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
-                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                        {exercise.type}
-                        {exercise.muscleGroups.length > 0 ? ` • ${exercise.muscleGroups.join(', ')}` : ''}
-                        {exercise.equipment.length > 0 ? ` • ${exercise.equipment.join(', ')}` : ''}
-                        {exercise.source !== 'default' ? ` • ${formatTokenLabel(exercise.source)}` : ''}
-                      </p>
+                      {showCustomExerciseAdvanced ? 'Hide Advanced Details' : 'Add Movement + Muscles (Optional)'}
                     </button>
-                  ))}
-                </div>
-              )}
-              {showCreateCustomExercise && (
-                <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/10 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                    Picker results are hidden while creating to keep this flow focused.
-                  </p>
-                </div>
-              )}
+
+                    {showCustomExerciseAdvanced && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Movement Pattern
+                          </label>
+                          <FancySelect
+                            value={customExerciseDraft.movementPattern || 'other'}
+                            options={CUSTOM_EXERCISE_MOVEMENT_OPTIONS.map((movement) => ({
+                              value: movement,
+                              label: formatTokenLabel(movement),
+                            }))}
+                            onChange={(value) =>
+                              setCustomExerciseDraft((current) => ({
+                                ...current,
+                                movementPattern:
+                                  value as NonNullable<CustomExercise['movementPattern']>,
+                              }))
+                            }
+                            ariaLabel="Custom exercise movement pattern"
+                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            listClassName="max-h-56 overflow-y-auto"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Secondary Muscles
+                          </label>
+                          <input
+                            aria-label="Secondary Muscles"
+                            value={customExerciseDraft.secondaryMusclesText}
+                            onChange={(event) =>
+                              setCustomExerciseDraft((current) => ({
+                                ...current,
+                                secondaryMusclesText: event.target.value,
+                              }))
+                            }
+                            placeholder="upper chest, front delts"
+                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {customExerciseError && <p className="text-sm text-rose-400">{customExerciseError}</p>}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleCreateCustomExercise();
+                      }}
+                      disabled={customExerciseSaving || !canCreateCustomExercise}
+                      className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {customExerciseSaving ? 'Creating...' : 'Create and Use Exercise'}
+                    </button>
+                  </div>
+                )}
+
+                {!showCreateCustomExercise && (
+                  <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
+                    {filteredExercises.length === 0 && (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
+                        <p className="text-sm text-zinc-300">No exercises found.</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                          Try another search or add a custom exercise.
+                        </p>
+                      </div>
+                    )}
+                    {filteredExercises.map((exercise) => (
+                      <button
+                        key={exercise.id}
+                        type="button"
+                        onClick={() => applyPickedExercise(exercise.id)}
+                        className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                      >
+                        <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                          {exercise.type}
+                          {exercise.muscleGroups.length > 0 ? ` • ${exercise.muscleGroups.join(', ')}` : ''}
+                          {exercise.equipment.length > 0 ? ` • ${exercise.equipment.join(', ')}` : ''}
+                          {exercise.source !== 'default' ? ` • ${formatTokenLabel(exercise.source)}` : ''}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showCreateCustomExercise && (
+                  <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/10 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                      Picker results are hidden while creating to keep this flow focused.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }

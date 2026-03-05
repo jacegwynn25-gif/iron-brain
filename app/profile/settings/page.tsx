@@ -39,16 +39,14 @@ function IntegrationToggle({
         role="switch"
         aria-checked={enabled}
         onClick={onToggle}
-        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all ${
-          enabled
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all ${enabled
             ? 'border-emerald-400/60 bg-emerald-500/20'
             : 'border-zinc-700 bg-zinc-900'
-        }`}
+          }`}
       >
         <span
-          className={`inline-block h-5 w-5 rounded-full bg-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform ${
-            enabled ? 'translate-x-6' : 'translate-x-1'
-          }`}
+          className={`inline-block h-5 w-5 rounded-full bg-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
+            }`}
         />
       </button>
     </div>
@@ -247,15 +245,15 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
-      <header className="border-b border-zinc-900 pb-6">
-        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Profile</p>
-        <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Settings</h1>
-        <p className="mt-2 text-sm text-zinc-500">Account, integrations, and preferences.</p>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Profile</p>
+        <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">SETTINGS</h1>
+        <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Account, integrations, and preferences.</p>
       </header>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Integrations</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Integrations</p>
         <div className="mt-2">
           <IntegrationToggle
             icon={Apple}
@@ -264,7 +262,7 @@ export default function ProfileSettingsPage() {
             enabled={appleHealthEnabled}
             onToggle={() => setAppleHealthEnabled((current) => !current)}
           />
-          <div className="rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-4">
+          <div className="surface-card px-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 <MoonStar className="mt-0.5 h-4 w-4 shrink-0 text-zinc-300" />
@@ -341,10 +339,10 @@ export default function ProfileSettingsPage() {
         </div>
       </section>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Preferences</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Preferences</p>
         <div className="mt-2">
-          <div className="rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-4">
+          <div className="surface-card px-4 py-4">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Units</p>
             <p className="mt-1 text-xs text-zinc-500">Controls weight and measurement display.</p>
             <FancySelect
@@ -382,8 +380,8 @@ export default function ProfileSettingsPage() {
         </div>
       </section>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Account</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Account</p>
         <button
           type="button"
           onClick={handleSignOut}
@@ -395,8 +393,8 @@ export default function ProfileSettingsPage() {
         </button>
       </section>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Developer</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Developer</p>
         <button
           type="button"
           className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-zinc-800 px-5 py-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"

@@ -199,106 +199,102 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen app-gradient safe-top">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
-          <p className="section-label">Profile</p>
-          <div className="mt-5 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white">
-                {user?.email?.split('@')[0] || 'Guest User'}
-              </h1>
-              <p className="text-zinc-400 text-sm">
-                {user?.email || 'Offline Mode'}
-              </p>
-            </div>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item px-1">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <User className="w-8 h-8 text-white" />
           </div>
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Profile</p>
+            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
+              {(user?.email?.split('@')[0] || 'Guest User').toUpperCase()}
+            </h1>
+            <p className="text-[10px] text-zinc-500 sm:text-xs">
+              {user?.email || 'Offline Mode'}
+            </p>
+          </div>
+        </div>
+      </header>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            <div className="surface-panel p-4 sm:p-5 text-center">
-              <div className="text-2xl font-bold text-white">{workoutHistory.length}</div>
-              <div className="text-xs text-zinc-400">Workouts</div>
-            </div>
-            <div className="surface-panel p-4 sm:p-5 text-center">
-              <div className="text-2xl font-bold text-white">{weeklyStreak}</div>
-              <div className="text-xs text-zinc-400">Week Streak</div>
-            </div>
-            <div className="surface-panel p-4 sm:p-5 text-center">
-              <div className="text-2xl font-bold text-white">{prCount}</div>
-              <div className="text-xs text-zinc-400">PRs</div>
-            </div>
-          </div>
-        </header>
+      <section className="stagger-item grid grid-cols-3 gap-2.5 px-1 sm:gap-4">
+        <div className="surface-card p-4 sm:p-5 text-center">
+          <div className="text-2xl font-black text-white">{workoutHistory.length}</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">Workouts</div>
+        </div>
+        <div className="surface-card p-4 sm:p-5 text-center">
+          <div className="text-2xl font-black text-white">{weeklyStreak}</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">Week Streak</div>
+        </div>
+        <div className="surface-card p-4 sm:p-5 text-center">
+          <div className="text-2xl font-black text-white">{prCount}</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">PRs</div>
+        </div>
+      </section>
 
-        <section className="space-y-3">
-          <div>
-            <p className="section-label">Configuration</p>
-            <h2 className="mt-2 text-xl font-bold text-white">Preferences</h2>
+      <section className="stagger-item space-y-3 px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Configuration</p>
+        <h2 className="text-xl font-black italic text-zinc-100">PREFERENCES</h2>
+        <div className="space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                className="surface-card w-full flex items-center justify-between p-4 sm:p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 text-emerald-400" />
+                  <span className="text-sm font-black italic text-zinc-100">{item.label}</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-zinc-500" />
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {user ? (
+        <section className="stagger-item space-y-3 px-1">
+          <div className="surface-card p-4 border-emerald-500/20">
+            <div className="flex items-center gap-2 text-emerald-300 text-sm font-medium">
+              <User className="w-4 h-4" />
+              <span>Signed in as {user.email}</span>
+            </div>
           </div>
-          <div className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => router.push(item.path)}
-                  className="w-full surface-panel rounded-2xl p-4 sm:p-5 flex items-center justify-between hover:border-white/20 transition-all active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-zinc-400" />
-                    <span className="text-white font-semibold">{item.label}</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-500" />
-                </button>
-              );
-            })}
-          </div>
+          <button
+            onClick={async () => {
+              try {
+                await signOut();
+                router.push('/');
+              } catch (error) {
+                console.error('❌ Failed to sign out:', error);
+                alert('Failed to sign out. Please try again.');
+              }
+            }}
+            className="w-full surface-card p-4 flex items-center justify-center gap-2 text-rose-300 font-black italic border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-[0.98]"
+          >
+            <LogOut className="w-5 h-5" />
+            SIGN OUT
+          </button>
         </section>
-
-        {user ? (
-          <section className="space-y-3">
-            <div className="surface-panel rounded-xl p-4 border border-emerald-500/20 bg-emerald-500/10">
-              <div className="flex items-center gap-2 text-emerald-300 text-sm font-medium">
-                <User className="w-4 h-4" />
-                <span>Signed in as {user.email}</span>
-              </div>
+      ) : (
+        <section className="stagger-item space-y-3 px-1">
+          <div className="surface-card p-4 border-blue-500/20">
+            <div className="text-sm text-blue-300">
+              <strong>Guest Mode</strong> — Your data is stored locally on this device. Sign in to sync across devices and backup to the cloud.
             </div>
-            <button
-              onClick={async () => {
-                try {
-                  await signOut();
-                  router.push('/');
-                } catch (error) {
-                  console.error('❌ Failed to sign out:', error);
-                  alert('Failed to sign out. Please try again.');
-                }
-              }}
-              className="w-full rounded-xl p-4 border border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2 text-red-300 font-medium hover:bg-red-500/20 transition-all active:scale-[0.98]"
-            >
-              <LogOut className="w-5 h-5" />
-              Sign Out
-            </button>
-          </section>
-        ) : (
-          <section className="space-y-3">
-            <div className="surface-panel rounded-xl p-4 border border-blue-500/20 bg-blue-500/10">
-              <div className="text-sm text-blue-300">
-                <strong>Guest Mode</strong> - Your data is stored locally on this device. Sign in to sync across devices and backup to the cloud.
-              </div>
-            </div>
-            <button
-              onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
-              className="w-full btn-primary rounded-xl p-4 flex items-center justify-center gap-2 text-white font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
-            >
-              <User className="w-5 h-5" />
-              Sign In / Create Account
-            </button>
-          </section>
-        )}
-      </div>
+          </div>
+          <button
+            onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
+            className="w-full group relative overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-4 flex items-center justify-center gap-2 text-white font-black italic shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <User className="w-5 h-5" />
+            SIGN IN / CREATE ACCOUNT
+          </button>
+        </section>
+      )}
     </div>
   );
 }

@@ -78,36 +78,34 @@ export default function StartWorkoutPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-8 pt-6 sm:pt-10">
-      <header className="border-b border-zinc-900 pb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Gym Floor</p>
-            <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Start Session</h1>
-          </div>
-          <Play className="mt-1 h-6 w-6 text-zinc-300" />
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item flex items-start justify-between gap-4 px-1">
+        <div className="space-y-0.5 sm:space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Gym Floor</p>
+          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">START SESSION</h1>
+          {loading ? (
+            <div className="mt-2 h-4 w-48 rounded-full bg-zinc-800 animate-pulse" />
+          ) : (
+            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
+              {selectedProgram
+                ? `Current Program: ${selectedProgram.name}`
+                : 'No program selected. Launch now and build in-session.'}
+            </p>
+          )}
         </div>
-        {loading ? (
-          <div className="mt-3 h-4 w-48 rounded-full bg-zinc-800 animate-pulse" />
-        ) : (
-          <p className="mt-3 text-sm text-zinc-500">
-            {selectedProgram
-              ? `Current Program: ${selectedProgram.name}`
-              : 'No program selected. Launch now and build in-session.'}
-          </p>
-        )}
+        <Play className="mt-1 h-6 w-6 text-emerald-400" />
       </header>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Current Program</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Current Program</p>
         <button
           type="button"
           onClick={() => router.push('/programs')}
-          className="mt-2 flex w-full items-center justify-between border-b border-zinc-900 py-4 text-left transition-colors hover:text-zinc-100"
+          className="surface-card mt-3 flex w-full items-center justify-between p-4 text-left transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
         >
           <div>
-            <p className="text-sm font-semibold text-zinc-100">{selectedProgram?.name ?? 'No Program Selected'}</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="text-sm font-black italic text-zinc-100">{selectedProgram?.name ?? 'No Program Selected'}</p>
+            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
               {selectedProgramDay?.day
                 ? `Cycle ${selectedProgramDay.cycleNumber} • Week ${selectedProgramDay.weekNumber} • ${selectedProgramDay.day.dayOfWeek} ${selectedProgramDay.day.name}`
                 : 'Manage templates and schedule.'}
@@ -177,8 +175,8 @@ export default function StartWorkoutPage() {
                               setDayPickerOpen(false);
                             }}
                             className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${isHighlighted
-                                ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
                               }`}
                           >
                             <span className="w-8 shrink-0 font-bold text-zinc-600">
@@ -202,38 +200,39 @@ export default function StartWorkoutPage() {
         )}
       </section>
 
-      <section className="pt-8 space-y-3">
+      <section className="stagger-item space-y-3 px-1">
         <button
           type="button"
           onClick={handleStartSession}
-          className="flex w-full items-center justify-between rounded-2xl bg-emerald-500 px-6 py-5 text-left text-sm font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400"
+          className="group relative flex w-full items-center justify-between overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 px-6 py-5 text-left text-sm font-black italic tracking-tight text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem]"
         >
-          <span>Start Session</span>
-          <ArrowRight className="h-5 w-5" />
+          <span>START SESSION</span>
+          <ArrowRight className="h-5 w-5 text-white/50 transition-transform group-hover:translate-x-1" />
+          <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-white/10 blur-2xl" />
         </button>
 
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => router.push('/programs')}
-            className="flex items-center justify-between rounded-2xl border border-zinc-800 px-4 py-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-600"
+            className="surface-card flex items-center justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <span>Programs</span>
-            <BookOpen className="h-4 w-4 text-zinc-400" />
+            <span className="text-xs font-black italic text-zinc-100">PROGRAMS</span>
+            <BookOpen className="h-4 w-4 text-emerald-400" />
           </button>
           <button
             type="button"
             onClick={handleQuickStart}
-            className="flex items-center justify-between rounded-2xl border border-zinc-800 px-4 py-4 text-xs font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-600"
+            className="surface-card flex items-center justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
           >
-            <span>Quick Start</span>
-            <RotateCcw className="h-4 w-4 text-zinc-400" />
+            <span className="text-xs font-black italic text-zinc-100">QUICK START</span>
+            <RotateCcw className="h-4 w-4 text-zinc-100/40" />
           </button>
         </div>
       </section>
 
-      <section className="pt-8">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">Recent Programs</p>
+      <section className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Recent Programs</p>
         <div
           className="mt-3 flex gap-3 overflow-x-auto pb-2 pr-6"
           data-swipe-ignore="true"

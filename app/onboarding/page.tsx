@@ -126,152 +126,146 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 safe-top">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
-        <header className="border-b border-zinc-900 pb-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Baseline</p>
-          <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
-            First-Run Setup
-          </h1>
-          <p className="mt-3 text-sm text-zinc-500">
-            Tell us your goal and training experience. You can refine everything else later.
-          </p>
-        </header>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Baseline</p>
+        <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
+          FIRST-RUN SETUP
+        </h1>
+        <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
+          Tell us your goal and training experience. You can refine everything else later.
+        </p>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <section className="surface-panel rounded-2xl p-6">
-            <p className="section-label">Primary Goal</p>
-            <div className="mt-4 grid gap-3">
-              {goals.map((item) => {
-                const Icon = item.icon;
-                const selected = goal === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setGoal(item.id as Goal)}
-                    className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors ${
-                      selected
-                        ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                        : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+      <form onSubmit={handleSubmit} className="stagger-item space-y-6 px-1">
+        <section className="surface-card p-6">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Primary Goal</p>
+          <div className="mt-4 grid gap-3">
+            {goals.map((item) => {
+              const Icon = item.icon;
+              const selected = goal === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setGoal(item.id as Goal)}
+                  className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors ${selected
+                      ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
+                      : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
                     }`}
-                  >
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                        selected ? 'bg-emerald-500/80' : 'bg-zinc-900'
+                >
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${selected ? 'bg-emerald-500/80' : 'bg-zinc-900'
                       }`}
-                    >
-                      <Icon className={`h-6 w-6 ${selected ? 'text-white' : 'text-zinc-400'}`} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold">{item.label}</div>
-                      <div className="text-xs text-zinc-500">{item.description}</div>
-                    </div>
-                    {selected && <Check className="h-5 w-5 text-emerald-300" />}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="surface-panel rounded-2xl p-6">
-            <p className="section-label">Experience</p>
-            <div className="mt-4 grid gap-3">
-              {experiences.map((item) => {
-                const selected = experience === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setExperience(item.id as Experience)}
-                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors ${
-                      selected
-                        ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                        : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
-                    }`}
                   >
-                    <div>
-                      <div className="text-sm font-semibold">{item.label}</div>
-                      <div className="text-xs text-zinc-500">{item.description}</div>
-                    </div>
-                    {selected && <Check className="h-5 w-5 text-emerald-300" />}
-                  </button>
-                );
-              })}
+                    <Icon className={`h-6 w-6 ${selected ? 'text-white' : 'text-zinc-400'}`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold">{item.label}</div>
+                    <div className="text-xs text-zinc-500">{item.description}</div>
+                  </div>
+                  {selected && <Check className="h-5 w-5 text-emerald-300" />}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="surface-card p-6">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Experience</p>
+          <div className="mt-4 grid gap-3">
+            {experiences.map((item) => {
+              const selected = experience === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setExperience(item.id as Experience)}
+                  className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors ${selected
+                      ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
+                      : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+                    }`}
+                >
+                  <div>
+                    <div className="text-sm font-semibold">{item.label}</div>
+                    <div className="text-xs text-zinc-500">{item.description}</div>
+                  </div>
+                  {selected && <Check className="h-5 w-5 text-emerald-300" />}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="surface-card p-6">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Optional</p>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-300">
+                Measurement System
+              </label>
+              <FancySelect
+                value={unitSystem}
+                options={[
+                  { value: 'imperial', label: 'Imperial (lbs)' },
+                  { value: 'metric', label: 'Metric (kg)' },
+                ]}
+                onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
+                ariaLabel="Measurement system"
+                buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
+                listClassName="max-h-44 overflow-y-auto"
+              />
             </div>
-          </section>
 
-          <section className="surface-panel rounded-2xl p-6">
-            <p className="section-label">Optional</p>
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-300">
-                  Measurement System
-                </label>
-                <FancySelect
-                  value={unitSystem}
-                  options={[
-                    { value: 'imperial', label: 'Imperial (lbs)' },
-                    { value: 'metric', label: 'Metric (kg)' },
-                  ]}
-                  onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
-                  ariaLabel="Measurement system"
-                  buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
-                  listClassName="max-h-44 overflow-y-auto"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-300">
-                  Bodyweight ({weightUnit}) <span className="text-xs text-zinc-500">(optional)</span>
-                </label>
-                <input
-                  type="number"
-                  min={weightRange.min}
-                  max={weightRange.max}
-                  step="0.1"
-                  value={displayWeight(bodyweight)}
-                  onChange={(event) => {
-                    const value = parseFloat(event.target.value);
-                    if (Number.isNaN(value)) {
-                      setBodyweight(null);
-                    } else {
-                      setBodyweight(parseWeightInput(value));
-                    }
-                  }}
-                  placeholder={`e.g. ${weightUnit === 'kg' ? '75' : '165'}`}
-                  className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300">
+                Bodyweight ({weightUnit}) <span className="text-xs text-zinc-500">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min={weightRange.min}
+                max={weightRange.max}
+                step="0.1"
+                value={displayWeight(bodyweight)}
+                onChange={(event) => {
+                  const value = parseFloat(event.target.value);
+                  if (Number.isNaN(value)) {
+                    setBodyweight(null);
+                  } else {
+                    setBodyweight(parseWeightInput(value));
+                  }
+                }}
+                placeholder={`e.g. ${weightUnit === 'kg' ? '75' : '165'}`}
+                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
+              />
             </div>
-          </section>
+          </div>
+        </section>
 
-          {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
+            {error}
+          </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-black uppercase tracking-[0.25em] transition-all ${
-              canSubmit
-                ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
-                : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-black uppercase tracking-[0.25em] transition-all ${canSubmit
+              ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
+              : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
             }`}
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Complete Setup'
-            )}
-          </button>
-        </form>
-      </div>
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Complete Setup'
+          )}
+        </button>
+      </form>
     </div>
   );
 }

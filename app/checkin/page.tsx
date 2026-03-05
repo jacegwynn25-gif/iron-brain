@@ -18,15 +18,15 @@ export default function CheckInPage() {
   }
 
   return (
-    <div className="min-h-screen app-gradient safe-top">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
-          <p className="section-label">Recovery</p>
-          <h1 className="mt-3 text-3xl font-black text-white">Daily Check-In</h1>
-          <p className="mt-2 text-sm text-zinc-400">Log sleep, nutrition, and stress markers.</p>
-        </header>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Recovery</p>
+        <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">DAILY CHECK-IN</h1>
+        <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Log sleep, nutrition, and stress markers.</p>
+      </header>
+      <section className="stagger-item px-1">
         <DailyCheckInForm onComplete={handleComplete} />
-      </div>
+      </section>
     </div>
   );
 }

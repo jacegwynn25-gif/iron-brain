@@ -351,12 +351,14 @@ export default function WorkoutHistory({
     setDeleteError(null);
     try {
       await storage.deleteWorkoutSession(deleteTarget.id);
+      // Close modal immediately for instant feel
       setDeleteTarget(null);
-      onHistoryUpdate();
+      setDeleteBusy(false);
+      // Fire cloud re-sync in the background — don't block UI
+      void onHistoryUpdate();
     } catch (err) {
       console.error('Failed to delete workout:', err);
       setDeleteError('Could not move workout to trash. Please try again.');
-    } finally {
       setDeleteBusy(false);
     }
   };
@@ -478,9 +480,9 @@ export default function WorkoutHistory({
       current.map((exercise) =>
         exercise.localId === exerciseLocalId
           ? {
-              ...exercise,
-              sets: [...exercise.sets, createEmptyEditableSet(weightUnit)],
-            }
+            ...exercise,
+            sets: [...exercise.sets, createEmptyEditableSet(weightUnit)],
+          }
           : exercise
       )
     );
@@ -691,253 +693,255 @@ export default function WorkoutHistory({
         )}
 
         <div className="space-y-6">
-        {sortedHistory.map((session, sessionIdx) => {
-          const isExpanded = expandedSessions.has(session.id);
-          const stats = calculateSessionStats(session);
-          const groupedSets = groupSetsByExercise(session.sets);
-          const exerciseIds = Object.keys(groupedSets);
+          {sortedHistory.map((session, sessionIdx) => {
+            const isExpanded = expandedSessions.has(session.id);
+            const stats = calculateSessionStats(session);
+            const groupedSets = groupSetsByExercise(session.sets);
+            const exerciseIds = Object.keys(groupedSets);
 
-          return (
-            <div
-              key={session.id}
-              className="group border-b border-zinc-900 pb-6"
-              style={{ animationDelay: `${sessionIdx * 50}ms` }}
-            >
-              {/* Session Header */}
+            return (
               <div
-                className="cursor-pointer py-4"
-                onClick={() => toggleSession(session.id)}
+                key={session.id}
+                className="stagger-item group surface-card mb-4 p-4 sm:p-5 pb-6"
+                style={{ animationDelay: `${sessionIdx * 50}ms` }}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-xl sm:text-2xl font-black text-white">
-                        {session.dayName || 'Workout'}
-                      </h3>
-                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
-                        {session.programName || 'Custom'}
-                      </span>
-                    </div>
-
-                    {/* Date */}
-                    <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-400">
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      {parseLocalDate(session.date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="mt-4 flex flex-wrap gap-6 text-sm">
-                      <div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                          Sets
-                        </p>
-                        <p className="mt-1 text-2xl font-black text-white">
-                          {session.sets.filter(s => s.completed).length}
-                        </p>
+                {/* Session Header */}
+                <div
+                  className="cursor-pointer"
+                  onClick={() => toggleSession(session.id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="mb-3 flex items-start justify-between gap-3 sm:items-center">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h3 className="text-xl font-black italic text-zinc-100 sm:text-2xl">
+                            {session.dayName || 'Workout'}
+                          </h3>
+                          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400 sm:text-[10px] sm:tracking-[0.35em]">
+                            {session.programName || 'Custom'}
+                          </span>
+                        </div>
                       </div>
 
-                      <div>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                          Volume
-                        </p>
-                        <p className="mt-1 text-2xl font-black text-white">
-                          {Math.round(stats.totalVolume / 1000)}k
-                        </p>
+                      {/* Date */}
+                      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-400">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {parseLocalDate(session.date).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
                       </div>
 
-                      {stats.avgRPE > 0 && (
+                      {/* Stats */}
+                      <div className="mt-4 flex flex-wrap gap-6 text-sm">
                         <div>
                           <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                            Avg RPE
+                            Sets
                           </p>
                           <p className="mt-1 text-2xl font-black text-white">
-                            {stats.avgRPE.toFixed(1)}
+                            {session.sets.filter(s => s.completed).length}
                           </p>
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col items-end gap-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openContentEditSession(session);
-                      }}
-                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:text-emerald-200 active:scale-[0.98]"
-                      title="Edit exercises and sets"
-                    >
-                      Sets
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditSession(session);
-                      }}
-                      className="p-2 text-zinc-500 transition-colors hover:text-white active:scale-[0.98]"
-                      title="Edit workout details"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.862 4.487a2.25 2.25 0 113.182 3.182L7.5 20.213 3 21l.787-4.5L16.862 4.487z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSession(session.id);
-                      }}
-                      className="p-2 text-rose-400 transition-colors hover:text-rose-300 active:scale-[0.98]"
-                      title="Delete workout"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                    <div className="p-2">
-                      <svg
-                        className={`h-6 w-6 text-zinc-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                        <div>
+                          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                            Volume
+                          </p>
+                          <p className="mt-1 text-2xl font-black text-white">
+                            {Math.round(stats.totalVolume / 1000)}k
+                          </p>
+                        </div>
+
+                        {stats.avgRPE > 0 && (
+                          <div>
+                            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                              Avg RPE
+                            </p>
+                            <p className="mt-1 text-2xl font-black text-white">
+                              {stats.avgRPE.toFixed(1)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openContentEditSession(session);
+                        }}
+                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:text-emerald-200 active:scale-[0.98]"
+                        title="Edit exercises and sets"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                        Sets
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditSession(session);
+                        }}
+                        className="p-2 text-zinc-500 transition-colors hover:text-white active:scale-[0.98]"
+                        title="Edit workout details"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.862 4.487a2.25 2.25 0 113.182 3.182L7.5 20.213 3 21l.787-4.5L16.862 4.487z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(session.id);
+                        }}
+                        className="p-2 text-rose-400 transition-colors hover:text-rose-300 active:scale-[0.98]"
+                        title="Delete workout"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <div className="p-2">
+                        <svg
+                          className={`h-6 w-6 text-zinc-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Expanded Details */}
-              {isExpanded && (
-                <div className="border-t border-zinc-900 pt-5">
-                  <div className="space-y-6">
-                    {exerciseIds.map((exerciseId, exIdx) => {
-                      const exerciseSets = groupedSets[exerciseId];
-                      const completedSets = exerciseSets.filter(s => s.completed);
-                      if (completedSets.length === 0) return null;
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="border-t border-zinc-900 pt-5">
+                    <div className="space-y-6">
+                      {exerciseIds.map((exerciseId, exIdx) => {
+                        const exerciseSets = groupedSets[exerciseId];
+                        const completedSets = exerciseSets.filter(s => s.completed);
+                        if (completedSets.length === 0) return null;
 
-                      const exerciseName = getExerciseName(exerciseId, exerciseSets[0]?.exerciseName);
-                      const exerciseVolume = completedSets.reduce(
-                        (sum, set) => {
-                          const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
-                          const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
-                          if (!Number.isFinite(reps) || reps <= 0) return sum;
-                          if (!Number.isFinite(rawWeight) || rawWeight <= 0) return sum;
-                          const fromUnit = set.weightUnit ?? 'lbs';
-                          const displayWeight = convertWeight(rawWeight, fromUnit, weightUnit);
-                          return sum + (displayWeight * reps);
-                        },
-                        0
-                      );
+                        const exerciseName = getExerciseName(exerciseId, exerciseSets[0]?.exerciseName);
+                        const exerciseVolume = completedSets.reduce(
+                          (sum, set) => {
+                            const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
+                            const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
+                            if (!Number.isFinite(reps) || reps <= 0) return sum;
+                            if (!Number.isFinite(rawWeight) || rawWeight <= 0) return sum;
+                            const fromUnit = set.weightUnit ?? 'lbs';
+                            const displayWeight = convertWeight(rawWeight, fromUnit, weightUnit);
+                            return sum + (displayWeight * reps);
+                          },
+                          0
+                        );
 
-                      return (
-                        <div
-                          key={exerciseId}
-                          className="border-b border-zinc-900 pb-6"
-                          style={{ animationDelay: `${exIdx * 100}ms` }}
-                        >
-                          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                            <h4 className="text-lg font-bold text-white">
-                              {exerciseName}
-                            </h4>
-                            <div>
-                              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                                Volume
-                              </p>
-                              <p className="text-lg font-black text-white">
-                                {Math.round(exerciseVolume).toLocaleString()} {weightUnit}
-                              </p>
+                        return (
+                          <div
+                            key={exerciseId}
+                            className="border-b border-zinc-900/50 pb-6"
+                            style={{ animationDelay: `${exIdx * 100}ms` }}
+                          >
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                              <h4 className="text-lg font-bold italic text-zinc-100">
+                                {exerciseName}
+                              </h4>
+                              <div>
+                                <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                                  Volume
+                                </p>
+                                <p className="text-lg font-black text-white">
+                                  {Math.round(exerciseVolume).toLocaleString()} {weightUnit}
+                                </p>
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="space-y-2">
-                            {completedSets.map((set, idx) => {
-                      const pr = checkIfPR(set, exerciseId, session.date);
-                      const fromUnit = set.weightUnit ?? 'lbs';
-                      const displayWeight = set.actualWeight != null
-                        ? Number(set.actualWeight)
-                        : null;
-                      const displayE1RM = set.e1rm != null
-                        ? Number(set.e1rm)
-                        : null;
+                            <div className="space-y-2">
+                              {completedSets.map((set, idx) => {
+                                const pr = checkIfPR(set, exerciseId, session.date);
+                                const fromUnit = set.weightUnit ?? 'lbs';
+                                const displayWeight = set.actualWeight != null
+                                  ? Number(set.actualWeight)
+                                  : null;
+                                const displayE1RM = set.e1rm != null
+                                  ? Number(set.e1rm)
+                                  : null;
 
-                              return (
-                                <div
-                                  key={`${exerciseId}-${set.setIndex}-${idx}-${set.timestamp || idx}`}
-                                  className="group flex flex-col gap-3 border-b border-zinc-900 py-3 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-zinc-200">
-                                      {set.setIndex}
-                                    </span>
-                                    <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
-                                      <span className="font-semibold text-white">
-                                        {displayWeight != null && Number.isFinite(displayWeight)
-                                          ? `${formatWeightValue(displayWeight, fromUnit)} ${fromUnit}`
-                                          : `— ${fromUnit}`}
+                                return (
+                                  <div
+                                    key={`${exerciseId}-${set.setIndex}-${idx}-${set.timestamp || idx}`}
+                                    className="group flex flex-col gap-3 border-b border-zinc-900 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                  >
+                                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-zinc-200">
+                                        {set.setIndex}
                                       </span>
-                                      <span className="text-zinc-500">×</span>
-                                      <span className="font-semibold text-white">
-                                        {set.actualReps} reps
-                                      </span>
-                                      {set.actualRPE && (
-                                        <>
-                                          <span className="text-zinc-500">@</span>
-                                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300">
-                                          RPE {set.actualRPE}
+                                      <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
+                                        <span className="font-semibold text-white">
+                                          {displayWeight != null && Number.isFinite(displayWeight)
+                                            ? `${formatWeightValue(displayWeight, fromUnit)} ${fromUnit}`
+                                            : `— ${fromUnit}`}
                                         </span>
-                                        </>
+                                        <span className="text-zinc-500">×</span>
+                                        <span className="font-semibold text-white">
+                                          {set.actualReps} reps
+                                        </span>
+                                        {set.actualRPE && (
+                                          <>
+                                            <span className="text-zinc-500">@</span>
+                                            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                                              RPE {set.actualRPE}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
+                                      {set.e1rm && (
+                                        <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
+                                          {displayE1RM != null && Number.isFinite(displayE1RM)
+                                            ? `${Math.round(displayE1RM)} E1RM`
+                                            : 'E1RM'}
+                                        </span>
+                                      )}
+                                      {pr && (
+                                        <span
+                                          className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
+                                          title={pr.type}
+                                        >
+                                          <span className="text-base leading-none">{pr.icon}</span>
+                                          <span>PR!</span>
+                                        </span>
                                       )}
                                     </div>
                                   </div>
-
-                                  <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
-                                    {set.e1rm && (
-                                      <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                                        {displayE1RM != null && Number.isFinite(displayE1RM)
-                                          ? `${Math.round(displayE1RM)} E1RM`
-                                          : 'E1RM'}
-                                      </span>
-                                    )}
-                                    {pr && (
-                                      <span
-                                        className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
-                                        title={pr.type}
-                                      >
-                                        <span className="text-base leading-none">{pr.icon}</span>
-                                        <span>PR!</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {session.notes && (
-                    <div className="mt-4 border-t border-zinc-900 pt-4">
-                      <p className="text-sm font-medium text-zinc-400">
-                        Notes: {session.notes}
-                      </p>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+
+                    {session.notes && (
+                      <div className="mt-4 border-t border-zinc-900 pt-4">
+                        <p className="text-sm font-medium text-zinc-400">
+                          Notes: {session.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
       {deleteTarget && (
         <div
@@ -1240,11 +1244,10 @@ export default function WorkoutHistory({
                               onClick={() =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'completed', !set.completed)
                               }
-                              className={`w-full rounded-lg border px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${
-                                set.completed
-                                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                                  : 'border-zinc-800 bg-zinc-900/70 text-zinc-400'
-                              }`}
+                              className={`w-full rounded-lg border px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${set.completed
+                                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                : 'border-zinc-800 bg-zinc-900/70 text-zinc-400'
+                                }`}
                             >
                               {set.completed ? 'Yes' : 'No'}
                             </button>

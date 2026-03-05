@@ -279,41 +279,39 @@ export default function HistoryPage() {
   }, [authLoading, loadWorkoutsFromBothSources, namespaceReady]);
 
   return (
-    <div className="min-h-dvh">
-      <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10 space-y-8">
-        <header className="flex flex-col gap-6 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
-              Archive
-            </p>
-            <h1 className="mt-3 text-4xl font-black text-white">Workout History</h1>
-            <p className="mt-2 text-sm text-zinc-400">Every session, all in one place.</p>
-          </div>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      <header className="stagger-item flex items-start justify-between px-1">
+        <div className="space-y-0.5 sm:space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Archive</p>
+          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">WORKOUT HISTORY</h1>
+          <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Every session, all in one place.</p>
+        </div>
+        <button
+          onClick={() => router.push('/start')}
+          className="stagger-item group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          Start Workout
+        </button>
+      </header>
+      {cloudFetchFailed && (
+        <div className="stagger-item mx-1 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-400">
+          <span>Showing local history only — cloud sync unavailable.</span>
           <button
-            onClick={() => router.push('/start')}
-            className="rounded-2xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+            onClick={() => { setCloudFetchFailed(false); void loadWorkoutsFromBothSources(); }}
+            className="ml-auto text-xs font-semibold underline underline-offset-2 hover:text-amber-300"
           >
-            Start Workout
+            Retry
           </button>
-        </header>
-        {cloudFetchFailed && (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-            <span>Showing local history only — cloud sync unavailable.</span>
-            <button
-              onClick={() => { setCloudFetchFailed(false); void loadWorkoutsFromBothSources(); }}
-              className="ml-auto text-xs font-semibold underline underline-offset-2 hover:text-amber-300"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        </div>
+      )}
+      <section className="stagger-item mx-1">
         <WorkoutHistory
           workoutHistory={workoutHistory}
           onHistoryUpdate={loadWorkoutsFromBothSources}
           compactHeader
           isLoading={historyLoading}
         />
-      </div>
+      </section>
     </div>
   );
 }

@@ -163,7 +163,7 @@ const resolveInitialView = (value?: string): ViewType => {
 };
 
 const SECTION_CLASS = 'border-b border-zinc-900 pb-6';
-const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900/80 bg-zinc-950/45 p-3';
+const SUBSECTION_CARD_CLASS = 'surface-card p-3';
 
 const formatIsoDateLocal = (date: Date) => {
   const year = date.getFullYear();
@@ -422,11 +422,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       },
       fitnessFatigue: fitnessFatigueModel
         ? {
-            currentFitness: clampValue(fitnessFatigueModel.currentFitness, 0, 200),
-            currentFatigue: clampValue(fitnessFatigueModel.currentFatigue, 0, 150),
-            performance: clampValue(fitnessFatigueModel.netPerformance, 0, 100),
-            readiness,
-          }
+          currentFitness: clampValue(fitnessFatigueModel.currentFitness, 0, 200),
+          currentFatigue: clampValue(fitnessFatigueModel.currentFatigue, 0, 150),
+          performance: clampValue(fitnessFatigueModel.netPerformance, 0, 100),
+          readiness,
+        }
         : undefined,
       personalStats: {
         totalWorkouts: workouts.length,
@@ -670,17 +670,17 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         const mergedWorkouts = converted.length === 0
           ? localWorkouts
           : (() => {
-              const localById = new Map<string, WorkoutSession>();
-              localWorkouts.forEach((workout) => {
-                localById.set(normalizeWorkoutId(workout.id), workout);
-              });
+            const localById = new Map<string, WorkoutSession>();
+            localWorkouts.forEach((workout) => {
+              localById.set(normalizeWorkoutId(workout.id), workout);
+            });
 
-              const cloudIds = new Set(converted.map((workout) => normalizeWorkoutId(workout.id)));
-              const mergedCloud = converted.map((workout) => localById.get(normalizeWorkoutId(workout.id)) ?? workout);
-              const uniqueLocal = localWorkouts.filter((workout) => !cloudIds.has(normalizeWorkoutId(workout.id)));
+            const cloudIds = new Set(converted.map((workout) => normalizeWorkoutId(workout.id)));
+            const mergedCloud = converted.map((workout) => localById.get(normalizeWorkoutId(workout.id)) ?? workout);
+            const uniqueLocal = localWorkouts.filter((workout) => !cloudIds.has(normalizeWorkoutId(workout.id)));
 
-              return [...mergedCloud, ...uniqueLocal];
-            })();
+            return [...mergedCloud, ...uniqueLocal];
+          })();
 
         const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
         updateCoreAnalytics(mergedCompleted);
@@ -853,13 +853,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center app-gradient safe-top pb-24 p-6">
+      <div className="flex min-h-dvh items-center justify-center pb-24 p-6">
         <div className="space-y-4 text-center">
           <div className="mx-auto flex h-16 w-16 animate-pulse items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
             <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
-          <div className="text-lg font-semibold text-white">Loading insights...</div>
-          <div className="text-sm text-zinc-400">Calculating your stats</div>
+          <div className="text-lg font-black italic text-white">Loading insights...</div>
+          <div className="text-[10px] text-zinc-500 sm:text-xs">Calculating your stats</div>
         </div>
       </div>
     );
@@ -868,15 +868,15 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   if (!hasRequiredDataset) {
     const awaitingSync = cloudSyncing && completedWorkouts.length === 0;
     return (
-      <div className="min-h-dvh app-gradient safe-top px-6 pb-24 pt-10">
-        <div className="mx-auto max-w-md border-b border-zinc-900 pb-8 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10">
-            <BarChart3 className="h-10 w-10 text-cyan-300" />
+      <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10 px-1">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10">
+            <BarChart3 className="h-10 w-10 text-emerald-300" />
           </div>
-          <h2 className="mb-2 text-xl font-bold text-white">
-            {awaitingSync ? 'Syncing workouts...' : 'Not enough data yet'}
+          <h2 className="mb-2 text-xl font-black italic text-white">
+            {awaitingSync ? 'SYNCING WORKOUTS...' : 'NOT ENOUGH DATA YET'}
           </h2>
-          <p className="mb-6 text-sm text-zinc-400">
+          <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
             {awaitingSync
               ? 'Pulling your workout history from the cloud.'
               : FEATURES.adherenceAnalytics
@@ -884,7 +884,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 : 'Complete at least 3 workouts to unlock Insights.'}
           </p>
           {cloudSyncing && (
-            <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-4 surface-card px-3 py-2 text-xs text-zinc-400">
               Syncing...
             </div>
           )}
@@ -894,496 +894,483 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   }
 
   return (
-    <div className="min-h-dvh app-gradient px-4 pb-28 pt-6 safe-top">
-      <div className="mx-auto max-w-5xl">
-        {/* Header */}
-        <header className="mb-6 border-b border-zinc-900 pb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-500">Insights</p>
-              <h1 className="mt-2 text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">Analytics</h1>
-              <p className="mt-3 text-sm text-zinc-500">Your training at a glance.</p>
+    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+      {/* Header */}
+      <header className="stagger-item px-1">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Insights</p>
+            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">ANALYTICS</h1>
+            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Your training at a glance.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {cloudSyncing && (
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+                Syncing...
+              </span>
+            )}
+            <div className="flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
+                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                  }`}
+              >
+                lbs
+              </button>
+              <button
+                type="button"
+                onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
+                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                  }`}
+              >
+                kg
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              {cloudSyncing && (
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation Tabs */}
+      <div
+        className="stagger-item mb-6 flex gap-2 overflow-x-auto pb-1 -mx-2 px-3"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {([
+          { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
+          ...(FEATURES.adherenceAnalytics
+            ? [{ id: 'adherence' as ViewType, label: 'Adherence', Icon: CalendarDays }]
+            : []),
+          { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
+          { id: 'strength' as ViewType, label: 'Strength', Icon: Dumbbell },
+          { id: 'profile' as ViewType, label: 'Profile', Icon: User }
+        ]).map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => {
+              if (selectedView === id) return;
+              void trackUiEvent(
+                { name: 'insights_view_change', source: 'insights', properties: { from: selectedView, to: id } },
+                user?.id
+              );
+              setSelectedView(id);
+            }}
+            className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${selectedView === id
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+              : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+              }`}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{label.toUpperCase()}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {selectedView === 'overview' && (
+        <div className="space-y-6">
+          {/* Readiness Score - Hero Card */}
+          {(analytics.fitnessFatigue || (analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0)) && (
+            <div className={SECTION_CLASS}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Readiness</h2>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${readinessStatus === 'excellent' ? 'bg-green-500/20 text-green-400' :
+                  readinessStatus === 'good' ? 'bg-green-500/20 text-green-400' :
+                    readinessStatus === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-red-500/20 text-red-400'
+                  }`}>
+                  {readinessStatus}
+                </span>
+              </div>
+              <div className="text-5xl font-bold text-white mb-2">
+                {unifiedReadiness}
+              </div>
+              <p className="text-sm text-zinc-400">
+                {readinessStatus === 'excellent' || readinessStatus === 'good'
+                  ? 'Great day for a hard workout'
+                  : readinessStatus === 'moderate'
+                    ? 'Moderate intensity recommended'
+                    : 'Consider a lighter session or rest'}
+              </p>
+              {analytics.fitnessFatigue && (
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <div className="text-xs text-zinc-400 mb-1">Fitness</div>
+                      <div className="text-lg font-semibold text-green-400">
+                        {Math.round(analytics.fitnessFatigue.currentFitness)}
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mt-1">Training adaptations</div>
+                    </div>
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <div className="text-xs text-zinc-400 mb-1">Fatigue</div>
+                      <div className="text-lg font-semibold text-red-400">
+                        {Math.round(analytics.fitnessFatigue.currentFatigue)}
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
+                    Readiness = how much fitness exceeds fatigue. Train when Fitness &gt; Fatigue.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Injury Risk Card */}
+          {analytics.acwr && (
+            <div className={SECTION_CLASS}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`h-5 w-5 ${injuryRisk.color === 'green' ? 'text-green-400' :
+                    injuryRisk.color === 'yellow' ? 'text-yellow-400' :
+                      'text-red-400'
+                    }`} />
+                  <h2 className="text-xl font-bold text-white">Injury Risk</h2>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${injuryRisk.color === 'green' ? 'bg-green-500/20 text-green-400' :
+                  injuryRisk.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
+                    'bg-red-500/20 text-red-400'
+                  }`}>
+                  {injuryRisk.label}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-3xl font-bold text-white">{analytics.acwr.ratio.toFixed(2)}</span>
+                <span className="text-sm text-zinc-400">load ratio</span>
+              </div>
+              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all ${injuryRisk.color === 'green' ? 'bg-green-500' :
+                    injuryRisk.color === 'yellow' ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    }`}
+                  style={{ width: `${Math.min(100, (analytics.acwr.ratio / 2) * 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                <span>0</span>
+                <span className="text-green-500">Sweet spot: 0.8-1.3</span>
+                <span>2.0</span>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Recovery Status */}
+          {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
+            <div className={SECTION_CLASS}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Muscle Recovery</h2>
+                <button
+                  onClick={() => setSelectedView('recovery')}
+                  className="text-xs text-emerald-300 hover:text-emerald-200"
+                >
+                  View all →
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {analytics.recoveryProfiles.slice(0, 4).map((profile) => (
+                  <div
+                    key={profile.muscleGroup}
+                    className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
+                  >
+                    <span className="text-sm text-zinc-300 capitalize">{profile.muscleGroup}</span>
+                    <div className={`w-3 h-3 rounded-full ${profile.readinessScore >= 8 ? 'bg-green-400' :
+                      profile.readinessScore >= 6 ? 'bg-yellow-400' :
+                        'bg-red-400'
+                      }`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top Lifts Preview */}
+          {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 && (
+            <div className={SECTION_CLASS}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Top Lifts</h2>
+                <button
+                  onClick={() => setSelectedView('strength')}
+                  className="text-xs text-emerald-300 hover:text-emerald-200"
+                >
+                  View all →
+                </button>
+              </div>
+              <div className="space-y-2">
+                {analytics.strengthLeaderboard.slice(0, 3).map((lift, i) => (
+                  <div
+                    key={lift.exerciseId}
+                    className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-zinc-400' : 'text-orange-400'
+                        }`}>
+                        #{i + 1}
+                      </span>
+                      <span className="text-sm text-white truncate max-w-[150px]">{lift.exerciseName}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-cyan-300">
+                      {lift.estimated1RM} {weightUnit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Adherence Tab */}
+      {selectedView === 'adherence' && FEATURES.adherenceAnalytics && (
+        <div className="space-y-6">
+          <div className={SECTION_CLASS}>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-bold text-white">Plan Adherence</h2>
+              {loadingAdherence && (
                 <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
                   Syncing...
                 </span>
               )}
-              <div className="flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                  className={`rounded-full px-3 py-1 transition-colors ${
-                    unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
-                  }`}
-                >
-                  lbs
-                </button>
-                <button
-                  type="button"
-                  onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                  className={`rounded-full px-3 py-1 transition-colors ${
-                    unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
-                  }`}
-                >
-                  kg
-                </button>
-              </div>
             </div>
-          </div>
-        </header>
 
-        {/* Navigation Tabs */}
-        <div
-          className="mb-6 flex gap-2 overflow-x-auto pb-1 -mx-2 px-2"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {([
-            { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
-            ...(FEATURES.adherenceAnalytics
-              ? [{ id: 'adherence' as ViewType, label: 'Adherence', Icon: CalendarDays }]
-              : []),
-            { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
-            { id: 'strength' as ViewType, label: 'Strength', Icon: Dumbbell },
-            { id: 'profile' as ViewType, label: 'Profile', Icon: User }
-          ]).map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => {
-                if (selectedView === id) return;
-                void trackUiEvent(
-                  { name: 'insights_view_change', source: 'insights', properties: { from: selectedView, to: id } },
-                  user?.id
-                );
-                setSelectedView(id);
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all text-sm ${
-                selectedView === id
-                  ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
-                  : 'border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Overview Tab */}
-        {selectedView === 'overview' && (
-          <div className="space-y-6">
-            {/* Readiness Score - Hero Card */}
-            {(analytics.fitnessFatigue || (analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0)) && (
-              <div className={SECTION_CLASS}>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">Readiness</h2>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    readinessStatus === 'excellent' ? 'bg-green-500/20 text-green-400' :
-                    readinessStatus === 'good' ? 'bg-green-500/20 text-green-400' :
-                    readinessStatus === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
-                  }`}>
-                    {readinessStatus}
-                  </span>
-                </div>
-                <div className="text-5xl font-bold text-white mb-2">
-                  {unifiedReadiness}
-                </div>
-                <p className="text-sm text-zinc-400">
-                  {readinessStatus === 'excellent' || readinessStatus === 'good'
-                    ? 'Great day for a hard workout'
-                    : readinessStatus === 'moderate'
-                    ? 'Moderate intensity recommended'
-                    : 'Consider a lighter session or rest'}
-                </p>
-                {analytics.fitnessFatigue && (
-                  <div className="mt-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className={SUBSECTION_CARD_CLASS}>
-                        <div className="text-xs text-zinc-400 mb-1">Fitness</div>
-                        <div className="text-lg font-semibold text-green-400">
-                          {Math.round(analytics.fitnessFatigue.currentFitness)}
-                        </div>
-                        <div className="text-[10px] text-zinc-500 mt-1">Training adaptations</div>
-                      </div>
-                      <div className={SUBSECTION_CARD_CLASS}>
-                        <div className="text-xs text-zinc-400 mb-1">Fatigue</div>
-                        <div className="text-lg font-semibold text-red-400">
-                          {Math.round(analytics.fitnessFatigue.currentFatigue)}
-                        </div>
-                        <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
+            {adherence ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                {(['7', '30', '90'] as const).map((window) => {
+                  const metrics = adherence.windows[window];
+                  return (
+                    <div key={window} className={SUBSECTION_CARD_CLASS}>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">{window} day</p>
+                      <p className={`mt-2 text-2xl font-bold ${getRateToneClass(metrics.completionRate)}`}>
+                        {metrics.completionRate}%
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                        {metrics.completedSessions}/{metrics.plannedSessions} completed
+                      </p>
+                      <div className="mt-3 space-y-1 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                        <p>On-time: {metrics.onTimeRate}%</p>
+                        <p>Skip rate: {metrics.skipRate}%</p>
+                        <p>Reschedule rate: {metrics.rescheduleRate}%</p>
                       </div>
                     </div>
-                    <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
-                      Readiness = how much fitness exceeds fatigue. Train when Fitness &gt; Fatigue.
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            )}
-
-            {/* Injury Risk Card */}
-            {analytics.acwr && (
-              <div className={SECTION_CLASS}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className={`h-5 w-5 ${
-                      injuryRisk.color === 'green' ? 'text-green-400' :
-                      injuryRisk.color === 'yellow' ? 'text-yellow-400' :
-                      'text-red-400'
-                    }`} />
-                    <h2 className="text-xl font-bold text-white">Injury Risk</h2>
-                  </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    injuryRisk.color === 'green' ? 'bg-green-500/20 text-green-400' :
-                    injuryRisk.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
-                  }`}>
-                    {injuryRisk.label}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-3xl font-bold text-white">{analytics.acwr.ratio.toFixed(2)}</span>
-                  <span className="text-sm text-zinc-400">load ratio</span>
-                </div>
-                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all ${
-                      injuryRisk.color === 'green' ? 'bg-green-500' :
-                      injuryRisk.color === 'yellow' ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.min(100, (analytics.acwr.ratio / 2) * 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-zinc-500 mt-1">
-                  <span>0</span>
-                  <span className="text-green-500">Sweet spot: 0.8-1.3</span>
-                  <span>2.0</span>
-                </div>
-              </div>
-            )}
-
-            {/* Quick Recovery Status */}
-            {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
-              <div className={SECTION_CLASS}>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">Muscle Recovery</h2>
-                  <button
-                    onClick={() => setSelectedView('recovery')}
-                    className="text-xs text-emerald-300 hover:text-emerald-200"
-                  >
-                    View all →
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {analytics.recoveryProfiles.slice(0, 4).map((profile) => (
-                    <div
-                      key={profile.muscleGroup}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
-                    >
-                      <span className="text-sm text-zinc-300 capitalize">{profile.muscleGroup}</span>
-                      <div className={`w-3 h-3 rounded-full ${
-                        profile.readinessScore >= 8 ? 'bg-green-400' :
-                        profile.readinessScore >= 6 ? 'bg-yellow-400' :
-                        'bg-red-400'
-                      }`} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Top Lifts Preview */}
-            {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 && (
-              <div className={SECTION_CLASS}>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">Top Lifts</h2>
-                  <button
-                    onClick={() => setSelectedView('strength')}
-                    className="text-xs text-emerald-300 hover:text-emerald-200"
-                  >
-                    View all →
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {analytics.strengthLeaderboard.slice(0, 3).map((lift, i) => (
-                    <div
-                      key={lift.exerciseId}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-bold ${
-                          i === 0 ? 'text-yellow-400' : i === 1 ? 'text-zinc-400' : 'text-orange-400'
-                        }`}>
-                          #{i + 1}
-                        </span>
-                        <span className="text-sm text-white truncate max-w-[150px]">{lift.exerciseName}</span>
-                      </div>
-                      <span className="text-sm font-semibold text-cyan-300">
-                        {lift.estimated1RM} {weightUnit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">No schedule history yet. Add scheduled sessions in Programs.</p>
             )}
           </div>
-        )}
 
-        {/* Adherence Tab */}
-        {selectedView === 'adherence' && FEATURES.adherenceAnalytics && (
-          <div className="space-y-6">
+          {adherence && (
             <div className={SECTION_CLASS}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-xl font-bold text-white">Plan Adherence</h2>
-                {loadingAdherence && (
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
-                    Syncing...
-                  </span>
-                )}
-              </div>
-
-              {adherence ? (
-                <div className="grid gap-3 md:grid-cols-3">
-                  {(['7', '30', '90'] as const).map((window) => {
-                    const metrics = adherence.windows[window];
-                    return (
-                      <div key={window} className={SUBSECTION_CARD_CLASS}>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">{window} day</p>
-                        <p className={`mt-2 text-2xl font-bold ${getRateToneClass(metrics.completionRate)}`}>
-                          {metrics.completionRate}%
-                        </p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-                          {metrics.completedSessions}/{metrics.plannedSessions} completed
-                        </p>
-                        <div className="mt-3 space-y-1 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
-                          <p>On-time: {metrics.onTimeRate}%</p>
-                          <p>Skip rate: {metrics.skipRate}%</p>
-                          <p>Reschedule rate: {metrics.rescheduleRate}%</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500">No schedule history yet. Add scheduled sessions in Programs.</p>
-              )}
-            </div>
-
-            {adherence && (
-              <div className={SECTION_CLASS}>
-                <h2 className="mb-4 text-xl font-bold text-white">Consistency Trend (12 Weeks)</h2>
-                <div className="space-y-2">
-                  {adherence.trend.map((point) => (
-                    <div
-                      key={`${point.startDate}-${point.endDate}`}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-4`}
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-200">{point.label}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-                          {point.completedSessions}/{point.plannedSessions} sessions completed
-                        </p>
-                      </div>
-                      <p className={`text-sm font-bold ${getRateToneClass(point.completionRate)}`}>
-                        {point.completionRate}%
+              <h2 className="mb-4 text-xl font-bold text-white">Consistency Trend (12 Weeks)</h2>
+              <div className="space-y-2">
+                {adherence.trend.map((point) => (
+                  <div
+                    key={`${point.startDate}-${point.endDate}`}
+                    className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-4`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">{point.label}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                        {point.completedSessions}/{point.plannedSessions} sessions completed
                       </p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className={SECTION_CLASS}>
-              <h2 className="mb-4 text-xl font-bold text-white">What To Do Next</h2>
-              <div className="space-y-2">
-                {adherenceActionItems.map((action, index) => (
-                  <div key={`${action}-${index}`} className={SUBSECTION_CARD_CLASS}>
-                    <p className="text-sm text-zinc-200">{action}</p>
+                    <p className={`text-sm font-bold ${getRateToneClass(point.completionRate)}`}>
+                      {point.completionRate}%
+                    </p>
                   </div>
                 ))}
-                {adherenceActionItems.length === 0 && (
-                  <p className="text-sm text-zinc-500">No recommendations available yet.</p>
-                )}
               </div>
             </div>
+          )}
+
+          <div className={SECTION_CLASS}>
+            <h2 className="mb-4 text-xl font-bold text-white">What To Do Next</h2>
+            <div className="space-y-2">
+              {adherenceActionItems.map((action, index) => (
+                <div key={`${action}-${index}`} className={SUBSECTION_CARD_CLASS}>
+                  <p className="text-sm text-zinc-200">{action}</p>
+                </div>
+              ))}
+              {adherenceActionItems.length === 0 && (
+                <p className="text-sm text-zinc-500">No recommendations available yet.</p>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Recovery Tab */}
-        {selectedView === 'recovery' && (
-          <RecoveryOverview
-            profiles={analytics.recoveryProfiles || []}
-            loading={loadingRecovery}
-          />
-        )}
+      {/* Recovery Tab */}
+      {selectedView === 'recovery' && (
+        <RecoveryOverview
+          profiles={analytics.recoveryProfiles || []}
+          loading={loadingRecovery}
+        />
+      )}
 
-        {/* Strength Tab */}
-        {selectedView === 'strength' && (
-          <div className="space-y-6">
-            {/* Estimated 1RMs */}
-            <div className={SECTION_CLASS}>
-              <div className="flex items-center gap-2 mb-4">
-                <Award className="h-5 w-5 text-amber-300" />
-                <h2 className="text-xl font-bold text-white">Estimated 1RMs</h2>
-              </div>
-              <p className="text-xs text-zinc-400 mb-4">
-                Adjusted for RPE - accounts for reps in reserve
-              </p>
-              {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 ? (
-                <div className="space-y-2">
-                  {analytics.strengthLeaderboard.slice(0, 10).map((lift, i) => (
-                    <div
-                      key={lift.exerciseId}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`text-sm font-bold w-6 ${
-                          i === 0 ? 'text-yellow-400' :
-                          i === 1 ? 'text-zinc-400' :
+      {/* Strength Tab */}
+      {selectedView === 'strength' && (
+        <div className="space-y-6">
+          {/* Estimated 1RMs */}
+          <div className={SECTION_CLASS}>
+            <div className="flex items-center gap-2 mb-4">
+              <Award className="h-5 w-5 text-amber-300" />
+              <h2 className="text-xl font-bold text-white">Estimated 1RMs</h2>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">
+              Adjusted for RPE - accounts for reps in reserve
+            </p>
+            {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 ? (
+              <div className="space-y-2">
+                {analytics.strengthLeaderboard.slice(0, 10).map((lift, i) => (
+                  <div
+                    key={lift.exerciseId}
+                    className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-yellow-400' :
+                        i === 1 ? 'text-zinc-400' :
                           i === 2 ? 'text-orange-400' :
-                          'text-zinc-500'
+                            'text-zinc-500'
                         }`}>
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-sm text-white truncate">{lift.exerciseName}</div>
-                          <div className="text-xs text-zinc-500">
-                            Best: {lift.bestSet.weight}{weightUnit} × {lift.bestSet.reps}
-                            {lift.bestSet.rpe && ` @ RPE ${lift.bestSet.rpe}`}
-                          </div>
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm text-white truncate">{lift.exerciseName}</div>
+                        <div className="text-xs text-zinc-500">
+                          Best: {lift.bestSet.weight}{weightUnit} × {lift.bestSet.reps}
+                          {lift.bestSet.rpe && ` @ RPE ${lift.bestSet.rpe}`}
                         </div>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-3">
-                        <div className="text-lg font-bold text-cyan-300">
-                          {lift.estimated1RM}
-                        </div>
-                        <div className="text-xs text-zinc-500">{weightUnit}</div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-400">Complete more workouts to see your estimated 1RMs.</p>
-              )}
-            </div>
-
-            {/* Volume Leaders */}
-            <div className={SECTION_CLASS}>
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-emerald-300" />
-                <h2 className="text-xl font-bold text-white">Volume Leaders</h2>
-              </div>
-              <p className="text-xs text-zinc-400 mb-4">
-                Total weight moved (reps × weight)
-              </p>
-              {analytics.volumeLeaderboard && analytics.volumeLeaderboard.length > 0 ? (
-                <div className="space-y-2">
-                  {analytics.volumeLeaderboard.slice(0, 10).map((exercise, i) => (
-                    <div
-                      key={exercise.exerciseId}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`text-sm font-bold w-6 ${
-                          i === 0 ? 'text-green-400' :
-                          i === 1 ? 'text-green-500/70' :
-                          i === 2 ? 'text-green-600/70' :
-                          'text-zinc-500'
-                        }`}>
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-sm text-white truncate">{exercise.exerciseName}</div>
-                          <div className="text-xs text-zinc-500">
-                            {exercise.setCount} sets · avg {exercise.avgWeightPerSet}{weightUnit}
-                          </div>
-                        </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <div className="text-lg font-bold text-cyan-300">
+                        {lift.estimated1RM}
                       </div>
-                      <div className="text-right flex-shrink-0 ml-3">
-                        <div className="text-lg font-bold text-green-400">
-                          {exercise.totalVolume.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-zinc-500">{weightUnit}</div>
-                      </div>
+                      <div className="text-xs text-zinc-500">{weightUnit}</div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-400">Complete more workouts to see your volume leaders.</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Profile Tab */}
-        {selectedView === 'profile' && (
-          <div className="space-y-6">
-            <div className={SECTION_CLASS}>
-              <h2 className="text-xl font-bold text-white mb-4">Your Stats</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                  <div className="text-3xl font-bold text-white">
-                    {analytics.personalStats?.totalWorkouts || 0}
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1">Workouts</div>
-                </div>
-                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                  <div className="text-3xl font-bold text-white">
-                    {analytics.personalStats?.totalSets || 0}
-                  </div>
-                  <div className="text-xs text-zinc-400 mt-1">Total Sets</div>
-                </div>
-                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                  <div className="text-3xl font-bold text-white">
-                    {analytics.strengthLeaderboard?.length || 0}
-                  </div>
-                  <div className="text-xs text-zinc-400 mt-1">Exercises</div>
-                </div>
-                <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                  <div className="text-3xl font-bold text-white">
-                    {analytics.acwr ? analytics.acwr.ratio.toFixed(1) : '—'}
-                  </div>
-                  <div className="text-xs text-zinc-400 mt-1">Load Ratio</div>
-                </div>
+                ))}
               </div>
-            </div>
-
-            {/* Training Load Details */}
-            {analytics.acwr && (
-              <div className={SECTION_CLASS}>
-                <h2 className="text-xl font-bold text-white mb-4">Training Load</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-zinc-400">Last 7 days</span>
-                    <span className="text-sm font-semibold text-white">
-                      {Math.round(analytics.acwr.acuteLoad).toLocaleString()} {weightUnit}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-zinc-400">28-day average</span>
-                    <span className="text-sm font-semibold text-white">
-                      {Math.round(analytics.acwr.chronicLoad).toLocaleString()} {weightUnit}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">Complete more workouts to see your estimated 1RMs.</p>
             )}
+          </div>
 
-            {/* Tips */}
-            <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 to-emerald-950/20 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-cyan-200">How This Works</h3>
-              <ul className="text-xs text-zinc-400 space-y-2">
-                <li><span className="text-cyan-300">Readiness</span> - Based on your fitness vs fatigue balance</li>
-                <li><span className="text-cyan-300">Injury Risk</span> - Compares recent load to your baseline</li>
-                <li><span className="text-cyan-300">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
-              </ul>
+          {/* Volume Leaders */}
+          <div className={SECTION_CLASS}>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="h-5 w-5 text-emerald-300" />
+              <h2 className="text-xl font-bold text-white">Volume Leaders</h2>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">
+              Total weight moved (reps × weight)
+            </p>
+            {analytics.volumeLeaderboard && analytics.volumeLeaderboard.length > 0 ? (
+              <div className="space-y-2">
+                {analytics.volumeLeaderboard.slice(0, 10).map((exercise, i) => (
+                  <div
+                    key={exercise.exerciseId}
+                    className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-green-400' :
+                        i === 1 ? 'text-green-500/70' :
+                          i === 2 ? 'text-green-600/70' :
+                            'text-zinc-500'
+                        }`}>
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm text-white truncate">{exercise.exerciseName}</div>
+                        <div className="text-xs text-zinc-500">
+                          {exercise.setCount} sets · avg {exercise.avgWeightPerSet}{weightUnit}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <div className="text-lg font-bold text-green-400">
+                        {exercise.totalVolume.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-zinc-500">{weightUnit}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">Complete more workouts to see your volume leaders.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Profile Tab */}
+      {selectedView === 'profile' && (
+        <div className="space-y-6">
+          <div className={SECTION_CLASS}>
+            <h2 className="text-xl font-bold text-white mb-4">Your Stats</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
+                <div className="text-3xl font-bold text-white">
+                  {analytics.personalStats?.totalWorkouts || 0}
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">Workouts</div>
+              </div>
+              <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
+                <div className="text-3xl font-bold text-white">
+                  {analytics.personalStats?.totalSets || 0}
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">Total Sets</div>
+              </div>
+              <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
+                <div className="text-3xl font-bold text-white">
+                  {analytics.strengthLeaderboard?.length || 0}
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">Exercises</div>
+              </div>
+              <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
+                <div className="text-3xl font-bold text-white">
+                  {analytics.acwr ? analytics.acwr.ratio.toFixed(1) : '—'}
+                </div>
+                <div className="text-xs text-zinc-400 mt-1">Load Ratio</div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Training Load Details */}
+          {analytics.acwr && (
+            <div className={SECTION_CLASS}>
+              <h2 className="text-xl font-bold text-white mb-4">Training Load</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-400">Last 7 days</span>
+                  <span className="text-sm font-semibold text-white">
+                    {Math.round(analytics.acwr.acuteLoad).toLocaleString()} {weightUnit}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-400">28-day average</span>
+                  <span className="text-sm font-semibold text-white">
+                    {Math.round(analytics.acwr.chronicLoad).toLocaleString()} {weightUnit}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tips */}
+          <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 to-emerald-950/20 p-5">
+            <h3 className="mb-3 text-sm font-semibold text-cyan-200">How This Works</h3>
+            <ul className="text-xs text-zinc-400 space-y-2">
+              <li><span className="text-cyan-300">Readiness</span> - Based on your fitness vs fatigue balance</li>
+              <li><span className="text-cyan-300">Injury Risk</span> - Compares recent load to your baseline</li>
+              <li><span className="text-cyan-300">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
