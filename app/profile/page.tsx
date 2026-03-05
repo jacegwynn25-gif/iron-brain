@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
+import { useDialog } from '@/app/providers/DialogProvider';
+
 import type {
   WorkoutSession,
   SessionMetadata,
@@ -34,7 +36,9 @@ const getIsoWeekKey = (date: Date) => {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { alert } = useDialog();
   const { user, signOut } = useAuth();
+
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
 
   // Unified namespace: user ID if authenticated, 'guest' for offline mode
@@ -270,7 +274,11 @@ export default function ProfilePage() {
                 router.push('/');
               } catch (error) {
                 console.error('❌ Failed to sign out:', error);
-                alert('Failed to sign out. Please try again.');
+                await alert(
+                  'Sign Out Error',
+                  'Failed to sign out. Please check your connection and try again.'
+                );
+
               }
             }}
             className="w-full surface-card p-4 flex items-center justify-center gap-2 text-rose-300 font-black italic border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-[0.98]"

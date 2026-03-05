@@ -33,6 +33,8 @@ import type {
 import { createUuid } from '@/app/lib/uuid';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
+import { useDialog } from '@/app/providers/DialogProvider';
+
 import EditableNumberInput from '@/app/components/ui/EditableNumberInput';
 import FancySelect from '@/app/components/ui/FancySelect';
 import ProgramsCalendarView from '@/app/components/program-builder/ProgramsCalendarView';
@@ -636,6 +638,7 @@ export default function ProgramsPage() {
     deleteProgram,
     resolveProgramSelection,
   } = useProgramContext();
+  const { confirm } = useDialog();
   const namespaceId = user?.id ?? 'guest';
 
   const [query, setQuery] = useState('');
@@ -940,10 +943,14 @@ export default function ProgramsPage() {
     setExerciseActionMenu(null);
   };
 
-  const closeEditor = () => {
+  const closeEditor = async () => {
     if (editorSaving) return;
     if (draft && editorBaselineFingerprint && fingerprintProgram(draft) !== editorBaselineFingerprint) {
-      const discardConfirmed = window.confirm('Discard unsaved changes?');
+      const discardConfirmed = await confirm(
+        'Discard Changes?',
+        'You have unsaved changes in this program. Exit anyway?',
+        { variant: 'danger', confirmLabel: 'Discard', cancelLabel: 'Keep Editing' }
+      );
       if (!discardConfirmed) return;
     }
     resetEditorState();
@@ -1725,7 +1732,11 @@ export default function ProgramsPage() {
 
   const handleDeleteProgram = async (program: ProgramTemplate) => {
     if (builtInProgramIds.has(program.id)) return;
-    const confirmed = window.confirm(`Delete "${program.name}"?`);
+    const confirmed = await confirm(
+      'Delete Program?',
+      `Are you sure you want to delete "${program.name}"? This action cannot be undone.`,
+      { variant: 'danger', confirmLabel: 'Delete Program', cancelLabel: 'Cancel' }
+    );
     if (!confirmed) return;
     await deleteProgram(program.id);
   };
@@ -2777,8 +2788,13 @@ export default function ProgramsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this week?')) {
+                      onClick={async () => {
+                        if (await confirm(
+                          'Delete Week?',
+                          'Are you sure you want to delete this entire week? This cannot be undone.',
+                          { variant: 'danger', confirmLabel: 'Delete Week' }
+                        )) {
+
                           handleDeleteWeek(activeWeekIndex);
                         }
                       }}
@@ -2819,8 +2835,13 @@ export default function ProgramsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm('Are you sure you want to delete this specific day/session?')) {
+                        onClick={async () => {
+                          if (await confirm(
+                            'Delete Session?',
+                            'Are you sure you want to delete this specific day/session?',
+                            { variant: 'danger', confirmLabel: 'Delete Session' }
+                          )) {
+
                             handleDeleteDay(activeWeekIndex, activeDayIndex);
                           }
                         }}

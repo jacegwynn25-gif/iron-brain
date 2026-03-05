@@ -5,7 +5,9 @@ import { AuthProvider } from './providers/AuthProvider';
 import { ProgramProvider } from './providers/ProgramProvider';
 import { WorkoutDataProvider } from './providers/WorkoutDataProvider';
 import { ActiveSessionProvider } from './providers/ActiveSessionProvider';
+import { DialogProvider } from './providers/DialogProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
 import OnboardingWrapper from './components/onboarding/OnboardingWrapper';
 import SyncQueueListener from './components/SyncQueueListener';
 import RouteTransition from './components/RouteTransition';
@@ -63,17 +65,20 @@ export default function RootLayout({
               <WorkoutDataProvider>
                 <SyncQueueListener />
                 <ActiveSessionProvider>
-                  <OnboardingWrapper>
-                    <AppLayout>
-                      <RouteTransition>{children}</RouteTransition>
-                    </AppLayout>
-                  </OnboardingWrapper>
+                  <DialogProvider>
+                    <OnboardingWrapper>
+                      <AppLayout>
+                        <RouteTransition>{children}</RouteTransition>
+                      </AppLayout>
+                    </OnboardingWrapper>
+                  </DialogProvider>
                 </ActiveSessionProvider>
               </WorkoutDataProvider>
             </ProgramProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>
+
     </html>
   );
 }

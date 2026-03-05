@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Search, Trash2, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
 import { getUserMaxes, saveUserMax, deleteUserMax, isMaxStale } from '../../lib/maxes/maxes-service';
+import { useDialog } from '@/app/providers/DialogProvider';
 import type { UserMax } from '../../lib/types';
 import ExercisePicker from './ExercisePicker';
 import type { Exercise, CustomExercise } from '../../lib/types';
@@ -17,6 +18,7 @@ interface MaxesManagerProps {
 }
 
 export default function MaxesManager({ userId }: MaxesManagerProps) {
+  const { alert, confirm } = useDialog();
   const [maxes, setMaxes] = useState<UserMax[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -80,9 +82,13 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
   const handleSaveMax = async () => {
     if (!selectedExercise || weight <= 0) {
-      alert('Please select an exercise and enter a valid weight');
+      await alert(
+        'Missing Values',
+        'Please select an exercise and enter a valid weight before saving.'
+      );
       return;
     }
+
 
     setSaving(true);
     try {
@@ -100,22 +106,36 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
       handleCloseModal();
     } catch (err) {
       console.error('Failed to save max:', err);
-      alert('Failed to save max. Please try again.');
+      await alert(
+        'Save Error',
+        'Failed to save max. Please check your connection and try again.'
+      );
     } finally {
+
       setSaving(false);
     }
   };
 
   const handleDeleteMax = async (maxId: string) => {
-    if (!confirm('Are you sure you want to delete this 1RM?')) return;
+    const confirmed = await confirm(
+      'Delete 1RM Record?',
+      'Are you sure you want to delete this 1RM? This will remove it from your history.',
+      { variant: 'danger', confirmLabel: 'Delete Record' }
+    );
+    if (!confirmed) return;
+
 
     try {
       await deleteUserMax(userId, maxId);
       await loadMaxes();
     } catch (err) {
       console.error('Failed to delete max:', err);
-      alert('Failed to delete max. Please try again.');
+      await alert(
+        'Delete Error',
+        'Failed to delete max. Please try again later.'
+      );
     }
+
   };
 
   const handleExerciseSelect = (exercise: Exercise | CustomExercise) => {
@@ -209,11 +229,10 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                         {testDate}
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          max.estimatedOrTested === 'tested'
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${max.estimatedOrTested === 'tested'
                             ? 'bg-emerald-500/20 text-emerald-400'
                             : 'bg-blue-500/20 text-blue-400'
-                        }`}
+                          }`}
                       >
                         {max.estimatedOrTested}
                       </span>
@@ -321,22 +340,20 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                   <button
                     type="button"
                     onClick={() => setEstimatedOrTested('tested')}
-                    className={`flex-1 rounded-lg px-4 py-2 font-semibold transition-all active:scale-[0.98] ${
-                      estimatedOrTested === 'tested'
+                    className={`flex-1 rounded-lg px-4 py-2 font-semibold transition-all active:scale-[0.98] ${estimatedOrTested === 'tested'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                         : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     Tested
                   </button>
                   <button
                     type="button"
                     onClick={() => setEstimatedOrTested('estimated')}
-                    className={`flex-1 rounded-lg px-4 py-2 font-semibold transition-all active:scale-[0.98] ${
-                      estimatedOrTested === 'estimated'
+                    className={`flex-1 rounded-lg px-4 py-2 font-semibold transition-all active:scale-[0.98] ${estimatedOrTested === 'estimated'
                         ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
                         : 'bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     Estimated
                   </button>

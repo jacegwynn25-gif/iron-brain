@@ -23,6 +23,9 @@ import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/t
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
 import { useUnitPreference } from '@/app/lib/hooks/useUnitPreference';
+import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
+import { useDialog } from '@/app/providers/DialogProvider';
+
 import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import {
   buildExerciseCatalog,
@@ -52,7 +55,7 @@ import { trackUiEvent } from '@/app/lib/analytics/ui-events';
 import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
-import { useActiveSession, type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
+import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 
@@ -398,6 +401,7 @@ type SessionLoggerProps = {
 
 export default function SessionLogger({ initialData, initialProgress }: SessionLoggerProps) {
   const router = useRouter();
+  const { confirm } = useDialog();
   const { user } = useAuth();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness } = useRecoveryState();
@@ -1810,8 +1814,14 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     setFinishStatusMessage(null);
   };
 
-  const handleCancelWorkout = () => {
-    if (confirm('Are you sure you want to cancel this workout? All progress will be lost and it will not be saved to your history.')) {
+  const handleCancelWorkout = async () => {
+    const confirmed = await confirm(
+      'Discard Workout?',
+      'Are you sure you want to cancel this workout? All progress will be lost and it will not be saved to your history.',
+      { variant: 'danger', confirmLabel: 'Discard Session', cancelLabel: 'Go Back' }
+    );
+
+    if (confirmed) {
       clearSession();
       router.push('/');
     }
