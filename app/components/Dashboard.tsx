@@ -140,7 +140,7 @@ export default function Dashboard() {
       <section className="grid gap-2.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
         {/* Primary CTA */}
         <Link
-          href={isSessionActive ? "/workout/active" : "/start"}
+          href={isSessionActive ? "/workout/new" : "/start"}
           className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.25rem] px-5 py-4 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'

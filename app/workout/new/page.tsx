@@ -6,6 +6,7 @@ import SessionLogger from '@/app/components/workout/SessionLogger';
 import { getProgramProgress, type ProgramProgress } from '@/app/lib/programs/progress';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
+import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 
 export default function NewWorkoutPage() {
   const searchParams = useSearchParams();
@@ -18,6 +19,13 @@ export default function NewWorkoutPage() {
   const namespaceId = user?.id ?? 'guest';
 
   const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
+  const { snapshot, isSessionActive } = useActiveSession();
+
+  // When resuming an active session, use its stored program/day metadata
+  // instead of the default selectedProgram + getProgramProgress flow.
+  const resumeMeta = isSessionActive && !requestedProgramId && !forceQuickStart
+    ? snapshot?.meta ?? null
+    : null;
 
   const queryProgress = useMemo<ProgramProgress | null>(() => {
     const weekIndex = Number(queryWeek);
@@ -38,17 +46,29 @@ export default function NewWorkoutPage() {
 
   const resolvedProgram = useMemo(() => {
     if (forceQuickStart) return null;
+    // If resuming an active session, find the program by the stored programId
+    if (resumeMeta) {
+      return allPrograms.find((program) => program.id === resumeMeta.programId) ?? selectedProgram ?? null;
+    }
     if (requestedProgramId) {
       return allPrograms.find((program) => program.id === requestedProgramId) ?? null;
     }
     return selectedProgram ?? null;
-  }, [allPrograms, forceQuickStart, requestedProgramId, selectedProgram]);
+  }, [allPrograms, forceQuickStart, requestedProgramId, resumeMeta, selectedProgram]);
 
   const resolvedProgress = useMemo<ProgramProgress | null>(() => {
     if (forceQuickStart || !resolvedProgram) return null;
     if (queryProgress) return queryProgress;
+    // If resuming, use the stored week/day indices from the active session
+    if (resumeMeta && resumeMeta.weekIndex != null && resumeMeta.dayIndex != null) {
+      return {
+        weekIndex: resumeMeta.weekIndex,
+        dayIndex: resumeMeta.dayIndex,
+        cycleNumber: resumeMeta.cycleNumber ?? 1,
+      };
+    }
     return getProgramProgress(resolvedProgram, namespaceId);
-  }, [forceQuickStart, namespaceId, queryProgress, resolvedProgram]);
+  }, [forceQuickStart, namespaceId, queryProgress, resolvedProgram, resumeMeta]);
 
   useEffect(() => {
     if (forceQuickStart || !requestedProgramId || !resolvedProgram) return;

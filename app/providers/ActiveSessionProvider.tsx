@@ -21,6 +21,8 @@ export interface ActiveSessionMeta {
     weekNumber?: number;
     dayName?: string;
     cycleNumber?: number;
+    weekIndex?: number;
+    dayIndex?: number;
 }
 
 export interface ActiveSessionSnapshot {

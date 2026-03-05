@@ -532,6 +532,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           weekNumber: programDayContext?.weekNumber,
           dayName: programDayContext?.day?.name,
           cycleNumber: programDayContext?.cycleNumber,
+          weekIndex: programDayContext?.weekIndex,
+          dayIndex: programDayContext?.dayIndex,
         },
       };
       saveSnapshot(snap);
