@@ -48,14 +48,27 @@ export default function NewWorkoutPage() {
     if (forceQuickStart) return null;
     // If resuming an active session, find the program by the stored programId
     if (resumeMeta) {
-      if (loading && allPrograms.length === 0) return undefined; // Indicate we are waiting
-      return allPrograms.find((program) => program.id === resumeMeta.programId) ?? selectedProgram ?? null;
+      // Wait if programs are still loading
+      if (loading && allPrograms.length === 0) return undefined;
+
+      const found = allPrograms.find((program) => program.id === resumeMeta.programId);
+      if (found) return found;
+
+      // If we didn't find the program but we are still loading, wait
+      if (loading) return undefined;
+
+      // Fallback only after sync is complete
+      return selectedProgram ?? null;
     }
     if (requestedProgramId) {
-      return allPrograms.find((program) => program.id === requestedProgramId) ?? null;
+      const found = allPrograms.find((program) => program.id === requestedProgramId);
+      if (found) return found;
+      if (loading) return undefined;
+      return null;
     }
     return selectedProgram ?? null;
   }, [allPrograms, forceQuickStart, requestedProgramId, resumeMeta, selectedProgram, loading]);
+
 
   const resolvedProgress = useMemo<ProgramProgress | null>(() => {
     if (forceQuickStart || !resolvedProgram) return null;

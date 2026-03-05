@@ -559,15 +559,24 @@ function workoutSessionReducer(
   switch (action.type) {
     case 'INITIALIZE_SESSION': {
       // Guard against accidental data loss when inputs (program/readiness) change mid-session.
+      // If we have completed/touched sets, NEVER reinitialize.
       if (hasCompletedOrTouchedSets(state.blocks)) {
         return state;
       }
-      // Don't reinitialize if session was created very recently — the user may
-      // already be viewing it even though they haven't interacted with a set yet.
-      const ageMs = Date.now() - state.startTime.getTime();
-      if (state.blocks.length > 0 && ageMs < 2000) {
-        return state;
+
+      // If the session is active and has blocks, be very careful about reinitializing.
+      if (state.status === 'active' && state.blocks.length > 0) {
+        // If the session was started more than 5 seconds ago, it's likely a restored session
+        // or one the user is already looking at. Don't blow it away unless it's empty.
+        const ageMs = Date.now() - state.startTime.getTime();
+        if (ageMs > 5000) {
+          return state;
+        }
+
+        // If it's very fresh (< 5s), it might be a double-init or a quick program switch.
+        // We only allow reinit if no work has been done (checked above).
       }
+
       return createInitialSessionState(
         action.payload.program,
         action.payload.readinessModifier,
@@ -575,6 +584,7 @@ function workoutSessionReducer(
         action.payload.resolveExerciseName ?? resolveExerciseName
       );
     }
+
 
     case 'UPDATE_SET': {
       const blocks = cloneBlocks(state.blocks);

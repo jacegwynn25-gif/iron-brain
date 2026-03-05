@@ -570,9 +570,22 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   useEffect(() => {
     if (prevSessionProgramRef.current === sessionProgram) return;
     prevSessionProgramRef.current = sessionProgram;
+
+    // If we have progress in the current session, don't reset.
     if (hasCompletedSets || hasTouchedSets) return;
+
+    // If we are resuming an active session from a snapshot, don't reset
+    // just because the program reference changed (which happens on mount).
+    if (snapshot && session.status === 'active' && snapshot.status === 'active') {
+      // Only reset if the program ID itself has changed fundamentally
+      if (snapshot.meta?.programId === baseProgram.id) {
+        return;
+      }
+    }
+
     reinitializeSession();
-  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram]);
+  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, snapshot, session.status, baseProgram.id]);
+
 
   useEffect(() => {
     if (hasCompletedSets || hasTouchedSets) return;
