@@ -39,6 +39,9 @@ export default function OnboardingPage() {
   const { user } = useAuth();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [experience, setExperience] = useState<Experience | null>(null);
+  const [age, setAge] = useState<number | null>(null);
+  const [sex, setSex] = useState<'male' | 'female' | 'other' | null>(null);
+  const [trainingAge, setTrainingAge] = useState<number | null>(null);
   const [bodyweight, setBodyweight] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,10 +100,17 @@ export default function OnboardingPage() {
         user_id: string;
         athletic_background?: Experience;
         bodyweight?: number | null;
+        age?: number | null;
+        sex?: string | null;
+        training_age_years?: number | null;
       } = {
         user_id: user.id,
         athletic_background: experience,
       };
+
+      if (age !== null) demographicsPayload.age = age;
+      if (sex !== null) demographicsPayload.sex = sex;
+      if (trainingAge !== null) demographicsPayload.training_age_years = trainingAge;
 
       if (bodyweight !== null) {
         demographicsPayload.bodyweight = bodyweight;
@@ -150,8 +160,8 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={() => setGoal(item.id as Goal)}
                   className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors ${selected
-                      ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                      : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+                    ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
+                    : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
                     }`}
                 >
                   <div
@@ -182,8 +192,8 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={() => setExperience(item.id as Experience)}
                   className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors ${selected
-                      ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                      : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+                    ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
+                    : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
                     }`}
                 >
                   <div>
@@ -198,28 +208,53 @@ export default function OnboardingPage() {
         </section>
 
         <section className="surface-card p-6">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Optional</p>
-          <div className="mt-4 space-y-4">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Biological Profile</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-zinc-300">
-                Measurement System
-              </label>
+              <label className="block text-sm font-medium text-zinc-300">Age</label>
+              <input
+                type="number"
+                min="13"
+                max="100"
+                value={age ?? ''}
+                onChange={(e) => setAge(parseInt(e.target.value) || null)}
+                placeholder="Years"
+                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-300">Sex</label>
               <FancySelect
-                value={unitSystem}
+                value={sex ?? ''}
                 options={[
-                  { value: 'imperial', label: 'Imperial (lbs)' },
-                  { value: 'metric', label: 'Metric (kg)' },
+                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: 'Female' },
+                  { value: 'other', label: 'Other' },
                 ]}
-                onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
-                ariaLabel="Measurement system"
+                onChange={(value) => setSex(value as any)}
+                ariaLabel="Biological sex"
                 buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
-                listClassName="max-h-44 overflow-y-auto"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-300">Training History</label>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                step="0.5"
+                value={trainingAge ?? ''}
+                onChange={(e) => setTrainingAge(parseFloat(e.target.value) || null)}
+                placeholder="Years lifting"
+                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-zinc-300">
-                Bodyweight ({weightUnit}) <span className="text-xs text-zinc-500">(optional)</span>
+                Bodyweight ({weightUnit})
               </label>
               <input
                 type="number"
@@ -240,6 +275,22 @@ export default function OnboardingPage() {
               />
             </div>
           </div>
+
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-zinc-300">
+              Measurement System
+            </label>
+            <FancySelect
+              value={unitSystem}
+              options={[
+                { value: 'imperial', label: 'Imperial (lbs)' },
+                { value: 'metric', label: 'Metric (kg)' },
+              ]}
+              onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
+              ariaLabel="Measurement system"
+              buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
+            />
+          </div>
         </section>
 
         {error && (
@@ -252,8 +303,8 @@ export default function OnboardingPage() {
           type="submit"
           disabled={!canSubmit}
           className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-black uppercase tracking-[0.25em] transition-all ${canSubmit
-              ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
-              : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
+            ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
+            : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
             }`}
         >
           {isSaving ? (

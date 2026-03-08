@@ -259,8 +259,7 @@ export function calculateWorkoutSFR(
 
   // Calculate overall workout SFR
   const totalEffectiveVolume = exerciseAnalyses.reduce((sum, a) => sum + a.effectiveVolume, 0);
-  const totalFatigue = exerciseAnalyses.reduce((sum, a) => sum + a.totalFatigue, 0);
-  const overallSFR = totalFatigue > 0 ? totalEffectiveVolume / totalFatigue : 0;
+  const overallSFR = accumulatedFatigue > 0 ? totalEffectiveVolume / accumulatedFatigue : 0;
 
   // Overall interpretation
   let overallInterpretation: WorkoutSFRSummary['overallInterpretation'];
