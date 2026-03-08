@@ -202,7 +202,8 @@ import { storage } from '../storage';
 function getLastWeightForExercise(
   historyMap: Map<string, number | null>,
   exerciseId: string,
-  unit: WeightUnit
+  unit: WeightUnit,
+  targetReps?: number | null
 ): number | null {
   if (!historyMap.has(exerciseId)) {
     // Try to get actual history for this exercise
@@ -222,8 +223,25 @@ function getLastWeightForExercise(
       }
       historyMap.set(exerciseId, roundToIncrement(convertedWeight, unit));
     } else {
-      // No history exists — return null instead of fabricating a value
-      historyMap.set(exerciseId, null);
+      // No recent history — check for 1RM data
+      const prs = storage.getPersonalRecords(exerciseId);
+      if (prs && prs.maxE1RM && prs.maxE1RM.e1rm > 0) {
+        // We have an estimated 1RM. Use it to suggest weight for targetReps.
+        // Default to 8 reps if not specified.
+        const reps = targetReps ?? 8;
+        const e1rm = prs.maxE1RM.e1rm; // e1rm is stored in lbs in the PR object
+
+        let suggestedWeightLbs = e1rm / (1 + reps / 30); // Reverse Epley
+
+        // Convert to requested unit
+        let suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
+
+        const rounded = roundToIncrement(suggestedWeight, unit);
+        historyMap.set(exerciseId, rounded);
+      } else {
+        // Truly no data
+        historyMap.set(exerciseId, null);
+      }
     }
   }
   return historyMap.get(exerciseId) ?? null;
@@ -433,7 +451,8 @@ function buildBlocksFromProgram(
 
       for (const templateExercise of templateExercises) {
         const exerciseId = templateExercise.exerciseId || createId('exercise');
-        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit);
+        const firstSetReps = parseRepsTarget(templateExercise.sets?.[0]?.prescribedReps);
+        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit, firstSetReps);
         const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
           buildSessionSetFromTemplate(
             templateSet,
@@ -475,7 +494,8 @@ function buildBlocksFromProgram(
 
   for (const templateSet of day.sets) {
     const exerciseId = templateSet.exerciseId || createId('exercise');
-    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit);
+    const targetReps = parseRepsTarget(templateSet.prescribedReps);
+    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit, targetReps);
     const sessionSet = buildSessionSetFromTemplate(templateSet, lastWeight, readinessModifier, weightUnit);
     const repsTarget = sessionSet.reps;
 

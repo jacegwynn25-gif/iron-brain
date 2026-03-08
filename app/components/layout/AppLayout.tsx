@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
-  NotebookPen,
+  Zap,
   BookOpen,
   History,
   type LucideIcon,
@@ -27,7 +27,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { id: 'log', label: 'Log', href: '/start', icon: NotebookPen, coach: 'start-button' },
+  { id: 'log', label: 'Log', href: '/workout/new', icon: Zap, coach: 'start-button' },
   { id: 'programs', label: 'Programs', href: '/programs', icon: BookOpen, coach: 'programs-tab' },
   { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
 ];
@@ -83,48 +83,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [pathname]);
 
-  const shouldIgnoreSwipe = (target: EventTarget | null) => {
-    if (!(target instanceof Element)) return false;
-    if (target.closest('[data-swipe-ignore="true"]')) return true;
-    if (target.closest('[data-swipe-scope="local"]')) return true;
-    if (target.closest('input, textarea, select, [contenteditable="true"]')) return true;
-    return false;
-  };
-
-  const handleSwipeStart = (event: TouchEvent) => {
-    if (shouldIgnoreSwipe(event.target)) {
-      swipeStartRef.current = null;
-      return;
-    }
-    const touch = event.touches[0];
-    if (!touch) return;
-    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleSwipeEnd = (event: TouchEvent) => {
-    const start = swipeStartRef.current;
-    swipeStartRef.current = null;
-    if (!start) return;
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    // Don't allow swipe back on active workout screens or any full-screen view
-    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3 && !hideBottomNav) {
-      const history = routeHistoryRef.current;
-      if (history.length <= 1) return;
-      history.pop();
-      const previous = history[history.length - 1];
-      isBackNavRef.current = true;
-      router.push(previous);
-    }
-  };
-
   return (
     <div
       className="relative min-h-dvh bg-zinc-950 text-zinc-100"
-      onTouchStart={handleSwipeStart}
-      onTouchEnd={handleSwipeEnd}
     >
       <div className="pointer-events-none fixed inset-0 -z-20 bg-zinc-950" />
       <div
@@ -162,7 +123,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   key={item.id}
                   href={item.href}
                   data-coach={item.coach}
-                  className={`group relative flex min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 px-1 py-4 transition-all active:scale-95 active:brightness-90 ${active
+                  className={`group relative flex min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 px-1 py-4 transition-colors ${active
                     ? 'text-emerald-300'
                     : 'text-zinc-500 hover:text-zinc-200'
                     }`}

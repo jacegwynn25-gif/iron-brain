@@ -299,6 +299,7 @@ const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: Reso
 
 const isBodyweight = (name: string): boolean => {
   const lower = name.toLowerCase();
+  if (lower.includes('weighted')) return false;
   return [
     'bodyweight',
     'pull-up',
@@ -1947,42 +1948,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     }
   }, [viewMode]);
 
-  const shouldIgnoreSwipe = (target: EventTarget | null) => {
-    if (!(target instanceof Element)) return false;
-    if (target.closest('[data-swipe-ignore="true"]')) return true;
-    if (target.closest('input, textarea, select')) return true;
-    return false;
-  };
-
-  const handleSwipeStart = (event: TouchEvent) => {
-    if (shouldIgnoreSwipe(event.target)) {
-      swipeStartRef.current = null;
-      return;
-    }
-    const touch = event.touches[0];
-    if (!touch) return;
-    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
-  };
-
-  const handleSwipeEnd = (event: TouchEvent) => {
-    const start = swipeStartRef.current;
-    swipeStartRef.current = null;
-    if (!start) return;
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-      handleBackNavigation();
-    }
-  };
-
   return (
     <>
       <div
         className="relative w-full min-h-[100dvh] bg-zinc-950 text-white flex flex-col"
-        onTouchStart={handleSwipeStart}
-        onTouchEnd={handleSwipeEnd}
         data-swipe-scope="local"
       >
 
