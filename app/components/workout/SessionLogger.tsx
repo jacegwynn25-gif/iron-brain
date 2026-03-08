@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -653,7 +653,6 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const overviewScrollRef = useRef<HTMLDivElement>(null);
   const overviewScrollPositionRef = useRef<number>(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const viewHistoryRef = useRef<ViewMode[]>(['overview']);
   const isBackNavRef = useRef(false);
   const saveInFlightRef = useRef(false);
@@ -1480,48 +1479,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     setViewMode('rest');
   };
 
-  const handleBackNavigation = () => {
-    if (isSummaryOpen) {
-      setIsSummaryOpen(false);
-      return;
-    }
-    if (isNotesOpen) {
-      setIsNotesOpen(false);
-      return;
-    }
-    if (isHistoryOpen) {
-      setIsHistoryOpen(false);
-      return;
-    }
-    if (isAddMovementOpen) {
-      if (pendingAddName !== null) {
-        setPendingAddName(null);
-      } else {
-        setIsAddMovementOpen(false);
-      }
-      return;
-    }
-    if (activeInput) {
-      setActiveInput(null);
-      setKeypadValue('');
-      setKeypadArmed(false);
-      return;
-    }
-    if (revealedId) {
-      setRevealedId(null);
-      return;
-    }
 
-    const history = viewHistoryRef.current;
-    if (history.length <= 1) return;
-    history.pop();
-    const previous = history[history.length - 1];
-    isBackNavRef.current = true;
-    setViewMode(previous);
-    if (previous === 'overview') {
-      setFocusedExerciseId(null);
-    }
-  };
 
   const handleAddBonusSet = () => {
     if (!restContext) return;

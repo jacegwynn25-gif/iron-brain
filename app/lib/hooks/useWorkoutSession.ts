@@ -231,10 +231,10 @@ function getLastWeightForExercise(
         const reps = targetReps ?? 8;
         const e1rm = prs.maxE1RM.e1rm; // e1rm is stored in lbs in the PR object
 
-        let suggestedWeightLbs = e1rm / (1 + reps / 30); // Reverse Epley
+        const suggestedWeightLbs = e1rm / (1 + reps / 30); // Reverse Epley
 
         // Convert to requested unit
-        let suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
+        const suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
 
         const rounded = roundToIncrement(suggestedWeight, unit);
         historyMap.set(exerciseId, rounded);

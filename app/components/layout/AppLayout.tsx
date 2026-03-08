@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Zap,
@@ -9,7 +9,7 @@ import {
   History,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
 
@@ -27,7 +27,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { id: 'log', label: 'Log', href: '/workout/new', icon: Zap, coach: 'start-button' },
+  { id: 'log', label: 'Log', href: '/start', icon: Zap, coach: 'start-button' },
   { id: 'programs', label: 'Programs', href: '/programs', icon: BookOpen, coach: 'programs-tab' },
   { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
 ];
@@ -38,7 +38,6 @@ function isActivePath(pathname: string, href: string): boolean {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const router = useRouter();
   const pathname = usePathname() ?? '/';
   const hideBottomNavByRoute =
     pathname.includes('/workout/active') ||
@@ -48,7 +47,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/reset-auth');
   const [hideBottomNavByOverlay, setHideBottomNavByOverlay] = useState(false);
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const routeHistoryRef = useRef<string[]>([pathname]);
   const isBackNavRef = useRef(false);
 
