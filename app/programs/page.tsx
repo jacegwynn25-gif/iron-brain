@@ -2213,7 +2213,8 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={openCreateEditor}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400"
+                disabled={loading}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-50"
               >
                 <CirclePlus className="h-4 w-4" />
                 New

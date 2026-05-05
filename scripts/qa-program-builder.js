@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 const { chromium } = require('playwright');
 
-const BASE_URL = 'http://127.0.0.1:3000';
+const BASE_URL = 'http://localhost:3000';
 
 async function expectVisible(locator, label) {
   await locator.waitFor({ state: 'visible', timeout: 15000 });
@@ -28,6 +28,7 @@ async function clickFirstByRole(page, role, options, label) {
   console.log('▶️ Opening programs page...');
   await page.goto(`${BASE_URL}/programs`, { waitUntil: 'networkidle' });
   await expectVisible(page.getByRole('heading', { name: /Programs/i }), 'Programs page loaded');
+  await page.getByText(/Loading Programs/i).waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
 
   console.log('▶️ Starting new program...');
   await clickFirstByRole(page, 'button', { name: /New/i }, 'Opened program editor');
