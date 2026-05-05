@@ -162,8 +162,8 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'border-b border-zinc-900 pb-6';
-const SUBSECTION_CARD_CLASS = 'surface-card p-3';
+const SECTION_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/45 p-4 sm:p-5';
+const SUBSECTION_CARD_CLASS = 'rounded-lg border border-zinc-900 bg-zinc-950/65 p-3';
 
 const formatIsoDateLocal = (date: Date) => {
   const year = date.getFullYear();
@@ -851,10 +851,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="flex min-h-dvh items-center justify-center pb-24 p-6">
         <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 animate-pulse items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
-            <BarChart3 className="h-8 w-8 text-emerald-300" />
+          <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+            <BarChart3 className="h-7 w-7 text-emerald-300" />
           </div>
-          <div className="text-lg font-black italic text-white">Loading insights...</div>
+          <div className="text-base font-semibold text-white">Loading insights...</div>
           <div className="text-[10px] text-zinc-500 sm:text-xs">Calculating your stats</div>
         </div>
       </div>
@@ -866,10 +866,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10 px-1">
         <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10">
-            <BarChart3 className="h-10 w-10 text-emerald-300" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+            <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
-          <h2 className="mb-2 text-xl font-black italic text-white">
+          <h2 className="mb-2 text-lg font-semibold text-white">
             {awaitingSync ? 'SYNCING WORKOUTS...' : 'NOT ENOUGH DATA YET'}
           </h2>
           <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
@@ -880,7 +880,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 : 'Complete at least 3 workouts to unlock Insights.'}
           </p>
           {cloudSyncing && (
-            <div className="mb-4 surface-card px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-4 rounded-lg border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
               Syncing...
             </div>
           )}
@@ -893,23 +893,23 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       {/* Header */}
       <header className="stagger-item px-1">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Insights</p>
-            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">ANALYTICS</h1>
-            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Your training at a glance.</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-100 sm:text-4xl">Insights</h1>
+            <p className="mt-1 text-xs text-zinc-500">Training load, recovery, and strength trends.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (
               <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
                 Syncing...
               </span>
             )}
-            <div className="flex rounded-full border border-zinc-800 bg-zinc-950/70 p-0.5 text-xs font-medium">
+            <div className="flex rounded-full border border-zinc-800 bg-zinc-950 p-0.5 text-xs font-medium">
               <button
                 type="button"
                 onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'imperial' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'imperial' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
                   }`}
               >
                 lbs
@@ -917,7 +917,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <button
                 type="button"
                 onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'metric' ? 'bg-emerald-500/20 text-emerald-200' : 'text-zinc-400'
+                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'metric' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
                   }`}
               >
                 kg
@@ -929,7 +929,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       {/* Navigation Tabs */}
       <div
-        className="stagger-item mb-6 flex gap-2 overflow-x-auto pb-1 -mx-2 px-3"
+        className="stagger-item -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-950/60 p-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {([
@@ -951,13 +951,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               );
               setSelectedView(id);
             }}
-            className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${selectedView === id
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
-              : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+            className={`flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-semibold transition-colors ${selectedView === id
+              ? 'bg-zinc-800 text-zinc-100'
+              : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
               }`}
           >
             <Icon className="h-4 w-4" />
-            <span>{label.toUpperCase()}</span>
+            <span>{label}</span>
           </button>
         ))}
       </div>
@@ -970,10 +970,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-white">Readiness</h2>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${readinessStatus === 'excellent' ? 'bg-green-500/20 text-green-400' :
-                  readinessStatus === 'good' ? 'bg-green-500/20 text-green-400' :
-                    readinessStatus === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-red-500/20 text-red-400'
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${readinessStatus === 'excellent' ? 'bg-emerald-500/15 text-emerald-300' :
+                  readinessStatus === 'good' ? 'bg-emerald-500/15 text-emerald-300' :
+                    readinessStatus === 'moderate' ? 'bg-amber-500/15 text-amber-300' :
+                      'bg-rose-500/15 text-rose-300'
                   }`}>
                   {readinessStatus}
                 </span>
@@ -993,14 +993,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   <div className="grid grid-cols-2 gap-3">
                     <div className={SUBSECTION_CARD_CLASS}>
                       <div className="text-xs text-zinc-400 mb-1">Fitness</div>
-                      <div className="text-lg font-semibold text-green-400">
+                      <div className="text-lg font-semibold text-emerald-300">
                         {Math.round(analytics.fitnessFatigue.currentFitness)}
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Training adaptations</div>
                     </div>
                     <div className={SUBSECTION_CARD_CLASS}>
                       <div className="text-xs text-zinc-400 mb-1">Fatigue</div>
-                      <div className="text-lg font-semibold text-red-400">
+                      <div className="text-lg font-semibold text-rose-300">
                         {Math.round(analytics.fitnessFatigue.currentFatigue)}
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
@@ -1019,15 +1019,15 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className={`h-5 w-5 ${injuryRisk.color === 'green' ? 'text-green-400' :
-                    injuryRisk.color === 'yellow' ? 'text-yellow-400' :
-                      'text-red-400'
+                  <AlertTriangle className={`h-5 w-5 ${injuryRisk.color === 'green' ? 'text-emerald-300' :
+                    injuryRisk.color === 'yellow' ? 'text-amber-300' :
+                      'text-rose-300'
                     }`} />
                   <h2 className="text-xl font-bold text-white">Injury Risk</h2>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${injuryRisk.color === 'green' ? 'bg-green-500/20 text-green-400' :
-                  injuryRisk.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-red-500/20 text-red-400'
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${injuryRisk.color === 'green' ? 'bg-emerald-500/15 text-emerald-300' :
+                  injuryRisk.color === 'yellow' ? 'bg-amber-500/15 text-amber-300' :
+                    'bg-rose-500/15 text-rose-300'
                   }`}>
                   {injuryRisk.label}
                 </span>
@@ -1038,16 +1038,16 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all ${injuryRisk.color === 'green' ? 'bg-green-500' :
-                    injuryRisk.color === 'yellow' ? 'bg-yellow-500' :
-                      'bg-red-500'
+                  className={`h-full transition-all ${injuryRisk.color === 'green' ? 'bg-emerald-500' :
+                    injuryRisk.color === 'yellow' ? 'bg-amber-500' :
+                      'bg-rose-500'
                     }`}
                   style={{ width: `${Math.min(100, (analytics.acwr.ratio / 2) * 100)}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-zinc-500 mt-1">
                 <span>0</span>
-                <span className="text-green-500">Sweet spot: 0.8-1.3</span>
+                <span className="text-emerald-500">Sweet spot: 0.8-1.3</span>
                 <span>2.0</span>
               </div>
             </div>
@@ -1072,9 +1072,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <span className="text-sm text-zinc-300 capitalize">{profile.muscleGroup}</span>
-                    <div className={`w-3 h-3 rounded-full ${profile.readinessScore >= 8 ? 'bg-green-400' :
-                      profile.readinessScore >= 6 ? 'bg-yellow-400' :
-                        'bg-red-400'
+                    <div className={`w-3 h-3 rounded-full ${profile.readinessScore >= 8 ? 'bg-emerald-400' :
+                      profile.readinessScore >= 6 ? 'bg-amber-400' :
+                        'bg-rose-400'
                       }`} />
                   </div>
                 ))}
@@ -1101,13 +1101,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`text-sm font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-zinc-400' : 'text-orange-400'
+                      <span className={`text-sm font-bold ${i === 0 ? 'text-amber-300' : i === 1 ? 'text-zinc-400' : 'text-amber-500'
                         }`}>
                         #{i + 1}
                       </span>
                       <span className="text-sm text-white truncate max-w-[150px]">{lift.exerciseName}</span>
                     </div>
-                    <span className="text-sm font-semibold text-cyan-300">
+                    <span className="text-sm font-semibold text-emerald-300">
                       {lift.estimated1RM} {weightUnit}
                     </span>
                   </div>
@@ -1226,9 +1226,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-yellow-400' :
+                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-amber-300' :
                         i === 1 ? 'text-zinc-400' :
-                          i === 2 ? 'text-orange-400' :
+                          i === 2 ? 'text-amber-500' :
                             'text-zinc-500'
                         }`}>
                         {i + 1}
@@ -1242,7 +1242,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <div className="text-lg font-bold text-cyan-300">
+                      <div className="text-lg font-bold text-emerald-300">
                         {lift.estimated1RM}
                       </div>
                       <div className="text-xs text-zinc-500">{weightUnit}</div>
@@ -1272,9 +1272,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-green-400' :
-                        i === 1 ? 'text-green-500/70' :
-                          i === 2 ? 'text-green-600/70' :
+                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-emerald-300' :
+                        i === 1 ? 'text-emerald-400/70' :
+                          i === 2 ? 'text-emerald-500/70' :
                             'text-zinc-500'
                         }`}>
                         {i + 1}
@@ -1287,7 +1287,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <div className="text-lg font-bold text-green-400">
+                      <div className="text-lg font-bold text-emerald-300">
                         {exercise.totalVolume.toLocaleString()}
                       </div>
                       <div className="text-xs text-zinc-500">{weightUnit}</div>
@@ -1357,12 +1357,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           )}
 
           {/* Tips */}
-          <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 to-emerald-950/20 p-5">
-            <h3 className="mb-3 text-sm font-semibold text-cyan-200">How This Works</h3>
+          <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-zinc-100">How This Works</h3>
             <ul className="text-xs text-zinc-400 space-y-2">
-              <li><span className="text-cyan-300">Readiness</span> - Based on your fitness vs fatigue balance</li>
-              <li><span className="text-cyan-300">Injury Risk</span> - Compares recent load to your baseline</li>
-              <li><span className="text-cyan-300">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
+              <li><span className="text-zinc-200">Readiness</span> - Based on your fitness vs fatigue balance</li>
+              <li><span className="text-zinc-200">Injury Risk</span> - Compares recent load to your baseline</li>
+              <li><span className="text-zinc-200">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
             </ul>
           </div>
         </div>

@@ -214,23 +214,21 @@ export default function Dashboard() {
         <section className="stagger-item mx-1">
           <Link
             href="/upgrade"
-            className="group relative flex items-center justify-between overflow-hidden rounded-[1.25rem] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-600/10 px-5 py-4 transition-all hover:border-amber-500/40 hover:scale-[1.01] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5"
+            className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/60 active:bg-zinc-900"
           >
-            <div className="relative z-10 flex items-center gap-3 sm:gap-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 sm:h-9 sm:w-9 sm:rounded-xl">
-                <Sparkles className="h-4 w-4 text-amber-400 sm:h-5 sm:w-5" />
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900">
+                <Sparkles className="h-4 w-4 text-emerald-300" />
               </div>
-              <div>
-                <h3 className="text-sm font-black italic tracking-tight text-amber-300 sm:text-base">
-                  UPGRADE TO IRON PRO
-                </h3>
-                <p className="text-[10px] text-zinc-400 sm:text-xs">
-                  Unlock readiness scores, recovery tracking, and advanced analytics.
-                </p>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold tracking-tight text-zinc-100">Iron Pro</h3>
+                <p className="truncate text-xs text-zinc-500">Recovery and analytics.</p>
               </div>
             </div>
-            <ArrowRight className="relative z-10 h-4 w-4 text-amber-400/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
-            <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-amber-500/10 blur-2xl sm:h-24 sm:w-24" />
+            <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+              View plans
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </div>
           </Link>
         </section>
       )}

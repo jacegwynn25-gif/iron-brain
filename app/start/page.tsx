@@ -119,13 +119,20 @@ export default function StartWorkoutPage() {
             <button
               type="button"
               onClick={() => setDayPickerOpen((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
+              className="flex w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/50"
             >
-              <span>{overrideProgress ? 'Undo Day Change' : 'Change Day'}</span>
+              <span>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Training Day
+                </span>
+                <span className="mt-1 block text-sm font-semibold text-zinc-100">
+                  {overrideProgress ? 'Custom day selected' : 'Change day'}
+                </span>
+              </span>
               {dayPickerOpen ? (
-                <ChevronUp className="h-3 w-3" />
+                <ChevronUp className="h-4 w-4 text-zinc-500" />
               ) : (
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-4 w-4 text-zinc-500" />
               )}
             </button>
 
@@ -136,14 +143,14 @@ export default function StartWorkoutPage() {
                   setOverrideProgress(null);
                   setDayPickerOpen(false);
                 }}
-                className="ml-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-400"
+                className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-400"
               >
                 Reset
               </button>
             )}
 
             {dayPickerOpen && (
-              <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/80 p-3">
+              <div className="mt-3 max-h-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/90 p-3">
                 {selectedProgram.weeks.map((week, wIdx) => (
                   <div key={wIdx} className="mb-3 last:mb-0">
                     <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.35em] text-zinc-600">
