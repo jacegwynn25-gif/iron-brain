@@ -121,7 +121,7 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
       }
     };
 
-    console.log('Uploading workout data:', workoutData);
+    logger.debug('Uploading workout data:', workoutData);
 
     // Insert workout session
     const { error: sessionError } = await supabase

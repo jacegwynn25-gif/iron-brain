@@ -14,7 +14,6 @@ export default function ResetAuthPage() {
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
-    console.log(message);
     setLogs(prev => [...prev, message]);
   };
 

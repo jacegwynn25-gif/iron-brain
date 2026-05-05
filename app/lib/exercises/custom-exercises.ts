@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { logger } from '../logger';
 import type { CustomExercise } from '../types';
 
 function getLocalStorageKey(namespaceId?: string | null): string {
@@ -161,7 +162,7 @@ export async function getCustomExercises(userId: string | null): Promise<CustomE
               if (syncError) {
                 console.error('Failed to background sync unsaved custom exercises:', syncError);
               } else {
-                console.log(`Successfully synced ${unsynced.length} pending custom exercises to cloud`);
+                logger.debug(`Successfully synced ${unsynced.length} pending custom exercises to cloud`);
               }
             } catch (err) {
               console.error('Error in background sync of custom exercises:', err);

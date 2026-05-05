@@ -104,7 +104,7 @@ export function setUserNamespace(userId: string | null) {
 
 const getKey = (base: string) => {
   if (!isNamespaceInitialized && typeof window !== 'undefined') {
-    console.warn('Storage accessed before namespace initialized. Using default namespace.');
+    logger.debug('Storage accessed before namespace initialized. Using default namespace.');
   }
   return `${base}__${activeUserNamespace}`;
 };
@@ -375,9 +375,15 @@ export async function saveWorkout(
     logger.debug('✅ Saved to localStorage');
 
     const queueWorkout = (reason: string) => {
+      const queueNamespace = normalizeNamespace(providedUserId ?? activeUserNamespace);
+      if (queueNamespace === 'default') {
+        queueReason = queueReason ?? `${reason}_local_only`;
+        return;
+      }
+
       if (!result.queued) {
         result.queued = true;
-        queueOperation('create', 'workout_sessions', sessionToSave);
+        queueOperation('create', 'workout_sessions', sessionToSave, queueNamespace);
       }
       queueReason = queueReason ?? reason;
     };
@@ -410,7 +416,13 @@ export async function saveWorkout(
         const { data: { user: authUser }, error: userError } = authResult;
 
         if (userError) {
-          console.error('Error getting user:', userError);
+          if (userError.name === 'AuthSessionMissingError') {
+            logger.debug('No authenticated user. Workout saved locally.');
+            finishCloudAttempt();
+            return finalizeResult('saved_local_guest');
+          }
+
+          logger.error('Error getting user:', userError);
           queueWorkout('auth_lookup_error');
           finishCloudAttempt();
           return finalizeResult('queued_auth_error');
@@ -600,17 +612,19 @@ export async function saveWorkout(
       finishCloudAttempt();
       logger.debug('✅ Workout synced to Supabase!');
     } else {
-      queueWorkout('no_authenticated_user');
       finishCloudAttempt();
-      return finalizeResult('queued_no_user');
+      return finalizeResult('saved_local_no_user');
     }
   } catch (error) {
     console.error('Failed to save workout:', error);
     // Don't throw - we want localStorage save to succeed even if Supabase fails
     queueReason = queueReason ?? 'unexpected_save_error';
     if (!result.queued) {
-      result.queued = true;
-      queueOperation('create', 'workout_sessions', sessionToQueue);
+      const queueNamespace = normalizeNamespace(providedUserId ?? activeUserNamespace);
+      if (queueNamespace !== 'default') {
+        result.queued = true;
+        queueOperation('create', 'workout_sessions', sessionToQueue, queueNamespace);
+      }
     }
     finishCloudAttempt();
   }

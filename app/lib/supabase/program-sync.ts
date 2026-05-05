@@ -39,7 +39,7 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: strin
 export async function saveProgramToCloud(program: ProgramTemplate, userId: string): Promise<boolean> {
   try {
     if (!isOnline()) {
-      queueOperation('update', 'custom_programs', { program });
+      queueOperation('update', 'custom_programs', { program }, userId);
       logger.debug('📥 Offline - queued program for sync');
       return true;
     }
@@ -71,7 +71,7 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
       };
       console.error('Failed to save program to cloud:', errorPayload);
       logger.debug('Program sync error:', errorPayload);
-      queueOperation('update', 'custom_programs', { program });
+      queueOperation('update', 'custom_programs', { program }, userId);
       return false;
     }
 
@@ -79,7 +79,7 @@ export async function saveProgramToCloud(program: ProgramTemplate, userId: strin
     return true;
   } catch (err) {
     console.error('Error syncing program:', err);
-    queueOperation('update', 'custom_programs', { program });
+    queueOperation('update', 'custom_programs', { program }, userId);
     return false;
   }
 }
@@ -172,7 +172,7 @@ export async function loadProgramsFromCloudWithCleanup(userId: string): Promise<
 export async function deleteProgramFromCloud(programId: string, userId: string): Promise<boolean> {
   try {
     if (!isOnline()) {
-      queueOperation('delete', 'custom_programs', { programId });
+      queueOperation('delete', 'custom_programs', { programId }, userId);
       logger.debug('📥 Offline - queued program delete');
       return true;
     }
@@ -189,7 +189,7 @@ export async function deleteProgramFromCloud(programId: string, userId: string):
 
     if (error) {
       console.error('Failed to delete program from cloud:', error);
-      queueOperation('delete', 'custom_programs', { programId });
+      queueOperation('delete', 'custom_programs', { programId }, userId);
       return false;
     }
 
@@ -197,7 +197,7 @@ export async function deleteProgramFromCloud(programId: string, userId: string):
     return true;
   } catch (err) {
     console.error('Error deleting program from cloud:', err);
-    queueOperation('delete', 'custom_programs', { programId });
+    queueOperation('delete', 'custom_programs', { programId }, userId);
     return false;
   }
 }

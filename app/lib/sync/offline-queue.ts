@@ -33,14 +33,25 @@ interface QueueItem {
   retries: number;
 }
 
-const setQueue = (queue: QueueItem[]) => {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+const normalizeQueueNamespace = (namespace?: string | null) =>
+  namespace && namespace !== 'default' && namespace !== 'guest' ? namespace : 'default';
+
+const queueKeyFor = (namespace?: string | null) =>
+  `${QUEUE_KEY}__${normalizeQueueNamespace(namespace)}`;
+
+const setQueue = (queue: QueueItem[], namespace?: string | null) => {
+  localStorage.setItem(queueKeyFor(namespace), JSON.stringify(queue));
 };
 
-export function queueOperation(operation: QueueOperation, table: QueueItem['table'], data: unknown): void {
+export function queueOperation(
+  operation: QueueOperation,
+  table: QueueItem['table'],
+  data: unknown,
+  namespace?: string | null
+): void {
   try {
     if (typeof window === 'undefined') return;
-    const queue = getQueue();
+    const queue = getQueue(namespace);
     const item: QueueItem = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       operation,
@@ -50,35 +61,35 @@ export function queueOperation(operation: QueueOperation, table: QueueItem['tabl
       retries: 0,
     };
     queue.push(item);
-    setQueue(queue);
+    setQueue(queue, namespace);
   } catch (err) {
-    console.error('Failed to queue operation:', err);
+    logger.error('Failed to queue operation:', err);
   }
 }
 
-function getQueue(): QueueItem[] {
+function getQueue(namespace?: string | null): QueueItem[] {
   try {
     if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(QUEUE_KEY);
+    const stored = localStorage.getItem(queueKeyFor(namespace));
     return stored ? (JSON.parse(stored) as QueueItem[]) : [];
   } catch {
     return [];
   }
 }
 
-function removeFromQueue(itemId: string): void {
+function removeFromQueue(itemId: string, namespace?: string | null): void {
   try {
-    const queue = getQueue();
+    const queue = getQueue(namespace);
     const filtered = queue.filter(item => item.id !== itemId);
-    setQueue(filtered);
+    setQueue(filtered, namespace);
   } catch (err) {
-    console.error('Failed to remove from queue:', err);
+    logger.error('Failed to remove from queue:', err);
   }
 }
 
-const incrementRetries = (item: QueueItem): void => {
+const incrementRetries = (item: QueueItem, namespace?: string | null): void => {
   try {
-    const queue = getQueue();
+    const queue = getQueue(namespace);
     const index = queue.findIndex(q => q.id === item.id);
     if (index === -1) return;
     const nextRetries = (queue[index].retries ?? 0) + 1;
@@ -90,9 +101,9 @@ const incrementRetries = (item: QueueItem): void => {
         retries: nextRetries,
       };
     }
-    setQueue(queue);
+    setQueue(queue, namespace);
   } catch (err) {
-    console.error('Failed to update queue retries:', err);
+    logger.error('Failed to update queue retries:', err);
   }
 };
 
@@ -276,7 +287,8 @@ export async function processQueue(
 ): Promise<{ processed: number; failed: number }> {
   const supabaseClient = client || supabase;
   if (!userId || !isOnline()) return { processed: 0, failed: 0 };
-  const queue = getQueue();
+  const queueNamespace = normalizeQueueNamespace(userId);
+  const queue = getQueue(queueNamespace);
   if (queue.length === 0) return { processed: 0, failed: 0 };
 
   let processed = 0;
@@ -291,7 +303,7 @@ export async function processQueue(
       if (item.table === 'workout_sessions') {
         const session = (payload.session ?? payload) as WorkoutSession;
         if (!session) {
-          removeFromQueue(item.id);
+          removeFromQueue(item.id, queueNamespace);
           continue;
         }
         await syncWorkoutToCloud(supabaseClient, session, userId);
@@ -299,29 +311,29 @@ export async function processQueue(
         if (item.operation === 'delete') {
           const programId = (payload.programId ?? payload.id) as string | undefined;
           if (!programId) {
-            removeFromQueue(item.id);
+            removeFromQueue(item.id, queueNamespace);
             continue;
           }
           await deleteProgramFromCloud(supabaseClient, programId, userId);
         } else {
           const program = (payload.program ?? payload) as ProgramTemplate;
           if (!program?.id) {
-            removeFromQueue(item.id);
+            removeFromQueue(item.id, queueNamespace);
             continue;
           }
           await syncProgramToCloud(supabaseClient, program, userId);
         }
       } else {
         logger.debug(`Skipping unsupported queue table: ${item.table}`);
-        removeFromQueue(item.id);
+        removeFromQueue(item.id, queueNamespace);
         continue;
       }
 
-      removeFromQueue(item.id);
+      removeFromQueue(item.id, queueNamespace);
       processed++;
     } catch (err) {
       failed++;
-      incrementRetries(item);
+      incrementRetries(item, queueNamespace);
       logger.debug('Failed to process queue item:', err);
     }
   }

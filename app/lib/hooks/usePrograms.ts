@@ -12,6 +12,7 @@ import {
 import { normalizePrograms } from '../programs/normalize';
 import { allPrograms as BUILT_IN_TEMPLATES } from '../programs';
 import { hydrateProgramProgressFromCloud } from '../programs/progress';
+import { logger } from '../logger';
 
 // ============================================
 // STORAGE KEYS
@@ -235,7 +236,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
         try {
           await saveProgramToCloud(programToSave, effectiveUserId);
           setCloudSaveError(null);
-          console.log(`✅ Saved program "${programToSave.name}" to cloud`);
+          logger.debug(`✅ Saved program "${programToSave.name}" to cloud`);
         } catch (e) {
           console.error('Failed to save program to cloud:', e);
           setCloudSaveError('Program saved locally but failed to sync to cloud. Check your connection.');
@@ -284,7 +285,7 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
       try {
         await deleteProgramFromCloud(programId, effectiveUserId);
         setCloudSaveError(null);
-        console.log(`🗑️ Deleted program ${programId} from cloud`);
+        logger.debug(`🗑️ Deleted program ${programId} from cloud`);
       } catch (e) {
         console.error('Failed to delete program from cloud:', e);
         setCloudSaveError('Program removed locally but failed to sync deletion to cloud. Check your connection.');
