@@ -64,7 +64,7 @@ export default function UpgradePage() {
           <Crown className="h-8 w-8 text-emerald-300" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-zinc-100">You&apos;re already Pro</h1>
+          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100">IRON PRO ACTIVE</h1>
           <p className="text-sm text-zinc-400">
             You have full access to all Iron Brain features.
           </p>
@@ -92,11 +92,8 @@ export default function UpgradePage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 pb-12 pt-4 sm:space-y-10 sm:pt-10">
       <header className="stagger-item px-1 text-center">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">
-          Subscription
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-100 sm:text-5xl">
-          Iron Pro
+        <h1 className="text-4xl font-black italic tracking-tight text-zinc-100 sm:text-5xl">
+          IRON PRO
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
           Readiness, recovery, and deeper training trends when you want more context.
@@ -111,26 +108,26 @@ export default function UpgradePage() {
 
       <section className="grid gap-4 px-1 sm:grid-cols-2 sm:gap-6">
         {/* Founding Member */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-6 sm:p-8">
+        <div className="rounded-[1.5rem] border border-amber-300/70 bg-amber-400 p-6 text-zinc-950 shadow-[0_26px_70px_-36px_rgba(251,191,36,1)] sm:p-8">
           <div className="relative flex flex-col gap-6">
             <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-emerald-300" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+              <Zap className="h-5 w-5 text-zinc-950" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950/80">
                 Limited Offer
               </span>
             </div>
             <div>
-              <h2 className="text-2xl font-semibold text-zinc-100">Founding Member</h2>
-              <p className="mt-1 text-sm text-zinc-500">One-time payment. Lifetime access.</p>
+              <h2 className="text-3xl font-black italic tracking-tight">FOUNDING MEMBER</h2>
+              <p className="mt-1 text-sm font-medium text-zinc-900/70">One-time payment. Lifetime access.</p>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-white">$149</span>
-              <span className="text-sm text-zinc-500">one-time</span>
+              <span className="text-5xl font-black tracking-tight">$149</span>
+              <span className="text-sm font-semibold text-zinc-900/65">one-time</span>
             </div>
             <ul className="space-y-2.5">
               {features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm text-zinc-300">
-                  <Check className="h-4 w-4 text-emerald-400" />
+                <li key={f} className="flex items-center gap-2 text-sm font-medium text-zinc-950/85">
+                  <Check className="h-4 w-4 text-zinc-950" />
                   {f}
                 </li>
               ))}
@@ -139,14 +136,14 @@ export default function UpgradePage() {
               type="button"
               onClick={() => handleCheckout('lifetime')}
               disabled={loadingTier !== null}
-              className="group mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 py-3.5 text-sm font-bold text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:opacity-60"
+              className="group mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 py-3.5 text-sm font-black italic tracking-tight text-amber-300 transition-colors hover:bg-zinc-900 active:bg-black disabled:opacity-60"
             >
               {loadingTier === 'lifetime' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
                   Become a Founding Member
-                  <ArrowRight className="h-4 w-4 text-zinc-950/60 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="h-4 w-4 text-amber-300/70 transition-transform group-hover:translate-x-1" />
                 </>
               )}
             </button>
@@ -154,7 +151,7 @@ export default function UpgradePage() {
         </div>
 
         {/* Monthly */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-6 sm:p-8">
+        <div className="rounded-[1.5rem] border border-zinc-800 bg-zinc-950/70 p-6 sm:p-8">
           <div className="relative flex flex-col gap-6">
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-zinc-400" />
@@ -163,7 +160,7 @@ export default function UpgradePage() {
               </span>
             </div>
             <div>
-              <h2 className="text-2xl font-semibold text-zinc-100">Pro Monthly</h2>
+              <h2 className="text-3xl font-black italic tracking-tight text-zinc-100">PRO MONTHLY</h2>
               <p className="mt-1 text-sm text-zinc-500">Flexible. Cancel anytime.</p>
             </div>
             <div className="flex items-baseline gap-1">
@@ -182,7 +179,7 @@ export default function UpgradePage() {
               type="button"
               onClick={() => handleCheckout('monthly')}
               disabled={loadingTier !== null}
-              className="group mt-auto flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3.5 text-sm font-bold text-zinc-100 transition-colors hover:bg-zinc-800 active:bg-zinc-950 disabled:opacity-60"
+              className="group mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3.5 text-sm font-black italic tracking-tight text-zinc-100 transition-colors hover:bg-zinc-800 active:bg-zinc-950 disabled:opacity-60"
             >
               {loadingTier === 'monthly' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

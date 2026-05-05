@@ -162,8 +162,10 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/45 p-4 sm:p-5';
-const SUBSECTION_CARD_CLASS = 'rounded-lg border border-zinc-900 bg-zinc-950/65 p-3';
+const SECTION_CLASS = 'rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 sm:p-5';
+const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/70 p-3.5';
+const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
+const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500';
 
 const formatIsoDateLocal = (date: Date) => {
   const year = date.getFullYear();
@@ -813,6 +815,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   const unifiedReadiness = getUnifiedReadiness();
   const readinessStatus = getReadinessStatus(unifiedReadiness);
+  const hasMuscleRecoveryData = Boolean(analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0);
+  const readinessTitle = hasMuscleRecoveryData ? 'READINESS' : 'TRAINING BALANCE';
   const adherence = analytics.adherence;
   const getRateToneClass = (rate: number) => {
     if (rate >= 80) return 'text-emerald-300';
@@ -854,8 +858,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
             <BarChart3 className="h-7 w-7 text-emerald-300" />
           </div>
-          <div className="text-base font-semibold text-white">Loading insights...</div>
-          <div className="text-[10px] text-zinc-500 sm:text-xs">Calculating your stats</div>
+          <div className="text-xl font-black italic tracking-tight text-white">LOADING INSIGHTS</div>
+          <div className="text-xs text-zinc-500">Calculating your stats</div>
         </div>
       </div>
     );
@@ -869,7 +873,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
             <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
-          <h2 className="mb-2 text-lg font-semibold text-white">
+          <h2 className="mb-2 text-xl font-black italic tracking-tight text-white">
             {awaitingSync ? 'SYNCING WORKOUTS...' : 'NOT ENOUGH DATA YET'}
           </h2>
           <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
@@ -895,8 +899,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       <header className="stagger-item px-1">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Insights</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-100 sm:text-4xl">Insights</h1>
+            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">INSIGHTS</h1>
             <p className="mt-1 text-xs text-zinc-500">Training load, recovery, and strength trends.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -905,11 +908,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 Syncing...
               </span>
             )}
-            <div className="flex rounded-full border border-zinc-800 bg-zinc-950 p-0.5 text-xs font-medium">
+            <div className="grid min-h-10 grid-cols-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'imperial' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
+                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'imperial' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
                   }`}
               >
                 lbs
@@ -917,7 +920,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <button
                 type="button"
                 onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                className={`rounded-full px-3 py-1 transition-colors ${unitSystem === 'metric' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
+                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'metric' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
                   }`}
               >
                 kg
@@ -929,7 +932,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       {/* Navigation Tabs */}
       <div
-        className="stagger-item -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-950/60 p-1"
+        className="stagger-item -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {([
@@ -951,7 +954,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               );
               setSelectedView(id);
             }}
-            className={`flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-semibold transition-colors ${selectedView === id
+            className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-[11px] font-black uppercase tracking-[0.14em] transition-colors ${selectedView === id
               ? 'bg-zinc-800 text-zinc-100'
               : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
               }`}
@@ -966,10 +969,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       {selectedView === 'overview' && (
         <div className="space-y-6">
           {/* Readiness Score - Hero Card */}
-          {(analytics.fitnessFatigue || (analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0)) && (
+          {(analytics.fitnessFatigue || hasMuscleRecoveryData) && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Readiness</h2>
+                <h2 className={SECTION_TITLE_CLASS}>{readinessTitle}</h2>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${readinessStatus === 'excellent' ? 'bg-emerald-500/15 text-emerald-300' :
                   readinessStatus === 'good' ? 'bg-emerald-500/15 text-emerald-300' :
                     readinessStatus === 'moderate' ? 'bg-amber-500/15 text-amber-300' :
@@ -978,7 +981,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   {readinessStatus}
                 </span>
               </div>
-              <div className="text-5xl font-bold text-white mb-2">
+              <div className="mb-2 text-6xl font-black italic tracking-tight text-white">
                 {unifiedReadiness}
               </div>
               <p className="text-sm text-zinc-400">
@@ -992,15 +995,15 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 <div className="mt-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className={SUBSECTION_CARD_CLASS}>
-                      <div className="text-xs text-zinc-400 mb-1">Fitness</div>
-                      <div className="text-lg font-semibold text-emerald-300">
+                      <div className={METRIC_LABEL_CLASS}>Fitness</div>
+                      <div className="mt-1 text-2xl font-black italic text-emerald-300">
                         {Math.round(analytics.fitnessFatigue.currentFitness)}
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Training adaptations</div>
                     </div>
                     <div className={SUBSECTION_CARD_CLASS}>
-                      <div className="text-xs text-zinc-400 mb-1">Fatigue</div>
-                      <div className="text-lg font-semibold text-rose-300">
+                      <div className={METRIC_LABEL_CLASS}>Fatigue</div>
+                      <div className="mt-1 text-2xl font-black italic text-rose-300">
                         {Math.round(analytics.fitnessFatigue.currentFatigue)}
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
@@ -1023,7 +1026,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     injuryRisk.color === 'yellow' ? 'text-amber-300' :
                       'text-rose-300'
                     }`} />
-                  <h2 className="text-xl font-bold text-white">Injury Risk</h2>
+                  <h2 className={SECTION_TITLE_CLASS}>INJURY RISK</h2>
                 </div>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${injuryRisk.color === 'green' ? 'bg-emerald-500/15 text-emerald-300' :
                   injuryRisk.color === 'yellow' ? 'bg-amber-500/15 text-amber-300' :
@@ -1033,7 +1036,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 </span>
               </div>
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-3xl font-bold text-white">{analytics.acwr.ratio.toFixed(2)}</span>
+                <span className="text-4xl font-black italic tracking-tight text-white">{analytics.acwr.ratio.toFixed(2)}</span>
                 <span className="text-sm text-zinc-400">load ratio</span>
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -1057,7 +1060,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Muscle Recovery</h2>
+                <h2 className={SECTION_TITLE_CLASS}>MUSCLE RECOVERY</h2>
                 <button
                   onClick={() => setSelectedView('recovery')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
@@ -1086,7 +1089,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Top Lifts</h2>
+                <h2 className={SECTION_TITLE_CLASS}>TOP LIFTS</h2>
                 <button
                   onClick={() => setSelectedView('strength')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
@@ -1123,7 +1126,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         <div className="space-y-6">
           <div className={SECTION_CLASS}>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold text-white">Plan Adherence</h2>
+              <h2 className={SECTION_TITLE_CLASS}>PLAN ADHERENCE</h2>
               {loadingAdherence && (
                 <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
                   Syncing...
@@ -1137,8 +1140,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                   const metrics = adherence.windows[window];
                   return (
                     <div key={window} className={SUBSECTION_CARD_CLASS}>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">{window} day</p>
-                      <p className={`mt-2 text-2xl font-bold ${getRateToneClass(metrics.completionRate)}`}>
+                      <p className={METRIC_LABEL_CLASS}>{window} day</p>
+                      <p className={`mt-2 text-3xl font-black italic ${getRateToneClass(metrics.completionRate)}`}>
                         {metrics.completionRate}%
                       </p>
                       <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
@@ -1160,7 +1163,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
           {adherence && (
             <div className={SECTION_CLASS}>
-              <h2 className="mb-4 text-xl font-bold text-white">Consistency Trend (12 Weeks)</h2>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>CONSISTENCY TREND</h2>
               <div className="space-y-2">
                 {adherence.trend.map((point) => (
                   <div
@@ -1183,7 +1186,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           )}
 
           <div className={SECTION_CLASS}>
-            <h2 className="mb-4 text-xl font-bold text-white">What To Do Next</h2>
+            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>NEXT ACTION</h2>
             <div className="space-y-2">
               {adherenceActionItems.map((action, index) => (
                 <div key={`${action}-${index}`} className={SUBSECTION_CARD_CLASS}>
@@ -1213,7 +1216,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className={SECTION_CLASS}>
             <div className="flex items-center gap-2 mb-4">
               <Award className="h-5 w-5 text-amber-300" />
-              <h2 className="text-xl font-bold text-white">Estimated 1RMs</h2>
+              <h2 className={SECTION_TITLE_CLASS}>ESTIMATED 1RMS</h2>
             </div>
             <p className="text-xs text-zinc-400 mb-4">
               Adjusted for RPE - accounts for reps in reserve
@@ -1242,7 +1245,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <div className="text-lg font-bold text-emerald-300">
+                      <div className="text-xl font-black italic text-emerald-300">
                         {lift.estimated1RM}
                       </div>
                       <div className="text-xs text-zinc-500">{weightUnit}</div>
@@ -1259,7 +1262,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className={SECTION_CLASS}>
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-emerald-300" />
-              <h2 className="text-xl font-bold text-white">Volume Leaders</h2>
+              <h2 className={SECTION_TITLE_CLASS}>VOLUME LEADERS</h2>
             </div>
             <p className="text-xs text-zinc-400 mb-4">
               Total weight moved (reps × weight)
@@ -1287,7 +1290,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <div className="text-lg font-bold text-emerald-300">
+                      <div className="text-xl font-black italic text-emerald-300">
                         {exercise.totalVolume.toLocaleString()}
                       </div>
                       <div className="text-xs text-zinc-500">{weightUnit}</div>
@@ -1306,28 +1309,28 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       {selectedView === 'profile' && (
         <div className="space-y-6">
           <div className={SECTION_CLASS}>
-            <h2 className="text-xl font-bold text-white mb-4">Your Stats</h2>
+            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>YOUR STATS</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-3xl font-black italic text-white">
                   {analytics.personalStats?.totalWorkouts || 0}
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Workouts</div>
               </div>
               <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-3xl font-black italic text-white">
                   {analytics.personalStats?.totalSets || 0}
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Total Sets</div>
               </div>
               <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-3xl font-black italic text-white">
                   {analytics.strengthLeaderboard?.length || 0}
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Exercises</div>
               </div>
               <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-3xl font-black italic text-white">
                   {analytics.acwr ? analytics.acwr.ratio.toFixed(1) : '—'}
                 </div>
                 <div className="text-xs text-zinc-400 mt-1">Load Ratio</div>
@@ -1338,7 +1341,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {/* Training Load Details */}
           {analytics.acwr && (
             <div className={SECTION_CLASS}>
-              <h2 className="text-xl font-bold text-white mb-4">Training Load</h2>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>TRAINING LOAD</h2>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-zinc-400">Last 7 days</span>
@@ -1358,7 +1361,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
           {/* Tips */}
           <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-4">
-            <h3 className="mb-3 text-sm font-semibold text-zinc-100">How This Works</h3>
+            <h3 className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">METRIC NOTES</h3>
             <ul className="text-xs text-zinc-400 space-y-2">
               <li><span className="text-zinc-200">Readiness</span> - Based on your fitness vs fatigue balance</li>
               <li><span className="text-zinc-200">Injury Risk</span> - Compares recent load to your baseline</li>

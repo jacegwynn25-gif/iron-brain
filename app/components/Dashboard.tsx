@@ -73,12 +73,14 @@ export default function Dashboard() {
     }
   };
 
+  const showReadiness = loading || Boolean(readiness?.hasRecoveryInput);
+  const showSystemFooter = lastUpdated && !loading && Boolean(readiness?.hasRecoveryInput);
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       {/* Header */}
       <header className="flex items-center justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Command Center</p>
           <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
             IRON BRAIN
           </h1>
@@ -133,9 +135,11 @@ export default function Dashboard() {
       )}
 
       {/* Readiness Section */}
-      <section className="stagger-item mx-1">
-        <ReadinessCard readiness={readiness} loading={loading} />
-      </section>
+      {showReadiness && (
+        <section className="stagger-item mx-1">
+          <ReadinessCard readiness={readiness} loading={loading} />
+        </section>
+      )}
 
       {/* Main Actions */}
       <section className="grid gap-2.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
@@ -214,18 +218,18 @@ export default function Dashboard() {
         <section className="stagger-item mx-1">
           <Link
             href="/upgrade"
-            className="group flex items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/60 active:bg-zinc-900"
+            className="group flex items-center justify-between gap-4 rounded-[1.25rem] border border-amber-300/70 bg-amber-400 px-4 py-3 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900">
-                <Sparkles className="h-4 w-4 text-emerald-300" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
+                <Sparkles className="h-4 w-4 text-zinc-950" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold tracking-tight text-zinc-100">Iron Pro</h3>
-                <p className="truncate text-xs text-zinc-500">Recovery and analytics.</p>
+                <h3 className="text-base font-black italic tracking-tight">IRON PRO</h3>
+                <p className="truncate text-xs font-medium text-zinc-900/70">Lifetime access.</p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+            <div className="flex shrink-0 items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-950">
               View plans
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </div>
@@ -239,7 +243,7 @@ export default function Dashboard() {
       </section>
 
       {/* Status Footer */}
-      {lastUpdated && !loading && (
+      {showSystemFooter && (
         <footer className="flex flex-col items-center justify-center gap-4 pt-4 opacity-50 pb-8">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

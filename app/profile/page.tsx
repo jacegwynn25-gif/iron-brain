@@ -235,18 +235,18 @@ export default function ProfilePage() {
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
-            className="group flex w-full items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/60 active:bg-zinc-900"
+            className="group flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-amber-300/70 bg-amber-400 px-4 py-3 text-left text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900">
-                <Sparkles className="h-4 w-4 text-emerald-300" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
+                <Sparkles className="h-4 w-4 text-zinc-950" />
               </div>
               <div className="min-w-0">
-                <span className="text-sm font-semibold text-zinc-100">Iron Pro</span>
-                <p className="truncate text-xs text-zinc-500">Recovery and analytics.</p>
+                <span className="text-base font-black italic tracking-tight">IRON PRO</span>
+                <p className="truncate text-xs font-medium text-zinc-900/70">Lifetime access.</p>
               </div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:translate-x-0.5" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-950 transition-transform group-hover:translate-x-0.5" />
           </button>
         </section>
       )}

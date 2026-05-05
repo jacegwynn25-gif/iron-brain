@@ -91,7 +91,7 @@ body {
   /* Better mobile text rendering */
   /* Better mobile text rendering */
   -webkit-text-size-adjust: 100%;
-  letter-spacing: -0.011em;
+  letter-spacing: 0;
   /* Allow natural scrolling on iOS */
   -webkit-overflow-scrolling: touch;
 }
