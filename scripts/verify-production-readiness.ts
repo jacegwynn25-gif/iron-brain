@@ -142,6 +142,38 @@ async function checkStripe() {
       add(`stripe:price:${label}`, false, error instanceof Error ? error.message : 'Stripe lookup failed');
     }
   }
+
+  const requiredWebhookEvents = [
+    'checkout.session.completed',
+    'invoice.payment_succeeded',
+    'invoice.payment_failed',
+    'customer.subscription.updated',
+    'customer.subscription.deleted',
+  ];
+  const webhookUrl = `${appUrl()}/api/webhooks/stripe`;
+
+  try {
+    const endpoints = await stripe.webhookEndpoints.list({ limit: 100 });
+    const endpoint = endpoints.data.find(
+      (candidate) => candidate.url === webhookUrl && candidate.status === 'enabled'
+    );
+    const enabledEvents = new Set(endpoint?.enabled_events ?? []);
+    const hasAllEvents = requiredWebhookEvents.every(
+      (eventName) => enabledEvents.has(eventName) || enabledEvents.has('*')
+    );
+
+    add(
+      'stripe:webhook:production',
+      Boolean(endpoint) && hasAllEvents,
+      endpoint
+        ? hasAllEvents
+          ? 'enabled with required events'
+          : 'enabled but missing required events'
+        : `missing enabled endpoint for ${webhookUrl}`
+    );
+  } catch (error) {
+    add('stripe:webhook:production', false, error instanceof Error ? error.message : 'Stripe webhook lookup failed');
+  }
 }
 
 async function checkLiveRoutes() {
