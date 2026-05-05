@@ -78,7 +78,11 @@ function activeSessionSnapshot(overrides = {}) {
 }
 
 async function newPage(browser, initScript) {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
   await page.addInitScript((script) => {
     localStorage.clear();
     localStorage.setItem('iron_brain_onboarding_complete', 'true');
@@ -249,12 +253,22 @@ async function checkBottomNavTapTargets(browser) {
     throw new Error(`Bottom nav tap target failure: ${JSON.stringify(failed)}`);
   }
 
-  for (const item of ['dashboard', 'log', 'programs', 'history', 'analytics']) {
-    await page.locator(`[data-nav-item="${item}"]`).click({ trial: true, timeout: 5000 });
+  const routes = [
+    ['log', '/start'],
+    ['programs', '/programs'],
+    ['history', '/history'],
+    ['analytics', '/analytics'],
+    ['dashboard', '/'],
+  ];
+
+  for (const [item, route] of routes) {
+    await page.locator(`[data-nav-item="${item}"]`).tap({ timeout: 5000 });
+    await page.waitForURL((url) => url.pathname === route, { timeout: 8000 });
+    await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 15000 });
   }
 
   await page.close();
-  console.log('✅ bottom nav tap targets are unobstructed and large enough');
+  console.log('✅ bottom nav tap targets are unobstructed and navigate on mobile taps');
 }
 
 (async () => {

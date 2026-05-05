@@ -12,6 +12,7 @@ interface ReadinessCardProps {
 
 export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
     const score = readiness?.score ?? 0;
+    const sourceLabel = readiness?.source === 'oura' ? 'Oura' : 'Manual';
 
     // Define color mapping
     const getReadinessColor = (s: number) => {
@@ -50,6 +51,11 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                         <div className="flex items-center gap-2">
                             <Activity className={`h-3 w-3 sm:h-4 sm:w-4 ${style.primary}`} />
                             <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Readiness</span>
+                            {readiness?.hasRecoveryInput && (
+                                <span className="rounded-full border border-zinc-800 bg-zinc-900/70 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-400 sm:text-[9px]">
+                                    {sourceLabel}
+                                </span>
+                            )}
                         </div>
 
                         <div className="space-y-0.5 sm:space-y-1">

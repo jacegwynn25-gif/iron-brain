@@ -9,9 +9,12 @@ export interface TrainingReadiness {
     lower_body_modifier: number;
   };
   reason: string;
+  source: 'oura' | 'manual' | 'training' | 'baseline';
+  hasRecoveryInput: boolean;
 }
 
 interface UserContext {
+  date?: string;
   sleep_hours?: number;
   calorie_balance?: 'surplus' | 'deficit' | 'maintenance';
   subjective_readiness?: number;
@@ -33,7 +36,16 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
       ? context.subjective_readiness
       : null;
   const usesOuraReadiness = ouraReadiness != null;
-  let systemicScore = usesOuraReadiness ? Math.round(ouraReadiness * 10) : 100;
+  const hasManualRecoveryInput = Boolean(
+    context.date ||
+    context.sleep_hours != null ||
+    context.calorie_balance != null ||
+    context.subjective_readiness != null ||
+    context.resting_heart_rate != null ||
+    context.heart_rate_variability != null
+  );
+  const hasRecoveryInput = usesOuraReadiness || hasManualRecoveryInput;
+  let systemicScore = usesOuraReadiness ? Math.round(ouraReadiness * 10) : hasManualRecoveryInput ? 85 : 50;
   const systemicReasons: string[] = [];
 
   // Sleep Logic
@@ -97,23 +109,35 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
 
   // --- STEP 3: THE FINAL CALCULATION ---
   let baseMod = 1.0;
-  if (systemicScore < 60) baseMod = 0.90; // Systemic crash
-  else if (systemicScore < 80) baseMod = 0.95; // Systemic fatigue
-  else if (systemicScore > 90) baseMod = 1.025; // Systemic peak
+  if (hasRecoveryInput) {
+    if (systemicScore < 60) baseMod = 0.90; // Systemic crash
+    else if (systemicScore < 80) baseMod = 0.95; // Systemic fatigue
+    else if (systemicScore > 90) baseMod = 1.025; // Systemic peak
+  }
+
+  const source: TrainingReadiness['source'] = usesOuraReadiness
+    ? 'oura'
+    : hasManualRecoveryInput
+      ? 'manual'
+      : lastWorkout
+        ? 'training'
+        : 'baseline';
 
   const finalReason = systemicReasons.length > 0 
     ? `Systemic: ${systemicReasons.join(", ")}` 
-    : localReason || "System optimal. Ready to push.";
+    : localReason || (hasRecoveryInput ? "System optimal. Ready to push." : "No recovery data logged. Using normal training loads.");
 
   return {
     score: systemicScore,
     modifier: baseMod,
-    recommendation: getRecommendation(systemicScore),
+    recommendation: hasRecoveryInput ? getRecommendation(systemicScore) : "Baseline session. Use normal loads.",
     focus_adjustments: {
       upper_body_modifier: Number((baseMod * upperMod).toFixed(3)),
       lower_body_modifier: Number((baseMod * lowerMod).toFixed(3))
     },
-    reason: finalReason
+    reason: finalReason,
+    source,
+    hasRecoveryInput
   };
 }
 
@@ -142,7 +166,7 @@ function getRecommendation(score: number): string {
 async function fetchLatestContext(userId: string): Promise<UserContext> {
   const { data } = await supabase
     .from('user_context_data')
-    .select('sleep_hours, calorie_balance, subjective_readiness, resting_heart_rate, heart_rate_variability, source')
+    .select('date, sleep_hours, calorie_balance, subjective_readiness, resting_heart_rate, heart_rate_variability, source')
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .limit(1)

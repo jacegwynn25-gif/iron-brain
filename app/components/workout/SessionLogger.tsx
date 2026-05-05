@@ -431,8 +431,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const { readiness } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [customExercisesLoading, setCustomExercisesLoading] = useState(true);
-  const readinessModifier = readiness?.modifier ?? 0.85;
-  const readinessScore = readiness?.score ?? 35;
+  const hasRecoveryReadiness = readiness?.hasRecoveryInput ?? false;
+  const readinessModifier = hasRecoveryReadiness ? readiness?.modifier ?? 1 : 1;
+  const readinessScore = hasRecoveryReadiness ? readiness?.score ?? 50 : 50;
   const sessionReadinessModifierRef = useRef<number | null>(null);
   if (sessionReadinessModifierRef.current == null) {
     sessionReadinessModifierRef.current = readinessModifier;
@@ -2030,8 +2031,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-zinc-500 text-xs uppercase tracking-[0.25em]">Session Readiness</p>
-                    <p className="text-6xl font-black text-white">{Math.round(readinessScore)}</p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+                      {hasRecoveryReadiness ? 'Session Readiness' : 'Session Baseline'}
+                    </p>
+                    <p className="text-6xl font-black text-white">
+                      {hasRecoveryReadiness ? Math.round(readinessScore) : '100%'}
+                    </p>
                   </div>
                 </div>
               </div>

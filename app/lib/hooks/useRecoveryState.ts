@@ -52,7 +52,6 @@ export function useRecoveryState(
       setReadiness(result);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Error fetching training readiness:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch training readiness data'));
     } finally {
       setLoading(false);

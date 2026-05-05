@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Zap,
@@ -10,7 +10,7 @@ import {
   LineChart,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
 
@@ -40,6 +40,7 @@ function isActivePath(pathname: string, href: string): boolean {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const router = useRouter();
   const pathname = usePathname() ?? '/';
   const hideBottomNavByRoute =
     pathname.startsWith('/workout') ||
@@ -49,6 +50,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [hideBottomNavByOverlay, setHideBottomNavByOverlay] = useState(false);
   const routeHistoryRef = useRef<string[]>([pathname]);
   const isBackNavRef = useRef(false);
+  const navPointerRef = useRef<{
+    href: string;
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const syncOverlayNavState = () => {
@@ -66,6 +73,29 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [pathname]);
 
   const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
+
+  const handleNavPointerDown = (event: PointerEvent<HTMLAnchorElement>, href: string) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    navPointerRef.current = {
+      href,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+  };
+
+  const handleNavPointerUp = (event: PointerEvent<HTMLAnchorElement>, href: string) => {
+    const initial = navPointerRef.current;
+    navPointerRef.current = null;
+
+    if (!initial || initial.href !== href || initial.pointerId !== event.pointerId) return;
+
+    const moved = Math.hypot(event.clientX - initial.x, event.clientY - initial.y);
+    if (moved > 14) return;
+
+    event.preventDefault();
+    router.push(href);
+  };
 
   useEffect(() => {
     if (isBackNavRef.current) {
@@ -122,8 +152,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   href={item.href}
                   prefetch={false}
                   aria-label={item.label}
+                  aria-current={active ? 'page' : undefined}
                   data-coach={item.coach}
                   data-nav-item={item.id}
+                  onPointerDown={(event) => handleNavPointerDown(event, item.href)}
+                  onPointerUp={(event) => handleNavPointerUp(event, item.href)}
+                  onPointerCancel={() => {
+                    navPointerRef.current = null;
+                  }}
                   className={`group relative flex min-h-[4.25rem] min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 rounded-xl px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 ${active
                     ? 'text-emerald-300'
                     : 'text-zinc-500'
