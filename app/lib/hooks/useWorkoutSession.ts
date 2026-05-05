@@ -16,7 +16,7 @@ type SetRef = {
   setId: string;
 };
 
-type UpdateSetPayload = Partial<Pick<SessionSet, 'weight' | 'reps' | 'rpe' | 'type'>>;
+type UpdateSetPayload = Partial<Pick<SessionSet, 'weight' | 'weightUnit' | 'reps' | 'rpe' | 'type' | 'notes'>>;
 
 export interface UseWorkoutSessionOptions {
   resolveExerciseName?: (exerciseId: string) => string;
@@ -40,6 +40,10 @@ type WorkoutSessionAction =
       setId: string;
       updates: UpdateSetPayload;
     };
+  }
+  | {
+    type: 'HYDRATE_SESSION';
+    payload: SessionState;
   }
   | {
     type: 'TOGGLE_COMPLETE';
@@ -68,6 +72,7 @@ type WorkoutSessionAction =
     type: 'ADD_EXERCISE';
     payload: {
       name: string;
+      exerciseId?: string;
       setCount?: number;
     };
   }
@@ -199,15 +204,21 @@ function getBlockIdentity(templateSet: SetTemplate): { key: string; type: 'singl
 
 import { storage } from '../storage';
 
-function getLastWeightForExercise(
-  historyMap: Map<string, number | null>,
+type ExerciseHistoryCue = {
+  weight: number | null;
+  note: string | null;
+};
+
+function getLastCueForExercise(
+  historyMap: Map<string, ExerciseHistoryCue>,
   exerciseId: string,
   unit: WeightUnit,
   targetReps?: number | null
-): number | null {
+): ExerciseHistoryCue {
   if (!historyMap.has(exerciseId)) {
     // Try to get actual history for this exercise
     const lastWorkout = storage.getLastWorkoutForExercise(exerciseId);
+    const previousNote = lastWorkout?.bestSet.notes?.trim() || null;
 
     if (lastWorkout && lastWorkout.bestSet && lastWorkout.bestSet.actualWeight != null) {
       const bestSet = lastWorkout.bestSet;
@@ -221,7 +232,10 @@ function getLastWeightForExercise(
           ? actualWeight * KG_TO_LBS
           : actualWeight / KG_TO_LBS;
       }
-      historyMap.set(exerciseId, roundToIncrement(convertedWeight, unit));
+      historyMap.set(exerciseId, {
+        weight: roundToIncrement(convertedWeight, unit),
+        note: previousNote,
+      });
     } else {
       // No recent history — check for 1RM data
       const prs = storage.getPersonalRecords(exerciseId);
@@ -237,19 +251,19 @@ function getLastWeightForExercise(
         const suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
 
         const rounded = roundToIncrement(suggestedWeight, unit);
-        historyMap.set(exerciseId, rounded);
+        historyMap.set(exerciseId, { weight: rounded, note: previousNote });
       } else {
         // Truly no data
-        historyMap.set(exerciseId, null);
+        historyMap.set(exerciseId, { weight: null, note: previousNote });
       }
     }
   }
-  return historyMap.get(exerciseId) ?? null;
+  return historyMap.get(exerciseId) ?? { weight: null, note: null };
 }
 
 function buildSessionSetFromTemplate(
   templateSet: SetTemplate,
-  lastWeight: number | null,
+  historyCue: ExerciseHistoryCue,
   readinessModifier: number,
   weightUnit: WeightUnit,
   defaults?: {
@@ -263,14 +277,15 @@ function buildSessionSetFromTemplate(
 
   // Only compute weight if we have real history data
   const computedWeight =
-    mappedSetType === 'working' && lastWeight != null
-      ? roundToIncrement(lastWeight * readinessModifier, weightUnit)
+    mappedSetType === 'working' && historyCue.weight != null
+      ? roundToIncrement(historyCue.weight * readinessModifier, weightUnit)
       : null;
 
   return {
     id: createId('set'),
     type: mappedSetType,
     weight: computedWeight,
+    weightUnit,
     reps: effectiveReps,
     rpe: clampRpe(templateSet.targetRPE ?? null),
     touchedWeight: false,
@@ -280,7 +295,9 @@ function buildSessionSetFromTemplate(
     supersetGroup: templateSet.supersetGroup ?? defaults?.supersetGroup ?? null,
     cluster,
     completed: false,
-    previous: lastWeight != null ? `${lastWeight}x${effectiveReps ?? 8}` : null,
+    previous: historyCue.weight != null ? `${historyCue.weight}${weightUnit} x ${effectiveReps ?? 8}` : null,
+    previousNote: historyCue.note,
+    notes: '',
   };
 }
 
@@ -426,7 +443,7 @@ function buildBlocksFromProgram(
   const day = sortedWeeks[0]?.days[0];
   if (!day) return [];
 
-  const mockHistoryByExercise = new Map<string, number | null>();
+  const mockHistoryByExercise = new Map<string, ExerciseHistoryCue>();
 
   if (Array.isArray(day.blocks) && day.blocks.length > 0) {
     const blocksFromSchema: Block[] = [];
@@ -452,11 +469,11 @@ function buildBlocksFromProgram(
       for (const templateExercise of templateExercises) {
         const exerciseId = templateExercise.exerciseId || createId('exercise');
         const firstSetReps = parseRepsTarget(templateExercise.sets?.[0]?.prescribedReps);
-        const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit, firstSetReps);
+        const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, firstSetReps);
         const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
           buildSessionSetFromTemplate(
             templateSet,
-            lastWeight,
+            historyCue,
             readinessModifier,
             weightUnit,
             templateBlock.type === 'superset'
@@ -474,7 +491,7 @@ function buildBlocksFromProgram(
           name: resolveExerciseName(exerciseId),
           slot: templateExercise.slot,
           notes: templateExercise.notes ?? '',
-          historyNote: lastWeight != null ? `Last session: ${lastWeight}x${setsForExercise[0]?.reps ?? 8}` : null,
+          historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${setsForExercise[0]?.reps ?? 8}` : null,
           sets: setsForExercise,
         });
       }
@@ -495,8 +512,8 @@ function buildBlocksFromProgram(
   for (const templateSet of day.sets) {
     const exerciseId = templateSet.exerciseId || createId('exercise');
     const targetReps = parseRepsTarget(templateSet.prescribedReps);
-    const lastWeight = getLastWeightForExercise(mockHistoryByExercise, exerciseId, weightUnit, targetReps);
-    const sessionSet = buildSessionSetFromTemplate(templateSet, lastWeight, readinessModifier, weightUnit);
+    const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, targetReps);
+    const sessionSet = buildSessionSetFromTemplate(templateSet, historyCue, readinessModifier, weightUnit);
     const repsTarget = sessionSet.reps;
 
     const blockIdentity = getBlockIdentity(templateSet);
@@ -521,7 +538,7 @@ function buildBlocksFromProgram(
         id: exerciseId,
         name: resolveExerciseName(exerciseId),
         notes: '',
-        historyNote: lastWeight != null ? `Last session: ${lastWeight}x${repsTarget ?? 8}` : null,
+        historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${repsTarget ?? 8}` : null,
         sets: [],
       };
       block.exercises.push(exercise);
@@ -547,6 +564,26 @@ function createInitialSessionState(
     startTime: new Date(),
     blocks,
     activeCell: firstSetRef ? toActiveCell(firstSetRef, 'weight') : null,
+  };
+}
+
+function normalizeSessionState(state: SessionState, fallbackWeightUnit: WeightUnit): SessionState {
+  return {
+    ...state,
+    blocks: state.blocks.map((block) => ({
+      ...block,
+      exercises: block.exercises.map((exercise) => ({
+        ...exercise,
+        notes: exercise.notes ?? '',
+        historyNote: exercise.historyNote ?? null,
+        sets: exercise.sets.map((set) => ({
+          ...set,
+          weightUnit: set.weightUnit ?? fallbackWeightUnit,
+          previousNote: set.previousNote ?? null,
+          notes: set.notes ?? '',
+        })),
+      })),
+    })),
   };
 }
 
@@ -577,6 +614,10 @@ function workoutSessionReducer(
   resolveExerciseName: (exerciseId: string) => string
 ): SessionState {
   switch (action.type) {
+    case 'HYDRATE_SESSION': {
+      return normalizeSessionState(action.payload, weightUnit);
+    }
+
     case 'INITIALIZE_SESSION': {
       // Guard against accidental data loss when inputs (program/readiness) change mid-session.
       // If we have completed/touched sets, NEVER reinitialize.
@@ -623,6 +664,9 @@ function workoutSessionReducer(
         set.weight = updates.weight;
         set.touchedWeight = true;
       }
+      if (updates.weightUnit !== undefined) {
+        set.weightUnit = updates.weightUnit;
+      }
       if (updates.reps !== undefined) {
         set.reps = updates.reps;
         set.touchedReps = true;
@@ -630,6 +674,9 @@ function workoutSessionReducer(
       if (updates.rpe !== undefined) {
         set.rpe = clampRpe(updates.rpe);
         set.touchedRpe = true;
+      }
+      if (updates.notes !== undefined) {
+        set.notes = updates.notes;
       }
       if (updates.type !== undefined) set.type = updates.type;
 
@@ -705,6 +752,7 @@ function workoutSessionReducer(
         id: createId('set'),
         type: lastSet?.type ?? 'working',
         weight: lastSet?.weight ?? null,
+        weightUnit: lastSet?.weightUnit ?? weightUnit,
         reps: lastSet?.reps ?? null,
         rpe: lastSet?.rpe ?? null,
         touchedWeight: false,
@@ -721,8 +769,10 @@ function workoutSessionReducer(
         completed: false,
         previous:
           lastSet?.weight != null && lastSet.reps != null
-            ? `${lastSet.weight}x${lastSet.reps}`
+            ? `${lastSet.weight}${lastSet.weightUnit ?? weightUnit} x ${lastSet.reps}`
             : (lastSet?.previous ?? null),
+        previousNote: lastSet?.notes?.trim() || lastSet?.previousNote || null,
+        notes: '',
       };
 
       exercise.sets.push(newSet);
@@ -742,12 +792,13 @@ function workoutSessionReducer(
     case 'ADD_EXERCISE': {
       const blocks = cloneBlocks(state.blocks);
       const blockId = createId('block');
-      const exerciseId = createId('exercise');
+      const exerciseId = action.payload.exerciseId ?? createId('exercise');
       const count = Math.max(1, action.payload.setCount ?? 1);
       const sets: SessionSet[] = Array.from({ length: count }, () => ({
         id: createId('set'),
         type: 'working' as const,
         weight: null,
+        weightUnit,
         reps: 8,
         rpe: null,
         touchedWeight: false,
@@ -758,6 +809,8 @@ function workoutSessionReducer(
         cluster: null,
         completed: false,
         previous: null,
+        previousNote: null,
+        notes: '',
       }));
       const newExercise: Exercise = {
         id: exerciseId,
@@ -898,7 +951,9 @@ export function useWorkoutSession(
     (stateValue: SessionState, action: WorkoutSessionAction) =>
       workoutSessionReducer(stateValue, action, weightUnit, resolveExerciseName),
     program,
-    () => options.initialState ?? createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
+    () => options.initialState
+      ? normalizeSessionState(options.initialState, weightUnit)
+      : createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
   );
 
   const reinitializeSession = useCallback(() => {
@@ -957,10 +1012,10 @@ export function useWorkoutSession(
     });
   }, []);
 
-  const addExercise = useCallback((name: string, setCount = 1) => {
+  const addExercise = useCallback((name: string, setCount = 1, exerciseId?: string) => {
     dispatch({
       type: 'ADD_EXERCISE',
-      payload: { name, setCount },
+      payload: { name, setCount, exerciseId },
     });
   }, []);
 

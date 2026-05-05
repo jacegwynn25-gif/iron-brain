@@ -20,6 +20,7 @@ import { useAuth } from '../lib/supabase/auth-context';
 export interface ActiveSessionMeta {
     programId: string;
     programName: string;
+    weightUnit?: 'lbs' | 'kg';
     weekNumber?: number;
     dayName?: string;
     cycleNumber?: number;

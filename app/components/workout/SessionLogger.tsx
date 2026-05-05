@@ -398,9 +398,32 @@ function shouldSkipRestForSupersetTransition(
 type SessionLoggerProps = {
   initialData?: ProgramTemplate;
   initialProgress?: ProgramProgress | null;
+  ignoreActiveSnapshot?: boolean;
 };
 
-export default function SessionLogger({ initialData, initialProgress }: SessionLoggerProps) {
+function getSnapshotDefaultWeightUnit(snapshot: ActiveSessionSnapshot | null, fallback: WeightUnit): WeightUnit {
+  const activeCell = snapshot?.activeCell;
+  const activeSet =
+    activeCell
+      ? snapshot?.blocks
+        .find((block) => block.id === activeCell.blockId)
+        ?.exercises.find((exercise) => exercise.id === activeCell.exerciseId)
+        ?.sets.find((set) => set.id === activeCell.setId)
+      : null;
+
+  if (activeSet?.weightUnit) return activeSet.weightUnit;
+
+  for (const block of snapshot?.blocks ?? []) {
+    for (const exercise of block.exercises) {
+      const setWithUnit = exercise.sets.find((set) => set.weightUnit);
+      if (setWithUnit?.weightUnit) return setWithUnit.weightUnit;
+    }
+  }
+
+  return fallback;
+}
+
+export default function SessionLogger({ initialData, initialProgress, ignoreActiveSnapshot = false }: SessionLoggerProps) {
   const router = useRouter();
   const { confirm } = useDialog();
   const { user } = useAuth();
@@ -416,7 +439,6 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   }
   const sessionReadinessModifier = sessionReadinessModifierRef.current;
   const namespaceId = user?.id ?? 'guest';
-  const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(preferredWeightUnit);
   const baseProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
   const programDayContext = useMemo<ProgramDayContext | null>(() => {
     if (!initialData || initialData.weeks.length === 0) return null;
@@ -491,6 +513,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   // ── Active session provider (persistent background session) ──
   // Must be initialized before useWorkoutSession so we can inject the saved state
   const { snapshot, saveSnapshot, clearSession } = useActiveSession();
+  const resumeSnapshot = ignoreActiveSnapshot ? null : snapshot;
+  const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(() =>
+    getSnapshotDefaultWeightUnit(resumeSnapshot, preferredWeightUnit)
+  );
 
   const {
     state: session,
@@ -498,18 +524,20 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     toggleComplete,
     skipSet,
     addSet,
-    updateNote,
     addExercise,
     removeExercise,
     setActiveCell,
     reinitializeSession,
   } = useWorkoutSession(sessionProgram, sessionReadinessModifier, sessionWeightUnit, {
     resolveExerciseName,
-    initialState: snapshot ? {
-      ...snapshot,
-      startTime: new Date(snapshot.startTime)
+    initialState: resumeSnapshot ? {
+      ...resumeSnapshot,
+      startTime: new Date(resumeSnapshot.startTime)
     } : undefined,
   });
+  const hydratedSnapshotKeyRef = useRef<string | null>(
+    resumeSnapshot ? `${resumeSnapshot.startTime}:${resumeSnapshot.meta.programId}` : null
+  );
 
   // ── Elapsed timer ──
   const [elapsedDisplay, setElapsedDisplay] = useState('0:00');
@@ -541,6 +569,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         meta: {
           programId: baseProgram.id,
           programName: baseProgram.name ?? 'Quick Start',
+          weightUnit: sessionWeightUnit,
           weekNumber: programDayContext?.weekNumber,
           dayName: programDayContext?.day?.name,
           cycleNumber: programDayContext?.cycleNumber,
@@ -554,7 +583,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.blocks, session.activeCell, session.status]);
+  }, [session.blocks, session.activeCell, session.status, sessionWeightUnit]);
 
   const hasCompletedSets = useMemo(
     () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),
@@ -572,6 +601,23 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
   const prevSessionProgramRef = useRef(sessionProgram);
 
+  useEffect(() => {
+    if (!resumeSnapshot || resumeSnapshot.status !== 'active') return;
+    const snapshotKey = `${resumeSnapshot.startTime}:${resumeSnapshot.meta.programId}`;
+    if (hydratedSnapshotKeyRef.current === snapshotKey) return;
+    if (hasCompletedSets || hasTouchedSets) return;
+
+    hydratedSnapshotKeyRef.current = snapshotKey;
+    setSessionWeightUnit(getSnapshotDefaultWeightUnit(resumeSnapshot, sessionWeightUnit));
+    dispatch({
+      type: 'HYDRATE_SESSION',
+      payload: {
+        ...resumeSnapshot,
+        startTime: new Date(resumeSnapshot.startTime),
+      },
+    });
+  }, [dispatch, hasCompletedSets, hasTouchedSets, resumeSnapshot, sessionWeightUnit]);
+
 
   useEffect(() => {
     if (prevSessionProgramRef.current === sessionProgram) return;
@@ -582,15 +628,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
     // If we are resuming an active session from a snapshot, don't reset
     // just because the program reference changed (which happens on mount).
-    if (snapshot && session.status === 'active' && snapshot.status === 'active') {
+    if (resumeSnapshot && session.status === 'active' && resumeSnapshot.status === 'active') {
       // Only reset if the program ID itself has changed fundamentally
-      if (snapshot.meta?.programId === baseProgram.id) {
+      if (resumeSnapshot.meta?.programId === baseProgram.id) {
         return;
       }
     }
 
     reinitializeSession();
-  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, snapshot, session.status, baseProgram.id]);
+  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
 
 
   useEffect(() => {
@@ -631,6 +677,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
   const [pendingAddName, setPendingAddName] = useState<string | null>(null);
+  const [pendingAddExerciseId, setPendingAddExerciseId] = useState<string | null>(null);
   const [pendingSetCount, setPendingSetCount] = useState(3);
   const [cloudPrBaseline, setCloudPrBaseline] = useState<Record<string, PrBaseline>>({});
   const [isPrBaselineSyncing, setIsPrBaselineSyncing] = useState(false);
@@ -680,8 +727,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         exercise.sets.forEach((set) => {
           if (!set.completed) return;
           const weight = Number(set.weight) || 0;
-          if (weight > maxLoadedWeight) {
-            maxLoadedWeight = weight;
+          const displayWeight = weight > 0
+            ? convertWeight(weight, set.weightUnit ?? sessionWeightUnit, sessionWeightUnit)
+            : 0;
+          if (displayWeight > maxLoadedWeight) {
+            maxLoadedWeight = displayWeight;
           }
         });
       });
@@ -701,7 +751,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           if (!set.completed) return;
           const weight = Number(set.weight) || 0;
           const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
-          const effectiveWeight = weight > 0 ? weight : bodyweightExercise ? bodyweightBaseline : 0;
+          const displayWeight = weight > 0
+            ? convertWeight(weight, set.weightUnit ?? sessionWeightUnit, sessionWeightUnit)
+            : 0;
+          const effectiveWeight = displayWeight > 0 ? displayWeight : bodyweightExercise ? bodyweightBaseline : 0;
           const volume = effectiveWeight * reps;
           totalVolume += volume;
           totalSets += 1;
@@ -726,7 +779,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
       pulseMap,
       maxWeight: Math.max(1, maxWeight),
     };
-  }, [exerciseCatalog, resolveMuscleProfile]);
+  }, [exerciseCatalog, resolveMuscleProfile, sessionWeightUnit]);
 
   const sessionStats = useMemo(
     () => calculateSessionStats(session.blocks),
@@ -916,10 +969,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           const reps = set.reps == null ? 8 : Number(set.reps);
           if (!Number.isFinite(reps) || reps <= 0) return;
           const weight = Number(set.weight) || 0;
-          const weightLbs = weight > 0 ? convertWeight(weight, sessionWeightUnit, 'lbs') : 0;
+          const setWeightUnit = set.weightUnit ?? sessionWeightUnit;
+          const weightLbs = weight > 0 ? convertWeight(weight, setWeightUnit, 'lbs') : 0;
           const e1rmRaw =
             weight > 0 ? Number(rpeAdjusted1RM(weight, reps, set.rpe ?? null) || 0) : 0;
-          const e1rmLbs = e1rmRaw > 0 ? convertWeight(e1rmRaw, sessionWeightUnit, 'lbs') : 0;
+          const e1rmLbs = e1rmRaw > 0 ? convertWeight(e1rmRaw, setWeightUnit, 'lbs') : 0;
           const volume = weightLbs > 0 ? weightLbs * reps : 0;
 
           const current = currentByExercise.get(exercise.id) ?? {
@@ -1117,7 +1171,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
   useEffect(() => {
     if (!focusContext) return;
-    setNotesDraft(focusContext.exercise.notes ?? '');
+    setNotesDraft(focusContext.set.notes ?? '');
   }, [focusContext]);
 
   useEffect(() => {
@@ -1322,6 +1376,31 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     applySetUpdate('rpe', nextValue);
   };
 
+  const handleSetUnitChange = (nextUnit: WeightUnit) => {
+    if (!focusContext) return;
+    const currentUnit = focusContext.set.weightUnit ?? sessionWeightUnit;
+    if (currentUnit === nextUnit) return;
+
+    const convertedWeight =
+      focusContext.set.weight == null
+        ? null
+        : Math.round(convertWeight(Number(focusContext.set.weight), currentUnit, nextUnit) * 100) / 100;
+
+    dispatch({
+      type: 'UPDATE_SET',
+      payload: {
+        blockId: focusContext.blockId,
+        exerciseId: focusContext.exerciseId,
+        setId: focusContext.setId,
+        updates: {
+          weightUnit: nextUnit,
+          ...(convertedWeight == null ? {} : { weight: convertedWeight }),
+        },
+      },
+    });
+    setSessionWeightUnit(nextUnit);
+  };
+
   const handleLogSet = () => {
     if (!focusContext) return;
 
@@ -1492,7 +1571,15 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
   const handleSaveNotes = () => {
     if (focusContext) {
-      updateNote(focusContext.blockId, focusContext.exerciseId, notesDraft);
+      dispatch({
+        type: 'UPDATE_SET',
+        payload: {
+          blockId: focusContext.blockId,
+          exerciseId: focusContext.exerciseId,
+          setId: focusContext.setId,
+          updates: { notes: notesDraft },
+        },
+      });
     }
     setIsNotesOpen(false);
   };
@@ -1522,7 +1609,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           const rawReps = set.reps === null || set.reps === undefined ? null : Number(set.reps);
           const reps = rawReps == null ? 8 : rawReps;
           const weight = Number(set.weight) || 0;
-          const weightLbs = weight > 0 ? convertWeight(weight, sessionWeightUnit, 'lbs') : 0;
+          const setWeightUnit = set.weightUnit ?? sessionWeightUnit;
+          const weightLbs = weight > 0 ? convertWeight(weight, setWeightUnit, 'lbs') : 0;
           const volumeLoad = weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
           const e1rm =
             weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
@@ -1544,10 +1632,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             prescribedReps: String(reps),
             prescribedRPE: set.rpe ?? null,
             actualWeight: weight || null,
-            weightUnit: sessionWeightUnit,
+            weightUnit: setWeightUnit,
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
             actualReps: reps,
             actualRPE: set.rpe ?? null,
+            notes: set.notes?.trim() || undefined,
             completed: !set.skipped && (set.completed === true || autoCompleted),
             e1rm: e1rm ? Math.round(e1rm) : null,
             volumeLoad,
@@ -1806,11 +1895,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
     }
   };
 
-  const handleAddExercise = (name: string, setCount = 1) => {
-    addExercise(name, setCount);
+  const handleAddExercise = (name: string, setCount = 1, exerciseId?: string | null) => {
+    addExercise(name, setCount, exerciseId ?? undefined);
     setPendingExerciseName(name);
     setIsAddMovementOpen(false);
     setPendingAddName(null);
+    setPendingAddExerciseId(null);
     setSearchQuery('');
     setTimeout(() => {
       overviewScrollRef.current?.scrollTo({
@@ -1825,8 +1915,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
   };
 
   const weightValue = focusContext?.set.weight ?? 0;
+  const currentSetWeightUnit = focusContext?.set.weightUnit ?? sessionWeightUnit;
   const repsValue = focusContext?.set.reps ?? 8;
   const rpeValue = focusContext?.set.rpe ?? null;
+  const currentSetNote = focusContext?.set.notes?.trim() ?? '';
+  const previousSetNote = focusContext?.set.previousNote?.trim() ?? '';
   const isEditingSet = Boolean(focusContext?.set.completed);
   const focusTempo = focusContext?.set.tempo ?? null;
   const focusTempoSteps = useMemo(() => parseTempoSteps(focusTempo), [focusTempo]);
@@ -2091,7 +2184,12 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
                 <button
                   type="button"
-                  onClick={() => setIsAddMovementOpen(true)}
+                  onClick={() => {
+                    setPendingAddName(null);
+                    setPendingAddExerciseId(null);
+                    setSearchQuery('');
+                    setIsAddMovementOpen(true);
+                  }}
                   className="w-full py-6 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold hover:border-emerald-500 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
                 >
                   <Plus className="h-5 w-5" />
@@ -2219,8 +2317,8 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                         layout="vertical"
                         value={weightValue}
                         onChange={handleWeightChange}
-                        step={sessionWeightUnit === 'kg' ? 0.25 : 0.5}
-                        label={sessionWeightUnit.toUpperCase()}
+                        step={currentSetWeightUnit === 'kg' ? 0.25 : 0.5}
+                        label={currentSetWeightUnit.toUpperCase()}
                         valueClassName={isWeightActive ? 'text-emerald-400' : undefined}
                         onLabelClick={() => openKeypad('weight')}
                       />
@@ -2236,6 +2334,30 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                       onLabelClick={() => openKeypad('reps')}
                     />
                   </div>
+
+                  {!bodyweightExercise && (
+                    <div className="flex items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950/70 px-3 py-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Unit</p>
+                        <p className="mt-0.5 text-xs text-zinc-400">Stored with this set, not auto-swapped later.</p>
+                      </div>
+                      <div className="grid grid-cols-2 rounded-full border border-zinc-800 bg-zinc-900/70 p-1">
+                        {(['lbs', 'kg'] as WeightUnit[]).map((unit) => (
+                          <button
+                            key={unit}
+                            type="button"
+                            onClick={() => handleSetUnitChange(unit)}
+                            className={`rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${currentSetWeightUnit === unit
+                              ? 'bg-emerald-400 text-zinc-950'
+                              : 'text-zinc-500 hover:text-zinc-200'
+                              }`}
+                          >
+                            {unit}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {focusTempo && (
                     <div className="space-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-3">
@@ -2294,7 +2416,10 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   <button
                     type="button"
                     onClick={handleOpenNotes}
-                    className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                    className={`flex-1 h-full flex items-center justify-center rounded-2xl transition-colors active:scale-95 cursor-pointer ${currentSetNote
+                      ? 'bg-emerald-500/10 text-emerald-300'
+                      : 'text-zinc-400 hover:bg-zinc-800/50'
+                      }`}
                   >
                     <FileText className="w-7 h-7" />
                   </button>
@@ -2478,7 +2603,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             className="fixed inset-0 z-50 bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)] flex flex-col"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-white text-xl font-black">Session Notes</h3>
+              <h3 className="text-white text-xl font-black">Set Notes</h3>
               <button
                 type="button"
                 onClick={() => setIsNotesOpen(false)}
@@ -2492,9 +2617,24 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 value={notesDraft}
                 onChange={(event) => setNotesDraft(event.target.value)}
                 className="w-full resize-none rounded-2xl bg-zinc-900 p-4 text-lg text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
-                placeholder="Add notes for this exercise..."
+                placeholder="Grip, setup, pain, technique cues, equipment..."
                 rows={8}
               />
+              {previousSetNote && (
+                <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Previous Note</p>
+                    <button
+                      type="button"
+                      onClick={() => setNotesDraft(previousSetNote)}
+                      className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 hover:text-emerald-200"
+                    >
+                      Use
+                    </button>
+                  </div>
+                  <p className="text-sm leading-relaxed text-zinc-300">{previousSetNote}</p>
+                </div>
+              )}
               <div className="mt-4 flex justify-end">
                 <button
                   type="button"
@@ -2524,14 +2664,21 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setPendingAddName(null)}
+                    onClick={() => {
+                      setPendingAddName(null);
+                      setPendingAddExerciseId(null);
+                    }}
                     className="text-zinc-500 active:opacity-60 transition-opacity"
                   >
                     ← Back
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setIsAddMovementOpen(false); setPendingAddName(null); }}
+                    onClick={() => {
+                      setIsAddMovementOpen(false);
+                      setPendingAddName(null);
+                      setPendingAddExerciseId(null);
+                    }}
                     className="text-zinc-500 hover:text-white"
                   >
                     Close
@@ -2564,7 +2711,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
 
                   <button
                     type="button"
-                    onClick={() => handleAddExercise(pendingAddName, pendingSetCount)}
+                    onClick={() => handleAddExercise(pendingAddName, pendingSetCount, pendingAddExerciseId)}
                     className="w-full max-w-xs rounded-2xl bg-emerald-500 py-4 text-sm font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
                   >
                     Add {pendingSetCount} Set{pendingSetCount !== 1 ? 's' : ''}
@@ -2578,7 +2725,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   <h3 className="text-2xl font-black text-white">ADD MOVEMENT</h3>
                   <button
                     type="button"
-                    onClick={() => setIsAddMovementOpen(false)}
+                    onClick={() => {
+                      setIsAddMovementOpen(false);
+                      setPendingAddName(null);
+                      setPendingAddExerciseId(null);
+                    }}
                     className="text-zinc-500 hover:text-white"
                   >
                     Close
@@ -2610,7 +2761,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                       <button
                         key={exercise.id}
                         type="button"
-                        onClick={() => { setPendingAddName(exercise.name); setPendingSetCount(3); }}
+                        onClick={() => {
+                          setPendingAddName(exercise.name);
+                          setPendingAddExerciseId(exercise.id);
+                          setPendingSetCount(3);
+                        }}
                         className="w-full py-4 border-b border-zinc-900 text-left"
                       >
                         <div className="flex items-center gap-3 mb-1">
@@ -2642,7 +2797,11 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
                   {searchQuery.trim().length > 0 && filteredExercises.length === 0 && (
                     <button
                       type="button"
-                      onClick={() => { setPendingAddName(searchQuery.trim()); setPendingSetCount(3); }}
+                      onClick={() => {
+                        setPendingAddName(searchQuery.trim());
+                        setPendingAddExerciseId(null);
+                        setPendingSetCount(3);
+                      }}
                       className="mt-6 text-emerald-400 text-lg font-semibold"
                     >
                       Create &quot;{searchQuery.trim()}&quot;

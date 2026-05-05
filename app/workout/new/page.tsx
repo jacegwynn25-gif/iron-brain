@@ -113,7 +113,11 @@ export default function NewWorkoutPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl py-6">
-      <SessionLogger initialData={resolvedProgram ?? undefined} initialProgress={resolvedProgress} />
+      <SessionLogger
+        initialData={resolvedProgram ?? undefined}
+        initialProgress={resolvedProgress}
+        ignoreActiveSnapshot={forceQuickStart || Boolean(requestedProgramId)}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ export interface Set {
   id: string;
   type: SetType;
   weight: number | null;
+  weightUnit: 'lbs' | 'kg';
   reps: number | null;
   rpe: number | null; // 1-10
   touchedWeight: boolean;
@@ -21,6 +22,8 @@ export interface Set {
   completed: boolean;
   skipped?: boolean;
   previous: string | null; // e.g. "200x8"
+  previousNote: string | null;
+  notes: string;
 }
 
 export interface Exercise {

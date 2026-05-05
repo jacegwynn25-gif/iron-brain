@@ -341,13 +341,13 @@ export function resolveExerciseDisplayName(
   exerciseId: string,
   options: ResolveExerciseDisplayNameOptions = {}
 ): string {
-  if (isMeaningfulCachedName(options.cachedName, exerciseId)) {
-    return options.cachedName.trim();
-  }
-
   const entry = resolveCatalogEntry(exerciseId, options.catalog);
   if (entry?.name) {
     return entry.name;
+  }
+
+  if (isMeaningfulCachedName(options.cachedName, exerciseId)) {
+    return options.cachedName.trim();
   }
 
   if (isLegacyCustomSlug(exerciseId)) {
