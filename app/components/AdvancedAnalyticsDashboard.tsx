@@ -560,7 +560,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         adherence,
       }));
     } catch (err) {
-      console.error('Failed to load adherence analytics:', err);
+      
     } finally {
       setLoadingAdherence(false);
     }
@@ -686,13 +686,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         updateCoreAnalytics(mergedCompleted);
         initialLoadRef.current = false;
       } catch (err) {
-        console.error('Failed to load from Supabase:', err);
+        
       } finally {
         setCloudSyncing(false);
         setLoading(false);
       }
     } catch (err) {
-      console.error('Error loading analytics:', err);
+      
     } finally {
       // Always release lock and reset loading states to prevent stuck UI
       loadingInProgressRef.current = false;
@@ -711,7 +711,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         recoveryProfiles: profiles,
       }));
     } catch (err) {
-      console.error('Failed to load recovery profiles:', err);
+      
     } finally {
       setLoadingRecovery(false);
     }

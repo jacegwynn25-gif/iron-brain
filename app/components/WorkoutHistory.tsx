@@ -93,7 +93,7 @@ export default function WorkoutHistory({
         setCustomExercises(exercises);
       })
       .catch(err => {
-        console.error('Failed to load custom exercises:', err);
+        
         if (isMounted) {
           setCustomExercises([]);
         }
@@ -357,7 +357,7 @@ export default function WorkoutHistory({
       // Fire cloud re-sync in the background — don't block UI
       void onHistoryUpdate();
     } catch (err) {
-      console.error('Failed to delete workout:', err);
+      
       setDeleteError('Could not move workout to trash. Please try again.');
       setDeleteBusy(false);
     }
@@ -439,7 +439,7 @@ export default function WorkoutHistory({
       setEditTarget(null);
       onHistoryUpdate();
     } catch (err) {
-      console.error('Failed to update workout details:', err);
+      
       setEditError('Could not save changes. Please try again.');
     } finally {
       setEditBusy(false);
@@ -612,7 +612,7 @@ export default function WorkoutHistory({
       setContentEditTarget(null);
       onHistoryUpdate();
     } catch (err) {
-      console.error('Failed to update workout content:', err);
+      
       setContentEditError('Could not save workout edits. Please try again.');
     } finally {
       setContentEditBusy(false);

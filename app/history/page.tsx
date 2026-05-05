@@ -98,7 +98,7 @@ export default function HistoryPage() {
       // Only try to get user from Supabase if user state is undefined (initial load)
       const { data, error } = await supabase.auth.getUser();
       if (error) {
-        console.error('Failed to resolve Supabase user:', error);
+        
         return null;
       }
       return data.user?.id ?? null;
@@ -123,7 +123,7 @@ export default function HistoryPage() {
 
       // Background cloud sync
       const customExercises = await getCustomExercises(resolvedUserId).catch((error) => {
-        console.error('Failed to load custom exercise catalog for history page:', error);
+        
         return [];
       });
       const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
@@ -180,7 +180,7 @@ export default function HistoryPage() {
       ]);
 
       if (error) {
-        console.error('Failed to load workouts from Supabase:', error);
+        
         setCloudFetchFailed(true);
         setWorkoutHistory(sortedLocalWorkouts);
         return;
@@ -261,7 +261,7 @@ export default function HistoryPage() {
 
       setWorkoutHistory(mergedWorkouts);
     } catch (err) {
-      console.error('Error loading workouts:', err);
+      
       setCloudFetchFailed(true);
       // Already rendered local state immediately
     } finally {
