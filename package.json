@@ -10,6 +10,7 @@
     "qa:builder": "node scripts/qa-program-builder.js",
     "qa:workout": "node scripts/qa-workout-session.js",
     "seed:dev": "tsx scripts/seed-dev-data.ts",
+    "verify-production": "tsx scripts/verify-production-readiness.ts",
     "verify-supabase": "tsx scripts/verify-supabase.ts"
   },
   "dependencies": {
