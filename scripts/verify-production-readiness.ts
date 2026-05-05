@@ -118,7 +118,11 @@ async function checkStripe() {
     return;
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const isLiveSecretKey = stripeSecretKey.startsWith('sk_live_');
+  add('stripe:mode:live_secret_key', isLiveSecretKey, isLiveSecretKey ? 'live mode' : 'test mode or unknown');
+
+  const stripe = new Stripe(stripeSecretKey, {
     apiVersion: '2025-12-15.clover',
   });
 
@@ -135,8 +139,8 @@ async function checkStripe() {
       const price = await stripe.prices.retrieve(priceId);
       add(
         `stripe:price:${label}`,
-        Boolean(price.active),
-        `${price.active ? 'active' : 'inactive'} ${price.currency} ${price.type}`
+        Boolean(price.active) && price.livemode,
+        `${price.active ? 'active' : 'inactive'} ${price.currency} ${price.type} ${price.livemode ? 'live' : 'test'}`
       );
     } catch (error) {
       add(`stripe:price:${label}`, false, error instanceof Error ? error.message : 'Stripe lookup failed');
@@ -164,10 +168,12 @@ async function checkStripe() {
 
     add(
       'stripe:webhook:production',
-      Boolean(endpoint) && hasAllEvents,
+      Boolean(endpoint) && hasAllEvents && endpoint?.livemode === true,
       endpoint
-        ? hasAllEvents
-          ? 'enabled with required events'
+        ? hasAllEvents && endpoint.livemode
+          ? 'enabled with required events in live mode'
+          : !endpoint.livemode
+            ? 'enabled with required events but in test mode'
           : 'enabled but missing required events'
         : `missing enabled endpoint for ${webhookUrl}`
     );
