@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseUserFromRequest } from '@/app/lib/supabase/admin';
 import { generateProgram, UserProfile } from '../../../lib/intelligence/builder';
 
 /**
  * Evidence-Based Program Generation API
- *
- * Uses the scientific configuration from config.ts to generate programs that:
- * - Follow Volume Landmarks (MEV, MAV, MRV) per muscle group
- * - Prioritize S-Tier stretch-focused exercises
- * - Prevent junk volume (>10 sets/muscle/session)
- * - Apply experience-appropriate splits
  */
 
-// Input interface matching IntelligentProgramBuilder
 interface GuidedBuilderInput {
   primaryGoal: 'strength' | 'hypertrophy' | 'powerlifting' | 'general' | 'peaking' | null;
   secondaryGoals: string[];
@@ -40,26 +34,20 @@ interface GuidedBuilderInput {
   mustExcludeExercises: string[];
 }
 
-/**
- * Map frontend input to the UserProfile expected by builder.ts
- */
 function mapInputToUserProfile(input: GuidedBuilderInput): UserProfile {
-  // Map training age to years (input is in months buckets from UI)
   const trainingAgeYears = input.trainingAge
     ? input.trainingAge <= 12 ? 0.5 : input.trainingAge / 12
     : 1;
 
-  // Map goal - builder now supports all goal types with proper periodization
   type BuilderGoal = 'hypertrophy' | 'strength' | 'powerlifting' | 'peaking' | 'general';
   const goalMap: Record<string, BuilderGoal> = {
     strength: 'strength',
-    powerlifting: 'powerlifting',  // Block periodization: hypertrophy → strength → peaking
+    powerlifting: 'powerlifting',
     hypertrophy: 'hypertrophy',
     general: 'general',
-    peaking: 'peaking',            // Competition prep: 1-3 rep singles/doubles/triples
+    peaking: 'peaking',
   };
 
-  // Map muscle names from frontend to config.ts muscle keys
   const muscleNameMap: Record<string, string> = {
     'Chest': 'chest',
     'Back': 'back',
@@ -99,10 +87,15 @@ function mapInputToUserProfile(input: GuidedBuilderInput): UserProfile {
 }
 
 export async function POST(request: NextRequest) {
+  // Authenticate
+  const user = await getSupabaseUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   try {
     const input: GuidedBuilderInput = await request.json();
 
-    // Validate required fields
     if (!input.primaryGoal) {
       return NextResponse.json({ error: 'Primary goal is required' }, { status: 400 });
     }
@@ -116,10 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one equipment type is required' }, { status: 400 });
     }
 
-    // Convert input to UserProfile
     const userProfile = mapInputToUserProfile(input);
-
-    // Generate program using evidence-based builder
     const program = generateProgram(userProfile);
 
     return NextResponse.json({ program });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseUserFromRequest } from '@/app/lib/supabase/admin';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2025-12-15.clover' }) : null;
@@ -9,11 +10,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const tier = searchParams.get('tier') as 'lifetime' | 'monthly' | null;
-  const userId = searchParams.get('user_id');
-
+export async function POST(request: NextRequest) {
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
@@ -22,15 +19,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'App URL is not configured' }, { status: 500 });
   }
 
-  if (tier !== 'lifetime' && tier !== 'monthly') {
-    return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+  // Authenticate the request
+  const user = await getSupabaseUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+  let body: { tier?: 'lifetime' | 'monthly' };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const tier = body.tier;
+  if (tier !== 'lifetime' && tier !== 'monthly') {
+    return NextResponse.json({ error: 'Invalid tier. Must be "lifetime" or "monthly"' }, { status: 400 });
   }
 
   try {
+    // Prevent already-Pro users from checking out again
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('is_pro, subscription_tier')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.is_pro) {
+      return NextResponse.json({ error: 'You already have an active subscription' }, { status: 409 });
+    }
+
     // Check lifetime slots remaining
     if (tier === 'lifetime') {
       const { data: settings } = await supabase
@@ -40,7 +58,10 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (!settings || settings.lifetime_slots_remaining <= 0) {
-        return NextResponse.redirect(new URL('/api/checkout?tier=monthly', request.url));
+        return NextResponse.json(
+          { error: 'Lifetime slots sold out', redirectToMonthly: true },
+          { status: 410 }
+        );
       }
     }
 
@@ -60,15 +81,16 @@ export async function GET(request: NextRequest) {
         quantity: 1,
       }],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
-      client_reference_id: userId,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cancel`,
+      client_reference_id: user.id,
+      customer_email: user.email,
       metadata: {
         tier,
-        user_id: userId
+        user_id: user.id
       }
     });
 
-    return NextResponse.redirect(session.url!);
+    return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error('Stripe checkout error:', error);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
