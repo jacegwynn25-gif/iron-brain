@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import CustomDialog from '@/app/components/ui/CustomDialog';
 
 interface DialogOptions {
@@ -17,6 +17,10 @@ interface DialogContextType {
     confirm: (title: string, message: string, options?: Partial<DialogOptions>) => Promise<boolean>;
 }
 
+type DialogResolver =
+    | { type: 'alert'; resolve: () => void }
+    | { type: 'confirm'; resolve: (value: boolean) => void };
+
 const DialogContext = createContext<DialogContextType | undefined>(undefined);
 
 export function DialogProvider({ children }: { children: ReactNode }) {
@@ -26,7 +30,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         message: '',
         type: 'alert',
     });
-    const [resolver, setResolver] = useState<{ resolve: (value: any) => void } | null>(null);
+    const [resolver, setResolver] = useState<DialogResolver | null>(null);
 
     const showAlert = useCallback((title: string, message: string, extraOptions?: Partial<DialogOptions>) => {
         return new Promise<void>((resolve) => {
@@ -37,7 +41,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 confirmLabel: 'OK',
                 ...extraOptions,
             });
-            setResolver({ resolve });
+            setResolver({ type: 'alert', resolve });
             setIsOpen(true);
         });
     }, []);
@@ -52,27 +56,36 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 cancelLabel: 'Cancel',
                 ...extraOptions,
             });
-            setResolver({ resolve });
+            setResolver({ type: 'confirm', resolve });
             setIsOpen(true);
         });
     }, []);
 
     const handleConfirm = useCallback(() => {
         setIsOpen(false);
-        if (resolver) {
-            resolver.resolve(options.type === 'confirm' ? true : undefined);
-        }
-    }, [resolver, options.type]);
-
-    const handleCancel = useCallback(() => {
-        setIsOpen(false);
-        if (resolver) {
-            resolver.resolve(false);
+        if (resolver?.type === 'confirm') {
+            resolver.resolve(true);
+        } else if (resolver) {
+            resolver.resolve();
         }
     }, [resolver]);
 
+    const handleCancel = useCallback(() => {
+        setIsOpen(false);
+        if (resolver?.type === 'confirm') {
+            resolver.resolve(false);
+        } else if (resolver) {
+            resolver.resolve();
+        }
+    }, [resolver]);
+
+    const contextValue = useMemo(
+        () => ({ alert: showAlert, confirm: showConfirm }),
+        [showAlert, showConfirm]
+    );
+
     return (
-        <DialogContext.Provider value={{ alert: showAlert, confirm: showConfirm }}>
+        <DialogContext.Provider value={contextValue}>
             {children}
             <CustomDialog
                 isOpen={isOpen}

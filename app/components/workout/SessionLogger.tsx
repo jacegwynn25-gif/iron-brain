@@ -444,8 +444,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         const loaded = await getCustomExercises(user?.id ?? null);
         if (!active) return;
         setCustomExercises(loaded);
-      } catch (error) {
-        
+      } catch {
         if (active) {
           setCustomExercises([]);
         }
@@ -829,8 +828,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         if (active) {
           setCloudPrBaseline(byExerciseRef);
         }
-      } catch (error) {
-        
+      } catch {
         if (active) {
           setCloudPrBaseline(emptyBaseline);
         }
@@ -1682,9 +1680,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           },
           namespaceId
         );
-        void syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId).catch((progressError) => {
-          
-        });
+        void syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId).catch(() => {});
       }
 
       if (FEATURES.programCalendar && hasCompletedSetsInPayload && programDayContext && builtSession.programId) {
@@ -1700,9 +1696,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           metadata: {
             completed_from: 'workout_finish',
           },
-        }).catch((scheduleError) => {
-          
-        });
+        }).catch(() => {});
       }
 
       if (user?.id) {

@@ -122,8 +122,7 @@ export default function HistoryPage() {
       }
 
       // Background cloud sync
-      const customExercises = await getCustomExercises(resolvedUserId).catch((error) => {
-        
+      const customExercises = await getCustomExercises(resolvedUserId).catch(() => {
         return [];
       });
       const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
@@ -260,8 +259,7 @@ export default function HistoryPage() {
       );
 
       setWorkoutHistory(mergedWorkouts);
-    } catch (err) {
-      
+    } catch {
       setCloudFetchFailed(true);
       // Already rendered local state immediately
     } finally {

@@ -71,8 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await syncPendingWorkouts(userId);
         
-      } catch (err) {
-        
+      } catch {
       } finally {
         setIsSyncing(false);
       }
@@ -89,8 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!session?.user) return;
         applySessionState(session);
         syncPending(session.user.id);
-      } catch (error) {
-        
+      } catch {
       }
     };
 
@@ -124,9 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           void reconcileSession();
         }
-      } catch (error) {
+      } catch {
         if (timeoutId) clearTimeout(timeoutId);
-        
 
         // Assume logged out and continue
         applySessionState(null);

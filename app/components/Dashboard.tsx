@@ -46,8 +46,7 @@ export default function Dashboard() {
       const history = getWorkoutHistory();
       const dates = history.map(w => w.date).filter(Boolean);
       setWorkoutDates(dates);
-    } catch (error) {
-      
+    } catch {
     }
   }, []);
 

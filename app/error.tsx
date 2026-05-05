@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 
 export default function ErrorBoundary({
@@ -34,12 +35,12 @@ export default function ErrorBoundary({
           <RefreshCw className="h-4 w-4 text-white/60" />
           TRY AGAIN
         </button>
-        <a
+        <Link
           href="/"
           className="text-xs font-bold uppercase tracking-widest text-zinc-600 transition-colors hover:text-zinc-400"
         >
           Go to Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );

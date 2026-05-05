@@ -150,8 +150,7 @@ export default function ProfilePage() {
       );
 
       setWorkoutHistory(mergedWorkouts);
-    } catch (err) {
-      
+    } catch {
       setWorkoutHistory(sortedLocalWorkouts);
     }
   }, [user, namespaceId]);
@@ -292,8 +291,7 @@ export default function ProfilePage() {
               try {
                 await signOut();
                 router.push('/');
-              } catch (error) {
-                
+              } catch {
                 await alert(
                   'Sign Out Error',
                   'Failed to sign out. Please check your connection and try again.'

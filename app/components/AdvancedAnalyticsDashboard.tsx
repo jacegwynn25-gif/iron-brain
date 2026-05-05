@@ -559,8 +559,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         ...prev,
         adherence,
       }));
-    } catch (err) {
-      
+    } catch {
     } finally {
       setLoadingAdherence(false);
     }
@@ -685,14 +684,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
         updateCoreAnalytics(mergedCompleted);
         initialLoadRef.current = false;
-      } catch (err) {
-        
+      } catch {
       } finally {
         setCloudSyncing(false);
         setLoading(false);
       }
-    } catch (err) {
-      
+    } catch {
     } finally {
       // Always release lock and reset loading states to prevent stuck UI
       loadingInProgressRef.current = false;
@@ -710,8 +707,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         ...prev,
         recoveryProfiles: profiles,
       }));
-    } catch (err) {
-      
+    } catch {
     } finally {
       setLoadingRecovery(false);
     }

@@ -64,7 +64,7 @@ export default function UpgradePage() {
           <Crown className="h-10 w-10 text-emerald-400" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-black italic text-zinc-100">YOU'RE ALREADY PRO</h1>
+          <h1 className="text-3xl font-black italic text-zinc-100">YOU&apos;RE ALREADY PRO</h1>
           <p className="text-sm text-zinc-400">
             You have full access to all Iron Brain features.
           </p>

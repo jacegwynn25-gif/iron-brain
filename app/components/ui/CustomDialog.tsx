@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface CustomDialogProps {
     isOpen: boolean;
