@@ -10,7 +10,8 @@ import {
   Moon,
   LogOut,
   ChevronRight,
-  Scale
+  Scale,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
@@ -37,7 +38,7 @@ const getIsoWeekKey = (date: Date) => {
 export default function ProfilePage() {
   const router = useRouter();
   const { alert } = useDialog();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isPro } = useAuth();
 
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
 
@@ -64,7 +65,7 @@ export default function ProfilePage() {
       // Only try to get user from Supabase if user state is undefined (initial load)
       const { data, error } = await supabase.auth.getUser();
       if (error) {
-        console.error('Failed to resolve Supabase user:', error);
+        
       }
       return data.user?.id ?? null;
     };
@@ -91,7 +92,7 @@ export default function ProfilePage() {
         .order('date', { ascending: false });
 
       if (error) {
-        console.error('Failed to load workouts from Supabase:', error);
+        
         setWorkoutHistory(sortedLocalWorkouts);
         return;
       }
@@ -150,7 +151,7 @@ export default function ProfilePage() {
 
       setWorkoutHistory(mergedWorkouts);
     } catch (err) {
-      console.error('Error loading workouts from Supabase:', err);
+      
       setWorkoutHistory(sortedLocalWorkouts);
     }
   }, [user, namespaceId]);
@@ -195,6 +196,7 @@ export default function ProfilePage() {
   }, [workoutHistory]);
 
   const menuItems = [
+    { icon: Sparkles, label: 'Coach Export', path: '/profile/coach' },
     { icon: Scale, label: 'My Maxes (1RMs)', path: '/profile/maxes' },
     { icon: Dumbbell, label: 'Custom Exercises', path: '/profile/exercises' },
     { icon: Bell, label: 'Notifications', path: '/profile/notifications' },
@@ -236,6 +238,24 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      {!isPro && user && (
+        <section className="stagger-item px-1">
+          <button
+            onClick={() => router.push('/upgrade')}
+            className="group relative flex w-full items-center justify-between overflow-hidden rounded-[1.25rem] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-600/10 px-5 py-4 transition-all hover:border-amber-500/40 hover:scale-[1.01] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5"
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-amber-400" />
+              <div className="text-left">
+                <span className="text-sm font-black italic text-amber-300">UPGRADE TO IRON PRO</span>
+                <p className="text-[10px] text-zinc-400">Unlock advanced analytics & recovery tracking</p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-amber-400/50 transition-transform group-hover:translate-x-1" />
+          </button>
+        </section>
+      )}
+
       <section className="stagger-item space-y-3 px-1">
         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Configuration</p>
         <h2 className="text-xl font-black italic text-zinc-100">PREFERENCES</h2>
@@ -273,7 +293,7 @@ export default function ProfilePage() {
                 await signOut();
                 router.push('/');
               } catch (error) {
-                console.error('❌ Failed to sign out:', error);
+                
                 await alert(
                   'Sign Out Error',
                   'Failed to sign out. Please check your connection and try again.'

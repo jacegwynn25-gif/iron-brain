@@ -15,6 +15,7 @@ import {
   User,
 } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
+import { useAuth } from '@/app/lib/supabase/auth-context';
 import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
 import { ReadinessCard } from './dashboard/ReadinessCard';
 import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
@@ -24,6 +25,7 @@ import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 export default function Dashboard() {
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isSessionActive } = useActiveSession();
+  const { isPro } = useAuth();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
 
@@ -45,7 +47,7 @@ export default function Dashboard() {
       const dates = history.map(w => w.date).filter(Boolean);
       setWorkoutDates(dates);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      
     }
   }, []);
 
@@ -207,6 +209,32 @@ export default function Dashboard() {
           </Link>
         </div>
       </section>
+
+      {/* Pro Upgrade CTA */}
+      {!isPro && (
+        <section className="stagger-item mx-1">
+          <Link
+            href="/upgrade"
+            className="group relative flex items-center justify-between overflow-hidden rounded-[1.25rem] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-600/10 px-5 py-4 transition-all hover:border-amber-500/40 hover:scale-[1.01] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5"
+          >
+            <div className="relative z-10 flex items-center gap-3 sm:gap-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 sm:h-9 sm:w-9 sm:rounded-xl">
+                <Sparkles className="h-4 w-4 text-amber-400 sm:h-5 sm:w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black italic tracking-tight text-amber-300 sm:text-base">
+                  UPGRADE TO IRON PRO
+                </h3>
+                <p className="text-[10px] text-zinc-400 sm:text-xs">
+                  Unlock readiness scores, recovery tracking, and advanced analytics.
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="relative z-10 h-4 w-4 text-amber-400/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
+            <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-amber-500/10 blur-2xl sm:h-24 sm:w-24" />
+          </Link>
+        </section>
+      )}
 
       {/* Consistency Chart */}
       <section className="stagger-item mx-1">
