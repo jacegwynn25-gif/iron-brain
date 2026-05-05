@@ -7,7 +7,6 @@ import {
   Zap,
   BookOpen,
   History,
-  ClipboardCheck,
   LineChart,
   type LucideIcon,
 } from 'lucide-react';
@@ -32,7 +31,6 @@ const navItems: NavItem[] = [
   { id: 'log', label: 'Log', href: '/start', icon: Zap, coach: 'start-button' },
   { id: 'programs', label: 'Programs', href: '/programs', icon: BookOpen, coach: 'programs-tab' },
   { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
-  { id: 'checkin', label: 'Check-In', href: '/checkin', icon: ClipboardCheck },
   { id: 'analytics', label: 'Insights', href: '/analytics', icon: LineChart },
 ];
 

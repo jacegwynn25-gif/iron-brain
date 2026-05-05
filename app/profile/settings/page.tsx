@@ -1,62 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Apple, ChevronRight, LogOut, MoonStar, Wrench, type LucideIcon } from 'lucide-react';
+import { ChevronRight, LogOut, MoonStar } from 'lucide-react';
 import { useAuth } from '../../lib/supabase/auth-context';
 import { useUnitPreference } from '../../lib/hooks/useUnitPreference';
 import { supabase } from '../../lib/supabase/client';
-import FancySelect from '../../components/ui/FancySelect';
-
-interface IntegrationToggleProps {
-  icon: LucideIcon;
-  name: string;
-  description: string;
-  enabled: boolean;
-  onToggle: () => void;
-}
-
-function IntegrationToggle({
-  icon: Icon,
-  name,
-  description,
-  enabled,
-  onToggle,
-}: IntegrationToggleProps) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-zinc-900 py-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-300" />
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-200">{name}</p>
-          <p className="mt-1 text-xs text-zinc-500">{description}</p>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        onClick={onToggle}
-        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-all ${enabled
-            ? 'border-emerald-400/60 bg-emerald-500/20'
-            : 'border-zinc-700 bg-zinc-900'
-          }`}
-      >
-        <span
-          className={`inline-block h-5 w-5 rounded-full bg-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
-            }`}
-        />
-      </button>
-    </div>
-  );
-}
 
 interface SettingsLinkRowProps {
   href: string;
   label: string;
   description: string;
+}
+
+interface SettingsSectionProps {
+  label: string;
+  children: ReactNode;
 }
 
 interface OuraConnection {
@@ -66,14 +27,27 @@ interface OuraConnection {
   scope: string | null;
 }
 
+function SettingsSection({ label, children }: SettingsSectionProps) {
+  return (
+    <section className="stagger-item px-1">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">
+        {label}
+      </p>
+      <div className="mt-3 overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 shadow-[0_18px_60px_rgba(0,0,0,0.18)]">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 function SettingsLinkRow({ href, label, description }: SettingsLinkRowProps) {
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-4 border-b border-zinc-900 py-4 transition-colors hover:text-zinc-100"
+      className="group flex items-center justify-between gap-4 border-b border-zinc-900 px-4 py-4 transition-colors last:border-b-0 hover:bg-zinc-900/35 hover:text-zinc-100 sm:px-5"
     >
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-200">{label}</p>
         <p className="mt-1 text-xs text-zinc-500">{description}</p>
       </div>
       <ChevronRight className="h-4 w-4 text-zinc-600 transition-colors group-hover:text-zinc-300" />
@@ -87,7 +61,6 @@ export default function ProfileSettingsPage() {
   const { signOut, user } = useAuth();
   const { unitSystem, setUnitSystem } = useUnitPreference();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [appleHealthEnabled, setAppleHealthEnabled] = useState(false);
   const [ouraConnection, setOuraConnection] = useState<OuraConnection | null>(null);
   const [ouraLoading, setOuraLoading] = useState(false);
   const [ouraSyncing, setOuraSyncing] = useState(false);
@@ -164,8 +137,7 @@ export default function ProfileSettingsPage() {
       }
 
       window.location.href = payload.url;
-    } catch (error) {
-      console.error('Oura connect error:', error);
+    } catch {
       setOuraError('Failed to start Oura connection.');
     } finally {
       setOuraLoading(false);
@@ -196,8 +168,7 @@ export default function ProfileSettingsPage() {
       }
 
       await loadOuraConnection();
-    } catch (error) {
-      console.error('Oura disconnect error:', error);
+    } catch {
       setOuraError('Failed to disconnect Oura.');
     } finally {
       setOuraLoading(false);
@@ -236,8 +207,7 @@ export default function ProfileSettingsPage() {
 
       await loadOuraConnection();
       setOuraNotice('Oura sync complete.');
-    } catch (error) {
-      console.error('Oura sync error:', error);
+    } catch {
       setOuraError('Oura sync failed.');
     } finally {
       setOuraSyncing(false);
@@ -252,31 +222,46 @@ export default function ProfileSettingsPage() {
         <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Account, integrations, and preferences.</p>
       </header>
 
-      <section className="stagger-item px-1">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Integrations</p>
-        <div className="mt-2">
-          <IntegrationToggle
-            icon={Apple}
-            name="Apple Health"
-            description="Health data sync placeholder"
-            enabled={appleHealthEnabled}
-            onToggle={() => setAppleHealthEnabled((current) => !current)}
-          />
-          <div className="surface-card px-4 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex min-w-0 items-start gap-3">
-                <MoonStar className="mt-0.5 h-4 w-4 shrink-0 text-zinc-300" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-200">Oura Ring</p>
-                  <p className="mt-1 text-xs text-zinc-500">Sync sleep and readiness data to power recovery insights.</p>
-                </div>
+      <SettingsSection label="Integrations">
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70">
+                <MoonStar className="h-4 w-4 text-zinc-200" />
               </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-100">Oura Ring</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] ${ouraConnection?.is_active
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-500'
+                    }`}>
+                    {ouraConnection?.is_active ? 'Connected' : 'Off'}
+                  </span>
+                </div>
+                <p className="mt-1 max-w-xl text-xs leading-relaxed text-zinc-500">
+                  Sync sleep and readiness data for recovery insights.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {ouraConnection?.is_active && (
+                <button
+                  type="button"
+                  onClick={handleOuraSync}
+                  disabled={ouraSyncing || ouraLoading}
+                  className="rounded-full border border-zinc-700 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white disabled:opacity-60"
+                >
+                  {ouraSyncing ? 'Syncing...' : 'Sync'}
+                </button>
+              )}
               {ouraConnection?.is_active ? (
                 <button
                   type="button"
                   onClick={handleOuraDisconnect}
-                  disabled={ouraLoading}
-                  className="inline-flex items-center rounded-full border border-rose-400/50 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:border-rose-300/70 hover:text-rose-100 disabled:opacity-60"
+                  disabled={ouraLoading || ouraSyncing}
+                  className="rounded-full border border-rose-400/40 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-rose-200 transition-colors hover:border-rose-300/70 hover:text-rose-100 disabled:opacity-60"
                 >
                   {ouraLoading ? 'Disconnecting...' : 'Disconnect'}
                 </button>
@@ -285,124 +270,102 @@ export default function ProfileSettingsPage() {
                   type="button"
                   onClick={handleOuraConnect}
                   disabled={ouraLoading}
-                  className="inline-flex items-center rounded-full border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200 transition-colors hover:border-emerald-300/70 hover:text-emerald-100 disabled:opacity-60"
+                  className="rounded-full border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200 transition-colors hover:border-emerald-300/70 hover:text-emerald-100 disabled:opacity-60"
                 >
                   {ouraLoading ? 'Connecting...' : 'Connect'}
                 </button>
               )}
             </div>
+          </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
-              <span>
-                Status: {ouraConnection?.is_active ? 'Connected' : 'Not connected'}
-              </span>
-              <span>
-                Last sync:{' '}
+          <div className="mt-4 grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">Status</p>
+              <p className="mt-1 text-zinc-300">{ouraConnection?.is_active ? 'Connected' : 'Not connected'}</p>
+            </div>
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">Last Sync</p>
+              <p className="mt-1 text-zinc-300">
                 {ouraConnection?.last_sync_at
                   ? new Date(ouraConnection.last_sync_at).toLocaleString()
                   : 'Never'}
-              </span>
-              {ouraConnection?.last_sync_status && (
-                <span>Last result: {ouraConnection.last_sync_status}</span>
-              )}
+              </p>
             </div>
+            <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">Last Result</p>
+              <p className="mt-1 text-zinc-300">{ouraConnection?.last_sync_status || 'No sync yet'}</p>
+            </div>
+          </div>
 
-            {ouraConnection?.is_active && (
-              <div className="mt-4">
+          {ouraNotice && (
+            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              {ouraNotice}
+            </div>
+          )}
+
+          {ouraError && (
+            <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {ouraError}
+            </div>
+          )}
+
+          <p className="mt-3 text-[11px] text-zinc-600">
+            Oura membership is required for Gen3 and Ring 4 data access.
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection label="Preferences">
+        <div className="border-b border-zinc-900 px-4 py-4 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-200">Units</p>
+              <p className="mt-1 text-xs text-zinc-500">Default display for new workout sets.</p>
+            </div>
+            <div className="grid grid-cols-2 rounded-full border border-zinc-800 bg-zinc-900/70 p-1">
+              {[
+                { value: 'imperial', label: 'LBS' },
+                { value: 'metric', label: 'KG' },
+              ].map((option) => (
                 <button
+                  key={option.value}
                   type="button"
-                  onClick={handleOuraSync}
-                  disabled={ouraSyncing}
-                  className="inline-flex items-center rounded-full border border-zinc-700 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white disabled:opacity-60"
+                  onClick={() => setUnitSystem(option.value === 'metric' ? 'metric' : 'imperial')}
+                  className={`rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${unitSystem === option.value
+                    ? 'bg-emerald-400 text-zinc-950'
+                    : 'text-zinc-500 hover:text-zinc-200'
+                    }`}
                 >
-                  {ouraSyncing ? 'Syncing...' : 'Sync now'}
+                  {option.label}
                 </button>
-              </div>
-            )}
-
-            {ouraNotice && (
-              <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                {ouraNotice}
-              </div>
-            )}
-
-            {ouraError && (
-              <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-                {ouraError}
-              </div>
-            )}
-
-            <p className="mt-3 text-[11px] text-zinc-600">
-              Note: Oura membership is required for Gen3 and Ring 4 data access.
-            </p>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+        <SettingsLinkRow
+          href="/profile/maxes"
+          label="My Maxes"
+          description="Manage one-rep max data used by percentages and suggestions."
+        />
+      </SettingsSection>
 
-      <section className="stagger-item px-1">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Preferences</p>
-        <div className="mt-2">
-          <div className="surface-card px-4 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">Units</p>
-            <p className="mt-1 text-xs text-zinc-500">Controls weight and measurement display.</p>
-            <FancySelect
-              value={unitSystem}
-              options={[
-                { value: 'imperial', label: 'Imperial (lbs)' },
-                { value: 'metric', label: 'Metric (kg)' },
-              ]}
-              onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
-              ariaLabel="Preferred unit system"
-              buttonClassName="mt-3 w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-zinc-700"
-              listClassName="max-h-44 overflow-y-auto"
-            />
+      <SettingsSection label="Account">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-200">Signed In</p>
+            <p className="mt-1 truncate text-xs text-zinc-500">{user?.email ?? 'Authenticated account'}</p>
           </div>
-          <SettingsLinkRow
-            href="/profile/appearance"
-            label="Appearance"
-            description="Theme and visual preferences."
-          />
-          <SettingsLinkRow
-            href="/profile/notifications"
-            label="Notifications"
-            description="Control reminders and alert behavior."
-          />
-          <SettingsLinkRow
-            href="/profile/maxes"
-            label="My Maxes"
-            description="Manage one-rep max data."
-          />
-          <SettingsLinkRow
-            href="/profile/exercises"
-            label="Custom Exercises"
-            description="Edit personal movement library."
-          />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="inline-flex items-center gap-2 rounded-full border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-rose-100 transition-colors hover:bg-rose-500/20 disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+          </button>
         </div>
-      </section>
-
-      <section className="stagger-item px-1">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Account</p>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          disabled={isSigningOut}
-          className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] text-rose-100 transition-colors hover:bg-rose-500/20 disabled:opacity-60"
-        >
-          <LogOut className="h-4 w-4" />
-          {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-        </button>
-      </section>
-
-      <section className="stagger-item px-1">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Developer</p>
-        <button
-          type="button"
-          className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-zinc-800 px-5 py-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
-        >
-          <Wrench className="h-4 w-4" />
-          Simulate Crash (Sleep Debt)
-        </button>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   User,
   Settings,
-  Dumbbell,
-  Bell,
-  Moon,
   LogOut,
   ChevronRight,
   Scale,
@@ -197,9 +194,6 @@ export default function ProfilePage() {
   const menuItems = [
     { icon: Sparkles, label: 'Coach Export', path: '/profile/coach' },
     { icon: Scale, label: 'My Maxes (1RMs)', path: '/profile/maxes' },
-    { icon: Dumbbell, label: 'Custom Exercises', path: '/profile/exercises' },
-    { icon: Bell, label: 'Notifications', path: '/profile/notifications' },
-    { icon: Moon, label: 'Appearance', path: '/profile/appearance' },
     { icon: Settings, label: 'Settings', path: '/profile/settings' },
   ];
 
