@@ -67,3 +67,17 @@ CREATE TRIGGER enforce_subscription_insert_protection
 BEFORE INSERT ON user_profiles
 FOR EACH ROW
 EXECUTE FUNCTION prevent_subscription_field_injection();
+
+-- Stripe event IDs must be globally unique so concurrent webhook retries cannot
+-- double-apply side effects like decrementing lifetime slots.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_events_stripe_event_id_unique
+  ON subscription_events(stripe_event_id)
+  WHERE stripe_event_id IS NOT NULL;
+
+-- The slot decrement RPC is used only by the Stripe webhook through the service
+-- role. Without explicit grants, normal API clients can call RPC functions by
+-- default and could burn lifetime slots.
+REVOKE EXECUTE ON FUNCTION decrement_lifetime_slots() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION decrement_lifetime_slots() FROM anon;
+REVOKE EXECUTE ON FUNCTION decrement_lifetime_slots() FROM authenticated;
+GRANT EXECUTE ON FUNCTION decrement_lifetime_slots() TO service_role;

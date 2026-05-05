@@ -9,13 +9,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function isEventProcessed(stripeEventId: string): Promise<boolean> {
-  const { data } = await supabase
+async function reserveStripeEvent(event: Stripe.Event): Promise<boolean> {
+  const { error } = await supabase
     .from('subscription_events')
-    .select('id')
-    .eq('stripe_event_id', stripeEventId)
-    .maybeSingle();
-  return !!data;
+    .insert({
+      event_type: event.type,
+      stripe_event_id: event.id,
+    });
+
+  if (!error) return true;
+  if (error.code === '23505') return false;
+  throw error;
+}
+
+async function updateStripeEvent(
+  stripeEventId: string,
+  update: {
+    user_id?: string;
+    event_type: string;
+    old_tier?: string | null;
+    new_tier?: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  await supabase
+    .from('subscription_events')
+    .update(update)
+    .eq('stripe_event_id', stripeEventId);
 }
 
 export async function POST(request: NextRequest) {
@@ -38,9 +58,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
   }
 
-  // Idempotency: skip if already processed
-  if (await isEventProcessed(event.id)) {
-    return NextResponse.json({ received: true, processed: false, reason: 'already_processed' });
+  try {
+    const reserved = await reserveStripeEvent(event);
+    if (!reserved) {
+      return NextResponse.json({ received: true, processed: false, reason: 'already_processed' });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Could not reserve webhook event' }, { status: 500 });
   }
 
   switch (event.type) {
@@ -75,16 +99,12 @@ export async function POST(request: NextRequest) {
         await supabase.rpc('decrement_lifetime_slots');
       }
 
-      // Log event
-      await supabase
-        .from('subscription_events')
-        .insert({
-          user_id: userId,
-          event_type: 'upgrade',
-          old_tier: 'free',
-          new_tier: newTier,
-          stripe_event_id: event.id
-        });
+      await updateStripeEvent(event.id, {
+        user_id: userId,
+        event_type: 'upgrade',
+        old_tier: 'free',
+        new_tier: newTier,
+      });
 
       break;
     }
@@ -115,15 +135,12 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', profile.id);
 
-        await supabase
-          .from('subscription_events')
-          .insert({
-            user_id: profile.id,
-            event_type: 'renew',
-            old_tier: profile.subscription_tier,
-            new_tier: profile.subscription_tier,
-            stripe_event_id: event.id
-          });
+        await updateStripeEvent(event.id, {
+          user_id: profile.id,
+          event_type: 'renew',
+          old_tier: profile.subscription_tier,
+          new_tier: profile.subscription_tier,
+        });
       }
 
       break;
@@ -150,15 +167,12 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', profile.id);
 
-        await supabase
-          .from('subscription_events')
-          .insert({
-            user_id: profile.id,
-            event_type: 'payment_failed',
-            old_tier: profile.subscription_tier,
-            new_tier: profile.subscription_tier,
-            stripe_event_id: event.id
-          });
+        await updateStripeEvent(event.id, {
+          user_id: profile.id,
+          event_type: 'payment_failed',
+          old_tier: profile.subscription_tier,
+          new_tier: profile.subscription_tier,
+        });
       }
 
       break;
@@ -199,16 +213,13 @@ export async function POST(request: NextRequest) {
           .eq('id', profile.id);
       }
 
-      await supabase
-        .from('subscription_events')
-        .insert({
-          user_id: profile.id,
-          event_type: 'update',
-          old_tier: profile.subscription_tier,
-          new_tier: profile.subscription_tier,
-          stripe_event_id: event.id,
-          metadata: { status }
-        });
+      await updateStripeEvent(event.id, {
+        user_id: profile.id,
+        event_type: 'update',
+        old_tier: profile.subscription_tier,
+        new_tier: profile.subscription_tier,
+        metadata: { status },
+      });
 
       break;
     }
@@ -233,15 +244,12 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', profile.id);
 
-        await supabase
-          .from('subscription_events')
-          .insert({
-            user_id: profile.id,
-            event_type: 'cancel',
-            old_tier: profile.subscription_tier,
-            new_tier: 'free',
-            stripe_event_id: event.id
-          });
+        await updateStripeEvent(event.id, {
+          user_id: profile.id,
+          event_type: 'cancel',
+          old_tier: profile.subscription_tier,
+          new_tier: 'free',
+        });
       }
 
       break;
