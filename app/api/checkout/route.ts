@@ -11,18 +11,18 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
+  // Authenticate the request
+  const user = await getSupabaseUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
 
   if (!process.env.NEXT_PUBLIC_APP_URL) {
     return NextResponse.json({ error: 'App URL is not configured' }, { status: 500 });
-  }
-
-  // Authenticate the request
-  const user = await getSupabaseUserFromRequest(request);
-  if (!user) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   let body: { tier?: 'lifetime' | 'monthly' };
