@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "qa:builder": "node scripts/qa-program-builder.js",
+    "qa:hardening": "node scripts/qa-release-hardening.js",
     "qa:workout": "node scripts/qa-workout-session.js",
+    "release:gate": "node scripts/release-gate.js",
+    "security:audit": "tsx scripts/security-static-audit.ts",
     "seed:dev": "tsx scripts/seed-dev-data.ts",
     "verify-production": "tsx scripts/verify-production-readiness.ts",
     "verify-supabase": "tsx scripts/verify-supabase.ts"
