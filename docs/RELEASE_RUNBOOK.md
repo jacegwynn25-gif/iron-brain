@@ -50,6 +50,8 @@ Ship only when:
 - `npm run release:gate` passes.
 - Vercel production deployment is ready.
 - `npm run verify-production` passes after deployment.
+- Mobile bottom navigation works reliably on a real phone.
+- The current release has no known security, payment, workout data-loss, or mobile navigation blockers.
 - Stripe webhook endpoint is enabled for production.
 - No secrets are committed.
 - Any known bug has either been fixed or explicitly accepted as non-blocking.
