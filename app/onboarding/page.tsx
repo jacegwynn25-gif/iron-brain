@@ -101,8 +101,8 @@ export default function OnboardingPage() {
         athletic_background?: Experience;
         bodyweight?: number | null;
         age?: number | null;
-        sex?: string | null;
-        training_age_years?: number | null;
+        sex?: 'male' | 'female' | 'other' | null;
+        training_age?: number | null;
       } = {
         user_id: user.id,
         athletic_background: experience,
@@ -110,11 +110,23 @@ export default function OnboardingPage() {
 
       if (age !== null) demographicsPayload.age = age;
       if (sex !== null) demographicsPayload.sex = sex;
-      if (trainingAge !== null) demographicsPayload.training_age_years = trainingAge;
+      if (trainingAge !== null) demographicsPayload.training_age = trainingAge;
 
       if (bodyweight !== null) {
         demographicsPayload.bodyweight = bodyweight;
       }
+
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert(
+          {
+            id: user.id,
+            experience_level: experience,
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileError) throw profileError;
 
       const { error: demoError } = await supabase
         .from('user_demographics')
@@ -124,7 +136,7 @@ export default function OnboardingPage() {
 
       router.replace(resolveReturnTo());
     } catch (err) {
-      console.error('Failed to complete onboarding:', err);
+      
       setError(err instanceof Error ? err.message : 'Failed to complete onboarding.');
     } finally {
       setIsSaving(false);
@@ -132,7 +144,15 @@ export default function OnboardingPage() {
   };
 
   if (!ready) {
-    return null;
+    return (
+      <div className="mx-auto w-full max-w-5xl pb-12 pt-4 sm:pt-10">
+        <div className="animate-pulse space-y-4 px-1">
+          <div className="h-8 w-48 rounded-lg bg-zinc-800" />
+          <div className="h-4 w-64 rounded bg-zinc-800" />
+          <div className="h-80 rounded-2xl bg-zinc-800" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -232,7 +252,7 @@ export default function OnboardingPage() {
                   { value: 'female', label: 'Female' },
                   { value: 'other', label: 'Other' },
                 ]}
-                onChange={(value) => setSex(value as any)}
+                onChange={(value) => setSex((value || null) as 'male' | 'female' | 'other' | null)}
                 ariaLabel="Biological sex"
                 buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
               />

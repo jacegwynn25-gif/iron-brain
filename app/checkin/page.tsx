@@ -14,7 +14,15 @@ export default function CheckInPage() {
   };
 
   if (!ready) {
-    return null;
+    return (
+      <div className="mx-auto w-full max-w-5xl pb-12 pt-4 sm:pt-10">
+        <div className="animate-pulse space-y-4 px-1">
+          <div className="h-8 w-48 rounded-lg bg-zinc-800" />
+          <div className="h-4 w-32 rounded bg-zinc-800" />
+          <div className="h-64 rounded-2xl bg-zinc-800" />
+        </div>
+      </div>
+    );
   }
 
   return (
