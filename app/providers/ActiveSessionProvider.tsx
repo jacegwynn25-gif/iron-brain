@@ -7,9 +7,11 @@ import React, {
     useCallback,
     useEffect,
     useRef,
+    useMemo,
     type ReactNode,
 } from 'react';
 import type { Block, ActiveCell } from '../lib/types/session';
+import { useAuth } from '../lib/supabase/auth-context';
 
 // ============================================================
 // TYPES
@@ -48,12 +50,12 @@ interface ActiveSessionContextValue {
 // STORAGE KEY
 // ============================================================
 
-const STORAGE_KEY = 'iron_brain_active_session_v1';
+const BASE_STORAGE_KEY = 'iron_brain_active_session_v1';
 
-function readStoredSession(): ActiveSessionSnapshot | null {
+function readStoredSession(storageKey: string): ActiveSessionSnapshot | null {
     if (typeof window === 'undefined') return null;
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(storageKey);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as ActiveSessionSnapshot;
         // Basic validation
@@ -64,13 +66,13 @@ function readStoredSession(): ActiveSessionSnapshot | null {
     }
 }
 
-function writeStoredSession(snapshot: ActiveSessionSnapshot | null): void {
+function writeStoredSession(storageKey: string, snapshot: ActiveSessionSnapshot | null): void {
     if (typeof window === 'undefined') return;
     try {
         if (snapshot) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+            localStorage.setItem(storageKey, JSON.stringify(snapshot));
         } else {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(storageKey);
         }
     } catch {
         // Storage full or unavailable — silently fail
@@ -88,20 +90,24 @@ const ActiveSessionContext = createContext<ActiveSessionContextValue | null>(nul
 // ============================================================
 
 export function ActiveSessionProvider({ children }: { children: ReactNode }) {
-    const [snapshot, setSnapshot] = useState<ActiveSessionSnapshot | null>(() =>
-        readStoredSession()
+    const { namespaceId, namespaceReady } = useAuth();
+    const storageKey = useMemo(
+        () => (namespaceReady ? `${BASE_STORAGE_KEY}__${namespaceId ?? 'default'}` : null),
+        [namespaceId, namespaceReady]
     );
+    const [snapshot, setSnapshot] = useState<ActiveSessionSnapshot | null>(null);
+    const [loadedStorageKey, setLoadedStorageKey] = useState<string | null>(null);
 
     // Throttle writes to localStorage to avoid perf issues during fast interactions
     const pendingWriteRef = useRef<ActiveSessionSnapshot | null | undefined>(undefined);
     const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const flushWrite = useCallback(() => {
-        if (pendingWriteRef.current !== undefined) {
-            writeStoredSession(pendingWriteRef.current ?? null);
+        if (storageKey && pendingWriteRef.current !== undefined) {
+            writeStoredSession(storageKey, pendingWriteRef.current ?? null);
             pendingWriteRef.current = undefined;
         }
-    }, []);
+    }, [storageKey]);
 
     const scheduleWrite = useCallback(
         (value: ActiveSessionSnapshot | null) => {
@@ -112,8 +118,28 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
         [flushWrite]
     );
 
+    useEffect(() => {
+        if (!storageKey) return;
+
+        if (writeTimerRef.current) {
+            clearTimeout(writeTimerRef.current);
+            writeTimerRef.current = null;
+        }
+        pendingWriteRef.current = undefined;
+        setSnapshot(readStoredSession(storageKey));
+        setLoadedStorageKey(storageKey);
+
+        try {
+            localStorage.removeItem(BASE_STORAGE_KEY);
+        } catch {
+            // Ignore unavailable storage.
+        }
+    }, [storageKey]);
+
     // Flush on unmount / page hide
     useEffect(() => {
+        if (!storageKey) return;
+
         const handleBeforeUnload = () => flushWrite();
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'hidden') flushWrite();
@@ -126,32 +152,41 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
         };
-    }, [flushWrite]);
+    }, [flushWrite, storageKey]);
 
     const saveSnapshot = useCallback(
         (next: ActiveSessionSnapshot) => {
+            if (storageKey) {
+                setLoadedStorageKey(storageKey);
+            }
             setSnapshot(next);
-            scheduleWrite(next);
+            if (storageKey) {
+                scheduleWrite(next);
+            }
         },
-        [scheduleWrite]
+        [scheduleWrite, storageKey]
     );
 
     const clearSession = useCallback(() => {
         setSnapshot(null);
+        setLoadedStorageKey(storageKey);
         // Clear immediately — no throttle for cleanup
-        writeStoredSession(null);
+        if (storageKey) {
+            writeStoredSession(storageKey, null);
+        }
         pendingWriteRef.current = undefined;
         if (writeTimerRef.current) {
             clearTimeout(writeTimerRef.current);
             writeTimerRef.current = null;
         }
-    }, []);
+    }, [storageKey]);
 
-    const isSessionActive = snapshot !== null && snapshot.status === 'active';
+    const activeSnapshot = loadedStorageKey === storageKey ? snapshot : null;
+    const isSessionActive = activeSnapshot !== null && activeSnapshot.status === 'active';
 
     return (
         <ActiveSessionContext.Provider
-            value={{ snapshot, isSessionActive, saveSnapshot, clearSession }}
+            value={{ snapshot: activeSnapshot, isSessionActive, saveSnapshot, clearSession }}
         >
             {children}
         </ActiveSessionContext.Provider>
