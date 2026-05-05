@@ -664,7 +664,7 @@ function readLocalCustomExercises(): CustomExercise[] {
   if (typeof window === 'undefined') return [];
 
   try {
-    const raw = localStorage.getItem(CUSTOM_EXERCISES_STORAGE_KEY);
+    const raw = localStorage.getItem(getKey(CUSTOM_EXERCISES_STORAGE_KEY));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];

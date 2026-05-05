@@ -85,9 +85,10 @@ export default function CreateExerciseModal({
         updatedAt: now,
       };
       try {
-        const stored = localStorage.getItem('iron_brain_custom_exercises');
+        const key = `iron_brain_custom_exercises__${userId || 'guest'}`;
+        const stored = localStorage.getItem(key);
         const existing = stored ? JSON.parse(stored) : [];
-        localStorage.setItem('iron_brain_custom_exercises', JSON.stringify([fallback, ...existing]));
+        localStorage.setItem(key, JSON.stringify([fallback, ...existing]));
       } catch (storageError) {
         console.error('Failed to persist fallback exercise:', storageError);
       }

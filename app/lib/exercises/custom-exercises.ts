@@ -1,7 +1,9 @@
 import { supabase } from '../supabase/client';
 import type { CustomExercise } from '../types';
 
-const LOCAL_STORAGE_KEY = 'iron_brain_custom_exercises';
+function getLocalStorageKey(namespaceId?: string | null): string {
+  return `iron_brain_custom_exercises__${namespaceId || 'guest'}`;
+}
 const CLOUD_REQUEST_TIMEOUT_MS = 8000;
 
 const EQUIPMENT_VALUES: CustomExercise['equipment'][] = [
@@ -57,10 +59,10 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: strin
   });
 }
 
-export function getLocalCustomExercises(): CustomExercise[] {
+export function getLocalCustomExercises(namespaceId?: string | null): CustomExercise[] {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const stored = localStorage.getItem(getLocalStorageKey(namespaceId));
     if (!stored) return [];
     const parsed: unknown = JSON.parse(stored);
     return Array.isArray(parsed) ? (parsed as CustomExercise[]) : [];
@@ -69,9 +71,9 @@ export function getLocalCustomExercises(): CustomExercise[] {
   }
 }
 
-function persistLocalCustomExercises(exercises: CustomExercise[]): void {
+function persistLocalCustomExercises(exercises: CustomExercise[], namespaceId?: string | null): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(exercises));
+  localStorage.setItem(getLocalStorageKey(namespaceId), JSON.stringify(exercises));
 }
 
 function mergeCustomExercises(
@@ -89,7 +91,7 @@ function mergeCustomExercises(
  * Loads from Supabase if logged in and merges with localStorage backup
  */
 export async function getCustomExercises(userId: string | null): Promise<CustomExercise[]> {
-  const localExercises = getLocalCustomExercises();
+  const localExercises = getLocalCustomExercises(userId);
 
   // Try Supabase first if logged in
   if (userId) {
@@ -174,7 +176,7 @@ export async function getCustomExercises(userId: string | null): Promise<CustomE
           e.userId === 'local' && unsynced.some((u) => u.id === e.id) ? { ...e, userId } : e
         );
 
-        persistLocalCustomExercises(fixedMerged);
+        persistLocalCustomExercises(fixedMerged, userId);
         return fixedMerged;
       }
     } catch (err) {
@@ -208,9 +210,9 @@ export async function createCustomExercise(
 
   // Save locally first so the UI never blocks on network/cloud.
   try {
-    const existing = getLocalCustomExercises();
+    const existing = getLocalCustomExercises(userId);
     const merged = mergeCustomExercises([newExercise], existing);
-    persistLocalCustomExercises(merged);
+    persistLocalCustomExercises(merged, userId);
   } catch (err) {
     console.error('Failed to save custom exercise to localStorage:', err);
   }

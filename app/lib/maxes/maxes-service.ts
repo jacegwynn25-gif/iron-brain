@@ -2,7 +2,9 @@ import { supabase } from '../supabase/client';
 import type { UserMax } from '../types';
 import type { Database } from '../supabase/database.types';
 
-const LOCAL_STORAGE_KEY = 'iron_brain_user_maxes';
+function getLocalStorageKey(namespaceId: string | null): string {
+  return `iron_brain_user_maxes__${namespaceId || 'guest'}`;
+}
 
 type SupabaseUserMaxUpdate = Database['public']['Tables']['user_maxes']['Update'];
 
@@ -43,7 +45,7 @@ export async function getUserMaxes(userId: string | null): Promise<UserMax[]> {
 
   // Fallback to localStorage
   try {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const stored = localStorage.getItem(getLocalStorageKey(userId));
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -111,7 +113,7 @@ export async function saveUserMax(
   // Save to localStorage as backup
   try {
     const allMaxes = await getUserMaxes(userId);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([...allMaxes, newMax]));
+    localStorage.setItem(getLocalStorageKey(userId), JSON.stringify([...allMaxes, newMax]));
   } catch (err) {
     console.error('Failed to save max to localStorage:', err);
   }
@@ -157,7 +159,7 @@ async function updateUserMax(
         ? { ...m, ...updates, updatedAt: now }
         : m
     );
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(getLocalStorageKey(userId), JSON.stringify(updated));
   } catch (err) {
     console.error('Failed to update max in localStorage:', err);
   }
@@ -178,7 +180,7 @@ export async function deleteUserMax(userId: string | null, maxId: string): Promi
   try {
     const allMaxes = await getUserMaxes(userId);
     const filtered = allMaxes.filter(m => m.id !== maxId);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
+    localStorage.setItem(getLocalStorageKey(userId), JSON.stringify(filtered));
   } catch (err) {
     console.error('Failed to delete max from localStorage:', err);
   }
