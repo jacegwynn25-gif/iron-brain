@@ -218,6 +218,45 @@ async function checkSettingsPolish(browser) {
   console.log('✅ settings page avoids placeholder controls and exposes unit preferences');
 }
 
+async function checkBottomNavTapTargets(browser) {
+  const page = await newPage(browser);
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 15000 });
+
+  const targetReport = await page.evaluate(() => {
+    document.querySelectorAll('nextjs-portal').forEach((node) => {
+      if (node instanceof HTMLElement) node.style.pointerEvents = 'none';
+    });
+
+    return Array.from(document.querySelectorAll('[data-nav-item]')).map((node) => {
+      const link = node;
+      const rect = link.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const topElement = document.elementFromPoint(x, y);
+      return {
+        id: link.getAttribute('data-nav-item'),
+        width: rect.width,
+        height: rect.height,
+        topTag: topElement?.tagName ?? null,
+        hit: Boolean(topElement && link.contains(topElement)),
+      };
+    });
+  });
+
+  const failed = targetReport.filter((target) => !target.hit || target.height < 56 || target.width < 48);
+  if (failed.length > 0) {
+    throw new Error(`Bottom nav tap target failure: ${JSON.stringify(failed)}`);
+  }
+
+  for (const item of ['dashboard', 'log', 'programs', 'history', 'analytics']) {
+    await page.locator(`[data-nav-item="${item}"]`).click({ trial: true, timeout: 5000 });
+  }
+
+  await page.close();
+  console.log('✅ bottom nav tap targets are unobstructed and large enough');
+}
+
 (async () => {
   await checkUnauthenticatedApis();
 
@@ -228,6 +267,7 @@ async function checkSettingsPolish(browser) {
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkSettingsPolish(browser);
+    await checkBottomNavTapTargets(browser);
   } finally {
     await browser.close();
   }

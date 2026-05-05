@@ -109,9 +109,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {!hideBottomNav && <WorkoutMiniBar />}
 
       {!hideBottomNav && (
-        <nav className="app-bottom-nav fixed inset-x-0 bottom-0 z-[70] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl touch-manipulation">
+        <nav className="app-bottom-nav pointer-events-auto fixed inset-x-0 bottom-0 z-[90] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl touch-manipulation">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-2xl items-center justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-2.5">
+          <div className="relative mx-auto flex w-full max-w-2xl items-stretch justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -120,10 +120,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <Link
                   key={item.id}
                   href={item.href}
+                  prefetch={false}
+                  aria-label={item.label}
                   data-coach={item.coach}
-                  className={`group relative flex min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 px-1 py-4 transition-colors ${active
+                  data-nav-item={item.id}
+                  className={`group relative flex min-h-[4.25rem] min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 rounded-xl px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 ${active
                     ? 'text-emerald-300'
-                    : 'text-zinc-500 hover:text-zinc-200'
+                    : 'text-zinc-500'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'}`} />
@@ -131,7 +134,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     {item.label}
                   </span>
                   {active && (
-                    <span className="absolute top-0 h-0.5 w-7 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
+                    <span className="pointer-events-none absolute top-0 h-0.5 w-7 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
                   )}
                 </Link>
               );
