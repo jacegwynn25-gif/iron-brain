@@ -1375,6 +1375,11 @@ export type Database = {
           display_name: string | null
           experience_level: string | null
           id: string
+          is_pro: boolean | null
+          stripe_customer_id: string | null
+          subscription_expires_at: string | null
+          subscription_started_at: string | null
+          subscription_tier: string | null
           updated_at: string | null
           username: string | null
         }
@@ -1385,6 +1390,11 @@ export type Database = {
           display_name?: string | null
           experience_level?: string | null
           id: string
+          is_pro?: boolean | null
+          stripe_customer_id?: string | null
+          subscription_expires_at?: string | null
+          subscription_started_at?: string | null
+          subscription_tier?: string | null
           updated_at?: string | null
           username?: string | null
         }
@@ -1395,6 +1405,11 @@ export type Database = {
           display_name?: string | null
           experience_level?: string | null
           id?: string
+          is_pro?: boolean | null
+          stripe_customer_id?: string | null
+          subscription_expires_at?: string | null
+          subscription_started_at?: string | null
+          subscription_tier?: string | null
           updated_at?: string | null
           username?: string | null
         }

@@ -13,6 +13,7 @@ interface AuthContextType {
   namespaceId: string | null;
   namespaceReady: boolean;
   isSyncing: boolean;
+  isPro: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [namespaceId, setNamespaceId] = useState<string | null>(null);
   const [namespaceReady, setNamespaceReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   // Track last applied session to prevent duplicate state changes
   const lastAppliedSessionRef = useRef<string | null>(null);
@@ -46,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? `${nextSession.user.id}:${nextSession.user.updated_at ?? ''}:${metadataKey}`
         : 'null';
       if (sessionKey === lastAppliedSessionRef.current) {
-        console.log('[Auth] Session already applied, skipping:', sessionKey);
+        
         return;
       }
       lastAppliedSessionRef.current = sessionKey;
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = nextSession?.user ?? null;
       const newNamespaceId = currentUser?.id ?? null;
 
-      console.log('[Auth] Applying session state:', { hasUser: !!currentUser, userId: newNamespaceId });
+      
       setUserNamespace(newNamespaceId);
       setNamespaceId(newNamespaceId);
       setNamespaceReady(true);
@@ -65,12 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const syncPending = async (userId: string) => {
       setIsSyncing(true);
-      console.log('[Auth] Starting workout sync...');
+      
       try {
         await syncPendingWorkouts(userId);
-        console.log('[Auth] Workout sync complete');
+        
       } catch (err) {
-        console.error('[Auth] Failed to sync pending workouts:', err);
+        
       } finally {
         setIsSyncing(false);
       }
@@ -88,20 +90,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         applySessionState(session);
         syncPending(session.user.id);
       } catch (error) {
-        console.error('❌ Failed to reconcile session:', error);
+        
       }
     };
 
     const getInitialSession = async () => {
       let didTimeout = false;
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      console.log('[Auth] Getting initial session...');
+      
       try {
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => {
           timeoutId = setTimeout(() => {
             didTimeout = true;
-            console.log('[Auth] Session fetch timed out after 3s');
+            
             resolve({ data: { session: null } });
           }, 3000);
         });
@@ -113,18 +115,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           clearTimeout(timeoutId);
         }
 
-        console.log('[Auth] Initial session result:', { hasSession: !!session, didTimeout });
+        
         applySessionState(session);
 
         if (session?.user) {
           syncPending(session.user.id);
         } else if (didTimeout) {
-          console.log('[Auth] Attempting session reconciliation...');
+          
           void reconcileSession();
         }
       } catch (error) {
         if (timeoutId) clearTimeout(timeoutId);
-        console.error('[Auth] Failed to get initial session:', error);
+        
 
         // Assume logged out and continue
         applySessionState(null);
@@ -224,10 +226,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const globalResult = await signOutWithTimeout('default', 5000);
     if (globalResult?.error) {
-      console.warn('⚠️ Supabase signOut fallback path:', globalResult.error);
+      
       const localResult = await signOutWithTimeout('local', 3000);
       if (localResult?.error) {
-        console.error('❌ Local Supabase signOut error:', localResult.error);
+        
       }
     }
 
@@ -239,8 +241,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNamespaceReady(true);
     setUser(null);
     setSession(null);
-    console.log('[Auth] Signed out successfully');
+    
   };
+
+  // Fetch Pro status when user changes
+  useEffect(() => {
+    if (!user?.id) {
+      setIsPro(false);
+      return;
+    }
+    let cancelled = false;
+    const fetchPro = async () => {
+      try {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('is_pro')
+          .eq('id', user.id)
+          .single();
+        if (!cancelled) setIsPro(data?.is_pro ?? false);
+      } catch {
+        if (!cancelled) setIsPro(false);
+      }
+    };
+    fetchPro();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const value = {
     user,
@@ -249,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     namespaceId,
     namespaceReady,
     isSyncing,
+    isPro,
     signUp,
     signIn,
     signInWithGoogle,
