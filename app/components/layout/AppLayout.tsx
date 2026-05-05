@@ -44,9 +44,7 @@ function isActivePath(pathname: string, href: string): boolean {
 export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname() ?? '/';
   const hideBottomNavByRoute =
-    pathname.includes('/workout/active') ||
-    pathname === '/workout/readiness' ||
-    pathname === '/workout/summary' ||
+    pathname.startsWith('/workout') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/reset-auth');

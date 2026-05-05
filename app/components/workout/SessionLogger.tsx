@@ -445,7 +445,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         if (!active) return;
         setCustomExercises(loaded);
       } catch (error) {
-        console.error('Failed to load custom exercises for logger:', error);
+        
         if (active) {
           setCustomExercises([]);
         }
@@ -793,7 +793,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           .in('record_type', ['max_weight', 'max_reps', 'max_e1rm', 'max_volume']);
 
         if (error) {
-          console.error('Failed to load cloud PR baseline:', error);
+          
           if (active) {
             setCloudPrBaseline(emptyBaseline);
           }
@@ -830,7 +830,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           setCloudPrBaseline(byExerciseRef);
         }
       } catch (error) {
-        console.error('Unexpected PR baseline sync error:', error);
+        
         if (active) {
           setCloudPrBaseline(emptyBaseline);
         }
@@ -1683,7 +1683,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
           namespaceId
         );
         void syncProgramProgressToCloud(user.id, initialData, nextProgress, namespaceId).catch((progressError) => {
-          console.warn('Failed to sync program progress from workout finish:', progressError);
+          
         });
       }
 
@@ -1701,7 +1701,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
             completed_from: 'workout_finish',
           },
         }).catch((scheduleError) => {
-          console.warn('Failed to sync schedule completion from workout finish:', scheduleError);
+          
         });
       }
 
@@ -1740,7 +1740,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
         }
       }, 900);
     } catch (error) {
-      console.error('Workout finish flow failed:', error);
+      
       if (user?.id) {
         const message = error instanceof Error ? error.message : String(error);
         void trackUiEvent(
@@ -2128,7 +2128,7 @@ export default function SessionLogger({ initialData, initialProgress }: SessionL
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 w-full flex flex-col overflow-hidden relative select-none pb-32"
+              className="flex-1 w-full flex flex-col overflow-y-auto relative select-none pb-32"
             >
               <header className="mb-6 flex items-center justify-between gap-4 px-4">
                 <div className="flex items-center gap-4">
