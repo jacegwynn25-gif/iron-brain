@@ -25,6 +25,9 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: /Add Exercise/i }).click();
   await expectVisible(page.getByText(/ADD MOVEMENT/i), 'Add movement modal opened');
   await page.getByText(/Bench Press/i).first().click();
+  await expectVisible(page.getByRole('button', { name: /ADD \d+ SETS/i }), 'Set count modal opened');
+  await page.getByRole('button', { name: '2', exact: true }).click();
+  await page.getByRole('button', { name: /ADD \d+ SETS/i }).click();
   await expectVisible(page.getByText(/Bench Press/i).first(), 'Exercise appears in overview');
 
   console.log('▶️  Opening cockpit...');
@@ -53,7 +56,7 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: /Skip Rest/i }).click();
   await expectVisible(page.getByRole('button', { name: /LOG SET/i }), 'Returned to cockpit for bonus set');
 
-  console.log('▶️  Logging bonus set...');
+  console.log('▶️  Logging second set...');
   await page.getByRole('button', { name: /LOG SET/i }).click();
   await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer after bonus set');
   await page.getByRole('button', { name: /Skip Rest/i }).click();
