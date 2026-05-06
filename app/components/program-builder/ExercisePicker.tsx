@@ -106,53 +106,55 @@ export default function ExercisePicker({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-        <div className="max-w-2xl w-full max-h-[90vh] flex flex-col rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
+        <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 p-6">
-            <h2 className="text-2xl font-bold text-white">
-              Select Exercise
+          <div className="flex items-center justify-between border-b border-zinc-900 p-5 sm:p-6">
+            <h2 className="text-2xl font-black italic tracking-tight text-zinc-100">
+              SELECT EXERCISE
             </h2>
             <button
+              type="button"
               onClick={onClose}
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 text-zinc-500 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Search */}
-          <div className="p-6 pb-4">
+          <div className="p-5 pb-4 sm:p-6 sm:pb-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
+              <Search className="absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-zinc-600" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search exercises..."
                 autoFocus
-                className="w-full rounded-lg border border-white/10 bg-white/5 pl-12 pr-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 py-3 pl-11 pr-4 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
               />
             </div>
           </div>
 
           {/* Create Button */}
           {showCreateButton && (
-            <div className="px-6 pb-4">
+            <div className="px-5 pb-4 sm:px-6">
               <button
+                type="button"
                 onClick={handleCreateClick}
-                className="w-full flex items-center justify-center gap-2 rounded-xl btn-primary px-4 py-3 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
                 Create &quot;{searchTerm}&quot; as custom exercise
               </button>
             </div>
           )}
 
           {/* Results */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6">
             {totalResults === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="py-8 text-center text-sm text-zinc-500">
                 {loadingCustom
                   ? 'Loading exercises...'
                   : searchTerm
@@ -164,7 +166,7 @@ export default function ExercisePicker({
                 {/* Custom Exercises Section */}
                 {customMatches.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-purple-300 mb-3">
+                    <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
                       Your Exercises ({customMatches.length})
                     </h3>
                     <div className="space-y-2">
@@ -172,12 +174,12 @@ export default function ExercisePicker({
                         <button
                           key={exercise.id}
                           onClick={() => handleSelect(exercise)}
-                          className="w-full text-left rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10"
+                          className="w-full rounded-xl border border-zinc-900 bg-zinc-950/70 p-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
                         >
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-zinc-100">
                             {exercise.name}
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-sm text-gray-400">
+                          <div className="mt-1 flex flex-wrap gap-2 text-sm text-zinc-500">
                             <span className="capitalize">{exercise.equipment}</span>
                             <span>•</span>
                             <span className="capitalize">{exercise.exerciseType}</span>
@@ -190,7 +192,7 @@ export default function ExercisePicker({
                   </div>
                 )}
                 {loadingCustom && customMatches.length === 0 && (
-                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-gray-400">
+                  <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 px-4 py-3 text-xs text-zinc-500">
                     Loading your custom exercises...
                   </div>
                 )}
@@ -199,7 +201,7 @@ export default function ExercisePicker({
                 {systemMatches.length > 0 && (
                   <div>
                     {customMatches.length > 0 && (
-                      <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-3">
+                      <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                         Built-in Exercises ({systemMatches.length})
                       </h3>
                     )}
@@ -208,12 +210,12 @@ export default function ExercisePicker({
                         <button
                           key={exercise.id}
                           onClick={() => handleSelect(exercise)}
-                          className="w-full text-left rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10"
+                          className="w-full rounded-xl border border-zinc-900 bg-zinc-950/70 p-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
                         >
-                          <div className="font-semibold text-white">
+                          <div className="font-semibold text-zinc-100">
                             {exercise.name}
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-sm text-gray-400">
+                          <div className="mt-1 flex flex-wrap gap-2 text-sm text-zinc-500">
                             {exercise.equipment && (
                               <>
                                 <span className="capitalize">{exercise.equipment.join(', ')}</span>

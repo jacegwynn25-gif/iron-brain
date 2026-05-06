@@ -193,7 +193,7 @@ export default function ProfilePage() {
 
   const menuItems = [
     { icon: Sparkles, label: 'Coach Export', path: '/profile/coach' },
-    { icon: Scale, label: 'My Maxes (1RMs)', path: '/profile/maxes' },
+    { icon: Scale, label: '1RMs & Maxes', path: '/profile/maxes' },
     { icon: Settings, label: 'Settings', path: '/profile/settings' },
   ];
 

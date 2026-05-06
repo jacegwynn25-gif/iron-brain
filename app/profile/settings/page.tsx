@@ -229,14 +229,19 @@ export default function ProfileSettingsPage() {
                 <MoonStar className="h-5 w-5 text-emerald-300" />
               </div>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
                   <p className="text-base font-black italic tracking-tight text-zinc-100">OURA RING</p>
-                  <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] ${ouraConnection?.is_active
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                    : 'border-zinc-800 bg-zinc-900 text-zinc-500'
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+                      Connection
+                    </p>
+                    <p className={`mt-0.5 text-[11px] font-black uppercase tracking-[0.16em] ${ouraConnection?.is_active
+                      ? 'text-emerald-300'
+                      : 'text-zinc-500'
                     }`}>
-                    {ouraConnection?.is_active ? 'Connected' : 'Off'}
-                  </span>
+                      {ouraConnection?.is_active ? 'Connected' : 'Not connected'}
+                    </p>
+                  </div>
                 </div>
                 <p className="mt-1 max-w-xl text-xs leading-relaxed text-zinc-500">
                   Sync sleep and recovery metrics when you want readiness scores to appear in the app.
