@@ -7,7 +7,7 @@ import {
   CalendarDays,
   Dumbbell,
   User,
-  AlertTriangle,
+  Shield,
   TrendingUp,
   Award
 } from 'lucide-react';
@@ -166,6 +166,88 @@ const SECTION_CLASS = 'rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p
 const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/70 p-3.5';
 const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
 const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500';
+
+type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
+
+const toneTextClass: Record<Tone, string> = {
+  emerald: 'text-emerald-300',
+  amber: 'text-amber-300',
+  rose: 'text-rose-300',
+  zinc: 'text-zinc-400',
+};
+
+const toneBgClass: Record<Tone, string> = {
+  emerald: 'bg-emerald-400',
+  amber: 'bg-amber-400',
+  rose: 'bg-rose-400',
+  zinc: 'bg-zinc-500',
+};
+
+const toneBorderClass: Record<Tone, string> = {
+  emerald: 'border-emerald-400/45',
+  amber: 'border-amber-400/45',
+  rose: 'border-rose-400/45',
+  zinc: 'border-zinc-700',
+};
+
+function StatusReadout({
+  label,
+  value,
+  tone,
+}: {
+  label?: string;
+  value: string;
+  tone: Tone;
+}) {
+  return (
+    <div className="shrink-0 text-right">
+      {label && <p className={METRIC_LABEL_CLASS}>{label}</p>}
+      <p className={`mt-0.5 text-sm font-black italic uppercase tracking-tight ${toneTextClass[tone]}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function RankDecal({ rank, tone = 'amber' }: { rank: number; tone?: Tone }) {
+  const label = rank === 1 ? 'I' : rank === 2 ? 'II' : rank === 3 ? 'III' : String(rank);
+  const isTopThree = rank <= 3;
+
+  if (!isTopThree) {
+    return (
+      <span className="w-8 shrink-0 text-center text-xs font-black italic text-zinc-500">
+        {rank}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`flex h-8 w-9 shrink-0 items-center justify-center border ${toneBorderClass[tone]} bg-zinc-950 text-[10px] font-black italic ${toneTextClass[tone]} shadow-[0_12px_30px_-22px_rgba(251,191,36,0.9)]`}
+      style={{ clipPath: 'polygon(16% 0, 100% 0, 84% 100%, 0 100%)' }}
+      aria-label={`Rank ${rank}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function RecoveryMeter({ score }: { score: number }) {
+  const tone: Tone = score >= 8 ? 'emerald' : score >= 6 ? 'amber' : 'rose';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative h-8 w-1.5 overflow-hidden rounded-sm bg-zinc-800">
+        <div
+          className={`absolute bottom-0 left-0 right-0 ${toneBgClass[tone]}`}
+          style={{ height: `${Math.min(100, Math.max(0, score * 10))}%` }}
+        />
+      </div>
+      <span className={`text-sm font-black italic ${toneTextClass[tone]}`}>
+        {score.toFixed(1)}
+      </span>
+    </div>
+  );
+}
 
 const formatIsoDateLocal = (date: Date) => {
   const year = date.getFullYear();
@@ -764,13 +846,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   // Get injury risk status
   const getInjuryRiskStatus = () => {
-    if (!analytics.acwr) return { color: 'gray', label: 'Unknown' };
+    if (!analytics.acwr) return { tone: 'zinc' as Tone, label: 'Unknown' };
     const ratio = analytics.acwr.ratio;
-    if (ratio >= 0.8 && ratio <= 1.3) return { color: 'green', label: 'Low Risk' };
-    if (ratio < 0.8) return { color: 'yellow', label: 'Undertraining' };
-    if (ratio <= 1.5) return { color: 'yellow', label: 'Elevated' };
-    if (ratio <= 2.0) return { color: 'red', label: 'High Risk' };
-    return { color: 'red', label: 'Danger' };
+    if (ratio >= 0.8 && ratio <= 1.3) return { tone: 'emerald' as Tone, label: 'Low Risk' };
+    if (ratio < 0.8) return { tone: 'amber' as Tone, label: 'Undertraining' };
+    if (ratio <= 1.5) return { tone: 'amber' as Tone, label: 'Elevated' };
+    if (ratio <= 2.0) return { tone: 'rose' as Tone, label: 'High Risk' };
+    return { tone: 'rose' as Tone, label: 'Danger' };
   };
 
   const injuryRisk = getInjuryRiskStatus();
@@ -815,6 +897,12 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   const unifiedReadiness = getUnifiedReadiness();
   const readinessStatus = getReadinessStatus(unifiedReadiness);
+  const readinessTone: Tone =
+    readinessStatus === 'excellent' || readinessStatus === 'good'
+      ? 'emerald'
+      : readinessStatus === 'moderate'
+        ? 'amber'
+        : 'rose';
   const hasMuscleRecoveryData = Boolean(analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0);
   const readinessTitle = hasMuscleRecoveryData ? 'READINESS' : 'TRAINING BALANCE';
   const adherence = analytics.adherence;
@@ -904,7 +992,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
                 Syncing...
               </span>
             )}
@@ -973,13 +1061,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>{readinessTitle}</h2>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${readinessStatus === 'excellent' ? 'bg-emerald-500/15 text-emerald-300' :
-                  readinessStatus === 'good' ? 'bg-emerald-500/15 text-emerald-300' :
-                    readinessStatus === 'moderate' ? 'bg-amber-500/15 text-amber-300' :
-                      'bg-rose-500/15 text-rose-300'
-                  }`}>
-                  {readinessStatus}
-                </span>
+                <StatusReadout label="Status" value={readinessStatus} tone={readinessTone} />
               </div>
               <div className="mb-2 text-6xl font-black italic tracking-tight text-white">
                 {unifiedReadiness}
@@ -1022,18 +1104,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className={`h-5 w-5 ${injuryRisk.color === 'green' ? 'text-emerald-300' :
-                    injuryRisk.color === 'yellow' ? 'text-amber-300' :
-                      'text-rose-300'
-                    }`} />
+                  <Shield className={`h-5 w-5 ${toneTextClass[injuryRisk.tone]}`} />
                   <h2 className={SECTION_TITLE_CLASS}>INJURY RISK</h2>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${injuryRisk.color === 'green' ? 'bg-emerald-500/15 text-emerald-300' :
-                  injuryRisk.color === 'yellow' ? 'bg-amber-500/15 text-amber-300' :
-                    'bg-rose-500/15 text-rose-300'
-                  }`}>
-                  {injuryRisk.label}
-                </span>
+                <StatusReadout label="Load State" value={injuryRisk.label} tone={injuryRisk.tone} />
               </div>
               <div className="flex items-baseline gap-2 mb-2">
                 <span className="text-4xl font-black italic tracking-tight text-white">{analytics.acwr.ratio.toFixed(2)}</span>
@@ -1041,10 +1115,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all ${injuryRisk.color === 'green' ? 'bg-emerald-500' :
-                    injuryRisk.color === 'yellow' ? 'bg-amber-500' :
-                      'bg-rose-500'
-                    }`}
+                  className={`h-full transition-all ${toneBgClass[injuryRisk.tone]}`}
                   style={{ width: `${Math.min(100, (analytics.acwr.ratio / 2) * 100)}%` }}
                 />
               </div>
@@ -1075,10 +1146,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <span className="text-sm text-zinc-300 capitalize">{profile.muscleGroup}</span>
-                    <div className={`w-3 h-3 rounded-full ${profile.readinessScore >= 8 ? 'bg-emerald-400' :
-                      profile.readinessScore >= 6 ? 'bg-amber-400' :
-                        'bg-rose-400'
-                      }`} />
+                    <RecoveryMeter score={profile.readinessScore} />
                   </div>
                 ))}
               </div>
@@ -1104,10 +1172,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`text-sm font-bold ${i === 0 ? 'text-amber-300' : i === 1 ? 'text-zinc-400' : 'text-amber-500'
-                        }`}>
-                        #{i + 1}
-                      </span>
+                      <RankDecal rank={i + 1} tone={i === 1 ? 'zinc' : 'amber'} />
                       <span className="text-sm text-white truncate max-w-[150px]">{lift.exerciseName}</span>
                     </div>
                     <span className="text-sm font-semibold text-emerald-300">
@@ -1128,7 +1193,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className={SECTION_TITLE_CLASS}>PLAN ADHERENCE</h2>
               {loadingAdherence && (
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
                   Syncing...
                 </span>
               )}
@@ -1229,13 +1294,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-amber-300' :
-                        i === 1 ? 'text-zinc-400' :
-                          i === 2 ? 'text-amber-500' :
-                            'text-zinc-500'
-                        }`}>
-                        {i + 1}
-                      </span>
+                      <RankDecal rank={i + 1} tone={i === 1 ? 'zinc' : 'amber'} />
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{lift.exerciseName}</div>
                         <div className="text-xs text-zinc-500">
@@ -1275,13 +1334,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className={`text-sm font-bold w-6 ${i === 0 ? 'text-emerald-300' :
-                        i === 1 ? 'text-emerald-400/70' :
-                          i === 2 ? 'text-emerald-500/70' :
-                            'text-zinc-500'
-                        }`}>
-                        {i + 1}
-                      </span>
+                      <RankDecal rank={i + 1} tone={i === 1 ? 'zinc' : 'emerald'} />
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{exercise.exerciseName}</div>
                         <div className="text-xs text-zinc-500">

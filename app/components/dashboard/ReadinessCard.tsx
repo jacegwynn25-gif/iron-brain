@@ -52,7 +52,7 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             <Activity className={`h-3 w-3 sm:h-4 sm:w-4 ${style.primary}`} />
                             <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Readiness</span>
                             {readiness?.hasRecoveryInput && (
-                                <span className="rounded-full border border-zinc-800 bg-zinc-900/70 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-400 sm:text-[9px]">
+                                <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:text-[9px]">
                                     {sourceLabel}
                                 </span>
                             )}
@@ -68,17 +68,17 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                         </div>
 
                         <div className="flex flex-wrap gap-2 pt-0.5 sm:gap-4 sm:pt-2">
-                            <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1.5">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5">
                                 <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">UP</span>
                                 <span className="text-[10px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.upper_body_modifier ?? 1) * 100)}%</span>
                             </div>
-                            <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1.5">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 sm:gap-2 sm:px-3 sm:py-1.5">
                                 <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500 sm:text-[10px]">LO</span>
                                 <span className="text-[10px] font-bold text-zinc-100 sm:text-xs">{Math.round((readiness?.focus_adjustments.lower_body_modifier ?? 1) * 100)}%</span>
                             </div>
                             <Link
                                 href="/checkin"
-                                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[10px]"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[10px]"
                             >
                                 <ClipboardCheck className="h-3 w-3" />
                                 Check-In

@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { RecoveryProfile } from '../lib/fatigue/cross-session';
 
 interface RecoveryOverviewProps {
@@ -8,19 +8,45 @@ interface RecoveryOverviewProps {
   loading?: boolean;
 }
 
-function getRecoveryColor(percentage: number): string {
-  if (percentage >= 90) return 'bg-green-500';
-  if (percentage >= 75) return 'bg-green-400';
-  if (percentage >= 50) return 'bg-yellow-500';
-  if (percentage >= 25) return 'bg-orange-500';
-  return 'bg-red-500';
+type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
+type ScaleItem = {
+  tone: Tone;
+  range: string;
+  label: string;
+};
+
+const toneTextClass: Record<Tone, string> = {
+  emerald: 'text-emerald-300',
+  amber: 'text-amber-300',
+  rose: 'text-rose-300',
+  zinc: 'text-zinc-400',
+};
+
+const toneBgClass: Record<Tone, string> = {
+  emerald: 'bg-emerald-400',
+  amber: 'bg-amber-400',
+  rose: 'bg-rose-400',
+  zinc: 'bg-zinc-500',
+};
+
+const READINESS_SCALE: ScaleItem[] = [
+  { tone: 'emerald', range: '8-10', label: 'Optimal' },
+  { tone: 'amber', range: '6-7', label: 'Manage' },
+  { tone: 'amber', range: '4-5', label: 'Reduced' },
+  { tone: 'rose', range: '<4', label: 'Rest' },
+];
+
+function getRecoveryTone(score: number): Tone {
+  if (score >= 8) return 'emerald';
+  if (score >= 6) return 'amber';
+  return 'rose';
 }
 
-function getReadinessColor(score: number): string {
-  if (score >= 8) return 'text-green-500';
-  if (score >= 6) return 'text-yellow-500';
-  if (score >= 4) return 'text-orange-500';
-  return 'text-red-500';
+function getRecoveryStatus(score: number): string {
+  if (score >= 8) return 'Ready';
+  if (score >= 6) return 'Manage Load';
+  if (score >= 4) return 'Reduced';
+  return 'Rest';
 }
 
 function formatTimeAgo(days: number): string {
@@ -33,14 +59,14 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
   if (loading) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Muscle Recovery</h2>
-          <span className="text-xs text-zinc-500">Loading...</span>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-black italic tracking-tight text-white">MUSCLE RECOVERY</h2>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Loading</span>
         </div>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 animate-pulse">
-            <div className="h-6 bg-white/10 rounded w-1/3 mb-2"></div>
-            <div className="h-4 bg-white/10 rounded w-full"></div>
+          <div key={i} className="animate-pulse rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4">
+            <div className="mb-3 h-5 w-1/3 rounded bg-zinc-800" />
+            <div className="h-3 w-full rounded bg-zinc-800" />
           </div>
         ))}
       </div>
@@ -49,88 +75,88 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
 
   if (profiles.length === 0) {
     return (
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
-        <div className="text-zinc-200 font-semibold mb-2">No recovery data yet</div>
-        <div className="text-sm text-zinc-400">
-          Complete a workout to start tracking muscle recovery
-        </div>
+      <div className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-8 text-center">
+        <div className="mb-2 text-xl font-black italic tracking-tight text-zinc-100">NO RECOVERY DATA</div>
+        <div className="text-sm text-zinc-500">Complete a workout to start tracking muscle recovery.</div>
       </div>
     );
   }
 
-  // Sort by readiness (worst first - needs attention)
   const sortedProfiles = [...profiles].sort((a, b) => a.readinessScore - b.readinessScore);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">Muscle Recovery</h2>
-        <div className="text-sm text-zinc-400">
-          {profiles.length} muscle{profiles.length !== 1 ? 's' : ''} tracked
+    <div className="space-y-4">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <h2 className="text-xl font-black italic tracking-tight text-white">MUSCLE RECOVERY</h2>
+        <div className="text-right">
+          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Tracked</p>
+          <p className="text-sm font-black italic text-zinc-300">
+            {profiles.length} muscle{profiles.length !== 1 ? 's' : ''}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {sortedProfiles.map((profile) => {
-          const recoveryColor = getRecoveryColor(profile.recoveryPercentage);
-          const readinessColor = getReadinessColor(profile.readinessScore);
-          const isFullyRecovered = profile.recoveryPercentage >= 95;
+          const tone = getRecoveryTone(profile.readinessScore);
+          const status = getRecoveryStatus(profile.readinessScore);
+          const needsLoadManagement = profile.readinessScore < 6;
 
           return (
             <div
               key={profile.muscleGroup}
-              className="bg-white/5 rounded-2xl p-4 border border-white/10 hover:border-white/20 transition-colors"
+              className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 transition-colors hover:border-zinc-800"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-medium capitalize">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Muscle Group</p>
+                  <h3 className="mt-1 text-lg font-black italic tracking-tight text-zinc-100 capitalize">
                     {profile.muscleGroup}
-                  </span>
-                  {isFullyRecovered && (
-                    <span className="text-xs text-emerald-200 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                      Ready
-                    </span>
-                  )}
+                  </h3>
                 </div>
-                <div className={`text-lg font-bold ${readinessColor}`}>
-                  {profile.readinessScore.toFixed(1)}/10
+                <div className="text-right">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Status</p>
+                  <p className={`mt-1 text-sm font-black italic uppercase tracking-tight ${toneTextClass[tone]}`}>
+                    {status}
+                  </p>
                 </div>
               </div>
 
-              {/* Recovery Bar */}
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-                  <span>Recovery</span>
-                  <span>{Math.round(profile.recoveryPercentage)}%</span>
+              <div className="mb-4 grid grid-cols-[1fr_auto] items-end gap-4">
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                    <span>Recovery</span>
+                    <span>{Math.round(profile.recoveryPercentage)}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-sm bg-zinc-800">
+                    <div
+                      className={`h-full ${toneBgClass[tone]} transition-all duration-500`}
+                      style={{ width: `${profile.recoveryPercentage}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${recoveryColor} transition-all duration-500`}
-                    style={{ width: `${profile.recoveryPercentage}%` }}
-                  />
+                <div className={`text-3xl font-black italic ${toneTextClass[tone]}`}>
+                  {profile.readinessScore.toFixed(1)}
                 </div>
               </div>
 
-              {/* Metadata */}
-              <div className="flex items-center justify-between text-xs text-zinc-400">
+              <div className="flex items-center justify-between text-xs text-zinc-500">
                 <span>{formatTimeAgo(profile.daysSinceLastTraining)}</span>
-                {!isFullyRecovered && (
+                {profile.recoveryPercentage < 95 && (
                   <span>
                     Full: {new Date(profile.estimatedFullRecoveryDate).toLocaleDateString('en-US', {
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
                     })}
                   </span>
                 )}
               </div>
 
-              {/* Warning for low readiness */}
-              {profile.readinessScore < 6 && (
-                <div className="mt-3 pt-3 border-t border-white/10">
+              {needsLoadManagement && (
+                <div className="mt-3 border-t border-zinc-900 pt-3">
                   <div className="flex items-center gap-2 text-xs text-amber-200">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="font-medium">Caution:</span> Consider lighter training or rest
+                    <Shield className="h-4 w-4" />
+                    <span>Use a lighter variant or train another area.</span>
                   </div>
                 </div>
               )}
@@ -139,26 +165,15 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
         })}
       </div>
 
-      {/* Legend */}
-      <div className="mt-6 p-4 bg-white/5 rounded-2xl border border-white/10">
-        <div className="text-sm font-medium text-zinc-200 mb-2">Readiness Scale</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span className="text-zinc-400">8-10: Optimal</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-            <span className="text-zinc-400">6-7: Good</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-500 rounded"></div>
-            <span className="text-zinc-400">4-5: Caution</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
-            <span className="text-zinc-400">&lt;4: Rest needed</span>
-          </div>
+      <div className="mt-6 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4">
+        <div className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">READINESS SCALE</div>
+        <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+          {READINESS_SCALE.map(({ tone, range, label }) => (
+            <div key={`${range}-${label}`} className="flex items-center gap-2">
+              <div className={`h-3 w-1.5 rounded-sm ${toneBgClass[tone]}`} />
+              <span className="text-zinc-400">{range}: {label}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
