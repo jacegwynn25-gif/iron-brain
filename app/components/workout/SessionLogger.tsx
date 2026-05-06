@@ -1,23 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Activity,
   ArrowLeft,
-  ArrowDown,
-  ArrowUp,
-  Dumbbell,
   FileText,
   History,
+  Info,
   Plus,
   Timer,
   Trash2,
   X,
 } from 'lucide-react';
 
-import type { LucideIcon } from 'lucide-react';
 import type { CustomExercise, DayTemplate, ProgramTemplate, SetLog, WeightUnit, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
@@ -58,6 +54,7 @@ import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
+type InfoPanel = 'set-unit' | 'rpe' | null;
 
 type ExerciseRef = {
   blockId: string;
@@ -212,10 +209,11 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: 
 }
 
 type ExerciseStyle = {
-  icon: LucideIcon;
   label: string;
   primaryColor: string;
   secondaryColor: string;
+  primaryGroup: MuscleGroup;
+  secondaryGroup: MuscleGroup;
   isCompound: boolean;
 };
 
@@ -249,7 +247,105 @@ const formatProjectedPrValue = (metric: PrMetric, value: number, unit: 'lbs' | '
   return `${formatted}${unit.toUpperCase()}`;
 };
 
-const ExerciseBadge = ({ icon: Icon, style }: { icon: LucideIcon; style: ExerciseStyle }) => {
+function MuscleGlyph({ group }: { group: MuscleGroup }) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  const glyphs: Record<MuscleGroup, ReactNode> = {
+    chest: (
+      <>
+        <path {...common} d="M5 15c1.5-6 5.2-8.2 7-3.2C13.8 6.8 17.5 9 19 15" />
+        <path {...common} d="M12 11.5V19" />
+      </>
+    ),
+    shoulders: (
+      <>
+        <path {...common} d="M4.5 15.5C6.4 8 10 5.8 12 9c2-3.2 5.6-1 7.5 6.5" />
+        <path {...common} d="M7.5 14.5h9" />
+      </>
+    ),
+    triceps: (
+      <>
+        <path {...common} d="M8 7c4.8.5 8 3.2 8 7.2 0 3.2-2.6 5-6.2 4.2" />
+        <path {...common} d="M14.5 8.5 19 6" />
+        <path {...common} d="M9 12.5h5.8" />
+      </>
+    ),
+    biceps: (
+      <>
+        <path {...common} d="M6.5 15c2-7 7.4-10.2 10.5-5.3" />
+        <path {...common} d="M8.2 15c2.4 3.7 7.6 3.7 10.2-.5" />
+        <path {...common} d="M6.5 15 4.8 18" />
+      </>
+    ),
+    back: (
+      <>
+        <path {...common} d="M4.5 8.5c3.7-.2 5.8 4.7 7.5 10.5 1.7-5.8 3.8-10.7 7.5-10.5" />
+        <path {...common} d="M12 5.5V19" />
+        <path {...common} d="m8.5 11 3.5 3.5 3.5-3.5" />
+      </>
+    ),
+    quads: (
+      <>
+        <path {...common} d="M7 5.5 5.5 18.5" />
+        <path {...common} d="M12 5v14" />
+        <path {...common} d="m17 5.5 1.5 13" />
+        <path {...common} d="M8.2 13h7.6" />
+      </>
+    ),
+    hamstrings: (
+      <>
+        <path {...common} d="M8.5 5.5C6.2 10 6.8 16 10.5 19" />
+        <path {...common} d="M15.5 5.5C17.8 10 17.2 16 13.5 19" />
+        <path {...common} d="M12 6.5v11" />
+      </>
+    ),
+    glutes: (
+      <>
+        <path {...common} d="M5 12c0-4 4.3-6.4 7-2.1 2.7-4.3 7-1.9 7 2.1 0 4.6-4.5 6.8-7 4.8C9.5 18.8 5 16.6 5 12Z" />
+        <path {...common} d="M12 10v8" />
+      </>
+    ),
+    calves: (
+      <>
+        <path {...common} d="M8.5 5.5c-.5 4.5 1.6 7.2-.8 13" />
+        <path {...common} d="M15.5 5.5c.5 4.5-1.6 7.2.8 13" />
+        <path {...common} d="M10 12.5h4" />
+      </>
+    ),
+    core: (
+      <>
+        <path {...common} d="M8 5.5h8" />
+        <path {...common} d="M8.5 9.8h7" />
+        <path {...common} d="M8.5 14.2h7" />
+        <path {...common} d="M8 18.5h8" />
+        <path {...common} d="M12 5.5v13" />
+      </>
+    ),
+    other: (
+      <>
+        <path {...common} d="M7 12h10" />
+        <path {...common} d="M5 9.5v5" />
+        <path {...common} d="M19 9.5v5" />
+        <path {...common} d="M3.5 10.5v3" />
+        <path {...common} d="M20.5 10.5v3" />
+      </>
+    ),
+  };
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5">
+      {glyphs[group] ?? glyphs.other}
+    </svg>
+  );
+}
+
+const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
   const ringStyle = style.isCompound
     ? { backgroundImage: `linear-gradient(135deg, ${style.primaryColor}, ${style.secondaryColor})` }
     : { backgroundColor: style.primaryColor };
@@ -258,27 +354,13 @@ const ExerciseBadge = ({ icon: Icon, style }: { icon: LucideIcon; style: Exercis
   return (
     <span className="inline-flex rounded-full p-[1px]" style={ringStyle}>
       <span
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950"
-        style={{ boxShadow: `0 0 10px ${glowColor}55` }}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950"
+        style={{ boxShadow: `0 0 12px ${glowColor}55`, color: style.primaryColor }}
       >
-        <Icon className="h-3.5 w-3.5" style={{ color: style.primaryColor }} />
+        <MuscleGlyph group={style.primaryGroup} />
       </span>
     </span>
   );
-};
-
-const MUSCLE_ICONS: Record<MuscleGroup, LucideIcon> = {
-  chest: ArrowUp,
-  shoulders: ArrowUp,
-  triceps: ArrowUp,
-  biceps: ArrowDown,
-  back: ArrowDown,
-  quads: Activity,
-  hamstrings: Activity,
-  glutes: Activity,
-  calves: Activity,
-  core: Activity,
-  other: Dumbbell,
 };
 
 const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: ResolveMuscleProfile): ExerciseStyle => {
@@ -289,10 +371,11 @@ const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: Reso
   const secondaryPalette = MUSCLE_COLORS[secondaryKey];
   const isCompound = secondaryKey !== primaryKey;
   return {
-    icon: MUSCLE_ICONS[primaryKey] ?? Dumbbell,
     label: MUSCLE_LABELS[primaryKey] ?? 'LIFT',
     primaryColor: primaryPalette.color,
     secondaryColor: secondaryPalette.color,
+    primaryGroup: primaryKey,
+    secondaryGroup: secondaryKey,
     isCompound,
   };
 };
@@ -662,6 +745,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
   const [activeInput, setActiveInput] = useState<{
     blockId: string;
     setId: string;
@@ -698,6 +782,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     clusterTotalRounds?: number;
   } | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement>(null);
+  const cockpitScrollRef = useRef<HTMLDivElement>(null);
   const overviewScrollPositionRef = useRef<number>(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const viewHistoryRef = useRef<ViewMode[]>(['overview']);
@@ -705,7 +790,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const saveInFlightRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen;
+  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen || infoPanel !== null;
   useBodyScrollLock(isAnyModalOpen);
 
   const calculateSessionStats = useCallback((blocks: Block[]) => {
@@ -1150,6 +1235,14 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setKeypadValue('');
     setKeypadArmed(false);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== 'cockpit') return;
+    requestAnimationFrame(() => {
+      cockpitScrollRef.current?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    });
+  }, [focusedExerciseId, viewMode]);
 
   useEffect(() => {
     if (!isAddMovementOpen) return;
@@ -2018,10 +2111,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   <button
                     type="button"
                     onClick={handleCancelWorkout}
-                    className="group flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400 transition-all hover:border-rose-500/40 hover:bg-rose-500/10 active:scale-95"
+                    className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/25 bg-zinc-950/80 px-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 active:bg-rose-500/15"
                   >
                     <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
-                    <span>Discard</span>
+                    <span>Discard Session</span>
                   </button>
                   <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3.5 py-2">
                     <Timer className="h-4 w-4 text-emerald-400" />
@@ -2048,7 +2141,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               >
                 {exerciseRefs.map((entry) => {
                   const style = getExerciseStyle(entry.exercise, resolveMuscleProfile);
-                  const StyleIcon = style.icon;
                   const isRevealed = revealedId === entry.exercise.id;
                   const displayName = getExerciseDisplayName(entry.exercise);
                   const bodyweightExercise = isBodyweight(displayName);
@@ -2104,7 +2196,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                           <div className="flex flex-col gap-3 p-1">
                             <div>
                               <div className="mb-1 flex items-center gap-2">
-                                <ExerciseBadge icon={StyleIcon} style={style} />
+                                <ExerciseBadge style={style} />
                                 <span
                                   className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
                                     }`}
@@ -2226,32 +2318,33 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
               className="flex-1 w-full flex flex-col overflow-y-auto relative select-none pb-32"
+              ref={cockpitScrollRef}
             >
-              <header className="mb-6 flex items-center justify-between gap-4 px-4">
-                <div className="flex items-center gap-4">
+              <header className="mb-6 px-4">
+                <div className="flex min-w-0 items-start gap-3">
                   <button
                     type="button"
                     onClick={() => {
                       setViewMode('overview');
                       setFocusedExerciseId(null);
+                      setInfoPanel(null);
                       requestAnimationFrame(() => {
                         overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
                       });
                     }}
-                    className="inline-flex items-center text-zinc-400 transition-all hover:text-white active:opacity-60"
+                    className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white active:bg-zinc-900"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     <span className="sr-only">Back</span>
                   </button>
 
-                  <div>
+                  <div className="min-w-0 flex-1">
 
                     {focusedRef && (() => {
                       const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
-                      const StyleIcon = style.icon;
                       return (
                         <div className="mb-1 flex items-center gap-2">
-                          <ExerciseBadge icon={StyleIcon} style={style} />
+                          <ExerciseBadge style={style} />
                           <span
                             className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
                               }`}
@@ -2273,19 +2366,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         </div>
                       );
                     })()}
-                    <h2 className="text-4xl font-black text-white">{focusedExerciseDisplayName ?? 'Exercise'}</h2>
+                    <h2 className="truncate text-3xl font-black italic leading-none tracking-tight text-white sm:text-4xl">
+                      {focusedExerciseDisplayName ?? 'Exercise'}
+                    </h2>
                   </div>
                 </div>
-
-
-                <button
-                  type="button"
-                  onClick={handleCancelWorkout}
-                  className="group flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400 transition-all hover:border-rose-500/40 hover:bg-rose-500/10 active:scale-95"
-                >
-                  <X className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:rotate-90 transition-all font-black" />
-                  <span>Discard</span>
-                </button>
               </header>
 
 
@@ -2341,23 +2426,31 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   </div>
 
                   {!bodyweightExercise && (
-                    <div className="flex items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950/70 px-3 py-2">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Unit</p>
-                        <p className="mt-0.5 text-xs text-zinc-400">Stored with this set, not auto-swapped later.</p>
+                    <div className="flex items-center justify-between gap-3 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/70 px-3 py-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Set Unit</p>
+                        <button
+                          type="button"
+                          onClick={() => setInfoPanel('set-unit')}
+                          aria-label="What does set unit mean?"
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-zinc-500 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <div className="grid grid-cols-2 rounded-full border border-zinc-800 bg-zinc-900/70 p-1">
+                      <div className="grid shrink-0 grid-cols-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-1">
                         {(['lbs', 'kg'] as WeightUnit[]).map((unit) => (
                           <button
                             key={unit}
                             type="button"
+                            aria-label={unit}
                             onClick={() => handleSetUnitChange(unit)}
-                            className={`rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${currentSetWeightUnit === unit
-                              ? 'bg-emerald-400 text-zinc-950'
+                            className={`min-h-9 min-w-14 rounded-lg px-3 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${currentSetWeightUnit === unit
+                              ? 'bg-emerald-400 text-zinc-950 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.9)]'
                               : 'text-zinc-500 hover:text-zinc-200'
                               }`}
                           >
-                            {unit}
+                            {unit.toUpperCase()}
                           </button>
                         ))}
                       </div>
@@ -2387,14 +2480,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-zinc-100 text-sm font-bold">RPE {rpeValue?.toFixed(1) ?? '--'}</p>
-                      <p className="text-zinc-400 text-sm">RIR {rpeValue == null ? '--' : Math.max(0, Math.round((10 - rpeValue) * 10) / 10)}</p>
-                    </div>
-                    <div>
-                      <RpeSlider value={rpeValue} onChange={handleRpeChange} />
-                    </div>
+                  <div>
+                    <RpeSlider
+                      value={rpeValue}
+                      onChange={handleRpeChange}
+                      onInfoClick={() => setInfoPanel('rpe')}
+                    />
                   </div>
                 </div>
               </div>
@@ -2495,6 +2586,83 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {infoPanel && (
+          <motion.div
+            key="cockpit-info"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[140] flex items-end justify-center bg-zinc-950/70 p-4 backdrop-blur-md sm:items-center"
+            data-swipe-ignore="true"
+            onClick={() => setInfoPanel(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-900 p-5">
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-500/80">
+                    {infoPanel === 'set-unit' ? 'Set Unit' : 'Effort Scale'}
+                  </p>
+                  <h3 className="mt-1 text-2xl font-black italic tracking-tight text-zinc-100">
+                    {infoPanel === 'set-unit' ? 'UNIT LOCK' : 'RPE / RIR'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInfoPanel(null)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                  aria-label="Close info"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-4 p-5">
+                {infoPanel === 'set-unit' ? (
+                  <>
+                    <p className="text-sm leading-6 text-zinc-300">
+                      Choose the unit for the set you are logging right now. Iron Brain saves that set exactly as entered, so old sets keep their original unit even if your display preference changes later.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">LBS</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">Use for pound-based loads.</p>
+                      </div>
+                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">KG</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">Use for kilogram-based loads.</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm leading-6 text-zinc-300">
+                      RPE means rate of perceived exertion. Use it to record how hard the set felt on a 1-10 scale after the set is done.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RPE</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">Higher means closer to max effort.</p>
+                      </div>
+                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RIR</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-400">Estimated reps left in reserve.</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isHistoryOpen && focusedRef && (
@@ -2761,7 +2929,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
                   {filteredExercises.map((exercise) => {
                     const style = getExerciseStyle(exercise, resolveMuscleProfile);
-                    const StyleIcon = style.icon;
                     return (
                       <button
                         key={exercise.id}
@@ -2774,7 +2941,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         className="w-full py-4 border-b border-zinc-900 text-left"
                       >
                         <div className="flex items-center gap-3 mb-1">
-                          <ExerciseBadge icon={StyleIcon} style={style} />
+                          <ExerciseBadge style={style} />
                           <span
                             className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
                               }`}
@@ -2933,11 +3100,14 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.25em] text-zinc-500">
                       {legendItems.map((item) => (
                         <div key={item.key} className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full"
+                          <ExerciseBadge
                             style={{
-                              backgroundColor: MUSCLE_COLORS[item.key].color,
-                              boxShadow: `0 0 8px ${MUSCLE_COLORS[item.key].glow}`,
+                              label: MUSCLE_LABELS[item.key],
+                              primaryColor: MUSCLE_COLORS[item.key].color,
+                              secondaryColor: MUSCLE_COLORS[item.key].color,
+                              primaryGroup: item.key,
+                              secondaryGroup: item.key,
+                              isCompound: false,
                             }}
                           />
                           <span>{item.label}</span>

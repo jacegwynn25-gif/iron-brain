@@ -1,11 +1,20 @@
 'use client';
 
+import { Info } from 'lucide-react';
+
 interface RpeSliderProps {
   value: number | null;
   onChange: (value: number) => void;
+  onInfoClick?: () => void;
 }
 
-export default function RpeSlider({ value, onChange }: RpeSliderProps) {
+const formatRpeValue = (nextValue: number | null) => (nextValue == null ? '--' : nextValue.toFixed(1));
+const formatRirValue = (nextValue: number | null) => {
+  if (nextValue == null) return '--';
+  return Math.max(0, Math.round((10 - nextValue) * 10) / 10).toFixed(1);
+};
+
+export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderProps) {
   const sliderValue = value ?? 7;
   const isEmpty = value == null;
   const percent = ((sliderValue - 1) / 9) * 100;
@@ -15,12 +24,29 @@ export default function RpeSlider({ value, onChange }: RpeSliderProps) {
     <div className="space-y-4">
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Intensity</p>
-          <p className="mt-1 text-3xl font-black text-zinc-100">{isEmpty ? '--' : sliderValue.toFixed(1)}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">RPE</p>
+            {onInfoClick && (
+              <button
+                type="button"
+                onClick={onInfoClick}
+                aria-label="What is RPE?"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-zinc-500 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+              >
+                <Info className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-zinc-100">
+            {formatRpeValue(value)}
+          </p>
         </div>
-        <p className="rounded-full border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-          RPE
-        </p>
+        <div className="text-right">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">RIR</p>
+          <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-zinc-100">
+            {formatRirValue(value)}
+          </p>
+        </div>
       </div>
 
       <div className="relative flex h-11 items-center">
