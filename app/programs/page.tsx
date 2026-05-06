@@ -2205,9 +2205,7 @@ export default function ProgramsPage() {
         <header className="stagger-item px-1">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-0.5 sm:space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Builder</p>
               <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">PROGRAMS</h1>
-              <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Manage your training templates.</p>
             </div>
             {workspaceView === 'builder' && (
               <button

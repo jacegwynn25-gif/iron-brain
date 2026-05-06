@@ -213,7 +213,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Pro Upgrade CTA */}
+      {/* Optional Support CTA */}
       {!isPro && (
         <section className="stagger-item mx-1">
           <Link
@@ -225,12 +225,18 @@ export default function Dashboard() {
                 <Sparkles className="h-4 w-4 text-zinc-950" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-black italic tracking-tight">IRON PRO</h3>
-                <p className="truncate text-xs font-medium text-zinc-900/70">Lifetime access.</p>
+                <h3 className="text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</h3>
+                <p className="line-clamp-2 text-xs font-medium leading-snug text-zinc-900/70">
+                  Iron Brain is free while I keep improving it. Optional support helps cover hosting and future development.
+                </p>
+                <p className="mt-0.5 hidden text-[10px] font-semibold text-zinc-900/60 sm:block">
+                  Completely optional. The tracker stays free to use.
+                </p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-950">
-              View plans
+              <span className="hidden sm:inline">Support Iron Brain</span>
+              <span className="sm:hidden">Support</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </div>
           </Link>

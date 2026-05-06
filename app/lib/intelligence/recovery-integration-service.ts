@@ -60,7 +60,7 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
   }
 
   if (usesOuraReadiness) {
-    systemicReasons.push("Oura readiness score");
+    systemicReasons.push("Recovery readiness score");
   } else if (context.subjective_readiness != null) {
     const subjectiveScore = Math.round(context.subjective_readiness * 10);
     systemicScore = Math.round((systemicScore + subjectiveScore) / 2);

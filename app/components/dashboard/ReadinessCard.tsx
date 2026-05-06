@@ -12,7 +12,7 @@ interface ReadinessCardProps {
 
 export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
     const score = readiness?.score ?? 0;
-    const sourceLabel = readiness?.source === 'oura' ? 'Oura' : 'Manual';
+    const sourceLabel = readiness?.source === 'manual' ? 'Manual' : 'Recovery Input';
 
     // Define color mapping
     const getReadinessColor = (s: number) => {

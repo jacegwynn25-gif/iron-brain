@@ -280,9 +280,7 @@ export default function HistoryPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item flex items-start justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Archive</p>
           <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">WORKOUT HISTORY</h1>
-          <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Every session, all in one place.</p>
         </div>
         <button
           onClick={() => router.push('/start')}

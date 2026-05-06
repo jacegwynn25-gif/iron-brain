@@ -26,7 +26,7 @@ export default function SuccessPage() {
       attempts++;
       if (!user?.id || attempts > maxAttempts) {
         clearInterval(interval);
-        setStatus('success'); // Assume success — webhook handles the actual upgrade
+        setStatus('success'); // Assume success; webhook handles the profile update.
         return;
       }
 
@@ -59,7 +59,7 @@ export default function SuccessPage() {
       {status === 'verifying' && (
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
-          <h1 className="text-2xl font-black italic text-zinc-100">Confirming Purchase...</h1>
+          <h1 className="text-2xl font-black italic text-zinc-100">Confirming Support...</h1>
           <p className="text-sm text-zinc-500">Please wait while we verify your payment.</p>
         </div>
       )}
@@ -70,9 +70,9 @@ export default function SuccessPage() {
             <CheckCircle className="h-10 w-10 text-emerald-400" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-black italic text-zinc-100">WELCOME TO IRON PRO</h1>
+            <h1 className="text-3xl font-black italic text-zinc-100">THANK YOU FOR SUPPORTING IRON BRAIN</h1>
             <p className="text-sm text-zinc-400">
-              Your payment was successful and your account has been upgraded.
+              Your optional support helps cover hosting and future development. The tracker stays free to use.
             </p>
           </div>
           <button

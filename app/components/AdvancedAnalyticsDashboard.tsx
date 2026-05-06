@@ -988,7 +988,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
             <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">INSIGHTS</h1>
-            <p className="mt-1 text-xs text-zinc-500">Training load, recovery, and strength trends.</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (

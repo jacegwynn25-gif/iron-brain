@@ -242,8 +242,10 @@ export default function ProfilePage() {
                 <Sparkles className="h-4 w-4 text-zinc-950" />
               </div>
               <div className="min-w-0">
-                <span className="text-base font-black italic tracking-tight">IRON PRO</span>
-                <p className="truncate text-xs font-medium text-zinc-900/70">Lifetime access.</p>
+                <span className="text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</span>
+                <p className="line-clamp-2 text-xs font-medium leading-snug text-zinc-900/70">
+                  Completely optional. The tracker stays free to use.
+                </p>
               </div>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-zinc-950 transition-transform group-hover:translate-x-0.5" />

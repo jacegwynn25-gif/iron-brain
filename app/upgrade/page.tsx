@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Check,
-  Crown,
+  HeartHandshake,
   Loader2,
   Zap,
 } from 'lucide-react';
@@ -14,17 +14,17 @@ import { useAuth } from '@/app/lib/supabase/auth-context';
 export default function UpgradePage() {
   const router = useRouter();
   const { user, session, isPro } = useAuth();
-  const [loadingTier, setLoadingTier] = useState<'lifetime' | 'monthly' | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCheckout = async (tier: 'lifetime' | 'monthly') => {
+  const handleSupportCheckout = async () => {
     setError(null);
     if (!user || !session?.access_token) {
       router.push(`/login?returnTo=${encodeURIComponent('/upgrade')}`);
       return;
     }
 
-    setLoadingTier(tier);
+    setLoading(true);
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -32,15 +32,15 @@ export default function UpgradePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier: 'lifetime' }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.redirectToMonthly && tier === 'lifetime') {
-          setError('Lifetime slots are sold out. Monthly subscription is still available.');
-          setLoadingTier(null);
+        if (data.redirectToMonthly) {
+          setError('One-time support is not available right now.');
+          setLoading(false);
           return;
         }
         throw new Error(data.error || 'Checkout failed');
@@ -53,7 +53,7 @@ export default function UpgradePage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
-      setLoadingTier(null);
+      setLoading(false);
     }
   };
 
@@ -61,12 +61,12 @@ export default function UpgradePage() {
     return (
       <div className="mx-auto w-full max-w-lg space-y-8 pb-12 pt-12 text-center sm:pt-20">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
-          <Crown className="h-8 w-8 text-emerald-300" />
+          <HeartHandshake className="h-8 w-8 text-emerald-300" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100">IRON PRO ACTIVE</h1>
+          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100">THANK YOU</h1>
           <p className="text-sm text-zinc-400">
-            You have full access to all Iron Brain features.
+            Your optional support helps cover hosting and future development.
           </p>
         </div>
         <button
@@ -80,23 +80,20 @@ export default function UpgradePage() {
     );
   }
 
-  const features = [
-    'Pre-workout readiness scores',
-    'Muscle recovery tracking',
-    'Advanced analytics & trends',
-    'Injury risk warnings',
-    'Set recommendations',
-    'Priority support',
+  const supportNotes = [
+    'The workout tracker stays free to use.',
+    'Support helps cover hosting and future development.',
+    'Secure checkout is handled by Stripe.',
   ];
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 pb-12 pt-4 sm:space-y-10 sm:pt-10">
+    <div className="mx-auto w-full max-w-3xl space-y-8 pb-12 pt-4 sm:space-y-10 sm:pt-10">
       <header className="stagger-item px-1 text-center">
         <h1 className="text-4xl font-black italic tracking-tight text-zinc-100 sm:text-5xl">
-          IRON PRO
+          SUPPORT IRON BRAIN
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
-          Readiness, recovery, and deeper training trends when you want more context.
+          Iron Brain is free while I keep improving it. If it helps your training, optional support helps cover hosting and future development.
         </p>
       </header>
 
@@ -106,87 +103,45 @@ export default function UpgradePage() {
         </div>
       )}
 
-      <section className="grid gap-4 px-1 sm:grid-cols-2 sm:gap-6">
-        {/* Founding Member */}
+      <section className="px-1">
         <div className="rounded-[1.5rem] border border-amber-300/70 bg-amber-400 p-6 text-zinc-950 shadow-[0_26px_70px_-36px_rgba(251,191,36,1)] sm:p-8">
           <div className="relative flex flex-col gap-6">
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-zinc-950" />
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950/80">
-                Limited Offer
+                Optional Support
               </span>
             </div>
             <div>
-              <h2 className="text-3xl font-black italic tracking-tight">FOUNDING MEMBER</h2>
-              <p className="mt-1 text-sm font-medium text-zinc-900/70">One-time payment. Lifetime access.</p>
+              <h2 className="text-3xl font-black italic tracking-tight">SUPPORT IRON BRAIN</h2>
+              <p className="mt-1 text-sm font-medium text-zinc-900/70">
+                Completely optional. No features are locked behind this.
+              </p>
             </div>
             <div className="flex items-baseline gap-1">
               <span className="text-5xl font-black tracking-tight">$149</span>
-              <span className="text-sm font-semibold text-zinc-900/65">one-time</span>
+              <span className="text-sm font-semibold text-zinc-900/65">optional one-time support</span>
             </div>
             <ul className="space-y-2.5">
-              {features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm font-medium text-zinc-950/85">
+              {supportNotes.map((note) => (
+                <li key={note} className="flex items-center gap-2 text-sm font-medium text-zinc-950/85">
                   <Check className="h-4 w-4 text-zinc-950" />
-                  {f}
+                  {note}
                 </li>
               ))}
             </ul>
             <button
               type="button"
-              onClick={() => handleCheckout('lifetime')}
-              disabled={loadingTier !== null}
+              onClick={handleSupportCheckout}
+              disabled={loading}
               className="group mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 py-3.5 text-sm font-black italic tracking-tight text-amber-300 transition-colors hover:bg-zinc-900 active:bg-black disabled:opacity-60"
             >
-              {loadingTier === 'lifetime' ? (
+              {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  Become a Founding Member
+                  Support Iron Brain
                   <ArrowRight className="h-4 w-4 text-amber-300/70 transition-transform group-hover:translate-x-1" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Monthly */}
-        <div className="rounded-[1.5rem] border border-zinc-800 bg-zinc-950/70 p-6 sm:p-8">
-          <div className="relative flex flex-col gap-6">
-            <div className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-zinc-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                Monthly
-              </span>
-            </div>
-            <div>
-              <h2 className="text-3xl font-black italic tracking-tight text-zinc-100">PRO MONTHLY</h2>
-              <p className="mt-1 text-sm text-zinc-500">Flexible. Cancel anytime.</p>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-white">$12.99</span>
-              <span className="text-sm text-zinc-500">/month</span>
-            </div>
-            <ul className="space-y-2.5">
-              {features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm text-zinc-300">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              onClick={() => handleCheckout('monthly')}
-              disabled={loadingTier !== null}
-              className="group mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3.5 text-sm font-black italic tracking-tight text-zinc-100 transition-colors hover:bg-zinc-800 active:bg-zinc-950 disabled:opacity-60"
-            >
-              {loadingTier === 'monthly' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  Subscribe Monthly
-                  <ArrowRight className="h-4 w-4 text-zinc-500 transition-transform group-hover:translate-x-1" />
                 </>
               )}
             </button>
@@ -196,7 +151,7 @@ export default function UpgradePage() {
 
       <footer className="px-1 text-center">
         <p className="text-xs text-zinc-600">
-          Secure payment via Stripe. No hidden fees. Cancel monthly anytime.
+          Secure payment via Stripe. Completely optional. The tracker stays free to use.
         </p>
       </footer>
     </div>

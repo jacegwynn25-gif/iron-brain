@@ -14,8 +14,7 @@ export default function CancelPage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-black italic text-zinc-100">CHECKOUT CANCELLED</h1>
         <p className="text-sm text-zinc-400">
-          No worries — your card was not charged. You can upgrade to Iron Pro anytime from your
-          profile.
+          No worries. Your card was not charged. Optional support is always available from the dashboard.
         </p>
       </div>
       <div className="flex flex-col items-center gap-3">
@@ -24,7 +23,7 @@ export default function CancelPage() {
           className="group inline-flex items-center gap-2 rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 px-8 py-4 text-sm font-black italic text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           <ArrowLeft className="h-4 w-4 text-white/60 transition-transform group-hover:-translate-x-1" />
-          BACK TO UPGRADE
+          BACK TO SUPPORT
         </button>
         <button
           onClick={() => router.push('/')}
