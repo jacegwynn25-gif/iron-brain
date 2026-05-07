@@ -69,7 +69,7 @@ export default function WorkoutMiniBar() {
         <button
             type="button"
             onClick={() => router.push('/workout/new')}
-            className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.85rem)] z-[69] mx-auto flex w-full max-w-2xl items-center justify-between gap-3 border-t border-emerald-500/20 bg-emerald-500/[0.08] px-4 py-2.5 backdrop-blur-xl transition-colors hover:bg-emerald-500/[0.14] active:bg-emerald-500/20"
+            className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.95rem)] z-[69] mx-auto flex max-w-2xl items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-zinc-950/95 px-4 py-2.5 shadow-[0_18px_50px_-30px_rgba(52,211,153,0.95)] backdrop-blur-xl transition-colors hover:bg-zinc-900/95 active:bg-zinc-900"
         >
             <div className="flex items-center gap-2.5 overflow-hidden">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">

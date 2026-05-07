@@ -22,7 +22,7 @@ async function checkSubscriptionTables() {
 
     if (settingsError) {
       console.log('❌ app_settings table not found or migration not applied');
-      console.log('   Run migration: 003_subscription_system.sql\\n');
+      console.log('   Run migration: 004_subscription_system.sql\\n');
       console.log('Error:', settingsError.message);
       return false;
     }

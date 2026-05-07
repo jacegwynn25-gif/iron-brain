@@ -97,7 +97,7 @@ async function main() {
     console.log('⚠️  Migration 016 has NOT been applied yet.\n');
     console.log('📋 REQUIRED: Run migration via Supabase Dashboard:\n');
     console.log(`1. Go to: https://supabase.com/dashboard/project/${projectRef}/sql/new`);
-    console.log('2. Copy contents of: supabase/migrations/016_recovery_system.sql');
+    console.log('2. Copy contents of: supabase/migrations/019_recovery_system.sql');
     console.log('3. Paste and click "Run"\n');
     console.log('✅ The migration file has been FIXED (timestamp error resolved)');
     console.log('   It should run successfully now!\n');

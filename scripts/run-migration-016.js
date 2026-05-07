@@ -26,7 +26,7 @@ async function runMigration() {
   console.log('='.repeat(60));
 
   // Read migration file
-  const migrationPath = path.join(__dirname, '../supabase/migrations/016_recovery_system.sql');
+  const migrationPath = path.join(__dirname, '../supabase/migrations/019_recovery_system.sql');
 
   if (!fs.existsSync(migrationPath)) {
     console.error(`❌ Migration file not found: ${migrationPath}`);
@@ -47,7 +47,7 @@ async function runMigration() {
       console.error('❌ Migration failed:', error.message);
       console.error('\n⚠️  Note: You may need to run this migration via Supabase Studio SQL Editor');
       console.error('   URL: https://supabase.com/dashboard/project/YOUR_PROJECT/sql');
-      console.error('\n   Copy the SQL from: supabase/migrations/016_recovery_system.sql');
+      console.error('\n   Copy the SQL from: supabase/migrations/019_recovery_system.sql');
       process.exit(1);
     }
 

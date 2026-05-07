@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const migrationPath = path.join(__dirname, '../supabase/migrations/016_recovery_system.sql');
+const migrationPath = path.join(__dirname, '../supabase/migrations/019_recovery_system.sql');
 
 if (!fs.existsSync(migrationPath)) {
   console.error(`❌ Migration file not found: ${migrationPath}`);

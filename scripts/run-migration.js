@@ -10,7 +10,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
 async function runMigration() {
-  const migrationPath = path.join(__dirname, '..', 'supabase', 'migrations', '016_recovery_system.sql');
+  const migrationPath = path.join(__dirname, '..', 'supabase', 'migrations', '019_recovery_system.sql');
 
   console.log('📂 Reading migration file...');
   const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
@@ -58,7 +58,7 @@ async function runMigration() {
       console.log('\n⚠️  The SQL migration is too complex for REST API execution.');
       console.log('📋 Please run the migration manually via Supabase Dashboard:\n');
       console.log('1. Go to https://supabase.com/dashboard/project/' + projectRef + '/sql/new');
-      console.log('2. Copy the contents of: supabase/migrations/016_recovery_system.sql');
+      console.log('2. Copy the contents of: supabase/migrations/019_recovery_system.sql');
       console.log('3. Paste and click "Run"');
       console.log('\n✅ The migration file has been fixed and is ready to run!');
       process.exit(1);
@@ -72,7 +72,7 @@ async function runMigration() {
     console.error('❌ Error executing migration:', error.message);
     console.log('\n📋 Manual migration required via Supabase Dashboard:');
     console.log('1. Go to https://supabase.com/dashboard/project/' + projectRef + '/sql/new');
-    console.log('2. Copy the contents of: supabase/migrations/016_recovery_system.sql');
+    console.log('2. Copy the contents of: supabase/migrations/019_recovery_system.sql');
     console.log('3. Paste and click "Run"');
     console.log('\n✅ The migration file has been FIXED and is ready to run!');
     console.log('   (Previous timestamp error has been resolved)');

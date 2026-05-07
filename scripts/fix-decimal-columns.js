@@ -26,7 +26,7 @@ async function runMigration() {
   try {
     console.log('\n📝 Reading migration SQL...\n');
 
-    const migrationPath = path.join(__dirname, '../supabase/migrations/019_fix_decimal_columns.sql');
+    const migrationPath = path.join(__dirname, '../supabase/migrations/023_fix_decimal_columns.sql');
     const sql = fs.readFileSync(migrationPath, 'utf8');
 
     console.log(sql);

@@ -1,5 +1,5 @@
--- Migration 003: Subscription System for Iron Pro
--- Adds subscription tiers, Stripe integration, and lifetime slots tracking
+-- Migration 004: Legacy Stripe support fields
+-- Adds billing metadata and event audit storage.
 
 -- Add subscription fields to user_profiles
 ALTER TABLE user_profiles

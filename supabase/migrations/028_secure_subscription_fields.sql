@@ -1,4 +1,4 @@
--- Migration 024: Secure subscription fields against user self-escalation
+-- Migration 028: Secure subscription fields against user self-escalation
 -- Users must not be able to modify their own is_pro, subscription_tier, etc.
 
 -- Prevent subscription field changes on UPDATE

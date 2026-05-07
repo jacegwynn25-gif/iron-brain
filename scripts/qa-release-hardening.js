@@ -78,20 +78,29 @@ function activeSessionSnapshot(overrides = {}) {
 }
 
 async function newPage(browser, initScript) {
-  const page = await browser.newPage({
+  const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
   });
-  await page.addInitScript((script) => {
-    localStorage.clear();
-    localStorage.setItem('iron_brain_onboarding_complete', 'true');
-    localStorage.setItem('iron_brain_coach_marks_complete', 'true');
+  await context.addInitScript((script) => {
+    if (!sessionStorage.getItem('iron_brain_qa_bootstrapped')) {
+      localStorage.clear();
+      localStorage.setItem('iron_brain_onboarding_complete', 'true');
+      localStorage.setItem('iron_brain_coach_marks_complete', 'true');
+      sessionStorage.setItem('iron_brain_qa_bootstrapped', 'true');
+    }
     if (script) {
       // eslint-disable-next-line no-eval
       eval(script);
     }
   }, initScript || '');
+  const page = await context.newPage();
+  const closePage = page.close.bind(page);
+  page.close = async (...args) => {
+    await closePage(...args).catch(() => {});
+    await context.close().catch(() => {});
+  };
   return page;
 }
 
@@ -181,6 +190,7 @@ async function checkMiniBarLayout(browser) {
   );
 
   await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
   await page.getByText('Resume Hardening').waitFor({ state: 'visible', timeout: 15000 });
 
   const boxes = await page.evaluate(() => {
@@ -193,9 +203,28 @@ async function checkMiniBarLayout(browser) {
 
   if (!boxes) throw new Error('Could not measure active workout mini bar');
   if (boxes.gap < 6) throw new Error(`Active workout mini bar crowds bottom nav: ${boxes.gap}px gap`);
+  if (boxes.gap > 14) throw new Error(`Active workout mini bar floats too far above bottom nav: ${boxes.gap}px gap`);
 
   await page.close();
   console.log(`✅ active workout mini bar sits above bottom nav (${Math.round(boxes.gap)}px gap)`);
+}
+
+async function checkWorkoutExitKeepsResume(browser) {
+  const page = await newPage(browser);
+  await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Review Finish/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForFunction(() =>
+    Object.keys(localStorage).some((key) =>
+      key.includes('iron_brain_active_session_v1') &&
+      localStorage.getItem(key)?.includes('"status":"active"')
+    ),
+    null,
+    { timeout: 15000 }
+  );
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await page.close();
+  console.log('✅ exiting an active workout keeps dashboard resume CTA visible');
 }
 
 async function checkWorkoutRouteChrome(browser) {
@@ -278,6 +307,7 @@ async function checkBottomNavTapTargets(browser) {
   try {
     await checkCorruptedActiveSession(browser);
     await checkResumeDataIntegrity(browser);
+    await checkWorkoutExitKeepsResume(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkSettingsPolish(browser);

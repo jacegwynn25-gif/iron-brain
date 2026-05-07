@@ -121,6 +121,6 @@ const sql = generateProgramSeedSQL();
 console.log(sql);
 
 // Also save to file
-const outputPath = path.join(__dirname, '../supabase/migrations/007_seed_program_templates.sql');
+const outputPath = path.join(__dirname, '../supabase/migrations/010_seed_program_templates.sql');
 fs.writeFileSync(outputPath, sql);
 console.error(`\n✅ SQL migration generated at: ${outputPath}`);

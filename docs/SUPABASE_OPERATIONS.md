@@ -38,8 +38,15 @@ The narrow, idempotent command is:
 npm run supabase:apply:prescribed-weight
 ```
 
-It applies only `supabase/migrations/026_add_prescribed_weight_to_set_logs.sql`.
+It applies only `supabase/migrations/030_add_prescribed_weight_to_set_logs.sql`.
 
-## Migration history warning
+## Migration history
 
-Do not run `supabase db push` against production until migration history is repaired. The remote project currently has app tables but no populated `supabase_migrations.schema_migrations` history, and this repo has older numeric migration filenames with duplicate prefixes. A full push dry run attempts to replay the whole migration set.
+Production migration history is repaired and aligned with the local `001` through `030` migration sequence. Before pushing new backend changes, run:
+
+```bash
+npm run supabase:migrations
+npx supabase db push --dry-run
+```
+
+The dry run should report `Remote database is up to date` when there are no pending migrations.

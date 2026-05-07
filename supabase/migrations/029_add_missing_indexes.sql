@@ -1,4 +1,4 @@
--- Migration 025: Add missing indexes for performance
+-- Migration 029: Add missing indexes for performance
 
 -- Custom programs: filter by user + order by updated_at (program sync)
 CREATE INDEX IF NOT EXISTS idx_custom_programs_user_updated

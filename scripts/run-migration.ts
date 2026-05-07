@@ -18,7 +18,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1);
 }
 
-const migrationFile = process.argv[2] || '007_seed_program_templates.sql';
+const migrationFile = process.argv[2] || '010_seed_program_templates.sql';
 const migrationPath = join(__dirname, '../supabase/migrations', migrationFile);
 
 console.log(`🔄 Running migration: ${migrationFile}`);

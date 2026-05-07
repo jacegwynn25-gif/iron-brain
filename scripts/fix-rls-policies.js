@@ -88,7 +88,7 @@ async function fixRLS() {
       console.log('\n   You may need to run the SQL manually in Supabase Studio:');
       console.log('   https://supabase.com/dashboard/project/YOUR_PROJECT/sql\n');
       const migrationSQL = fs.readFileSync(
-        path.join(__dirname, '../supabase/migrations/017_fix_fatigue_events_rls.sql'),
+        path.join(__dirname, '../supabase/migrations/020_fix_fatigue_events_rls.sql'),
         'utf8'
       );
       console.log(migrationSQL);
@@ -103,7 +103,7 @@ async function fixRLS() {
     console.error('\n❌ Error:', error.message);
     console.log('\n📋 Manual fix: Run this SQL in Supabase Studio SQL Editor:\n');
     const migrationSQL = fs.readFileSync(
-      path.join(__dirname, '../supabase/migrations/017_fix_fatigue_events_rls.sql'),
+      path.join(__dirname, '../supabase/migrations/020_fix_fatigue_events_rls.sql'),
       'utf8'
     );
     console.log(migrationSQL);

@@ -20,7 +20,7 @@ function main() {
     process.cwd(),
     'supabase',
     'migrations',
-    '010_statistical_model_cache.sql'
+    '013_statistical_model_cache.sql'
   );
 
   if (!fs.existsSync(migrationPath)) {
@@ -33,7 +33,7 @@ function main() {
   const lineCount = sql.split('\n').length;
 
   console.log('📄 Migration Details:\n');
-  console.log(`   File: 010_statistical_model_cache.sql`);
+  console.log(`   File: 013_statistical_model_cache.sql`);
   console.log(`   Size: ${(sql.length / 1024).toFixed(1)} KB`);
   console.log(`   Lines: ${lineCount}\n`);
 
@@ -67,7 +67,7 @@ function main() {
   console.log('   5. Click "Run"\n');
 
   console.log('Option 2: Supabase CLI\n');
-  console.log('   supabase db push supabase/migrations/010_statistical_model_cache.sql\n');
+  console.log('   supabase db push supabase/migrations/013_statistical_model_cache.sql\n');
 
   console.log('━'.repeat(60));
   console.log('\n📋 MIGRATION SQL (Copy Everything Below):\n');

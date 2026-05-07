@@ -361,7 +361,7 @@ async function main() {
     console.log('Next steps:');
     console.log('1. Verify data in Supabase dashboard');
     console.log('2. Run migration 010 to enable model caching:');
-    console.log('   npx tsx scripts/run-migration.ts 010_statistical_model_cache.sql');
+    console.log('   npx tsx scripts/run-migration.ts 013_statistical_model_cache.sql');
     console.log('3. Analytics will now load from Supabase automatically\n');
   }
 }

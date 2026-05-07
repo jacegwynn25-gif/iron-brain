@@ -643,34 +643,40 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   }, [session.startTime]);
 
   // ── Sync session to provider so it persists across navigation ──
-  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (session.status === 'finished') return;
-    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-    syncTimeoutRef.current = setTimeout(() => {
-      const snap: ActiveSessionSnapshot = {
-        status: session.status,
-        startTime: session.startTime.toISOString(),
-        blocks: session.blocks,
-        activeCell: session.activeCell,
-        meta: {
-          programId: baseProgram.id,
-          programName: baseProgram.name ?? 'Quick Start',
-          weightUnit: sessionWeightUnit,
-          weekNumber: programDayContext?.weekNumber,
-          dayName: programDayContext?.day?.name,
-          cycleNumber: programDayContext?.cycleNumber,
-          weekIndex: programDayContext?.weekIndex,
-          dayIndex: programDayContext?.dayIndex,
-        },
-      };
-      saveSnapshot(snap);
-    }, 300);
-    return () => {
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    const snap: ActiveSessionSnapshot = {
+      status: session.status,
+      startTime: session.startTime.toISOString(),
+      blocks: session.blocks,
+      activeCell: session.activeCell,
+      meta: {
+        programId: baseProgram.id,
+        programName: baseProgram.name ?? 'Quick Start',
+        weightUnit: sessionWeightUnit,
+        weekNumber: programDayContext?.weekNumber,
+        dayName: programDayContext?.day?.name,
+        cycleNumber: programDayContext?.cycleNumber,
+        weekIndex: programDayContext?.weekIndex,
+        dayIndex: programDayContext?.dayIndex,
+      },
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.blocks, session.activeCell, session.status, sessionWeightUnit]);
+    saveSnapshot(snap);
+  }, [
+    baseProgram.id,
+    baseProgram.name,
+    programDayContext?.cycleNumber,
+    programDayContext?.day?.name,
+    programDayContext?.dayIndex,
+    programDayContext?.weekIndex,
+    programDayContext?.weekNumber,
+    saveSnapshot,
+    session.activeCell,
+    session.blocks,
+    session.startTime,
+    session.status,
+    sessionWeightUnit,
+  ]);
 
   const hasCompletedSets = useMemo(
     () => session.blocks.some((block) => block.exercises.some((exercise) => exercise.sets.some((set) => set.completed))),

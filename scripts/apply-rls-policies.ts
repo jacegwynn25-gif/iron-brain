@@ -88,7 +88,7 @@ async function applyPolicies() {
 
   if (failCount > 0) {
     console.log('\n⚠️  Some policies failed. You may need to apply them manually via Supabase dashboard.');
-    console.log('SQL file: supabase/migrations/012_add_analytics_rls_policies.sql');
+    console.log('SQL file: supabase/migrations/015_add_analytics_rls_policies.sql');
   } else {
     console.log('\n🎉 All RLS policies applied successfully!');
     console.log('   Users can now save and view Recovery and Efficiency data.');

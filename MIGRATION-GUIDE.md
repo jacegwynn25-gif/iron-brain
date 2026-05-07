@@ -14,7 +14,7 @@ You have two options to run the migration:
    - Click "SQL Editor" in the left sidebar
 
 2. **Copy Migration SQL**
-   - Open: `supabase/migrations/016_recovery_system.sql`
+   - Open: `supabase/migrations/019_recovery_system.sql`
    - Copy the entire contents (400+ lines)
 
 3. **Run Migration**
@@ -59,7 +59,7 @@ supabase link --project-ref nwqqasofqwoinzrcjivo
 supabase db push
 ```
 
-This will automatically apply `016_recovery_system.sql` and any other pending migrations.
+This will automatically apply `019_recovery_system.sql` and any other pending migrations.
 
 ---
 
@@ -181,6 +181,6 @@ DROP FUNCTION IF EXISTS decrement_lifetime_slots();
 
 ## Migration File Location
 
-`supabase/migrations/016_recovery_system.sql`
+`supabase/migrations/019_recovery_system.sql`
 
 This migration creates the complete database schema for the biological recovery simulator integration.

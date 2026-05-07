@@ -6,6 +6,7 @@ import React, {
     useState,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useRef,
     useMemo,
     type ReactNode,
@@ -52,6 +53,7 @@ interface ActiveSessionContextValue {
 // ============================================================
 
 const BASE_STORAGE_KEY = 'iron_brain_active_session_v1';
+const DEFAULT_STORAGE_KEY = `${BASE_STORAGE_KEY}__default`;
 
 function readStoredSession(storageKey: string): ActiveSessionSnapshot | null {
     if (typeof window === 'undefined') return null;
@@ -93,14 +95,16 @@ const ActiveSessionContext = createContext<ActiveSessionContextValue | null>(nul
 export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     const { namespaceId, namespaceReady } = useAuth();
     const storageKey = useMemo(
-        () => (namespaceReady ? `${BASE_STORAGE_KEY}__${namespaceId ?? 'default'}` : null),
+        () => (namespaceReady ? `${BASE_STORAGE_KEY}__${namespaceId ?? 'default'}` : DEFAULT_STORAGE_KEY),
         [namespaceId, namespaceReady]
     );
     const [snapshot, setSnapshot] = useState<ActiveSessionSnapshot | null>(null);
     const [loadedStorageKey, setLoadedStorageKey] = useState<string | null>(null);
+    const snapshotRef = useRef<ActiveSessionSnapshot | null>(snapshot);
 
     // Throttle writes to localStorage to avoid perf issues during fast interactions
     const pendingWriteRef = useRef<ActiveSessionSnapshot | null | undefined>(undefined);
+    const preStorageSnapshotRef = useRef<ActiveSessionSnapshot | null>(null);
     const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const flushWrite = useCallback(() => {
@@ -119,7 +123,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
         [flushWrite]
     );
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!storageKey) return;
 
         if (writeTimerRef.current) {
@@ -127,7 +131,25 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
             writeTimerRef.current = null;
         }
         pendingWriteRef.current = undefined;
-        setSnapshot(readStoredSession(storageKey));
+        const carriedSnapshot =
+            loadedStorageKey &&
+            loadedStorageKey !== storageKey &&
+            snapshotRef.current?.status === 'active'
+                ? snapshotRef.current
+                : null;
+        const pendingSnapshot = preStorageSnapshotRef.current ?? carriedSnapshot;
+        const storedSnapshot = readStoredSession(storageKey);
+        const nextSnapshot =
+            pendingSnapshot?.status === 'active' ? pendingSnapshot : storedSnapshot;
+        if (pendingSnapshot?.status === 'active') {
+            writeStoredSession(storageKey, pendingSnapshot);
+            if (storageKey !== DEFAULT_STORAGE_KEY) {
+                writeStoredSession(DEFAULT_STORAGE_KEY, null);
+            }
+        }
+        preStorageSnapshotRef.current = null;
+        snapshotRef.current = nextSnapshot;
+        setSnapshot(nextSnapshot);
         setLoadedStorageKey(storageKey);
 
         try {
@@ -135,7 +157,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
         } catch {
             // Ignore unavailable storage.
         }
-    }, [storageKey]);
+    }, [loadedStorageKey, storageKey]);
 
     // Flush on unmount / page hide
     useEffect(() => {
@@ -157,24 +179,43 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
 
     const saveSnapshot = useCallback(
         (next: ActiveSessionSnapshot) => {
+            const shouldWriteImmediately = storageKey && snapshotRef.current?.status !== 'active';
             if (storageKey) {
                 setLoadedStorageKey(storageKey);
+                preStorageSnapshotRef.current = null;
+            } else {
+                preStorageSnapshotRef.current = next;
             }
+            snapshotRef.current = next;
             setSnapshot(next);
             if (storageKey) {
-                scheduleWrite(next);
+                if (shouldWriteImmediately) {
+                    if (writeTimerRef.current) {
+                        clearTimeout(writeTimerRef.current);
+                        writeTimerRef.current = null;
+                    }
+                    pendingWriteRef.current = undefined;
+                    writeStoredSession(storageKey, next);
+                } else {
+                    scheduleWrite(next);
+                }
+            } else {
+                writeStoredSession(DEFAULT_STORAGE_KEY, next);
             }
         },
         [scheduleWrite, storageKey]
     );
 
     const clearSession = useCallback(() => {
+        snapshotRef.current = null;
         setSnapshot(null);
+        preStorageSnapshotRef.current = null;
         setLoadedStorageKey(storageKey);
         // Clear immediately — no throttle for cleanup
         if (storageKey) {
             writeStoredSession(storageKey, null);
         }
+        writeStoredSession(DEFAULT_STORAGE_KEY, null);
         pendingWriteRef.current = undefined;
         if (writeTimerRef.current) {
             clearTimeout(writeTimerRef.current);

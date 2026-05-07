@@ -272,7 +272,7 @@ estimated_full_recovery_at TIMESTAMPTZ
 
 **Purpose**: Cached recovery calculations (performance optimization). **POPULATED BY BACKEND**.
 
-### Subscription System Tables (Migration 003)
+### Subscription System Tables (Migration 004)
 
 #### `user_profiles` (extended)
 ```sql
@@ -292,7 +292,7 @@ lifetime_slots_remaining INTEGER DEFAULT 200
 updated_at TIMESTAMPTZ
 ```
 
-**Purpose**: Global settings. Singleton table (only 1 row). Tracks Founding Member slots.
+**Purpose**: Global settings. Singleton table (only 1 row). Legacy billing counters remain for compatibility.
 
 #### `subscription_events`
 ```sql
@@ -599,18 +599,18 @@ Users don't need to understand ACWR, p-values, or Bayesian shrinkage. They need 
 - **No** complex analytics
 - **Goal**: Get users hooked on tracking
 
-**Pro Tier** (unlocks via paywall):
-- Pre-workout readiness (traffic light)
+**Advanced Surfaces**:
+- Pre-workout readiness
 - Set recommendations
 - Session fatigue alerts
 - Muscle recovery tracking
 - SFR analysis
 - Advanced analytics
 
-**Paywall Triggers**:
-1. Click "Check Readiness" before workout → Blurred score + upgrade prompt
-2. View Analytics page → Placeholder cards + "Unlock Pro" button
-3. After 10 workouts logged → "You're serious. Upgrade to Pro?"
+**Support Triggers**:
+1. Dashboard optional support banner
+2. Support page at `/upgrade`
+3. No feature gate or locked tracker flow
 
 ### Component Responsibilities
 
@@ -631,7 +631,7 @@ Users don't need to understand ACWR, p-values, or Bayesian shrinkage. They need 
 - Hides: Exponential decay curves, Bayesian calibration status
 - Example: "🟢 Chest: Ready | 🟡 Quads: 6h until ready"
 
-#### Complex Components (Power Users / Pro Tier)
+#### Complex Components (Power Users)
 
 **AdvancedAnalyticsDashboard**:
 - Shows: ACWR trends, fitness-fatigue graphs, SFR leaderboard
@@ -642,76 +642,44 @@ Users don't need to understand ACWR, p-values, or Bayesian shrinkage. They need 
 
 ## Monetization Strategy
 
-### Pricing Tiers
+### Free Beta + Optional Support
 
-#### FREE
-- Workout logging (unlimited)
-- PR tracking
-- Basic volume trends (7-day chart)
-- Program creation
-- **Goal**: 10,000+ free users
+Iron Brain is free during launch beta. Users can optionally support the project from `/upgrade`, but payment does not unlock or gate features.
 
-#### PRO - Founding Members
-- **Price**: $149 (one-time payment)
-- **Slots**: 200 total (limited FOMO campaign)
-- **Features**: All Pro features, lifetime access
-- **Revenue Target**: 200 slots × $149 = **$29,800**
+### Feature Access
 
-#### PRO - Monthly Subscription
-- **Price**: $12.99/month
-- **Unlocks after**: 200 lifetime slots sold out
-- **Features**: Same as Founding Members
-- **Revenue Target**: 500 subs × $12.99 = **$6,495 MRR** ($77,940/year)
-
-**Total Year 1 Revenue**: $29,800 (lifetime) + $77,940 (monthly) = **$107,740**
-
-### Feature Gating
-
-| Feature | Free | Pro |
-|---------|------|-----|
-| Workout Logging | ✅ | ✅ |
-| PR Tracking | ✅ | ✅ |
-| Volume Trends (7 days) | ✅ | ✅ |
-| Pre-Workout Readiness | ❌ | ✅ |
-| Set Recommendations | ❌ | ✅ |
-| Session Fatigue Alerts | ❌ | ✅ |
-| Muscle Recovery Tracking | ❌ | ✅ |
-| SFR Analysis | ❌ | ✅ |
-| Advanced Analytics | ❌ | ✅ |
-| ACWR Trends | ❌ | ✅ |
+| Feature | Free Beta |
+|---------|-----------|
+| Workout Logging | Yes |
+| PR Tracking | Yes |
+| Program Creation | Yes |
+| Readiness | Yes |
+| Set Recommendations | Yes |
+| History | Yes |
+| Analytics | Yes |
 
 ### Stripe Integration Architecture
 
-#### Products to Create (Stripe Dashboard)
+#### Checkout
 
-1. **Iron Pro - Founding Member**
-   - Type: One-time payment
-   - Price: $149.00 USD
-   - Price ID: `price_xxx` (copy to env var `STRIPE_PRICE_ID_LIFETIME`)
-
-2. **Iron Pro - Monthly**
-   - Type: Recurring subscription (monthly)
-   - Price: $12.99 USD
-   - Price ID: `price_yyy` (copy to env var `STRIPE_PRICE_ID_MONTHLY`)
+- One-time payment mode.
+- Dynamic `price_data`; no fixed product price IDs required.
+- User chooses any supported amount from `$1` to `$500`.
+- Checkout metadata includes `purpose: support`.
 
 #### Webhook Events
 
 **Endpoint**: `https://your-domain.com/api/webhooks/stripe`
 
 **Events to Subscribe**:
-- `checkout.session.completed` → Upgrade user to Pro
-- `customer.subscription.deleted` → Downgrade user to Free
-- `customer.subscription.updated` → Update expiration date
+- `checkout.session.completed` → Record optional support payment metadata
 
 #### Environment Variables Required
 
 ```env
 # Stripe
 STRIPE_SECRET_KEY=sk_live_xxx
-STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_PRICE_ID_LIFETIME=price_xxx
-STRIPE_PRICE_ID_MONTHLY=price_yyy
 
 # App
 NEXT_PUBLIC_APP_URL=https://your-domain.com
@@ -725,13 +693,11 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 
 2. **How It Works**: "I built a PhD-level algorithm that tells you exactly what to lift, based on your literal biological readiness today. No more guessing. No more plateaus."
 
-3. **Social Proof**: "Join 142/200 Founding Members who never pay a monthly fee."
+3. **Support Copy**: "Iron Brain is free while I keep improving it. Optional support helps cover hosting and future development."
 
-4. **Scarcity**: "Only 58 lifetime slots remaining. After that, it's $12.99/month."
+4. **Authority**: "Built on research from Stanford, AIS, and NSCA (Banister 1975, Hulin 2016, Schoenfeld 2018)."
 
-5. **Authority**: "Built on research from Stanford, AIS, and NSCA (Banister 1975, Hulin 2016, Schoenfeld 2018)."
-
-6. **Results**: "The only algorithm that predicts overtraining before it happens."
+5. **Results**: "The only algorithm that predicts overtraining before it happens."
 
 ---
 
@@ -993,45 +959,25 @@ Generates realistic progressive overload pattern:
 
 ### Stripe Setup (Production Deployment)
 
-#### Step 1: Create Products in Stripe Dashboard
-
-1. Go to https://dashboard.stripe.com/products
-2. Click "Add product"
-3. **Product 1**:
-   - Name: Iron Pro - Founding Member
-   - Description: Lifetime access to all Pro features
-   - Pricing: One-time payment, $149.00 USD
-   - Copy Price ID: `price_xxx`
-4. **Product 2**:
-   - Name: Iron Pro - Monthly
-   - Description: Monthly subscription
-   - Pricing: Recurring monthly, $12.99 USD
-   - Copy Price ID: `price_yyy`
-
-#### Step 2: Configure Webhook
+#### Step 1: Configure Webhook
 
 1. Go to https://dashboard.stripe.com/webhooks
 2. Click "Add endpoint"
 3. Endpoint URL: `https://your-domain.com/api/webhooks/stripe`
 4. Select events:
    - `checkout.session.completed`
-   - `customer.subscription.deleted`
-   - `customer.subscription.updated`
 5. Copy webhook signing secret: `whsec_xxx`
 
-#### Step 3: Update Environment Variables
+#### Step 2: Update Environment Variables
 
 ```env
 # Production .env.local
 STRIPE_SECRET_KEY=sk_live_xxx (NOT sk_test)
-STRIPE_PUBLISHABLE_KEY=pk_live_xxx (NOT pk_test)
 STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_PRICE_ID_LIFETIME=price_xxx
-STRIPE_PRICE_ID_MONTHLY=price_yyy
 NEXT_PUBLIC_APP_URL=https://ironbrain.app
 ```
 
-#### Step 4: Test Checkout Flow
+#### Step 3: Test Checkout Flow
 
 **Test Card Numbers** (use in test mode):
 - Success: `4242 4242 4242 4242`
@@ -1039,19 +985,19 @@ NEXT_PUBLIC_APP_URL=https://ironbrain.app
 - 3D Secure: `4000 0027 6000 3184`
 
 **Test Flow**:
-1. Click "Upgrade to Pro" in app
-2. Select "Founding Member" option
+1. Click "Support Iron Brain" in app
+2. Choose a support amount
 3. Enter test card
 4. Submit
-5. Verify webhook fires → user upgraded to Pro
-6. Verify lifetime slot decrements in `app_settings`
+5. Verify webhook fires and records a support event
+6. Verify no app feature access changes
 
-#### Step 5: Go Live
+#### Step 4: Go Live
 
 1. Switch Stripe keys from test → live
 2. Deploy to production
 3. Test with real card (then refund)
-4. Announce Founding Member campaign
+4. Run `npm run verify-production`
 
 ---
 
@@ -1265,7 +1211,7 @@ if (existingClone) return existingClone;
 **Marketing**:
 1. Write landing page copy (4 hours)
 2. Create demo video (8 hours)
-3. Launch Founding Member campaign (Twitter, Reddit r/weightroom)
+3. Launch free beta support campaign
 
 **Total Effort**: 40-50 hours
 
