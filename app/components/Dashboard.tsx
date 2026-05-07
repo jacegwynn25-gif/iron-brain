@@ -15,7 +15,6 @@ import {
   User,
 } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
-import { useAuth } from '@/app/lib/supabase/auth-context';
 import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
 import { ReadinessCard } from './dashboard/ReadinessCard';
 import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
@@ -25,7 +24,6 @@ import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 export default function Dashboard() {
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isSessionActive } = useActiveSession();
-  const { isPro } = useAuth();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
 
@@ -77,7 +75,7 @@ export default function Dashboard() {
   const showSystemFooter = lastUpdated && !loading && Boolean(readiness?.hasRecoveryInput);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+    <div className="mx-auto w-full max-w-5xl space-y-3 pb-8 pt-3 sm:space-y-8 sm:pt-10">
       {/* Header */}
       <header className="flex items-center justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
@@ -142,20 +140,20 @@ export default function Dashboard() {
       )}
 
       {/* Main Actions */}
-      <section className="grid gap-2.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 px-1">
+      <section className="grid gap-2 px-1 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {/* Primary CTA */}
         <Link
           href={isSessionActive ? "/workout/new" : "/start"}
-          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.25rem] px-5 py-4 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${isSessionActive
+          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.1rem] px-4 py-3 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
         >
           <div className="relative z-10 flex items-center gap-3 sm:gap-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md sm:h-9 sm:w-9 sm:rounded-xl">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md sm:h-9 sm:w-9 sm:rounded-xl">
               <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
             </div>
-            <h3 className="text-base font-black italic tracking-tight text-white sm:text-lg">
+            <h3 className="text-sm font-black italic tracking-tight text-white sm:text-lg">
               {isSessionActive ? "RESUME SESSION" : "START SESSION"}
             </h3>
           </div>
@@ -166,47 +164,47 @@ export default function Dashboard() {
         </Link>
 
         {/* Secondary Actions Grid */}
-        <div className="grid grid-cols-2 gap-2.5 sm:col-span-1 sm:gap-4 lg:col-span-2">
+        <div className="grid grid-cols-2 gap-2 sm:col-span-1 sm:gap-4 lg:col-span-2">
           <Link
             href="/programs"
-            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
+            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
           >
             <BookOpen className="h-4.5 w-4.5 text-emerald-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
-              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">PROGRAMS</h4>
+            <div className="space-y-0.5 sm:pt-6">
+              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">PROGRAMS</h4>
               <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Training plans</p>
             </div>
           </Link>
 
           <Link
             href="/history"
-            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
+            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
           >
             <HistoryIcon className="h-4.5 w-4.5 text-amber-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
-              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">HISTORY</h4>
+            <div className="space-y-0.5 sm:pt-6">
+              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">HISTORY</h4>
               <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Session logs</p>
             </div>
           </Link>
 
           <Link
             href="/analytics"
-            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
+            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
           >
             <BarChart3 className="h-4.5 w-4.5 text-blue-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
-              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">ANALYTICS</h4>
+            <div className="space-y-0.5 sm:pt-6">
+              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">ANALYTICS</h4>
               <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Progress trends</p>
             </div>
           </Link>
 
           <Link
             href="/workout/new?type=empty"
-            className="surface-card stagger-item group flex flex-col justify-between p-4 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
+            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
           >
             <RotateCcw className="h-4.5 w-4.5 text-zinc-100/40 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 pt-5 sm:space-y-1 sm:pt-6">
-              <h4 className="text-sm font-black italic text-zinc-100 sm:text-base">QUICK LOG</h4>
+            <div className="space-y-0.5 sm:pt-6">
+              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">QUICK LOG</h4>
               <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Empty session</p>
             </div>
           </Link>
@@ -214,34 +212,20 @@ export default function Dashboard() {
       </section>
 
       {/* Optional Support CTA */}
-      {!isPro && (
-        <section className="stagger-item mx-1">
-          <Link
-            href="/upgrade"
-            className="group flex items-center justify-between gap-4 rounded-[1.25rem] border border-amber-300/70 bg-amber-400 px-4 py-3 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
-                <Sparkles className="h-4 w-4 text-zinc-950" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</h3>
-                <p className="line-clamp-2 text-xs font-medium leading-snug text-zinc-900/70">
-                  Iron Brain is free while I keep improving it. Optional support helps cover hosting and future development.
-                </p>
-                <p className="mt-0.5 hidden text-[10px] font-semibold text-zinc-900/60 sm:block">
-                  Completely optional. The tracker stays free to use.
-                </p>
-              </div>
+      <section className="stagger-item mx-1">
+        <Link
+          href="/upgrade"
+          className="group flex min-h-12 items-center justify-between gap-4 rounded-[1.1rem] border border-amber-300/70 bg-amber-400 px-4 py-2.5 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
+              <Sparkles className="h-4 w-4 text-zinc-950" />
             </div>
-            <div className="flex shrink-0 items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-950">
-              <span className="hidden sm:inline">Support Iron Brain</span>
-              <span className="sm:hidden">Support</span>
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </div>
-          </Link>
-        </section>
-      )}
+            <h3 className="truncate text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</h3>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </section>
 
       {/* Consistency Chart */}
       <section className="stagger-item mx-1">

@@ -78,20 +78,10 @@ export default function StartWorkoutPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+    <div className="mx-auto w-full max-w-5xl space-y-4 pb-10 pt-3 sm:space-y-8 sm:pt-10">
       <header className="stagger-item flex items-start justify-between gap-4 px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Gym Floor</p>
           <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">START SESSION</h1>
-          {loading ? (
-            <div className="mt-2 h-4 w-48 rounded-full bg-zinc-800 animate-pulse" />
-          ) : (
-            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
-              {selectedProgram
-                ? `Current Program: ${selectedProgram.name}`
-                : 'No program selected. Launch now and build in-session.'}
-            </p>
-          )}
         </div>
         <Play className="mt-1 h-6 w-6 text-emerald-400" />
       </header>
@@ -104,12 +94,16 @@ export default function StartWorkoutPage() {
           className="surface-card mt-3 flex w-full items-center justify-between p-4 text-left transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:p-5"
         >
           <div>
-            <p className="text-sm font-black italic text-zinc-100">{selectedProgram?.name ?? 'No Program Selected'}</p>
-            <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
-              {selectedProgramDay?.day
+            <p className="text-sm font-black italic text-zinc-100">
+              {loading ? 'Loading Programs...' : selectedProgram?.name ?? 'No Program Selected'}
+            </p>
+            {!loading && (
+              <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
+                {selectedProgramDay?.day
                 ? `Cycle ${selectedProgramDay.cycleNumber} • Week ${selectedProgramDay.weekNumber} • ${selectedProgramDay.day.dayOfWeek} ${selectedProgramDay.day.name}`
                 : 'Manage templates and schedule.'}
-            </p>
+              </p>
+            )}
           </div>
           <ChevronRight className="h-4 w-4 text-zinc-600" />
         </button>
@@ -240,26 +234,15 @@ export default function StartWorkoutPage() {
 
       <section className="stagger-item px-1">
         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Recent Programs</p>
-        <div
-          className="mt-3 flex gap-3 overflow-x-auto pb-2 pr-6"
-          data-swipe-ignore="true"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
-            maskImage:
-              'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
-        >
+        <div className="mt-3 space-y-2">
           {recentPrograms.map((program) => (
             <button
               key={program.id}
               type="button"
               onClick={() => handleRecentProgramStart(program.id)}
-              className="group inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/10 bg-zinc-900/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-zinc-200 transition-all hover:border-emerald-500/40"
+              className="group flex w-full items-center justify-between rounded-xl border border-zinc-900 bg-zinc-950/60 px-4 py-3 text-left transition-colors hover:border-emerald-500/40 hover:bg-zinc-900/60"
             >
-              <span>{program.name}</span>
+              <span className="truncate text-xs font-bold uppercase tracking-[0.18em] text-zinc-200">{program.name}</span>
               <ArrowRight className="h-3.5 w-3.5 text-zinc-500 transition-colors group-hover:text-emerald-300" />
             </button>
           ))}

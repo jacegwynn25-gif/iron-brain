@@ -10,7 +10,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 async function checkSubscriptionTables() {
-  console.log('🔍 Checking if subscription system is set up...\\n');
+  console.log('🔍 Checking if Stripe support tables are set up...\\n');
 
   try {
     // Check app_settings table
@@ -28,7 +28,7 @@ async function checkSubscriptionTables() {
     }
 
     console.log('✅ app_settings table exists');
-    console.log(`   Lifetime slots: ${settings.lifetime_slots_remaining}/${settings.lifetime_slots_total}\\n`);
+    console.log(`   Legacy slot counters: ${settings.lifetime_slots_remaining}/${settings.lifetime_slots_total}\\n`);
 
     // Check subscription_events table
     const { error: eventsError } = await supabase
@@ -44,21 +44,21 @@ async function checkSubscriptionTables() {
 
     console.log('✅ subscription_events table exists\\n');
 
-    // Check user_profiles for subscription columns
-    const { data: profiles, error: profilesError } = await supabase
+    // Check user_profiles for Stripe customer storage
+    const { error: profilesError } = await supabase
       .from('user_profiles')
-      .select('id, is_pro, subscription_tier')
+      .select('id, stripe_customer_id')
       .limit(1);
 
     if (profilesError) {
-      console.log('❌ user_profiles missing subscription columns');
+      console.log('❌ user_profiles missing Stripe customer column');
       console.log('Error:', profilesError.message);
       return false;
     }
 
-    console.log('✅ user_profiles has subscription columns\\n');
+    console.log('✅ user_profiles has Stripe customer storage\\n');
 
-    console.log('🎉 Subscription system is fully set up!\\n');
+    console.log('🎉 Stripe support storage is set up!\\n');
     return true;
   } catch (error) {
     console.error('Unexpected error:', error);

@@ -52,8 +52,6 @@ async function checkLocalEnv() {
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
     'STRIPE_SECRET_KEY',
-    'STRIPE_PRICE_ID_LIFETIME',
-    'STRIPE_PRICE_ID_MONTHLY',
     'STRIPE_WEBHOOK_SECRET',
   ];
 
@@ -101,14 +99,14 @@ async function checkSupabase() {
     add(`supabase:table:${table}`, !error, error ? `${error.code} ${error.message}` : 'reachable');
   }
 
-  const { error: subscriptionColumnError } = await supabase
+  const { error: supportColumnError } = await supabase
     .from('user_profiles')
-    .select('is_pro,subscription_tier,stripe_customer_id,subscription_started_at,subscription_expires_at', { head: true })
+    .select('stripe_customer_id', { head: true })
     .limit(1);
   add(
-    'supabase:user_profiles:subscription_columns',
-    !subscriptionColumnError,
-    subscriptionColumnError ? `${subscriptionColumnError.code} ${subscriptionColumnError.message}` : 'present'
+    'supabase:user_profiles:stripe_customer_id',
+    !supportColumnError,
+    supportColumnError ? `${supportColumnError.code} ${supportColumnError.message}` : 'present'
   );
 }
 
@@ -126,33 +124,8 @@ async function checkStripe() {
     apiVersion: '2025-12-15.clover',
   });
 
-  for (const [label, priceId] of [
-    ['lifetime', process.env.STRIPE_PRICE_ID_LIFETIME],
-    ['monthly', process.env.STRIPE_PRICE_ID_MONTHLY],
-  ] as const) {
-    if (!priceId || isPlaceholder(priceId)) {
-      add(`stripe:price:${label}`, false, 'missing price id');
-      continue;
-    }
-
-    try {
-      const price = await stripe.prices.retrieve(priceId);
-      add(
-        `stripe:price:${label}`,
-        Boolean(price.active) && price.livemode,
-        `${price.active ? 'active' : 'inactive'} ${price.currency} ${price.type} ${price.livemode ? 'live' : 'test'}`
-      );
-    } catch (error) {
-      add(`stripe:price:${label}`, false, error instanceof Error ? error.message : 'Stripe lookup failed');
-    }
-  }
-
   const requiredWebhookEvents = [
     'checkout.session.completed',
-    'invoice.payment_succeeded',
-    'invoice.payment_failed',
-    'customer.subscription.updated',
-    'customer.subscription.deleted',
   ];
   const webhookUrl = `${appUrl()}/api/webhooks/stripe`;
 
@@ -196,7 +169,7 @@ async function checkLiveRoutes() {
   await checkHttp('live:/api/checkout:unauth', `${base}/api/checkout`, 401, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tier: 'monthly' }),
+    body: JSON.stringify({ amountCents: 500 }),
   });
 }
 
@@ -255,7 +228,7 @@ async function checkLiveCheckout() {
         authorization: `Bearer ${token}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ tier: 'monthly' }),
+      body: JSON.stringify({ amountCents: 500 }),
     });
     const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
     add(

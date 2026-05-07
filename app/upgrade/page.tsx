@@ -7,18 +7,43 @@ import {
   Check,
   HeartHandshake,
   Loader2,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 
+const SUPPORT_PRESETS = [3, 5, 10, 20, 50];
+const MIN_SUPPORT_DOLLARS = 1;
+const MAX_SUPPORT_DOLLARS = 500;
+
+function parseSupportAmount(value: string): number | null {
+  const normalized = value.replace(/[^0-9.]/g, '');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed * 100);
+}
+
+function formatAmountInput(amount: number) {
+  return amount.toFixed(2).replace(/\.00$/, '');
+}
+
 export default function UpgradePage() {
   const router = useRouter();
-  const { user, session, isPro } = useAuth();
+  const { user, session } = useAuth();
+  const [amountInput, setAmountInput] = useState('10');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const amountCents = parseSupportAmount(amountInput);
+  const amountIsValid =
+    amountCents != null &&
+    amountCents >= MIN_SUPPORT_DOLLARS * 100 &&
+    amountCents <= MAX_SUPPORT_DOLLARS * 100;
 
   const handleSupportCheckout = async () => {
     setError(null);
+    if (!amountIsValid || amountCents == null) {
+      setError('Choose a support amount between $1 and $500.');
+      return;
+    }
     if (!user || !session?.access_token) {
       router.push(`/login?returnTo=${encodeURIComponent('/upgrade')}`);
       return;
@@ -32,17 +57,12 @@ export default function UpgradePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ tier: 'lifetime' }),
+        body: JSON.stringify({ amountCents }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.redirectToMonthly) {
-          setError('One-time support is not available right now.');
-          setLoading(false);
-          return;
-        }
         throw new Error(data.error || 'Checkout failed');
       }
 
@@ -57,29 +77,6 @@ export default function UpgradePage() {
     }
   };
 
-  if (isPro) {
-    return (
-      <div className="mx-auto w-full max-w-lg space-y-8 pb-12 pt-12 text-center sm:pt-20">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
-          <HeartHandshake className="h-8 w-8 text-emerald-300" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100">THANK YOU</h1>
-          <p className="text-sm text-zinc-400">
-            Your optional support helps cover hosting and future development.
-          </p>
-        </div>
-        <button
-          onClick={() => router.push('/')}
-          className="group inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-sm font-bold text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500"
-        >
-          Go to Dashboard
-          <ArrowRight className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-1" />
-        </button>
-      </div>
-    );
-  }
-
   const supportNotes = [
     'The workout tracker stays free to use.',
     'Support helps cover hosting and future development.',
@@ -87,9 +84,9 @@ export default function UpgradePage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8 pb-12 pt-4 sm:space-y-10 sm:pt-10">
+    <div className="mx-auto w-full max-w-3xl space-y-5 pb-12 pt-3 sm:space-y-8 sm:pt-10">
       <header className="stagger-item px-1 text-center">
-        <h1 className="text-4xl font-black italic tracking-tight text-zinc-100 sm:text-5xl">
+        <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-5xl">
           SUPPORT IRON BRAIN
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
@@ -104,25 +101,61 @@ export default function UpgradePage() {
       )}
 
       <section className="px-1">
-        <div className="rounded-[1.5rem] border border-amber-300/70 bg-amber-400 p-6 text-zinc-950 shadow-[0_26px_70px_-36px_rgba(251,191,36,1)] sm:p-8">
-          <div className="relative flex flex-col gap-6">
+        <div className="rounded-[1.35rem] border border-amber-300/70 bg-amber-400 p-5 text-zinc-950 shadow-[0_26px_70px_-36px_rgba(251,191,36,1)] sm:rounded-[1.5rem] sm:p-8">
+          <div className="relative flex flex-col gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-zinc-950" />
+              <HeartHandshake className="h-5 w-5 text-zinc-950" />
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950/80">
                 Optional Support
               </span>
             </div>
             <div>
-              <h2 className="text-3xl font-black italic tracking-tight">SUPPORT IRON BRAIN</h2>
+              <h2 className="text-2xl font-black italic tracking-tight sm:text-3xl">SUPPORT IRON BRAIN</h2>
               <p className="mt-1 text-sm font-medium text-zinc-900/70">
                 Completely optional. No features are locked behind this.
               </p>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-5xl font-black tracking-tight">$149</span>
-              <span className="text-sm font-semibold text-zinc-900/65">optional one-time support</span>
+
+            <div className="grid grid-cols-5 gap-2">
+              {SUPPORT_PRESETS.map((amount) => {
+                const selected = parseSupportAmount(amountInput) === amount * 100;
+                return (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setAmountInput(formatAmountInput(amount))}
+                    className={`min-h-10 rounded-xl border text-sm font-black transition-colors ${selected
+                      ? 'border-zinc-950 bg-zinc-950 text-amber-300'
+                      : 'border-zinc-950/20 bg-zinc-950/5 text-zinc-950 hover:bg-zinc-950/10'
+                      }`}
+                  >
+                    ${amount}
+                  </button>
+                );
+              })}
             </div>
-            <ul className="space-y-2.5">
+
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-950/70">
+                Custom Amount
+              </span>
+              <div className="mt-2 flex items-center rounded-2xl border border-zinc-950/25 bg-zinc-950/10 px-4">
+                <span className="text-2xl font-black text-zinc-950/70">$</span>
+                <input
+                  value={amountInput}
+                  onChange={(event) => setAmountInput(event.target.value)}
+                  inputMode="decimal"
+                  aria-label="Support amount"
+                  className="min-h-14 w-full bg-transparent px-2 text-3xl font-black tracking-tight text-zinc-950 outline-none placeholder:text-zinc-950/30 sm:min-h-16 sm:text-4xl"
+                  placeholder="10"
+                />
+              </div>
+              <span className="mt-2 block text-xs font-semibold text-zinc-900/65">
+                Choose any amount from $1 to $500.
+              </span>
+            </label>
+
+            <ul className="space-y-2">
               {supportNotes.map((note) => (
                 <li key={note} className="flex items-center gap-2 text-sm font-medium text-zinc-950/85">
                   <Check className="h-4 w-4 text-zinc-950" />
@@ -133,8 +166,8 @@ export default function UpgradePage() {
             <button
               type="button"
               onClick={handleSupportCheckout}
-              disabled={loading}
-              className="group mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 py-3.5 text-sm font-black italic tracking-tight text-amber-300 transition-colors hover:bg-zinc-900 active:bg-black disabled:opacity-60"
+              disabled={loading || !amountIsValid}
+              className="group mt-auto flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 py-3 text-sm font-black italic tracking-tight text-amber-300 transition-colors hover:bg-zinc-900 active:bg-black disabled:opacity-60 sm:min-h-12 sm:py-3.5"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

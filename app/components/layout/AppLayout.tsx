@@ -132,7 +132,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
-      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-36'}`}>
+      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-28'}`}>
         {children}
       </main>
 
@@ -141,7 +141,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {!hideBottomNav && (
         <nav className="app-bottom-nav pointer-events-auto fixed inset-x-0 bottom-0 z-[90] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl touch-manipulation">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-2xl items-stretch justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2">
+          <div className="relative mx-auto flex w-full max-w-2xl items-stretch justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -160,7 +160,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   onPointerCancel={() => {
                     navPointerRef.current = null;
                   }}
-                  className={`group relative flex min-h-[4.25rem] min-w-0 flex-1 select-none flex-col items-center justify-center gap-1.5 rounded-xl px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 ${active
+                  className={`group relative flex min-h-[3.85rem] min-w-0 flex-1 select-none flex-col items-center justify-center gap-1 rounded-xl px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 ${active
                     ? 'text-emerald-300'
                     : 'text-zinc-500'
                     }`}

@@ -679,6 +679,7 @@ export default function ProgramsPage() {
   const [weekCountFocused, setWeekCountFocused] = useState(false);
   const [daysPerWeekFocused, setDaysPerWeekFocused] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<'builder' | 'calendar' | 'collab'>('builder');
+  const showWorkspaceTabs = FEATURES.programCalendar || FEATURES.coachCollab;
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -2220,42 +2221,44 @@ export default function ProgramsPage() {
             )}
           </div>
 
-          <div className="mt-6 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <button
-              type="button"
-              onClick={() => setWorkspaceView('builder')}
-              className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'builder'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
-                : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-                }`}
-            >
-              BUILDER
-            </button>
-            {FEATURES.programCalendar && (
+          {showWorkspaceTabs && (
+            <div className="mt-6 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <button
                 type="button"
-                onClick={() => setWorkspaceView('calendar')}
-                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'calendar'
+                onClick={() => setWorkspaceView('builder')}
+                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'builder'
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
                   : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                   }`}
               >
-                CALENDAR
+                BUILDER
               </button>
-            )}
-            {FEATURES.coachCollab && (
-              <button
-                type="button"
-                onClick={() => setWorkspaceView('collab')}
-                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'collab'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
-                  : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-                  }`}
-              >
-                COLLABORATION
-              </button>
-            )}
-          </div>
+              {FEATURES.programCalendar && (
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceView('calendar')}
+                  className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'calendar'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                    : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                    }`}
+                >
+                  CALENDAR
+                </button>
+              )}
+              {FEATURES.coachCollab && (
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceView('collab')}
+                  className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'collab'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                    : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                    }`}
+                >
+                  COLLABORATION
+                </button>
+              )}
+            </div>
+          )}
 
           {workspaceView === 'builder' && (
             <>

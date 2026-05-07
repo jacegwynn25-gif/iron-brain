@@ -108,7 +108,7 @@ async function checkUnauthenticatedApis() {
   await expectHttpStatus('/api/checkout', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tier: 'monthly' }),
+    body: JSON.stringify({ amountCents: 500 }),
   }, 401);
 
   await expectHttpStatus('/api/programs/generate', {

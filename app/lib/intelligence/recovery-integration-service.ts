@@ -31,11 +31,6 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
   ]);
 
   // --- STEP 1: SYSTEMIC RECOVERY (The Foundation) ---
-  const ouraReadiness =
-    context.source === 'oura' && context.subjective_readiness != null
-      ? context.subjective_readiness
-      : null;
-  const usesOuraReadiness = ouraReadiness != null;
   const hasManualRecoveryInput = Boolean(
     context.date ||
     context.sleep_hours != null ||
@@ -44,12 +39,12 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
     context.resting_heart_rate != null ||
     context.heart_rate_variability != null
   );
-  const hasRecoveryInput = usesOuraReadiness || hasManualRecoveryInput;
-  let systemicScore = usesOuraReadiness ? Math.round(ouraReadiness * 10) : hasManualRecoveryInput ? 85 : 50;
+  const hasRecoveryInput = hasManualRecoveryInput;
+  let systemicScore = hasManualRecoveryInput ? 85 : 50;
   const systemicReasons: string[] = [];
 
   // Sleep Logic
-  if (!usesOuraReadiness && context.sleep_hours) {
+  if (context.sleep_hours) {
     if (context.sleep_hours < 5) {
       systemicScore -= 25; 
       systemicReasons.push("Severe sleep debt");
@@ -59,9 +54,7 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
     }
   }
 
-  if (usesOuraReadiness) {
-    systemicReasons.push("Recovery readiness score");
-  } else if (context.subjective_readiness != null) {
+  if (context.subjective_readiness != null) {
     const subjectiveScore = Math.round(context.subjective_readiness * 10);
     systemicScore = Math.round((systemicScore + subjectiveScore) / 2);
     systemicReasons.push("Self-reported readiness");
@@ -115,13 +108,11 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
     else if (systemicScore > 90) baseMod = 1.025; // Systemic peak
   }
 
-  const source: TrainingReadiness['source'] = usesOuraReadiness
-    ? 'oura'
-    : hasManualRecoveryInput
-      ? 'manual'
-      : lastWorkout
-        ? 'training'
-        : 'baseline';
+  const source: TrainingReadiness['source'] = hasManualRecoveryInput
+    ? 'manual'
+    : lastWorkout
+      ? 'training'
+      : 'baseline';
 
   const finalReason = systemicReasons.length > 0 
     ? `Systemic: ${systemicReasons.join(", ")}` 

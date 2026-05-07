@@ -13,7 +13,6 @@ interface AuthContextType {
   namespaceId: string | null;
   namespaceReady: boolean;
   isSyncing: boolean;
-  isPro: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
@@ -29,7 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [namespaceId, setNamespaceId] = useState<string | null>(null);
   const [namespaceReady, setNamespaceReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPro, setIsPro] = useState(false);
 
   // Track last applied session to prevent duplicate state changes
   const lastAppliedSessionRef = useRef<string | null>(null);
@@ -241,29 +239,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
   };
 
-  // Fetch Pro status when user changes
-  useEffect(() => {
-    if (!user?.id) {
-      setIsPro(false);
-      return;
-    }
-    let cancelled = false;
-    const fetchPro = async () => {
-      try {
-        const { data } = await supabase
-          .from('user_profiles')
-          .select('is_pro')
-          .eq('id', user.id)
-          .single();
-        if (!cancelled) setIsPro(data?.is_pro ?? false);
-      } catch {
-        if (!cancelled) setIsPro(false);
-      }
-    };
-    fetchPro();
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
   const value = {
     user,
     session,
@@ -271,7 +246,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     namespaceId,
     namespaceReady,
     isSyncing,
-    isPro,
     signUp,
     signIn,
     signInWithGoogle,

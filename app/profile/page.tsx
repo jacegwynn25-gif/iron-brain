@@ -35,7 +35,7 @@ const getIsoWeekKey = (date: Date) => {
 export default function ProfilePage() {
   const router = useRouter();
   const { alert } = useDialog();
-  const { user, signOut, isPro } = useAuth();
+  const { user, signOut } = useAuth();
 
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
 
@@ -231,7 +231,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {!isPro && user && (
+      {user && (
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
@@ -243,9 +243,6 @@ export default function ProfilePage() {
               </div>
               <div className="min-w-0">
                 <span className="text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</span>
-                <p className="line-clamp-2 text-xs font-medium leading-snug text-zinc-900/70">
-                  Completely optional. The tracker stays free to use.
-                </p>
               </div>
             </div>
             <ChevronRight className="h-4 w-4 shrink-0 text-zinc-950 transition-transform group-hover:translate-x-0.5" />

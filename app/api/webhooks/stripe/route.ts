@@ -71,186 +71,32 @@ export async function POST(request: NextRequest) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.client_reference_id;
-      const tier = session.metadata?.tier as 'lifetime' | 'monthly';
+      const purpose = session.metadata?.purpose;
 
       if (!userId) break;
       if (session.payment_status !== 'paid') break;
+      if (purpose !== 'support') break;
 
-      // Determine new tier and expiration
-      const newTier = tier === 'lifetime' ? 'pro_lifetime' : 'pro_monthly';
-      const expiresAt = tier === 'monthly' && session.subscription
-        ? null // Will be set by invoice.payment_succeeded or subscription.updated
-        : null;
-
-      // Update user profile
       await supabase
         .from('user_profiles')
         .update({
-          is_pro: true,
-          subscription_tier: newTier,
           stripe_customer_id: session.customer as string,
-          subscription_started_at: new Date().toISOString(),
-          subscription_expires_at: expiresAt
         })
         .eq('id', userId);
 
-      // Decrement lifetime slots if applicable
-      if (tier === 'lifetime') {
-        await supabase.rpc('decrement_lifetime_slots');
-      }
-
       await updateStripeEvent(event.id, {
         user_id: userId,
-        event_type: 'upgrade',
-        old_tier: 'free',
-        new_tier: newTier,
+        event_type: 'support',
+        old_tier: null,
+        new_tier: null,
+        metadata: {
+          amount_total: session.amount_total,
+          currency: session.currency,
+          checkout_session_id: session.id,
+          payment_intent: session.payment_intent,
+          purpose,
+        },
       });
-
-      break;
-    }
-
-    case 'invoice.payment_succeeded': {
-      const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId = (invoice as unknown as { subscription?: string }).subscription;
-      const customerId = invoice.customer as string;
-      if (!subscriptionId || !customerId) break;
-
-      // Fetch subscription to get current_period_end
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as Stripe.Subscription;
-      const currentPeriodEnd = (subscription as unknown as { current_period_end: number }).current_period_end;
-
-      // Find user by stripe_customer_id
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('id, subscription_tier')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-      if (profile) {
-        await supabase
-          .from('user_profiles')
-          .update({
-            subscription_expires_at: new Date(currentPeriodEnd * 1000).toISOString(),
-            is_pro: true
-          })
-          .eq('id', profile.id);
-
-        await updateStripeEvent(event.id, {
-          user_id: profile.id,
-          event_type: 'renew',
-          old_tier: profile.subscription_tier,
-          new_tier: profile.subscription_tier,
-        });
-      }
-
-      break;
-    }
-
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object as Stripe.Invoice;
-      const customerId = invoice.customer as string;
-      if (!customerId) break;
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('id, subscription_tier')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-      if (profile) {
-        // Don't immediately downgrade — give grace period. Just mark expires_at as now
-        // so the app can show a "payment failed" message.
-        await supabase
-          .from('user_profiles')
-          .update({
-            subscription_expires_at: new Date().toISOString()
-          })
-          .eq('id', profile.id);
-
-        await updateStripeEvent(event.id, {
-          user_id: profile.id,
-          event_type: 'payment_failed',
-          old_tier: profile.subscription_tier,
-          new_tier: profile.subscription_tier,
-        });
-      }
-
-      break;
-    }
-
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object as Stripe.Subscription;
-      const customerId = subscription.customer as string;
-      const status = subscription.status;
-
-      if (!customerId) break;
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('id, subscription_tier')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-      if (!profile) break;
-
-      const subPeriodEnd = (subscription as unknown as { current_period_end: number }).current_period_end;
-
-      if (status === 'active' || status === 'trialing') {
-        await supabase
-          .from('user_profiles')
-          .update({
-            is_pro: true,
-            subscription_expires_at: new Date(subPeriodEnd * 1000).toISOString()
-          })
-          .eq('id', profile.id);
-      } else if (status === 'canceled' || status === 'unpaid' || status === 'past_due') {
-        // Keep is_pro true until the period ends, then let it expire naturally
-        await supabase
-          .from('user_profiles')
-          .update({
-            subscription_expires_at: new Date(subPeriodEnd * 1000).toISOString()
-          })
-          .eq('id', profile.id);
-      }
-
-      await updateStripeEvent(event.id, {
-        user_id: profile.id,
-        event_type: 'update',
-        old_tier: profile.subscription_tier,
-        new_tier: profile.subscription_tier,
-        metadata: { status },
-      });
-
-      break;
-    }
-
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
-      const customerId = subscription.customer as string;
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('id, subscription_tier')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-      if (profile) {
-        await supabase
-          .from('user_profiles')
-          .update({
-            is_pro: false,
-            subscription_tier: 'free',
-            subscription_expires_at: null
-          })
-          .eq('id', profile.id);
-
-        await updateStripeEvent(event.id, {
-          user_id: profile.id,
-          event_type: 'cancel',
-          old_tier: profile.subscription_tier,
-          new_tier: 'free',
-        });
-      }
 
       break;
     }

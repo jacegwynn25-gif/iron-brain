@@ -149,11 +149,11 @@ export default function HardyStepper({
   const containerClasses = isVertical ? 'flex w-full flex-col gap-1.5 select-none touch-none' : 'flex w-full items-center gap-3 select-none touch-none';
   const buttonBaseClasses = 'bg-zinc-900/80 text-zinc-400 active:scale-95 active:bg-zinc-800 transition-colors select-none touch-none';
   const horizontalButtonClasses = `h-14 w-14 shrink-0 rounded-full ${buttonBaseClasses}`;
-  const verticalButtonClasses = `h-14 w-full rounded-full ${buttonBaseClasses}`;
+  const verticalButtonClasses = `h-12 w-full rounded-full ${buttonBaseClasses}`;
   const valueButtonClasses = `text-center transition-colors ${centerClasses} ${
     onLabelClick ? 'cursor-pointer' : 'cursor-default'
   }`;
-  const valueTextClasses = `text-5xl font-black leading-none sm:text-6xl ${valueClassName ?? 'text-zinc-100'}`;
+  const valueTextClasses = `text-4xl font-black leading-none sm:text-6xl ${valueClassName ?? 'text-zinc-100'}`;
 
   return (
     <div className={containerClasses}>
@@ -185,7 +185,7 @@ export default function HardyStepper({
               }}
               className={verticalButtonClasses}
             >
-              <Minus className="mx-auto h-8 w-8" />
+              <Minus className="mx-auto h-7 w-7" />
             </button>
 
             <button
@@ -201,7 +201,7 @@ export default function HardyStepper({
               }}
               className={verticalButtonClasses}
             >
-              <Plus className="mx-auto h-8 w-8" />
+              <Plus className="mx-auto h-7 w-7" />
             </button>
           </div>
         </>

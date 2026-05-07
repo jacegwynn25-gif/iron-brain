@@ -21,7 +21,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
   const presets = [6, 7, 8, 9, 10];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-end justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -37,19 +37,19 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
               </button>
             )}
           </div>
-          <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-zinc-100">
+          <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-zinc-100">
             {formatRpeValue(value)}
           </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">RIR</p>
-          <p className="mt-1 text-3xl font-black tabular-nums tracking-tight text-zinc-100">
+          <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-zinc-100">
             {formatRirValue(value)}
           </p>
         </div>
       </div>
 
-      <div className="relative flex h-11 items-center">
+      <div className="relative flex h-9 items-center">
         <div
           className={`pointer-events-none h-3 w-full overflow-hidden rounded-full bg-zinc-900 ring-1 ring-white/10 ${isEmpty ? 'opacity-50' : ''}`}
         >
@@ -66,11 +66,11 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
           step={0.5}
           value={sliderValue}
           onChange={(event) => onChange(Number(event.target.value))}
-          className="rpe-slider absolute inset-x-0 top-1/2 h-11 w-full -translate-y-1/2 appearance-none bg-transparent"
+          className="rpe-slider absolute inset-x-0 top-1/2 h-9 w-full -translate-y-1/2 appearance-none bg-transparent"
         />
       </div>
 
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-5 gap-1.5">
         {presets.map((preset) => {
           const selected = value === preset;
           return (
@@ -78,7 +78,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
               key={preset}
               type="button"
               onClick={() => onChange(preset)}
-              className={`min-h-10 rounded-xl border text-xs font-black transition-colors ${selected
+              className={`min-h-8 rounded-lg border text-xs font-black transition-colors ${selected
                 ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
                 : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                 }`}
@@ -96,7 +96,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
 
       <style jsx>{`
         .rpe-slider::-webkit-slider-runnable-track {
-          height: 44px;
+          height: 36px;
           background: transparent;
         }
 
@@ -105,7 +105,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
           appearance: none;
           width: 24px;
           height: 24px;
-          margin-top: 10px;
+          margin-top: 6px;
           border-radius: 9999px;
           border: 2px solid rgba(255, 255, 255, 0.86);
           background: #18181b;
@@ -117,7 +117,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
         }
 
         .rpe-slider::-moz-range-track {
-          height: 44px;
+          height: 36px;
           background: transparent;
         }
 

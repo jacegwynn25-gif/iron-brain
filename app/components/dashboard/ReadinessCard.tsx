@@ -16,9 +16,9 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
 
     // Define color mapping
     const getReadinessColor = (s: number) => {
-        if (s >= 80) return { primary: 'text-emerald-400', bg: 'bg-emerald-500', glow: 'shadow-emerald-500/20', border: 'border-emerald-500/30' };
-        if (s >= 50) return { primary: 'text-amber-400', bg: 'bg-amber-500', glow: 'shadow-amber-500/20', border: 'border-amber-500/30' };
-        return { primary: 'text-rose-400', bg: 'bg-rose-500', glow: 'shadow-rose-500/20', border: 'border-rose-500/30' };
+        if (s >= 80) return { primary: 'text-emerald-400', bg: 'bg-emerald-500', glow: 'rgba(52,211,153,0.2)' };
+        if (s >= 50) return { primary: 'text-amber-400', bg: 'bg-amber-500', glow: 'rgba(245,158,11,0.2)' };
+        return { primary: 'text-rose-400', bg: 'bg-rose-500', glow: 'rgba(244,63,94,0.2)' };
     };
 
     const style = getReadinessColor(score);
@@ -40,9 +40,11 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
 
     return (
         <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-900 bg-zinc-950/40 p-0.5 sm:rounded-[2rem] sm:p-1">
-            {/* Background Glow */}
             <div
-                className={`absolute -right-20 -top-20 h-64 w-64 opacity-10 blur-[80px] rounded-full ${style.bg}`}
+                className="pointer-events-none absolute inset-0"
+                style={{
+                    background: `radial-gradient(circle at 96% 22%, ${style.glow} 0%, rgba(0,0,0,0) 48%)`,
+                }}
             />
 
             <div className="surface-card relative h-full rounded-[1.65rem] p-4 sm:rounded-[1.85rem] sm:p-8">
@@ -78,10 +80,10 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             </div>
                             <Link
                                 href="/checkin"
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-[8px] font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-emerald-500/40 hover:text-emerald-300 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[10px]"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-200 shadow-[0_12px_28px_-22px_rgba(52,211,153,0.8)] transition-colors hover:border-emerald-400 hover:bg-emerald-500/15 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-[10px]"
                             >
                                 <ClipboardCheck className="h-3 w-3" />
-                                Check-In
+                                Daily Check-In
                             </Link>
                         </div>
                     </div>
