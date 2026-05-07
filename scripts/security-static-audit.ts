@@ -29,6 +29,7 @@ function readTrackedTextFiles() {
       const ext = path.extname(file).toLowerCase();
       if (['.png', '.jpg', '.jpeg', '.webp', '.ico', '.pdf', '.woff', '.woff2'].includes(ext)) return false;
       if (file.startsWith('.next/')) return false;
+      if (!fs.existsSync(path.join(ROOT, file))) return false;
       return true;
     })
     .map((file) => ({
@@ -144,16 +145,22 @@ function checkStripeHardening(files: Array<{ file: string; text: string }>) {
   );
 }
 
-function checkOuraCallback(files: Array<{ file: string; text: string }>) {
+function checkOuraDisabled(files: Array<{ file: string; text: string }>) {
+  const connect = files.find((entry) => entry.file === 'app/api/oura/connect/route.ts')?.text ?? '';
   const callback = files.find((entry) => entry.file === 'app/api/oura/callback/route.ts')?.text ?? '';
-  const stateHelper = files.find((entry) => entry.file === 'app/lib/integrations/oura.ts')?.text ?? '';
+  const sync = files.find((entry) => entry.file === 'app/api/oura/sync/route.ts')?.text ?? '';
+  const combined = `${connect}\n${callback}\n${sync}`;
 
   add(
-    'oura:callback-validates-signed-state',
-    callback.includes('verifyOuraState') &&
-      stateHelper.includes('timingSafeEqual') &&
-      stateHelper.includes('STATE_TTL_MS'),
-    'Oura callback binds OAuth response to signed expiring state'
+    'oura:integration-disabled',
+    connect.includes('status: 410') &&
+      sync.includes('status: 410') &&
+      callback.includes("'disabled'") &&
+      !combined.includes('OURA_AUTHORIZE_URL') &&
+      !combined.includes('OURA_TOKEN_URL') &&
+      !combined.includes('OURA_API_BASE_URL') &&
+      !combined.includes('access_token'),
+    'Oura OAuth and sync endpoints are disabled'
   );
 }
 
@@ -164,7 +171,7 @@ function main() {
   checkServiceRoleIsolation(files);
   checkProtectedApiRoutes(files);
   checkStripeHardening(files);
-  checkOuraCallback(files);
+  checkOuraDisabled(files);
 
   for (const check of checks) {
     console.log(`${check.ok ? 'PASS' : 'FAIL'} ${check.name} - ${check.detail}`);

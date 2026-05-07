@@ -71,7 +71,7 @@ export default function Dashboard() {
     }
   };
 
-  const showReadiness = loading || Boolean(readiness?.hasRecoveryInput);
+  const showReadiness = loading || Boolean(readiness);
   const showSystemFooter = lastUpdated && !loading && Boolean(readiness?.hasRecoveryInput);
 
   return (

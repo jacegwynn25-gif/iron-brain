@@ -248,112 +248,86 @@ const formatProjectedPrValue = (metric: PrMetric, value: number, unit: 'lbs' | '
 };
 
 function MuscleGlyph({ group }: { group: MuscleGroup }) {
-  const common = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-  };
-  const soft = {
-    fill: 'currentColor',
-    opacity: 0.16,
-  };
-
   const glyphs: Record<MuscleGroup, ReactNode> = {
     chest: (
       <>
-        <path {...soft} d="M4.8 13.2c.9-4.2 3.4-6.5 7.2-4.1 3.8-2.4 6.3-.1 7.2 4.1-.9 3.2-3 5.3-7.2 4.1-4.2 1.2-6.3-.9-7.2-4.1Z" />
-        <path {...common} d="M5 13.2c1.2-4.5 4.2-6.6 7-2.9 2.8-3.7 5.8-1.6 7 2.9" />
-        <path {...common} d="M12 10.5v7" />
+        <path fill="currentColor" d="M16 12.2C12.2 7.7 5.7 8.9 4.1 15.5c1 5.7 6.5 7.7 11.9 3.9 5.4 3.8 10.9 1.8 11.9-3.9-1.6-6.6-8.1-7.8-11.9-3.3Z" />
+        <path fill="currentColor" opacity="0.38" d="M9.3 12.6c2.3 0 4.2 1.4 5.4 3.9-3.5 1.9-6.6.7-7.4-2.1.5-1.1 1.2-1.8 2-1.8Zm13.4 0c.8 0 1.5.7 2 1.8-.8 2.8-3.9 4-7.4 2.1 1.2-2.5 3.1-3.9 5.4-3.9Z" />
       </>
     ),
     shoulders: (
       <>
-        <path {...soft} d="M3.8 14.7c1.2-5.6 4.1-8.1 8.2-5.5 4.1-2.6 7 .1 8.2 5.5-2.4.5-4.9.1-8.2-2.4-3.3 2.5-5.8 2.9-8.2 2.4Z" />
-        <path {...common} d="M4.5 15c1.7-6.3 5-8.3 7.5-5.2 2.5-3.1 5.8-1.1 7.5 5.2" />
-        <path {...common} d="M7.2 14.1c2.2-.4 3.7-1.3 4.8-2.4 1.1 1.1 2.6 2 4.8 2.4" />
+        <path fill="currentColor" d="M16 8.4c-2.7 0-4.7 1.6-5.8 4.4-3.6-1.4-6.9.7-7.9 5.3 4.3 1.5 8.2.1 11.1-3.9.8-.2 1.7-.2 2.6-.2s1.8 0 2.6.2c2.9 4 6.8 5.4 11.1 3.9-1-4.6-4.3-6.7-7.9-5.3-1.1-2.8-3.1-4.4-5.8-4.4Z" />
+        <path fill="currentColor" opacity="0.35" d="M16 10.9c1.2 0 2.2.5 2.9 1.5-1.8-.3-3.9-.3-5.8 0 .7-1 1.7-1.5 2.9-1.5Z" />
       </>
     ),
     triceps: (
       <>
-        <path {...soft} d="M8.2 6.5c5.4.4 8.2 3.2 8.2 7.2 0 3.9-3.2 5.9-7.2 4.4 2.2-2.6 2.5-6.1-.2-8.2L6 14.6 4.4 13l3.8-6.5Z" />
-        <path {...common} d="M8 6.8c5 .4 8.3 3.2 8.3 7.1 0 3.6-2.8 5.6-7 4.2" />
-        <path {...common} d="M9 10.1 5.2 15" />
-        <path {...common} d="M11 12.6h5" />
+        <path fill="currentColor" d="M12.1 5.8c5.1.2 9.1 3.6 9.1 8.6 0 5.4-4.8 8.8-10.2 7.1 2.8-3.1 2.9-6.6.3-9.1l-3 5.5-4-2.2 4.9-9.1c.8-.5 1.8-.8 2.9-.8Z" />
+        <path fill="currentColor" opacity="0.32" d="M14.3 10.2c2.3 1 3.8 2.8 3.8 4.9 0 2.4-1.8 4-4.4 4.2 1.2-2.7 1.3-5.7.6-9.1Z" />
       </>
     ),
     biceps: (
       <>
-        <path {...soft} d="M5.2 15.8C7.6 8.2 13 5.2 16.8 9.1c2.3 2.3 1.1 6.2-2.2 7.8-3.3 1.7-7 1.2-9.4-1.1Z" />
-        <path {...common} d="M5.3 15.8c2.1-7.4 7.9-10.6 11.4-6.6" />
-        <path {...common} d="M7.6 15.3c2.7 3.1 7.4 2.7 9.7-.7" />
-        <path {...common} d="M5.3 15.8 3.8 18.5" />
+        <path fill="currentColor" d="M7.1 18.7c1.6-7.7 7-12.7 12.2-9.4 3.6 2.3 3.3 7.4-.7 10.1-3.8 2.6-8.6 2.4-11.5-.7Z" />
+        <path fill="currentColor" d="M4.6 16.3 8 18.5l-2.1 4.1-3.4-2.1 2.1-4.2Z" opacity="0.78" />
+        <path fill="currentColor" opacity="0.3" d="M14.1 11.2c2.7-.7 5 .4 5.5 2.3.5 1.8-.8 3.8-3.4 4.7 1.5-2.4.8-5-2.1-7Z" />
       </>
     ),
     back: (
       <>
-        <path {...soft} d="M4.4 8.2c4.2-.8 6.2 3.8 7.6 10.3 1.4-6.5 3.4-11.1 7.6-10.3-.6 4.6-2.7 8.2-7.6 10.8-4.9-2.6-7-6.2-7.6-10.8Z" />
-        <path {...common} d="M4.5 8.7c3.8-.4 5.9 4.4 7.5 10 1.6-5.6 3.7-10.4 7.5-10" />
-        <path {...common} d="M12 5.5v13.5" />
-        <path {...common} d="M8.2 12.2 12 15.4l3.8-3.2" />
+        <path fill="currentColor" d="M16 6.4c-2.1 2.1-3.8 5.4-5.1 9.8-2.3-4.4-5.2-6.3-8.2-5.3.4 8.4 5.2 12.2 13.3 14.7 8.1-2.5 12.9-6.3 13.3-14.7-3-1-5.9.9-8.2 5.3-1.3-4.4-3-7.7-5.1-9.8Z" />
+        <path fill="currentColor" opacity="0.32" d="M16 12c1.4 2.8 2.3 6.1 2.8 9.8-.8.4-1.7.7-2.8 1-1.1-.3-2-.6-2.8-1 .5-3.7 1.4-7 2.8-9.8Z" />
       </>
     ),
     quads: (
       <>
-        <path {...soft} d="M7.5 5.2h9l2 13.5H5.5l2-13.5Z" />
-        <path {...common} d="M8 5.5 6 18.5" />
-        <path {...common} d="M12 5.5v13" />
-        <path {...common} d="m16 5.5 2 13" />
-        <path {...common} d="M8.2 12.5h7.6" />
+        <path fill="currentColor" d="M9.4 5.7h13.2c1.9 5.3 2.3 12.2.9 20.6H18l-2-10-2 10H8.5c-1.4-8.4-1-15.3.9-20.6Z" />
+        <path fill="currentColor" opacity="0.32" d="M12.3 8.4h2.4l-1.3 14.5h-2.6c-.7-5.8-.2-10.7 1.5-14.5Zm5 0h2.4c1.7 3.8 2.2 8.7 1.5 14.5h-2.6L17.3 8.4Z" />
       </>
     ),
     hamstrings: (
       <>
-        <path {...soft} d="M7.4 5.5h9.2c1.7 6.2.4 10.6-3.6 13.3l-1-7-1 7C7 16.1 5.7 11.7 7.4 5.5Z" />
-        <path {...common} d="M8.3 5.6c-2 4.9-.9 10.1 2.7 13.1" />
-        <path {...common} d="M15.7 5.6c2 4.9.9 10.1-2.7 13.1" />
-        <path {...common} d="M12 6.5v11" />
+        <path fill="currentColor" d="M9.2 5.8h13.6c2.1 6.1 1.1 13.5-3.6 20.4h-4.1L16 15l.9 11.2h-4.1C8.1 19.3 7.1 11.9 9.2 5.8Z" />
+        <path fill="currentColor" opacity="0.34" d="M10.8 8.5h3.1c-.7 5.7-.2 10.4 1.4 14.2h-2c-2.6-4.4-3.4-9.1-2.5-14.2Zm7.3 0h3.1c.9 5.1.1 9.8-2.5 14.2h-2c1.6-3.8 2.1-8.5 1.4-14.2Z" />
       </>
     ),
     glutes: (
       <>
-        <path {...soft} d="M5 12c0-4.2 4.2-6.6 7-2.4 2.8-4.2 7-1.8 7 2.4 0 4.8-4.7 7-7 4.9-2.3 2.1-7-.1-7-4.9Z" />
-        <path {...common} d="M5 12c0-4.2 4.2-6.6 7-2.4 2.8-4.2 7-1.8 7 2.4 0 4.8-4.7 7-7 4.9-2.3 2.1-7-.1-7-4.9Z" />
-        <path {...common} d="M12 10v8" />
+        <path fill="currentColor" d="M16 9.8c-3.6-5-10.1-2-10.1 4.2 0 6.8 6.5 10.7 10.1 7.2 3.6 3.5 10.1-.4 10.1-7.2 0-6.2-6.5-9.2-10.1-4.2Z" />
+        <path fill="currentColor" opacity="0.32" d="M12.6 11.7c.8 2.7.7 5.3-.2 7.8-2.1-.3-3.8-2.6-3.8-5.3 0-2.5 1.7-3.9 4-2.5Zm6.8 0c2.3-1.4 4 .1 4 2.5 0 2.7-1.7 5-3.8 5.3-.9-2.5-1-5.1-.2-7.8Z" />
       </>
     ),
     calves: (
       <>
-        <path {...soft} d="M8.5 5.5c2.2 3.1 2.2 6.3-.7 13h8.4c-2.9-6.7-2.9-9.9-.7-13-2.4 1.2-4.6 1.2-7 0Z" />
-        <path {...common} d="M8.5 5.5c-.5 4.5 1.6 7.2-.8 13" />
-        <path {...common} d="M15.5 5.5c.5 4.5-1.6 7.2.8 13" />
-        <path {...common} d="M9.6 12.5h4.8" />
+        <path fill="currentColor" d="M11.3 5.6c3.1 2.1 4 6.5 1.8 13l-2.5 7.8H6.9l2.3-7.1C11 13.5 10.2 9.8 7.5 6.9c1.1-.8 2.4-1.2 3.8-1.3Zm9.4 0c1.4.1 2.7.5 3.8 1.3-2.7 2.9-3.5 6.6-1.7 12.4l2.3 7.1h-3.7l-2.5-7.8c-2.2-6.5-1.3-10.9 1.8-13Z" />
+        <path fill="currentColor" opacity="0.32" d="M11.2 12.9h3.1c-.1 1.7-.5 3.7-1.2 5.8l-1.5 4.4h-1.8l1.5-4.6c.7-2.1.7-4 .1-5.6Zm6.5 0h3.1c-.6 1.6-.6 3.5.1 5.6l1.5 4.6h-1.8l-1.5-4.4c-.7-2.1-1.1-4.1-1.4-5.8Z" />
       </>
     ),
     core: (
       <>
-        <path {...soft} d="M8 5.5h8v13H8v-13Z" />
-        <path {...common} d="M8 5.5h8" />
-        <path {...common} d="M8.5 9.8h7" />
-        <path {...common} d="M8.5 14.2h7" />
-        <path {...common} d="M8 18.5h8" />
-        <path {...common} d="M12 5.5v13" />
+        <path fill="currentColor" d="M11.2 5.5h9.6c2.4 5.6 2.4 12.6 0 21h-9.6c-2.4-8.4-2.4-15.4 0-21Z" />
+        <rect fill="currentColor" opacity="0.32" x="12.4" y="8.2" width="3.1" height="4.1" rx="1" />
+        <rect fill="currentColor" opacity="0.32" x="16.5" y="8.2" width="3.1" height="4.1" rx="1" />
+        <rect fill="currentColor" opacity="0.32" x="12.2" y="14" width="3.3" height="4.2" rx="1" />
+        <rect fill="currentColor" opacity="0.32" x="16.5" y="14" width="3.3" height="4.2" rx="1" />
+        <rect fill="currentColor" opacity="0.32" x="12.8" y="19.9" width="2.9" height="3.4" rx="1" />
+        <rect fill="currentColor" opacity="0.32" x="16.3" y="19.9" width="2.9" height="3.4" rx="1" />
       </>
     ),
     other: (
       <>
-        <path {...common} d="M7 12h10" />
-        <path {...common} d="M5 9.5v5" />
-        <path {...common} d="M19 9.5v5" />
-        <path {...common} d="M3.5 10.5v3" />
-        <path {...common} d="M20.5 10.5v3" />
+        <rect fill="currentColor" x="6.8" y="14.2" width="18.4" height="3.6" rx="1.2" />
+        <rect fill="currentColor" opacity="0.55" x="2.8" y="11.2" width="3.2" height="9.6" rx="1" />
+        <rect fill="currentColor" opacity="0.55" x="26" y="11.2" width="3.2" height="9.6" rx="1" />
+        <rect fill="currentColor" opacity="0.8" x="7" y="9.5" width="4" height="13" rx="1.1" />
+        <rect fill="currentColor" opacity="0.8" x="21" y="9.5" width="4" height="13" rx="1.1" />
       </>
     ),
   };
 
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5">
+    <svg aria-hidden="true" viewBox="0 0 32 32" className="h-5 w-5">
       {glyphs[group] ?? glyphs.other}
     </svg>
   );
@@ -368,7 +342,7 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
   return (
     <span className="inline-flex rounded-full p-[1px]" style={ringStyle}>
       <span
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-zinc-950"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-950"
         style={{ boxShadow: `0 0 12px ${glowColor}55`, color: style.primaryColor }}
       >
         <MuscleGlyph group={style.primaryGroup} />
@@ -528,9 +502,13 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const { readiness } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [customExercisesLoading, setCustomExercisesLoading] = useState(true);
-  const hasRecoveryReadiness = readiness?.hasRecoveryInput ?? false;
-  const readinessModifier = hasRecoveryReadiness ? readiness?.modifier ?? 1 : 1;
-  const readinessScore = hasRecoveryReadiness ? readiness?.score ?? 50 : 50;
+  const readinessModifier = readiness?.modifier ?? 1;
+  const readinessScore = readiness?.score ?? 72;
+  const readinessLabel = readiness?.source === 'manual'
+    ? 'Session Readiness'
+    : readiness?.source === 'training'
+      ? 'Training Readiness'
+      : 'Session Baseline';
   const sessionReadinessModifierRef = useRef<number | null>(null);
   if (sessionReadinessModifierRef.current == null) {
     sessionReadinessModifierRef.current = readinessModifier;
@@ -2139,10 +2117,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 <div className="flex items-end justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
-                      {hasRecoveryReadiness ? 'Session Readiness' : 'Session Baseline'}
+                      {readinessLabel}
                     </p>
                     <p className="text-6xl font-black text-white">
-                      {hasRecoveryReadiness ? Math.round(readinessScore) : '100%'}
+                      {Math.round(readinessScore)}
                     </p>
                   </div>
                 </div>

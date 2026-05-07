@@ -275,6 +275,17 @@ const startOfWeek = (date: Date) => {
 const pct = (numerator: number, denominator: number) =>
   denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
 
+function withAnalyticsTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnalyticsDashboardProps) {
   const { user, loading: authLoading, namespaceReady, isSyncing } = useAuth();
   const { unitSystem, setUnitSystem, weightUnit, lbsToKg, kgToLbs } = useUnitPreference();
@@ -637,7 +648,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       today.setHours(0, 0, 0, 0);
       const from = formatIsoDateLocal(addDays(today, -89));
       const to = formatIsoDateLocal(addDays(today, 30));
-      const events = await listScheduleEvents({ from, to });
+      const events = await withAnalyticsTimeout(
+        listScheduleEvents({ from, to }),
+        6500,
+        'adherence analytics'
+      );
       const adherence = buildAdherenceAnalytics(events);
       setAnalytics((prev) => ({
         ...prev,
@@ -656,10 +671,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       return;
     }
 
-    if (isSyncing) {
-      return;
-    }
-
     // Now acquire lock - only for actual loading operations
     if (loadingInProgressRef.current) {
       return;
@@ -668,7 +679,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
     try {
       setLoading(initialLoadRef.current);
-      setCloudSyncing(false);
+      setCloudSyncing(Boolean(user) && isSyncing);
       setUserNamespace(user?.id || null);
 
       const localWorkouts = getWorkoutHistory();
@@ -684,31 +695,35 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       setCloudSyncing(true);
       try {
-        const { data: supabaseWorkouts, error } = await supabase
-          .from('workout_sessions')
-          .select(`
-            id,
-            date,
-            start_time,
-            end_time,
-            duration_minutes,
-            total_volume_load,
-            notes,
-            set_logs (
+        const { data: supabaseWorkouts, error } = await withAnalyticsTimeout(
+          supabase
+            .from('workout_sessions')
+            .select(`
               id,
-              exercise_id,
-              exercise_slug,
-              actual_weight,
-              weight_unit,
-              actual_reps,
-              actual_rpe,
-              completed,
-              set_type
-            )
-          `)
-          .eq('user_id', user.id)
-          .is('deleted_at', null)
-          .order('start_time', { ascending: false });
+              date,
+              start_time,
+              end_time,
+              duration_minutes,
+              total_volume_load,
+              notes,
+              set_logs (
+                id,
+                exercise_id,
+                exercise_slug,
+                actual_weight,
+                weight_unit,
+                actual_reps,
+                actual_rpe,
+                completed,
+                set_type
+              )
+            `)
+            .eq('user_id', user.id)
+            .is('deleted_at', null)
+            .order('start_time', { ascending: false }),
+          9000,
+          'insights workout history'
+        );
 
         if (error) {
           throw error;
@@ -786,7 +801,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     if (!user || loadingRecovery || analytics.recoveryProfiles) return;
     setLoadingRecovery(true);
     try {
-      const profiles = await getRecoveryProfiles(user.id);
+      const profiles = await withAnalyticsTimeout(
+        getRecoveryProfiles(user.id),
+        6500,
+        'recovery profiles'
+      );
       setAnalytics((prev) => ({
         ...prev,
         recoveryProfiles: profiles,

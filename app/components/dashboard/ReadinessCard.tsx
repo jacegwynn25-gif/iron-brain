@@ -12,7 +12,6 @@ interface ReadinessCardProps {
 
 export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
     const score = readiness?.score ?? 0;
-    const sourceLabel = readiness?.source === 'manual' ? 'Manual' : 'Recovery Input';
 
     // Define color mapping
     const getReadinessColor = (s: number) => {
@@ -53,11 +52,6 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                         <div className="flex items-center gap-2">
                             <Activity className={`h-3 w-3 sm:h-4 sm:w-4 ${style.primary}`} />
                             <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.3em]">Readiness</span>
-                            {readiness?.hasRecoveryInput && (
-                                <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:text-[9px]">
-                                    {sourceLabel}
-                                </span>
-                            )}
                         </div>
 
                         <div className="space-y-0.5 sm:space-y-1">
@@ -80,9 +74,9 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             </div>
                             <Link
                                 href="/checkin"
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-emerald-200 shadow-[0_12px_28px_-22px_rgba(52,211,153,0.8)] transition-colors hover:border-emerald-400 hover:bg-emerald-500/15 sm:gap-2 sm:px-3.5 sm:py-2 sm:text-[10px]"
+                                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-300/70 bg-emerald-400 px-4 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-950 shadow-[0_16px_34px_-22px_rgba(52,211,153,0.95)] transition-colors hover:bg-emerald-300 active:bg-emerald-500 sm:min-h-11 sm:px-5 sm:text-[11px]"
                             >
-                                <ClipboardCheck className="h-3 w-3" />
+                                <ClipboardCheck className="h-4 w-4" strokeWidth={3} />
                                 Daily Check-In
                             </Link>
                         </div>

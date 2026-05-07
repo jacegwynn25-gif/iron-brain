@@ -1,5 +1,7 @@
 import { supabase } from '../supabase/client';
 
+type Quality = 'poor' | 'fair' | 'good' | 'excellent';
+
 export interface TrainingReadiness {
   score: number; // 0-100
   modifier: number; // 0.90 to 1.05
@@ -9,130 +11,337 @@ export interface TrainingReadiness {
     lower_body_modifier: number;
   };
   reason: string;
-  source: 'oura' | 'manual' | 'training' | 'baseline';
+  source: 'manual' | 'training' | 'baseline';
   hasRecoveryInput: boolean;
 }
 
 interface UserContext {
   date?: string;
-  sleep_hours?: number;
-  calorie_balance?: 'surplus' | 'deficit' | 'maintenance';
-  subjective_readiness?: number;
-  resting_heart_rate?: number;
-  heart_rate_variability?: number;
-  source?: string;
+  sleep_hours?: number | null;
+  sleep_quality?: Quality | null;
+  calorie_balance?: 'surplus' | 'deficit' | 'maintenance' | null;
+  hydration_level?: Quality | null;
+  work_stress?: number | null;
+  life_stress?: number | null;
+  perceived_stress?: number | null;
+  resting_heart_rate?: number | null;
+  heart_rate_variability?: number | null;
+  subjective_readiness?: number | null;
+  source?: string | null;
 }
 
+type ScoreComponent = {
+  label: string;
+  score: number;
+  weight: number;
+};
+
+type TrainingLoadSignal = {
+  score: number;
+  upperModifier: number;
+  lowerModifier: number;
+  reason: string;
+  hasWorkout: boolean;
+};
+
+const QUERY_TIMEOUT_MS = 7000;
+const MANUAL_CONTEXT_FRESH_DAYS = 2;
+
 export async function calculateTrainingReadiness(userId: string): Promise<TrainingReadiness> {
-  // 1. Fetch External Data (Sleep, Calories) & Internal Data (Last Workout)
-  const [context, lastWorkout] = await Promise.all([
-    fetchLatestContext(userId),
-    fetchLastWorkoutStats(userId)
+  const [contexts, lastWorkout] = await Promise.all([
+    fetchRecentManualContexts(userId),
+    fetchLastWorkoutStats(userId),
   ]);
 
-  // --- STEP 1: SYSTEMIC RECOVERY (The Foundation) ---
-  const hasManualRecoveryInput = Boolean(
-    context.date ||
-    context.sleep_hours != null ||
-    context.calorie_balance != null ||
-    context.subjective_readiness != null ||
-    context.resting_heart_rate != null ||
-    context.heart_rate_variability != null
+  const context = contexts[0] ?? {};
+  const contextIsFresh = isContextFresh(context.date);
+  const hasManualRecoveryInput = contextIsFresh && hasMeaningfulContext(context);
+  const training = calculateTrainingLoadSignal(lastWorkout);
+
+  const manualScore = hasManualRecoveryInput
+    ? calculateManualRecoveryScore(context, contexts.slice(1))
+    : null;
+
+  const score = clamp(
+    Math.round(
+      manualScore == null
+        ? training.score
+        : manualScore * 0.78 + training.score * 0.22
+    ),
+    35,
+    98
   );
-  const hasRecoveryInput = hasManualRecoveryInput;
-  let systemicScore = hasManualRecoveryInput ? 85 : 50;
-  const systemicReasons: string[] = [];
 
-  // Sleep Logic
-  if (context.sleep_hours) {
-    if (context.sleep_hours < 5) {
-      systemicScore -= 25; 
-      systemicReasons.push("Severe sleep debt");
-    } else if (context.sleep_hours < 6.5) {
-      systemicScore -= 10;
-      systemicReasons.push("Poor sleep");
-    }
-  }
-
-  if (context.subjective_readiness != null) {
-    const subjectiveScore = Math.round(context.subjective_readiness * 10);
-    systemicScore = Math.round((systemicScore + subjectiveScore) / 2);
-    systemicReasons.push("Self-reported readiness");
-  }
-
-  // Nutrition Logic (Using 'calorie_balance' enum column)
-  if (context.calorie_balance === 'deficit') {
-    systemicScore -= 10;
-    systemicReasons.push("Caloric deficit");
-  } else if (context.calorie_balance === 'surplus') {
-    systemicScore += 5;
-  }
-
-  // --- STEP 2: LOCAL MUSCLE FATIGUE (The Nuance) ---
-  let upperMod = 1.0;
-  let lowerMod = 1.0;
-  let localReason = "";
-
-  if (lastWorkout) {
-    // Calculate hours since last session
-    const endTime = lastWorkout.end_time ? new Date(lastWorkout.end_time).getTime() : Date.now();
-    const hoursSince = (Date.now() - endTime) / (1000 * 60 * 60);
-    
-    const wasHighIntensity = (lastWorkout.average_rpe || 0) > 8; 
-    const wasHighVolume = (lastWorkout.total_sets || 0) > 15;
-
-    // "The overlap rule": If you trained < 24h ago, we must check overlap.
-    if (hoursSince < 24) {
-      if (wasHighIntensity) {
-        if (isUpperBody(lastWorkout.name)) { 
-           upperMod = 0.90; // -10% on Upper
-           localReason = "Upper body is still recovering from yesterday.";
-        } 
-        else if (isLowerBody(lastWorkout.name)) {
-           lowerMod = 0.90; // -10% on Lower
-           localReason = "Legs are fried from yesterday.";
-        }
-      }
-    } else if (hoursSince < 48 && wasHighIntensity && wasHighVolume) {
-       // Deep fatigue lingers for 48h
-       if (isUpperBody(lastWorkout.name)) upperMod = 0.97;
-       if (isLowerBody(lastWorkout.name)) lowerMod = 0.97;
-    }
-  }
-
-  // --- STEP 3: THE FINAL CALCULATION ---
-  let baseMod = 1.0;
-  if (hasRecoveryInput) {
-    if (systemicScore < 60) baseMod = 0.90; // Systemic crash
-    else if (systemicScore < 80) baseMod = 0.95; // Systemic fatigue
-    else if (systemicScore > 90) baseMod = 1.025; // Systemic peak
-  }
-
+  const modifier = getReadinessModifier(score);
   const source: TrainingReadiness['source'] = hasManualRecoveryInput
     ? 'manual'
-    : lastWorkout
+    : training.hasWorkout
       ? 'training'
       : 'baseline';
 
-  const finalReason = systemicReasons.length > 0 
-    ? `Systemic: ${systemicReasons.join(", ")}` 
-    : localReason || (hasRecoveryInput ? "System optimal. Ready to push." : "No recovery data logged. Using normal training loads.");
-
   return {
-    score: systemicScore,
-    modifier: baseMod,
-    recommendation: hasRecoveryInput ? getRecommendation(systemicScore) : "Baseline session. Use normal loads.",
+    score,
+    modifier,
+    recommendation: getRecommendation(score, source),
     focus_adjustments: {
-      upper_body_modifier: Number((baseMod * upperMod).toFixed(3)),
-      lower_body_modifier: Number((baseMod * lowerMod).toFixed(3))
+      upper_body_modifier: Number((modifier * training.upperModifier).toFixed(3)),
+      lower_body_modifier: Number((modifier * training.lowerModifier).toFixed(3)),
     },
-    reason: finalReason,
+    reason: buildReason({
+      source,
+      context,
+      manualScore,
+      training,
+      hasManualRecoveryInput,
+    }),
     source,
-    hasRecoveryInput
+    hasRecoveryInput: hasManualRecoveryInput,
   };
 }
 
-// --- HELPER FUNCTIONS ---
+function calculateManualRecoveryScore(context: UserContext, history: UserContext[]): number {
+  const components: ScoreComponent[] = [];
+
+  if (context.subjective_readiness != null) {
+    components.push({
+      label: 'self-readiness',
+      score: clamp(context.subjective_readiness * 10, 20, 100),
+      weight: 0.34,
+    });
+  }
+
+  if (context.sleep_hours != null) {
+    components.push({
+      label: 'sleep duration',
+      score: scoreSleepHours(context.sleep_hours),
+      weight: 0.2,
+    });
+  }
+
+  if (context.sleep_quality) {
+    components.push({
+      label: 'sleep quality',
+      score: scoreQuality(context.sleep_quality),
+      weight: 0.12,
+    });
+  }
+
+  const stressValues = [
+    context.perceived_stress,
+    context.work_stress,
+    context.life_stress,
+  ].filter((value): value is number => typeof value === 'number');
+
+  if (stressValues.length > 0) {
+    const stressAverage = stressValues.reduce((sum, value) => sum + value, 0) / stressValues.length;
+    components.push({
+      label: 'stress',
+      score: clamp(105 - stressAverage * 8.5, 20, 100),
+      weight: 0.16,
+    });
+  }
+
+  if (context.hydration_level) {
+    components.push({
+      label: 'hydration',
+      score: scoreQuality(context.hydration_level),
+      weight: 0.08,
+    });
+  }
+
+  if (context.calorie_balance) {
+    components.push({
+      label: 'fuel',
+      score: context.calorie_balance === 'surplus'
+        ? 88
+        : context.calorie_balance === 'maintenance'
+          ? 78
+          : 58,
+      weight: 0.06,
+    });
+  }
+
+  const hrvBaseline = averagePositive(history.map((entry) => entry.heart_rate_variability));
+  if (context.heart_rate_variability != null && hrvBaseline != null) {
+    const ratio = context.heart_rate_variability / hrvBaseline;
+    components.push({
+      label: 'HRV trend',
+      score: ratio >= 1.08 ? 88 : ratio >= 0.95 ? 76 : ratio >= 0.86 ? 58 : 42,
+      weight: 0.06,
+    });
+  }
+
+  const rhrBaseline = averagePositive(history.map((entry) => entry.resting_heart_rate));
+  if (context.resting_heart_rate != null && rhrBaseline != null) {
+    const delta = context.resting_heart_rate - rhrBaseline;
+    components.push({
+      label: 'resting heart rate',
+      score: delta <= -3 ? 86 : delta <= 3 ? 76 : delta <= 7 ? 58 : 42,
+      weight: 0.04,
+    });
+  }
+
+  if (components.length === 0) return 70;
+
+  const totalWeight = components.reduce((sum, component) => sum + component.weight, 0);
+  const weightedScore = components.reduce(
+    (sum, component) => sum + component.score * component.weight,
+    0
+  ) / totalWeight;
+
+  return clamp(Math.round(weightedScore), 25, 100);
+}
+
+function calculateTrainingLoadSignal(lastWorkout: Awaited<ReturnType<typeof fetchLastWorkoutStats>>): TrainingLoadSignal {
+  if (!lastWorkout?.end_time) {
+    return {
+      score: 72,
+      upperModifier: 1,
+      lowerModifier: 1,
+      reason: 'No recent completed workout found. Using a neutral training baseline.',
+      hasWorkout: false,
+    };
+  }
+
+  const hoursSince = Math.max(0, (Date.now() - new Date(lastWorkout.end_time).getTime()) / (1000 * 60 * 60));
+  const averageRpe = Number(lastWorkout.average_rpe ?? 7);
+  const totalSets = Number(lastWorkout.total_sets ?? 0);
+  const volumeLoad = Number(lastWorkout.total_volume_load ?? 0);
+  const isHighIntensity = averageRpe >= 8.5;
+  const isHighVolume = totalSets >= 18 || volumeLoad >= 12000;
+
+  let score = 78;
+  if (hoursSince < 12) score -= isHighIntensity || isHighVolume ? 26 : 18;
+  else if (hoursSince < 24) score -= isHighIntensity || isHighVolume ? 18 : 10;
+  else if (hoursSince < 36) score -= isHighIntensity && isHighVolume ? 12 : 5;
+  else if (hoursSince > 72) score += 4;
+
+  let upperModifier = 1;
+  let lowerModifier = 1;
+  const localModifier = hoursSince < 18
+    ? 0.9
+    : hoursSince < 36
+      ? 0.94
+      : hoursSince < 48 && isHighIntensity && isHighVolume
+        ? 0.97
+        : 1;
+
+  if (localModifier < 1) {
+    if (isUpperBody(lastWorkout.name)) upperModifier = localModifier;
+    if (isLowerBody(lastWorkout.name)) lowerModifier = localModifier;
+  }
+
+  return {
+    score: clamp(Math.round(score), 40, 92),
+    upperModifier,
+    lowerModifier,
+    reason: describeTrainingLoad(hoursSince, averageRpe, totalSets),
+    hasWorkout: true,
+  };
+}
+
+function buildReason({
+  source,
+  context,
+  manualScore,
+  training,
+  hasManualRecoveryInput,
+}: {
+  source: TrainingReadiness['source'];
+  context: UserContext;
+  manualScore: number | null;
+  training: TrainingLoadSignal;
+  hasManualRecoveryInput: boolean;
+}) {
+  if (!hasManualRecoveryInput) {
+    return source === 'baseline'
+      ? 'No Daily Check-In logged yet. Showing a neutral baseline until you add recovery context.'
+      : `No fresh Daily Check-In. ${training.reason}`;
+  }
+
+  const notes: string[] = [];
+  if (context.subjective_readiness != null) notes.push(`self-readiness ${context.subjective_readiness}/10`);
+  if (context.sleep_hours != null) notes.push(`${context.sleep_hours}h sleep`);
+  if (context.sleep_quality) notes.push(`${context.sleep_quality} sleep`);
+  if (context.perceived_stress != null) notes.push(`stress ${context.perceived_stress}/10`);
+  if (context.calorie_balance) notes.push(context.calorie_balance);
+
+  const contextText = notes.length > 0 ? notes.slice(0, 3).join(', ') : `manual score ${manualScore ?? 70}`;
+  return `Daily Check-In based: ${contextText}. ${training.reason}`;
+}
+
+function describeTrainingLoad(hoursSince: number, averageRpe: number, totalSets: number) {
+  const roundedHours = Math.round(hoursSince);
+  if (hoursSince < 24) {
+    return `Last session was ${roundedHours}h ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets.`;
+  }
+  const roundedDays = Math.max(1, Math.round(hoursSince / 24));
+  return `Last session was ${roundedDays}d ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets.`;
+}
+
+function hasMeaningfulContext(context: UserContext) {
+  return Boolean(
+    context.date &&
+    (
+      context.sleep_hours != null ||
+      context.sleep_quality != null ||
+      context.calorie_balance != null ||
+      context.hydration_level != null ||
+      context.subjective_readiness != null ||
+      context.perceived_stress != null ||
+      context.work_stress != null ||
+      context.life_stress != null ||
+      context.resting_heart_rate != null ||
+      context.heart_rate_variability != null
+    )
+  );
+}
+
+function isContextFresh(date?: string) {
+  if (!date) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const contextDate = new Date(`${date}T00:00:00`);
+  const ageDays = (today.getTime() - contextDate.getTime()) / (1000 * 60 * 60 * 24);
+  return ageDays >= 0 && ageDays <= MANUAL_CONTEXT_FRESH_DAYS;
+}
+
+function scoreSleepHours(hours: number) {
+  if (hours < 4.5) return 35;
+  if (hours < 5.5) return 50;
+  if (hours < 6.5) return 64;
+  if (hours <= 8.8) return 86;
+  if (hours <= 9.6) return 78;
+  return 68;
+}
+
+function scoreQuality(value: Quality) {
+  if (value === 'excellent') return 92;
+  if (value === 'good') return 80;
+  if (value === 'fair') return 64;
+  return 44;
+}
+
+function averagePositive(values: Array<number | null | undefined>) {
+  const valid = values.filter((value): value is number => typeof value === 'number' && value > 0);
+  if (valid.length < 3) return null;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+}
+
+function getReadinessModifier(score: number) {
+  if (score < 50) return 0.9;
+  if (score < 70) return 0.95;
+  if (score >= 93) return 1.04;
+  if (score >= 88) return 1.025;
+  return 1;
+}
+
+function getRecommendation(score: number, source: TrainingReadiness['source']): string {
+  if (score < 50) return 'Deload recommended. Drop weights 15-20%.';
+  if (score < 70) return 'Auto-regulation active. Trim load 5-10%.';
+  if (score >= 88) return 'Green light. Push progressive overload.';
+  return source === 'baseline' ? 'Baseline session. Use normal loads.' : 'Ready for normal training.';
+}
 
 function isUpperBody(workoutName: string | null): boolean {
   if (!workoutName) return false;
@@ -143,37 +352,64 @@ function isUpperBody(workoutName: string | null): boolean {
 function isLowerBody(workoutName: string | null): boolean {
   if (!workoutName) return false;
   const lower = workoutName.toLowerCase();
-  return lower.includes('lower') || lower.includes('leg') || lower.includes('squat');
+  return lower.includes('lower') || lower.includes('leg') || lower.includes('squat') || lower.includes('deadlift');
 }
 
-function getRecommendation(score: number): string {
-  if (score < 50) return "Deload recommended. Drop weights 15-20%.";
-  if (score < 75) return "Auto-regulation active. Weights reduced 5%.";
-  return "Green light. Attempt progressive overload.";
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
-// --- DATA FETCHERS ---
+function withQueryTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+  });
 
-async function fetchLatestContext(userId: string): Promise<UserContext> {
-  const { data } = await supabase
-    .from('user_context_data')
-    .select('date, sleep_hours, calorie_balance, subjective_readiness, resting_heart_rate, heart_rate_variability, source')
-    .eq('user_id', userId)
-    .order('date', { ascending: false })
-    .limit(1)
-    .single();
-  return (data as UserContext) || {};
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
+async function fetchRecentManualContexts(userId: string): Promise<UserContext[]> {
+  try {
+    const { data } = await withQueryTimeout(
+      supabase
+        .from('user_context_data')
+        .select('date, sleep_hours, sleep_quality, calorie_balance, hydration_level, perceived_stress, work_stress, life_stress, subjective_readiness, resting_heart_rate, heart_rate_variability, source')
+        .eq('user_id', userId)
+        .or('source.is.null,source.neq.oura')
+        .order('date', { ascending: false })
+        .limit(14),
+      QUERY_TIMEOUT_MS,
+      'manual recovery context'
+    );
+
+    return ((data as UserContext[] | null) ?? []).filter(
+      (entry) => entry.source?.toLowerCase() !== 'oura'
+    );
+  } catch {
+    return [];
+  }
 }
 
 async function fetchLastWorkoutStats(userId: string) {
-  const { data } = await supabase
-    .from('workout_sessions')
-    .select('end_time, average_rpe, total_sets, name')
-    .eq('user_id', userId)
-    .neq('status', 'in_progress')
-    .not('end_time', 'is', null)
-    .order('end_time', { ascending: false })
-    .limit(1)
-    .single();
-  return data;
+  try {
+    const { data } = await withQueryTimeout(
+      supabase
+        .from('workout_sessions')
+        .select('end_time, average_rpe, total_sets, total_volume_load, name')
+        .eq('user_id', userId)
+        .neq('status', 'in_progress')
+        .not('end_time', 'is', null)
+        .order('end_time', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      QUERY_TIMEOUT_MS,
+      'last workout'
+    );
+
+    return data;
+  } catch {
+    return null;
+  }
 }
