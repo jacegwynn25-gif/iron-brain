@@ -24,7 +24,7 @@ export async function DELETE(request: NextRequest) {
     .eq('provider', 'oura');
 
   if (error) {
-    console.error('Failed to disconnect Oura:', error);
+    console.error('Failed to disconnect fitness tracker:', error);
     return NextResponse.json({ error: 'Failed to disconnect' }, { status: 500 });
   }
 

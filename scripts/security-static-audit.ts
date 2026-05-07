@@ -145,14 +145,14 @@ function checkStripeHardening(files: Array<{ file: string; text: string }>) {
   );
 }
 
-function checkOuraDisabled(files: Array<{ file: string; text: string }>) {
+function checkLegacyFitnessTrackerDisabled(files: Array<{ file: string; text: string }>) {
   const connect = files.find((entry) => entry.file === 'app/api/oura/connect/route.ts')?.text ?? '';
   const callback = files.find((entry) => entry.file === 'app/api/oura/callback/route.ts')?.text ?? '';
   const sync = files.find((entry) => entry.file === 'app/api/oura/sync/route.ts')?.text ?? '';
   const combined = `${connect}\n${callback}\n${sync}`;
 
   add(
-    'oura:integration-disabled',
+    'fitness-tracker:legacy-integration-disabled',
     connect.includes('status: 410') &&
       sync.includes('status: 410') &&
       callback.includes("'disabled'") &&
@@ -160,7 +160,7 @@ function checkOuraDisabled(files: Array<{ file: string; text: string }>) {
       !combined.includes('OURA_TOKEN_URL') &&
       !combined.includes('OURA_API_BASE_URL') &&
       !combined.includes('access_token'),
-    'Oura OAuth and sync endpoints are disabled'
+    'legacy OAuth and sync endpoints are disabled'
   );
 }
 
@@ -171,7 +171,7 @@ function main() {
   checkServiceRoleIsolation(files);
   checkProtectedApiRoutes(files);
   checkStripeHardening(files);
-  checkOuraDisabled(files);
+  checkLegacyFitnessTrackerDisabled(files);
 
   for (const check of checks) {
     console.log(`${check.ok ? 'PASS' : 'FAIL'} ${check.name} - ${check.detail}`);

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { error: 'Oura integration is disabled. Use Daily Check-In for readiness.' },
+    { error: 'Fitness tracker integration is disabled. Use Daily Check-In for readiness.' },
     { status: 410 }
   );
 }

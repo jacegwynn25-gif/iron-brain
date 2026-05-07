@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { error: 'Oura sync is disabled. Readiness now uses Daily Check-In and training load.' },
+    { error: 'Fitness tracker sync is disabled. Readiness now uses Daily Check-In and training load.' },
     { status: 410 }
   );
 }

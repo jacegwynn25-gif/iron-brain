@@ -108,6 +108,18 @@ async function checkSupabase() {
     !supportColumnError,
     supportColumnError ? `${supportColumnError.code} ${supportColumnError.message}` : 'present'
   );
+
+  const { error: prescribedWeightColumnError } = await supabase
+    .from('set_logs')
+    .select('prescribed_weight')
+    .limit(1);
+  add(
+    'supabase:set_logs:prescribed_weight',
+    !prescribedWeightColumnError,
+    prescribedWeightColumnError
+      ? `${prescribedWeightColumnError.code} ${prescribedWeightColumnError.message}`
+      : 'present'
+  );
 }
 
 async function checkStripe() {

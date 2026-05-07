@@ -13,6 +13,10 @@
     "release:gate": "node scripts/release-gate.js",
     "security:audit": "tsx scripts/security-static-audit.ts",
     "seed:dev": "tsx scripts/seed-dev-data.ts",
+    "supabase:apply:prescribed-weight": "supabase db query --linked --file supabase/migrations/026_add_prescribed_weight_to_set_logs.sql",
+    "supabase:link": "supabase link --project-ref nwqqasofqwoinzrcjivo",
+    "supabase:migrations": "supabase migration list",
+    "supabase:query:linked": "supabase db query --linked",
     "verify-production": "tsx scripts/verify-production-readiness.ts",
     "verify-supabase": "tsx scripts/verify-supabase.ts"
   },

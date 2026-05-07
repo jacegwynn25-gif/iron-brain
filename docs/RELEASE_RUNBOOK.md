@@ -39,8 +39,8 @@ Before a public launch, run these on a real phone and desktop browser:
 - Create a custom exercise, add it to a workout, leave/resume, and confirm the human name still displays.
 - Build and save a custom program.
 - Confirm history shows the finished workout and set notes.
-- Visit Settings and confirm Oura/unit/account controls work and no placeholder controls are exposed.
-- Open Upgrade, Cancel, and Success pages.
+- Visit Settings and confirm unit/account controls work and no placeholder controls are exposed.
+- Open Support, Cancel, and Success pages.
 - Start Stripe Checkout with a real authenticated account before announcing paid access.
 
 ## Ship Criteria
