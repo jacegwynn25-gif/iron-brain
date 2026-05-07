@@ -246,8 +246,6 @@ async function checkResumedWorkoutDiscard(browser) {
   await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
   await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
-  await page.getByText(/All progress will be lost/i).waitFor({ state: 'visible', timeout: 10000 });
-  await page.getByRole('button', { name: /^Discard Session$/i }).last().tap({ timeout: 10000 });
   await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
   await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
 
@@ -258,6 +256,22 @@ async function checkResumedWorkoutDiscard(browser) {
 
   await page.close();
   console.log('✅ resumed workout discard clears storage and returns to Start Session CTA');
+}
+
+async function checkForceDiscardRoute(browser) {
+  const page = await newPage(
+    browser,
+    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
+  );
+  await page.goto(`${BASE_URL}/workout/new?discard=1`, { waitUntil: 'networkidle' });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
+  if (raw !== null) {
+    throw new Error('Force-discard route did not clear active-session storage');
+  }
+  await page.close();
+  console.log('✅ force-discard URL clears active workout storage');
 }
 
 async function checkWorkoutRouteChrome(browser) {
@@ -393,6 +407,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkResumeDataIntegrity(browser);
     await checkWorkoutExitKeepsResume(browser);
     await checkResumedWorkoutDiscard(browser);
+    await checkForceDiscardRoute(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkSmartTrainingTargets(browser);

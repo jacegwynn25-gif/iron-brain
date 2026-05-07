@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import SessionLogger from '@/app/components/workout/SessionLogger';
 import { getProgramProgress, type ProgramProgress } from '@/app/lib/programs/progress';
 import { useAuth } from '@/app/lib/supabase/auth-context';
@@ -9,9 +9,11 @@ import { useProgramContext } from '@/app/providers/ProgramProvider';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 
 export default function NewWorkoutPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedProgramId = searchParams.get('program_id');
   const forceQuickStart = searchParams.get('type') === 'empty';
+  const forceDiscard = searchParams.get('discard') === '1';
   const queryWeek = searchParams.get('week');
   const queryDay = searchParams.get('day');
   const queryCycle = searchParams.get('cycle');
@@ -19,7 +21,7 @@ export default function NewWorkoutPage() {
   const namespaceId = user?.id ?? 'guest';
 
   const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
-  const { snapshot, isReady: activeSessionReady, isSessionActive } = useActiveSession();
+  const { snapshot, isReady: activeSessionReady, isSessionActive, clearSession } = useActiveSession();
 
   // When resuming an active session, use its stored program/day metadata
   // instead of the default selectedProgram + getProgramProgress flow.
@@ -89,6 +91,22 @@ export default function NewWorkoutPage() {
     if (selectedProgram?.id === resolvedProgram.id) return;
     selectProgram(resolvedProgram);
   }, [forceQuickStart, requestedProgramId, resolvedProgram, selectProgram, selectedProgram?.id]);
+
+  useEffect(() => {
+    if (!forceDiscard || !activeSessionReady) return;
+    clearSession();
+    router.replace('/');
+  }, [activeSessionReady, clearSession, forceDiscard, router]);
+
+  if (forceDiscard) {
+    return (
+      <div className="mx-auto w-full max-w-3xl py-6">
+        <div className="px-4 py-12 text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+          Discarding Workout...
+        </div>
+      </div>
+    );
+  }
 
   if (!activeSessionReady && !requestedProgramId && !forceQuickStart) {
     return (

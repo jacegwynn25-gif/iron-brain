@@ -20,7 +20,6 @@ import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession, type ReadinessLoadModifiers } from '@/app/lib/hooks/useWorkoutSession';
 import { useUnitPreference } from '@/app/lib/hooks/useUnitPreference';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
-import { useDialog } from '@/app/providers/DialogProvider';
 
 import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import {
@@ -677,7 +676,6 @@ function getSnapshotDefaultWeightUnit(snapshot: ActiveSessionSnapshot | null, fa
 
 export default function SessionLogger({ initialData, initialProgress, ignoreActiveSnapshot = false }: SessionLoggerProps) {
   const router = useRouter();
-  const { confirm } = useDialog();
   const { user } = useAuth();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness, loading: readinessLoading } = useRecoveryState();
@@ -2363,17 +2361,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setFinishStatusMessage(null);
   };
 
-  const handleCancelWorkout = async () => {
-    const confirmed = await confirm(
-      'Discard Workout?',
-      'Are you sure you want to cancel this workout? All progress will be lost and it will not be saved to your history.',
-      { variant: 'danger', confirmLabel: 'Discard Session', cancelLabel: 'Go Back' }
-    );
-
-    if (confirmed) {
-      clearSession();
-      router.push('/');
-    }
+  const handleCancelWorkout = () => {
+    clearSession();
+    router.replace('/');
   };
 
   useEffect(() => {
