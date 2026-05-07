@@ -234,7 +234,11 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     if (effectiveUserId) {
       void (async () => {
         try {
-          await saveProgramToCloud(programToSave, effectiveUserId);
+          const synced = await saveProgramToCloud(programToSave, effectiveUserId);
+          if (!synced) {
+            setCloudSaveError('Program saved locally, but cloud sync did not finish. It will retry when connection is available.');
+            return;
+          }
           setCloudSaveError(null);
           logger.debug(`✅ Saved program "${programToSave.name}" to cloud`);
         } catch (e) {
@@ -283,7 +287,11 @@ export function usePrograms(options?: UseProgramsOptions): UseProgramsReturn {
     // Delete from cloud if logged in
     if (effectiveUserId) {
       try {
-        await deleteProgramFromCloud(programId, effectiveUserId);
+        const synced = await deleteProgramFromCloud(programId, effectiveUserId);
+        if (!synced) {
+          setCloudSaveError('Program removed locally, but cloud deletion did not finish. It will retry when connection is available.');
+          return;
+        }
         setCloudSaveError(null);
         logger.debug(`🗑️ Deleted program ${programId} from cloud`);
       } catch (e) {

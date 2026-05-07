@@ -135,6 +135,16 @@ function clampRpe(value: number | null | undefined): number | null {
   return Math.min(10, Math.max(1, value));
 }
 
+function clampRir(value: number | null | undefined): number | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return Math.min(10, Math.max(0, value));
+}
+
+function positiveTarget(value: number | null | undefined): number | null {
+  if (value == null || Number.isNaN(value) || value <= 0) return null;
+  return value;
+}
+
 function parseTempoCue(templateSet: SetTemplate): string | null {
   if (templateSet.tempo?.trim()) return templateSet.tempo.trim();
   const note = templateSet.notes?.trim();
@@ -274,6 +284,17 @@ function buildSessionSetFromTemplate(
   const repsTarget = parseRepsTarget(templateSet.prescribedReps);
   const mappedSetType = mapTemplateSetType(templateSet);
   const effectiveReps = cluster && cluster.reps.length > 0 ? cluster.reps[0] : repsTarget;
+  const prescriptionMethod = templateSet.prescriptionMethod ?? 'rpe';
+  const prescribedRPE = prescriptionMethod === 'rpe' ? clampRpe(templateSet.targetRPE ?? null) : null;
+  const prescribedRIR = prescriptionMethod === 'rir' ? clampRir(templateSet.targetRIR ?? null) : null;
+  const prescribedPercentage =
+    prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm'
+      ? positiveTarget(templateSet.targetPercentage ?? null)
+      : null;
+  const prescribedWeight =
+    prescriptionMethod === 'fixed_weight' ? positiveTarget(templateSet.fixedWeight ?? null) : null;
+  const prescribedSeconds =
+    prescriptionMethod === 'time_based' ? positiveTarget(templateSet.targetSeconds ?? null) : null;
 
   // Only compute weight if we have real history data
   const computedWeight =
@@ -287,7 +308,12 @@ function buildSessionSetFromTemplate(
     weight: computedWeight,
     weightUnit,
     reps: effectiveReps,
-    rpe: clampRpe(templateSet.targetRPE ?? null),
+    rpe: prescribedRPE,
+    prescribedRPE,
+    prescribedRIR,
+    prescribedPercentage,
+    prescribedWeight,
+    prescribedSeconds,
     touchedWeight: false,
     touchedReps: false,
     touchedRpe: false,
@@ -579,6 +605,11 @@ function normalizeSessionState(state: SessionState, fallbackWeightUnit: WeightUn
         sets: exercise.sets.map((set) => ({
           ...set,
           weightUnit: set.weightUnit ?? fallbackWeightUnit,
+          prescribedRPE: set.prescribedRPE ?? null,
+          prescribedRIR: set.prescribedRIR ?? null,
+          prescribedPercentage: set.prescribedPercentage ?? null,
+          prescribedWeight: set.prescribedWeight ?? null,
+          prescribedSeconds: set.prescribedSeconds ?? null,
           previousNote: set.previousNote ?? null,
           notes: set.notes ?? '',
         })),
@@ -755,6 +786,11 @@ function workoutSessionReducer(
         weightUnit: lastSet?.weightUnit ?? weightUnit,
         reps: lastSet?.reps ?? null,
         rpe: lastSet?.rpe ?? null,
+        prescribedRPE: lastSet?.prescribedRPE ?? null,
+        prescribedRIR: lastSet?.prescribedRIR ?? null,
+        prescribedPercentage: lastSet?.prescribedPercentage ?? null,
+        prescribedWeight: lastSet?.prescribedWeight ?? null,
+        prescribedSeconds: lastSet?.prescribedSeconds ?? null,
         touchedWeight: false,
         touchedReps: false,
         touchedRpe: false,
@@ -801,6 +837,11 @@ function workoutSessionReducer(
         weightUnit,
         reps: 8,
         rpe: null,
+        prescribedRPE: null,
+        prescribedRIR: null,
+        prescribedPercentage: null,
+        prescribedWeight: null,
+        prescribedSeconds: null,
         touchedWeight: false,
         touchedReps: false,
         touchedRpe: false,

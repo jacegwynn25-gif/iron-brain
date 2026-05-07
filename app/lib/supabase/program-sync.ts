@@ -153,9 +153,16 @@ export async function loadProgramsFromCloudWithCleanup(userId: string): Promise<
       return { programs: [], changedPrograms: [] };
     }
 
-    const rows = (data ?? []) as Array<{ program_data: Json }>;
+    const rows = (data ?? []) as Array<{ program_data: Json; updated_at: string | null }>;
     const programs = rows
-      .map(row => parseProgramTemplate(row.program_data))
+      .map((row): ProgramTemplate | null => {
+        const parsed = parseProgramTemplate(row.program_data);
+        if (!parsed) return null;
+        return {
+          ...parsed,
+          updatedAt: row.updated_at ?? parsed.updatedAt,
+        };
+      })
       .filter((value): value is ProgramTemplate => value !== null);
     const normalized = normalizePrograms(programs);
     logger.debug(`📥 Loaded ${normalized.programs.length} programs from cloud`);

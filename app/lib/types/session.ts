@@ -13,6 +13,11 @@ export interface Set {
   weightUnit: 'lbs' | 'kg';
   reps: number | null;
   rpe: number | null; // 1-10
+  prescribedRPE?: number | null;
+  prescribedRIR?: number | null;
+  prescribedPercentage?: number | null;
+  prescribedWeight?: number | null;
+  prescribedSeconds?: number | null;
   touchedWeight: boolean;
   touchedReps: boolean;
   touchedRpe: boolean;

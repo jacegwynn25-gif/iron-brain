@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
-  Check,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
@@ -164,6 +163,24 @@ const CUSTOM_EXERCISE_MOVEMENT_OPTIONS: Array<NonNullable<CustomExercise['moveme
   'rotation',
   'other',
 ];
+const CUSTOM_EXERCISE_MUSCLE_OPTIONS = [
+  'chest',
+  'back',
+  'lats',
+  'shoulders',
+  'rear delts',
+  'biceps',
+  'triceps',
+  'forearms',
+  'quads',
+  'hamstrings',
+  'glutes',
+  'calves',
+  'core',
+  'abs',
+  'traps',
+  'lower back',
+];
 
 function createCustomExerciseDraft(name = ''): CustomExerciseDraft {
   return {
@@ -194,6 +211,14 @@ function parseMusclesFromInput(value: string): string[] {
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
   return Array.from(new Set(cleaned));
+}
+
+function toggleMuscleInputValue(value: string, muscle: string): string {
+  const muscles = parseMusclesFromInput(value);
+  const next = muscles.includes(muscle)
+    ? muscles.filter((entry) => entry !== muscle)
+    : [...muscles, muscle];
+  return next.join(', ');
 }
 
 function fingerprintProgram(program: ProgramTemplate): string {
@@ -609,7 +634,7 @@ function getSetSummaryLine(set: SetTemplate): string {
   const method = set.prescriptionMethod ?? 'rpe';
   const methodLabel = PRESCRIPTION_LABELS[method];
   const targetValue = getRpeOrRirValue(set);
-  const targetLabel = targetValue ? `${getTargetLabel(method)} ${targetValue}` : 'No target';
+  const targetLabel = targetValue ? `${getTargetLabel(method)} ${targetValue}` : methodLabel;
   const reps = set.prescribedReps?.trim() || '--';
   const rest = `${set.restSeconds ?? 120}s rest`;
   const modeLabel = set.setType ? formatTokenLabel(set.setType) : null;
@@ -618,9 +643,32 @@ function getSetSummaryLine(set: SetTemplate): string {
     set.setType === 'cluster' && set.clusterReps && set.clusterReps.length > 0
       ? `${set.clusterReps.length} clusters`
       : null;
-  return [reps + ' reps', methodLabel, targetLabel, rest, modeLabel, tempoLabel, clusterLabel]
+  return [reps + ' reps', targetLabel, rest, modeLabel, tempoLabel, clusterLabel]
     .filter(Boolean)
     .join(' • ');
+}
+
+function applySetTargetInput(set: SetTemplate, rawValue: string): SetTemplate {
+  const raw = rawValue.trim();
+  const value = raw === '' ? null : Number(raw);
+  const base = {
+    ...set,
+    targetRPE: null,
+    targetRIR: null,
+    targetPercentage: null,
+    fixedWeight: null,
+    targetSeconds: null,
+  };
+  const method = set.prescriptionMethod ?? 'rpe';
+  if (value == null || Number.isNaN(value)) return base;
+  if (method === 'rpe') return { ...base, targetRPE: value };
+  if (method === 'rir') return { ...base, targetRIR: value };
+  if (method === 'percentage_1rm' || method === 'percentage_tm') {
+    return { ...base, targetPercentage: value };
+  }
+  if (method === 'fixed_weight') return { ...base, fixedWeight: value };
+  if (method === 'time_based') return { ...base, targetSeconds: value };
+  return base;
 }
 
 export default function ProgramsPage() {
@@ -663,7 +711,6 @@ export default function ProgramsPage() {
   );
   const [customExerciseSaving, setCustomExerciseSaving] = useState(false);
   const [customExerciseError, setCustomExerciseError] = useState<string | null>(null);
-  const [showBuilderCoach, setShowBuilderCoach] = useState(false);
   const [pendingExerciseUndo, setPendingExerciseUndo] = useState<ExerciseRemovalUndoPayload | null>(
     null
   );
@@ -835,15 +882,6 @@ export default function ProgramsPage() {
     if (!currentDay) return 0;
     return countDaySets(currentDay);
   }, [currentDay]);
-  const builderGuidanceText = useMemo(() => {
-    if (currentDayExerciseRows.length === 0) {
-      return 'Start with Add Exercise. Add superset pairs from the secondary action.';
-    }
-    if (!hasEditorSetFocus) {
-      return 'Tap Edit Sets on an exercise to tune set details.';
-    }
-    return 'Adjust sets, then tap Collapse to return to the session list.';
-  }, [currentDayExerciseRows.length, hasEditorSetFocus]);
   const normalizedExerciseQuery = exerciseQuery.trim();
   const exercisePickerHeading = useMemo(() => {
     if (!exercisePickerTarget) return 'Pick Exercise';
@@ -865,8 +903,22 @@ export default function ProgramsPage() {
     () => parseMusclesFromInput(customExerciseDraft.primaryMusclesText),
     [customExerciseDraft.primaryMusclesText]
   );
+  const customExerciseSecondaryMuscles = useMemo(
+    () => parseMusclesFromInput(customExerciseDraft.secondaryMusclesText),
+    [customExerciseDraft.secondaryMusclesText]
+  );
   const canCreateCustomExercise =
     customExerciseName.length > 0 && customExercisePrimaryMuscles.length > 0;
+
+  const toggleCustomExerciseMuscle = (
+    field: 'primaryMusclesText' | 'secondaryMusclesText',
+    muscle: string
+  ) => {
+    setCustomExerciseDraft((current) => ({
+      ...current,
+      [field]: toggleMuscleInputValue(current[field], muscle),
+    }));
+  };
 
   const resetCustomExerciseBuilder = (seedName = '') => {
     setShowCreateCustomExercise(false);
@@ -874,13 +926,6 @@ export default function ProgramsPage() {
     setCustomExerciseDraft(createCustomExerciseDraft(seedName));
     setCustomExerciseError(null);
     setCustomExerciseSaving(false);
-  };
-
-  const dismissBuilderCoach = () => {
-    setShowBuilderCoach(false);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('iron_brain_builder_coach_dismissed_v1', 'true');
-    }
   };
 
   const openCreateEditor = () => {
@@ -1671,15 +1716,6 @@ export default function ProgramsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [pendingExerciseUndo]);
 
-  useEffect(() => {
-    if (!editorMode || typeof window === 'undefined') {
-      setShowBuilderCoach(false);
-      return;
-    }
-    const dismissed = localStorage.getItem('iron_brain_builder_coach_dismissed_v1') === 'true';
-    setShowBuilderCoach(!dismissed);
-  }, [editorMode]);
-
   const handleSaveDraft = async () => {
     if (!draft) return;
 
@@ -1892,7 +1928,7 @@ export default function ProgramsPage() {
                 </div>
 
                 <div
-                  className={`grid gap-2 ${editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'
+                  className={`grid gap-2 ${editorDetailMode === 'advanced' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'
                     }`}
                 >
                   <div>
@@ -1900,12 +1936,29 @@ export default function ProgramsPage() {
                       Reps
                     </label>
                     <input
+                      aria-label={`Set ${setIndex + 1} reps`}
                       value={set.prescribedReps}
                       onChange={(event) =>
                         handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
                           ...current,
                           prescribedReps: event.target.value,
                         }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      {getTargetLabel(set.prescriptionMethod)}
+                    </label>
+                    <input
+                      aria-label={`Set ${setIndex + 1} target`}
+                      value={getRpeOrRirValue(set)}
+                      onChange={(event) =>
+                        handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) =>
+                          applySetTargetInput(current, event.target.value)
+                        )
                       }
                       className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                     />
@@ -1943,54 +1996,25 @@ export default function ProgramsPage() {
                             label: PRESCRIPTION_LABELS[method] ?? formatTokenLabel(method),
                           }))}
                           onChange={(value) =>
-                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => ({
-                              ...current,
-                              prescriptionMethod: value as SetTemplate['prescriptionMethod'],
-                            }))
+                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
+                              const prescriptionMethod = value as SetTemplate['prescriptionMethod'];
+                              return {
+                                ...current,
+                                prescriptionMethod,
+                                targetRPE: prescriptionMethod === 'rpe' ? current.targetRPE ?? null : null,
+                                targetRIR: prescriptionMethod === 'rir' ? current.targetRIR ?? null : null,
+                                targetPercentage:
+                                  prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm'
+                                    ? current.targetPercentage ?? null
+                                    : null,
+                                fixedWeight: prescriptionMethod === 'fixed_weight' ? current.fixedWeight ?? null : null,
+                                targetSeconds: prescriptionMethod === 'time_based' ? current.targetSeconds ?? null : null,
+                              };
+                            })
                           }
                           ariaLabel="Prescription method"
                           buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                           listClassName="max-h-56 overflow-y-auto"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                          {getTargetLabel(set.prescriptionMethod)}
-                        </label>
-                        <input
-                          value={getRpeOrRirValue(set)}
-                          onChange={(event) => {
-                            const raw = event.target.value.trim();
-                            const value = raw === '' ? null : Number(raw);
-                            handleSetTemplateUpdate(blockIndex, exerciseIndex, setIndex, (current) => {
-                              const base = {
-                                ...current,
-                                targetRPE: null,
-                                targetRIR: null,
-                                targetPercentage: null,
-                                fixedWeight: null,
-                                targetSeconds: null,
-                              };
-                              if (value == null || Number.isNaN(value)) return base;
-                              if (current.prescriptionMethod === 'rpe') return { ...base, targetRPE: value };
-                              if (current.prescriptionMethod === 'rir') return { ...base, targetRIR: value };
-                              if (
-                                current.prescriptionMethod === 'percentage_1rm' ||
-                                current.prescriptionMethod === 'percentage_tm'
-                              ) {
-                                return { ...base, targetPercentage: value };
-                              }
-                              if (current.prescriptionMethod === 'fixed_weight') {
-                                return { ...base, fixedWeight: value };
-                              }
-                              if (current.prescriptionMethod === 'time_based') {
-                                return { ...base, targetSeconds: value };
-                              }
-                              return base;
-                            });
-                          }}
-                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
                         />
                       </div>
 
@@ -2272,15 +2296,15 @@ export default function ProgramsPage() {
                 />
               </div>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
                 {(['all', 'mine', 'built-in'] as const).map((option) => (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setFilter(option)}
-                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${filter === option
+                    className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${filter === option
                       ? 'bg-zinc-100 text-zinc-950'
-                      : 'border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                   >
                     {option === 'built-in' ? 'Built-In' : option}
@@ -2351,12 +2375,10 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative px-3 py-4 transition-[opacity,border-color,box-shadow,background-color] duration-200 sm:px-4 ${detailsOpen
-                        ? 'z-[90] rounded-3xl border border-cyan-400/35 bg-zinc-950/70 shadow-[0_0_35px_-20px_rgba(6,182,212,0.65)]'
-                        : 'z-[30] border-b border-zinc-900'
-                        }`}
+                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-emerald-500/[0.03]' : ''}`}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-emerald-400" aria-hidden="true" />}
+                      <div className="flex items-center justify-between gap-3 pl-3">
                         <button
                           type="button"
                           onClick={() => handleSelectProgram(program)}
@@ -2372,37 +2394,31 @@ export default function ProgramsPage() {
                           </p>
                         </button>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleSelectProgram(program)}
-                            className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${isSelected
-                              ? 'bg-emerald-500/10 text-emerald-300'
+                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${isSelected
+                              ? 'border border-emerald-500/30 text-emerald-300'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                           >
-                            {isSelected ? 'Selected' : 'Use'}
+                            {isSelected ? 'Active' : 'Use'}
                           </button>
                           <button
                             type="button"
                             onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
-                            className={`inline-flex h-9 items-center justify-center rounded-full px-3 text-[10px] font-bold uppercase tracking-[0.22em] transition-colors ${detailsOpen
+                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${detailsOpen
                               ? 'bg-cyan-500/10 text-cyan-300'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                             aria-expanded={detailsOpen}
                             aria-controls={detailsId}
                           >
-                            {detailsOpen ? 'Hide' : 'Details'}
+                            {detailsOpen ? 'Hide' : 'More'}
                           </button>
                         </div>
                       </div>
-                      {isSelected && (
-                        <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-emerald-300">
-                          <Check className="h-3.5 w-3.5" />
-                          Selected
-                        </div>
-                      )}
 
                       <AnimatePresence initial={false} mode="wait">
                         {detailsOpen && (
@@ -2419,7 +2435,7 @@ export default function ProgramsPage() {
                                 ease: [0.25, 0.8, 0.2, 1],
                               },
                             }}
-                            className="mt-4 overflow-hidden"
+                            className="mt-3 overflow-hidden pl-3"
                           >
                             <motion.div
                               initial={prefersReducedMotion ? { y: 0 } : { y: 10 }}
@@ -2429,28 +2445,26 @@ export default function ProgramsPage() {
                                 duration: prefersReducedMotion ? 0 : 0.22,
                                 ease: [0.25, 0.8, 0.2, 1],
                               }}
-                              className="border-t border-cyan-400/20 pt-4"
+                              className="border-t border-zinc-800 pt-3"
                             >
-                              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Program Details</p>
-
                               {program.description && (
-                                <p className="mt-4 text-sm text-zinc-400">{program.description}</p>
+                                <p className="text-sm text-zinc-400">{program.description}</p>
                               )}
 
                               {detailTokens.length > 0 && (
-                                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                                <p className={`${program.description ? 'mt-3' : ''} text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500`}>
                                   {detailTokens.join(' • ')}
                                 </p>
                               )}
 
-                              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <button
                                   type="button"
                                   onClick={() => {
                                     handleStartProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-full bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                                  className="inline-flex h-10 items-center rounded-lg bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
                                 >
                                   Start
                                 </button>
@@ -2460,7 +2474,7 @@ export default function ProgramsPage() {
                                     openEditEditor(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
                                 >
                                   Edit
                                 </button>
@@ -2470,7 +2484,7 @@ export default function ProgramsPage() {
                                     void handleDuplicateProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
                                 >
                                   Duplicate
                                 </button>
@@ -2481,7 +2495,7 @@ export default function ProgramsPage() {
                                     void handleDeleteProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
                                 >
                                   Delete
                                 </button>
@@ -2515,21 +2529,6 @@ export default function ProgramsPage() {
           )
         }
       </div >
-
-      {workspaceView === 'builder' && (
-        <button
-          type="button"
-          aria-label="Close program details"
-          onClick={() => setDetailsProgramId(null)}
-          aria-hidden={!detailsProgramId}
-          tabIndex={detailsProgramId ? 0 : -1}
-          className={`fixed inset-0 z-[80] backdrop-blur-[28px] transition-opacity duration-200 ${detailsProgramId
-            ? 'pointer-events-auto bg-black/60 opacity-100'
-            : 'pointer-events-none bg-black/0 opacity-0'
-            }`}
-        />
-      )
-      }
 
       {
         editorMode && draft && (
@@ -2567,33 +2566,13 @@ export default function ProgramsPage() {
                 </div>
               )}
 
-              {showBuilderCoach && (
-                <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                        Builder Quick Start
-                      </p>
-                      <p className="text-xs text-zinc-300">1. Add exercise. 2. Tap Edit Sets. 3. Tap Done in the header.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={dismissBuilderCoach}
-                      className="shrink-0 rounded-full border border-zinc-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-100"
-                    >
-                      Got It
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <section className="border-b border-zinc-900 py-6">
+              <section className="border-b border-zinc-900 py-4">
                 <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
                 <input
                   value={draft.name}
                   onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Program name"
-                  className="mt-2 w-full bg-transparent text-3xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
+                  className="mt-2 w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none sm:text-3xl"
                 />
 
                 <textarea
@@ -2604,13 +2583,10 @@ export default function ProgramsPage() {
                   className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
                 />
 
-                <div className="mt-4 space-y-3">
-                  <div className="space-y-3">
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-2">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                      Set length and training frequency first.
-                    </p>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="mt-2 grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
                         <input
@@ -2698,12 +2674,9 @@ export default function ProgramsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 border-t border-zinc-900 pt-3">
+                  <div className="space-y-2 border-t border-zinc-900 pt-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                      Define goal, experience, and intensity style.
-                    </p>
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <FancySelect
                         value={draft.goal ?? 'general'}
                         options={GOAL_OPTIONS.map((goal) => ({
@@ -2751,14 +2724,14 @@ export default function ProgramsPage() {
                 </div>
               </section>
 
-              <section className="border-b border-zinc-900 py-6">
-                <div className="mb-5 space-y-2">
+              <section className="border-b border-zinc-900 py-4">
+                <div className="mb-4 space-y-2">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => stepEditorWeek(-1)}
                       disabled={activeWeekIndex === 0}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
                       aria-label="Previous week"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -2766,7 +2739,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => setEditorJumpPicker('week')}
-                      className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                      className="flex-1 rounded-lg border border-zinc-800 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-700"
                     >
                       Week {activeWeekIndex + 1} of {draft.weeks.length}
                     </button>
@@ -2774,7 +2747,7 @@ export default function ProgramsPage() {
                       type="button"
                       onClick={() => stepEditorWeek(1)}
                       disabled={activeWeekIndex >= draft.weeks.length - 1}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
                       aria-label="Next week"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -2782,7 +2755,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => handleDuplicateWeek(activeWeekIndex)}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
                       aria-label="Duplicate current week"
                       title="Duplicate current week"
                     >
@@ -2801,7 +2774,7 @@ export default function ProgramsPage() {
                         }
                       }}
                       disabled={draft.weeks.length <= 1}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
                       aria-label="Delete current week"
                       title="Delete current week"
                     >
@@ -2814,7 +2787,7 @@ export default function ProgramsPage() {
                         type="button"
                         onClick={() => stepEditorSession(-1)}
                         disabled={activeDayIndex === 0}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
                         aria-label="Previous session"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -2822,7 +2795,7 @@ export default function ProgramsPage() {
                       <button
                         type="button"
                         onClick={() => setEditorJumpPicker('session')}
-                        className="flex-1 rounded-full border border-zinc-800 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 transition-colors hover:border-zinc-700"
+                        className="flex-1 rounded-lg border border-zinc-800 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-700"
                       >
                         Session {activeDayIndex + 1} of {currentWeek.days.length}
                       </button>
@@ -2830,7 +2803,7 @@ export default function ProgramsPage() {
                         type="button"
                         onClick={() => stepEditorSession(1)}
                         disabled={activeDayIndex >= currentWeek.days.length - 1}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
                         aria-label="Next session"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -2848,7 +2821,7 @@ export default function ProgramsPage() {
                           }
                         }}
                         disabled={currentWeek.days.length <= 1}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
                         aria-label="Delete current session"
                         title="Delete current session"
                       >
@@ -2872,11 +2845,12 @@ export default function ProgramsPage() {
                           />
 
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              <span>
                                 {currentSessionExerciseCount} {currentSessionExerciseCount === 1 ? 'exercise' : 'exercises'}
                               </span>
-                              <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+                              <span className="text-zinc-700">/</span>
+                              <span>
                                 {currentSessionSetCount} {currentSessionSetCount === 1 ? 'set' : 'sets'}
                               </span>
                             </div>
@@ -2900,15 +2874,14 @@ export default function ProgramsPage() {
                             </div>
                           </div>
 
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{builderGuidanceText}</p>
                         </div>
 
                         <div className="mb-4 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
+                          <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
                             <button
                               type="button"
                               onClick={() => setEditorDetailMode('simple')}
-                              className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'simple'
+                              className={`h-9 rounded-lg px-3 text-[11px] font-bold uppercase tracking-[0.18em] ${editorDetailMode === 'simple'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
                                 }`}
@@ -2918,7 +2891,7 @@ export default function ProgramsPage() {
                             <button
                               type="button"
                               onClick={() => setEditorDetailMode('advanced')}
-                              className={`h-11 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] ${editorDetailMode === 'advanced'
+                              className={`h-9 rounded-lg px-3 text-[11px] font-bold uppercase tracking-[0.18em] ${editorDetailMode === 'advanced'
                                 ? 'bg-zinc-100 text-zinc-950'
                                 : 'text-zinc-500 hover:text-zinc-300'
                                 }`}
@@ -2930,11 +2903,8 @@ export default function ProgramsPage() {
 
                         <div className="space-y-3">
                           {currentDayExerciseRows.length === 0 && (
-                            <div className="rounded-2xl border border-dashed border-zinc-800 px-4 py-8 text-center">
+                            <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-7 text-center">
                               <p className="text-sm font-semibold text-zinc-300">No exercises in this session yet.</p>
-                              <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                                Use Add Exercise above to build this session.
-                              </p>
                             </div>
                           )}
 
@@ -3085,7 +3055,11 @@ export default function ProgramsPage() {
       {
         exercisePickerOpen && (
           <div className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm">
-            <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+            <div
+              className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6"
+              data-program-exercise-picker-sheet="true"
+              data-swipe-ignore="true"
+            >
               <div className="mx-auto w-full max-w-5xl">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
@@ -3155,10 +3129,6 @@ export default function ProgramsPage() {
                         Back To Search
                       </button>
                     </div>
-
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                      Required: name, equipment, lift type, and primary muscles.
-                    </p>
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="sm:col-span-2">
@@ -3230,6 +3200,24 @@ export default function ProgramsPage() {
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                           Primary Muscles *
                         </label>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {CUSTOM_EXERCISE_MUSCLE_OPTIONS.map((muscle) => {
+                            const selected = customExercisePrimaryMuscles.includes(muscle);
+                            return (
+                              <button
+                                key={`custom-primary-${muscle}`}
+                                type="button"
+                                onClick={() => toggleCustomExerciseMuscle('primaryMusclesText', muscle)}
+                                className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
+                                  ? 'border-emerald-500/45 bg-emerald-500/10 text-emerald-300'
+                                  : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                                  }`}
+                              >
+                                {formatTokenLabel(muscle)}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <input
                           aria-label="Primary Muscles"
                           value={customExerciseDraft.primaryMusclesText}
@@ -3239,13 +3227,13 @@ export default function ProgramsPage() {
                               primaryMusclesText: event.target.value,
                             }))
                           }
-                          placeholder="chest, shoulders, triceps"
-                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          placeholder="Add custom muscle names"
+                          className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
                         />
                         <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
                           {customExercisePrimaryMuscles.length > 0
                             ? `${customExercisePrimaryMuscles.length} selected`
-                            : 'Comma separated list'}
+                            : 'Select at least one'}
                         </p>
                       </div>
                     </div>
@@ -3286,6 +3274,24 @@ export default function ProgramsPage() {
                           <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                             Secondary Muscles
                           </label>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {CUSTOM_EXERCISE_MUSCLE_OPTIONS.map((muscle) => {
+                              const selected = customExerciseSecondaryMuscles.includes(muscle);
+                              return (
+                                <button
+                                  key={`custom-secondary-${muscle}`}
+                                  type="button"
+                                  onClick={() => toggleCustomExerciseMuscle('secondaryMusclesText', muscle)}
+                                  className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
+                                    ? 'border-cyan-500/45 bg-cyan-500/10 text-cyan-300'
+                                    : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                                    }`}
+                                >
+                                  {formatTokenLabel(muscle)}
+                                </button>
+                              );
+                            })}
+                          </div>
                           <input
                             aria-label="Secondary Muscles"
                             value={customExerciseDraft.secondaryMusclesText}
@@ -3295,8 +3301,8 @@ export default function ProgramsPage() {
                                 secondaryMusclesText: event.target.value,
                               }))
                             }
-                            placeholder="upper chest, front delts"
-                            className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                            placeholder="Add custom secondary muscles"
+                            className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -3343,13 +3349,6 @@ export default function ProgramsPage() {
                         </p>
                       </button>
                     ))}
-                  </div>
-                )}
-                {showCreateCustomExercise && (
-                  <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/10 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                      Picker results are hidden while creating to keep this flow focused.
-                    </p>
                   </div>
                 )}
               </div>

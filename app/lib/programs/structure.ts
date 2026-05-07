@@ -142,7 +142,14 @@ function normalizeDayStructure(day: DayTemplate, dayIndex: number): { day: DayTe
   const currentBlocks = Array.isArray(day.blocks) ? cloneBlocks(day.blocks) : [];
   let nextBlocks = currentBlocks;
 
-  if (nextSets.length > 0) {
+  if (currentBlocks.length > 0) {
+    const derivedSets = blocksToProgramSets(currentBlocks);
+    if (JSON.stringify(derivedSets) !== JSON.stringify(initialSets)) {
+      changed = true;
+    }
+    nextSets = derivedSets;
+    nextBlocks = currentBlocks;
+  } else if (nextSets.length > 0) {
     const derivedBlocks = setsToProgramBlocks(nextSets);
     if (JSON.stringify(derivedBlocks) !== JSON.stringify(currentBlocks)) {
       changed = true;
