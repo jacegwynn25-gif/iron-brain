@@ -2122,7 +2122,7 @@ export type Database = {
       subscription_events: {
         Row: {
           id: string
-          user_id: string
+          user_id: string | null
           event_type: string
           old_tier: string | null
           new_tier: string | null
@@ -2132,7 +2132,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          user_id: string
+          user_id?: string | null
           event_type: string
           old_tier?: string | null
           new_tier?: string | null
@@ -2142,7 +2142,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          user_id?: string
+          user_id?: string | null
           event_type?: string
           old_tier?: string | null
           new_tier?: string | null
