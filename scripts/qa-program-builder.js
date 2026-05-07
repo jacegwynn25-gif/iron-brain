@@ -80,6 +80,11 @@ async function expectSheetWithinViewport(page, selector, label) {
   }
   await benchRow.getByLabel(/Set 1 target/i).fill('7.5');
   await expectVisible(benchRow.getByText(/RPE 7\.5/i).first(), 'Simple-mode target updates set summary');
+  await page.getByRole('button', { name: /^Advanced$/i }).first().click();
+  await benchRow.getByRole('button', { name: /Prescription method/i }).first().click();
+  await page.getByRole('option', { name: /Fixed Weight/i }).click();
+  await benchRow.getByLabel(/Set 1 target/i).fill('225');
+  await expectVisible(benchRow.getByText(/Weight 225/i).first(), 'Fixed-weight target updates set summary');
 
   console.log('▶️ Creating custom exercise with metadata...');
   await clickFirstByRole(page, 'button', { name: /^Add Exercise$/i }, 'Opened picker for custom exercise');

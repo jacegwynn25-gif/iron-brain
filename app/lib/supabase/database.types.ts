@@ -1009,6 +1009,7 @@ export type Database = {
           prescribed_reps: string | null
           prescribed_rir: number | null
           prescribed_rpe: number | null
+          prescribed_weight: number | null
           program_set_id: string | null
           rest_pause_rounds: Json | null
           rest_seconds: number | null
@@ -1041,6 +1042,7 @@ export type Database = {
           prescribed_reps?: string | null
           prescribed_rir?: number | null
           prescribed_rpe?: number | null
+          prescribed_weight?: number | null
           program_set_id?: string | null
           rest_pause_rounds?: Json | null
           rest_seconds?: number | null
@@ -1073,6 +1075,7 @@ export type Database = {
           prescribed_reps?: string | null
           prescribed_rir?: number | null
           prescribed_rpe?: number | null
+          prescribed_weight?: number | null
           program_set_id?: string | null
           rest_pause_rounds?: Json | null
           rest_seconds?: number | null

@@ -4,6 +4,7 @@ import { supabase } from './client';
 import { storage } from '../storage';
 import { logger } from '../logger';
 import type { WorkoutSession } from '../types';
+import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from './set-log-schema';
 
 /**
  * Automatic Cloud Sync System
@@ -166,6 +167,7 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
         prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
         prescribed_percentage: set.prescribedPercentage,
+        prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
         // Actual values - reps is integer, RPE/RIR are decimals
         actual_weight: set.actualWeight,
         weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
@@ -183,9 +185,16 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         set_type: set.setType || 'straight',
       }));
 
-      const { error: setsError } = await supabase
+      let { error: setsError } = await supabase
         .from('set_logs')
         .insert(setLogs);
+
+      if (isMissingPrescribedWeightColumn(setsError)) {
+        const retry = await supabase
+          .from('set_logs')
+          .insert(stripPrescribedWeight(setLogs));
+        setsError = retry.error;
+      }
 
       if (setsError) {
         console.error(`Failed to sync sets for workout ${workout.id}:`, setsError);

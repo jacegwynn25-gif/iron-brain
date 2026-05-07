@@ -17,7 +17,7 @@ import {
 import type { CustomExercise, DayTemplate, ProgramTemplate, SetLog, WeightUnit, WorkoutSession } from '@/app/lib/types';
 import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/types/session';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
-import { useWorkoutSession } from '@/app/lib/hooks/useWorkoutSession';
+import { useWorkoutSession, type ReadinessLoadModifiers } from '@/app/lib/hooks/useWorkoutSession';
 import { useUnitPreference } from '@/app/lib/hooks/useUnitPreference';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 import { useDialog } from '@/app/providers/DialogProvider';
@@ -499,7 +499,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const { confirm } = useDialog();
   const { user } = useAuth();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
-  const { readiness } = useRecoveryState();
+  const { readiness, loading: readinessLoading } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [customExercisesLoading, setCustomExercisesLoading] = useState(true);
   const readinessModifier = readiness?.modifier ?? 1;
@@ -509,11 +509,21 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     : readiness?.source === 'training'
       ? 'Training Readiness'
       : 'Session Baseline';
-  const sessionReadinessModifierRef = useRef<number | null>(null);
-  if (sessionReadinessModifierRef.current == null) {
-    sessionReadinessModifierRef.current = readinessModifier;
+  const readinessLoadModifiers = useMemo<ReadinessLoadModifiers>(() => ({
+    overall: readinessModifier,
+    upperBody: readiness?.focus_adjustments.upper_body_modifier ?? readinessModifier,
+    lowerBody: readiness?.focus_adjustments.lower_body_modifier ?? readinessModifier,
+  }), [
+    readinessModifier,
+    readiness?.focus_adjustments.upper_body_modifier,
+    readiness?.focus_adjustments.lower_body_modifier,
+  ]);
+  const sessionReadinessModifierRef = useRef<ReadinessLoadModifiers | null>(null);
+  if (sessionReadinessModifierRef.current == null && (!readinessLoading || readiness)) {
+    sessionReadinessModifierRef.current = readinessLoadModifiers;
   }
-  const sessionReadinessModifier = sessionReadinessModifierRef.current;
+  const sessionReadinessModifiers = sessionReadinessModifierRef.current ?? readinessLoadModifiers;
+  const sessionReadinessModifier = sessionReadinessModifiers.overall;
   const namespaceId = user?.id ?? 'guest';
   const baseProgram = useMemo(() => initialData ?? createQuickStartProgram(), [initialData]);
   const programDayContext = useMemo<ProgramDayContext | null>(() => {
@@ -610,6 +620,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       ...resumeSnapshot,
       startTime: new Date(resumeSnapshot.startTime)
     } : undefined,
+    readinessLoadModifiers: sessionReadinessModifiers,
   });
   const hydratedSnapshotKeyRef = useRef<string | null>(
     resumeSnapshot ? `${resumeSnapshot.startTime}:${resumeSnapshot.meta.programId}` : null
@@ -676,6 +687,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   );
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
   const prevSessionProgramRef = useRef(sessionProgram);
+  const readinessModifierKey = `${sessionReadinessModifiers.overall}:${sessionReadinessModifiers.upperBody}:${sessionReadinessModifiers.lowerBody}`;
+  const prevReadinessModifierKeyRef = useRef(readinessModifierKey);
 
   useEffect(() => {
     if (!resumeSnapshot || resumeSnapshot.status !== 'active') return;
@@ -712,8 +725,22 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     }
 
     reinitializeSession();
-  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
+	  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
 
+  useEffect(() => {
+    if (readinessLoading) return;
+    if (prevReadinessModifierKeyRef.current === readinessModifierKey) return;
+    prevReadinessModifierKeyRef.current = readinessModifierKey;
+    if (resumeSnapshot || hasCompletedSets || hasTouchedSets) return;
+    reinitializeSession();
+  }, [
+    hasCompletedSets,
+    hasTouchedSets,
+    readinessLoading,
+    readinessModifierKey,
+    reinitializeSession,
+    resumeSnapshot,
+  ]);
 
   useEffect(() => {
     if (hasCompletedSets || hasTouchedSets) return;

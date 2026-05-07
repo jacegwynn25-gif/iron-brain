@@ -16,22 +16,30 @@ type SetRef = {
   setId: string;
 };
 
+export type ReadinessLoadModifiers = {
+  overall: number;
+  upperBody: number;
+  lowerBody: number;
+};
+
 type UpdateSetPayload = Partial<Pick<SessionSet, 'weight' | 'weightUnit' | 'reps' | 'rpe' | 'type' | 'notes'>>;
 
 export interface UseWorkoutSessionOptions {
   resolveExerciseName?: (exerciseId: string) => string;
   initialState?: SessionState;
+  readinessLoadModifiers?: ReadinessLoadModifiers;
 }
 
 type WorkoutSessionAction =
   | {
     type: 'INITIALIZE_SESSION';
-    payload: {
-      program: ProgramTemplate;
-      readinessModifier: number;
-      resolveExerciseName?: (exerciseId: string) => string;
-    };
-  }
+	    payload: {
+	      program: ProgramTemplate;
+	      readinessModifier: number;
+	      resolveExerciseName?: (exerciseId: string) => string;
+	      readinessLoadModifiers?: ReadinessLoadModifiers;
+	    };
+	  }
   | {
     type: 'UPDATE_SET';
     payload: {
@@ -143,6 +151,74 @@ function clampRir(value: number | null | undefined): number | null {
 function positiveTarget(value: number | null | undefined): number | null {
   if (value == null || Number.isNaN(value) || value <= 0) return null;
   return value;
+}
+
+function normalizeReadinessModifiers(
+  readinessModifier: number,
+  modifiers?: ReadinessLoadModifiers
+): ReadinessLoadModifiers {
+  return {
+    overall: modifiers?.overall ?? readinessModifier,
+    upperBody: modifiers?.upperBody ?? modifiers?.overall ?? readinessModifier,
+    lowerBody: modifiers?.lowerBody ?? modifiers?.overall ?? readinessModifier,
+  };
+}
+
+function getExerciseReadinessModifier(exerciseName: string, modifiers: ReadinessLoadModifiers): number {
+  const lowerName = exerciseName.toLowerCase();
+  if (/\b(squat|deadlift|rdl|lunge|leg|quad|hamstring|glute|calf|hip|hinge)\b/.test(lowerName)) {
+    return modifiers.lowerBody;
+  }
+  if (/\b(bench|press|row|pull|chin|lat|chest|back|shoulder|delt|bicep|tricep|arm|curl|extension|fly|raise)\b/.test(lowerName)) {
+    return modifiers.upperBody;
+  }
+  return modifiers.overall;
+}
+
+function shouldAutoAdjustLoad(setType: SetType): boolean {
+  return setType === 'working' || setType === 'failure' || setType === 'drop';
+}
+
+function getE1rmLbsForExercise(exerciseId: string): number | null {
+  const prs = storage.getPersonalRecords(exerciseId);
+  const e1rm = prs?.maxE1RM?.e1rm;
+  return e1rm && e1rm > 0 ? e1rm : null;
+}
+
+function estimatePercentageWeight(
+  templateSet: SetTemplate,
+  exerciseId: string,
+  weightUnit: WeightUnit
+): number | null {
+  const percentage = positiveTarget(templateSet.targetPercentage ?? null);
+  if (percentage == null) return null;
+
+  const e1rmLbs = getE1rmLbsForExercise(exerciseId);
+  if (e1rmLbs == null) return null;
+
+  const baseMaxLbs = templateSet.prescriptionMethod === 'percentage_tm'
+    ? e1rmLbs * 0.9
+    : e1rmLbs;
+  const prescribedLbs = baseMaxLbs * (percentage / 100);
+  const prescribed = weightUnit === 'kg' ? prescribedLbs / KG_TO_LBS : prescribedLbs;
+  return roundToIncrement(prescribed, weightUnit);
+}
+
+function resolvePrescribedWeight(
+  templateSet: SetTemplate,
+  exerciseId: string,
+  weightUnit: WeightUnit
+): number | null {
+  if (templateSet.prescriptionMethod === 'fixed_weight') {
+    return positiveTarget(templateSet.fixedWeight ?? null);
+  }
+  if (
+    templateSet.prescriptionMethod === 'percentage_1rm' ||
+    templateSet.prescriptionMethod === 'percentage_tm'
+  ) {
+    return estimatePercentageWeight(templateSet, exerciseId, weightUnit);
+  }
+  return null;
 }
 
 function parseTempoCue(templateSet: SetTemplate): string | null {
@@ -276,6 +352,7 @@ function buildSessionSetFromTemplate(
   historyCue: ExerciseHistoryCue,
   readinessModifier: number,
   weightUnit: WeightUnit,
+  exerciseId: string,
   defaults?: {
     supersetGroup?: string | null;
   }
@@ -291,16 +368,15 @@ function buildSessionSetFromTemplate(
     prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm'
       ? positiveTarget(templateSet.targetPercentage ?? null)
       : null;
-  const prescribedWeight =
-    prescriptionMethod === 'fixed_weight' ? positiveTarget(templateSet.fixedWeight ?? null) : null;
+  const prescribedWeight = resolvePrescribedWeight(templateSet, exerciseId, weightUnit);
   const prescribedSeconds =
     prescriptionMethod === 'time_based' ? positiveTarget(templateSet.targetSeconds ?? null) : null;
 
-  // Only compute weight if we have real history data
-  const computedWeight =
-    mappedSetType === 'working' && historyCue.weight != null
-      ? roundToIncrement(historyCue.weight * readinessModifier, weightUnit)
-      : null;
+  const baseWeight = prescribedWeight ?? historyCue.weight;
+  const shouldAdjust = shouldAutoAdjustLoad(mappedSetType);
+  const computedWeight = baseWeight != null && shouldAdjust
+    ? roundToIncrement(baseWeight * readinessModifier, weightUnit)
+    : prescribedWeight;
 
   return {
     id: createId('set'),
@@ -463,13 +539,15 @@ function buildBlocksFromProgram(
   program: ProgramTemplate,
   readinessModifier: number,
   weightUnit: WeightUnit,
-  resolveExerciseName: (exerciseId: string) => string
+  resolveExerciseName: (exerciseId: string) => string,
+  readinessLoadModifiers?: ReadinessLoadModifiers
 ): Block[] {
   const sortedWeeks = [...program.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const day = sortedWeeks[0]?.days[0];
   if (!day) return [];
 
   const mockHistoryByExercise = new Map<string, ExerciseHistoryCue>();
+  const loadModifiers = normalizeReadinessModifiers(readinessModifier, readinessLoadModifiers);
 
   if (Array.isArray(day.blocks) && day.blocks.length > 0) {
     const blocksFromSchema: Block[] = [];
@@ -494,14 +572,17 @@ function buildBlocksFromProgram(
 
       for (const templateExercise of templateExercises) {
         const exerciseId = templateExercise.exerciseId || createId('exercise');
+        const exerciseName = resolveExerciseName(exerciseId);
+        const exerciseReadinessModifier = getExerciseReadinessModifier(exerciseName, loadModifiers);
         const firstSetReps = parseRepsTarget(templateExercise.sets?.[0]?.prescribedReps);
         const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, firstSetReps);
         const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
           buildSessionSetFromTemplate(
             templateSet,
             historyCue,
-            readinessModifier,
+            exerciseReadinessModifier,
             weightUnit,
+            exerciseId,
             templateBlock.type === 'superset'
               ? {
                 supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
@@ -514,7 +595,7 @@ function buildBlocksFromProgram(
 
         sessionBlock.exercises.push({
           id: exerciseId,
-          name: resolveExerciseName(exerciseId),
+          name: exerciseName,
           slot: templateExercise.slot,
           notes: templateExercise.notes ?? '',
           historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${setsForExercise[0]?.reps ?? 8}` : null,
@@ -537,9 +618,11 @@ function buildBlocksFromProgram(
 
   for (const templateSet of day.sets) {
     const exerciseId = templateSet.exerciseId || createId('exercise');
+    const exerciseName = resolveExerciseName(exerciseId);
+    const exerciseReadinessModifier = getExerciseReadinessModifier(exerciseName, loadModifiers);
     const targetReps = parseRepsTarget(templateSet.prescribedReps);
     const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, targetReps);
-    const sessionSet = buildSessionSetFromTemplate(templateSet, historyCue, readinessModifier, weightUnit);
+    const sessionSet = buildSessionSetFromTemplate(templateSet, historyCue, exerciseReadinessModifier, weightUnit, exerciseId);
     const repsTarget = sessionSet.reps;
 
     const blockIdentity = getBlockIdentity(templateSet);
@@ -562,7 +645,7 @@ function buildBlocksFromProgram(
     if (!exercise) {
       exercise = {
         id: exerciseId,
-        name: resolveExerciseName(exerciseId),
+        name: exerciseName,
         notes: '',
         historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${repsTarget ?? 8}` : null,
         sets: [],
@@ -580,9 +663,10 @@ function createInitialSessionState(
   program: ProgramTemplate,
   readinessModifier: number,
   weightUnit: WeightUnit,
-  resolveExerciseName: (exerciseId: string) => string = formatExerciseName
+  resolveExerciseName: (exerciseId: string) => string = formatExerciseName,
+  readinessLoadModifiers?: ReadinessLoadModifiers
 ): SessionState {
-  const blocks = buildBlocksFromProgram(program, readinessModifier, weightUnit, resolveExerciseName);
+  const blocks = buildBlocksFromProgram(program, readinessModifier, weightUnit, resolveExerciseName, readinessLoadModifiers);
   const firstSetRef = findFirstSetRef(blocks);
 
   return {
@@ -656,24 +740,12 @@ function workoutSessionReducer(
         return state;
       }
 
-      // If the session is active and has blocks, be very careful about reinitializing.
-      if (state.status === 'active' && state.blocks.length > 0) {
-        // If the session was started more than 5 seconds ago, it's likely a restored session
-        // or one the user is already looking at. Don't blow it away unless it's empty.
-        const ageMs = Date.now() - state.startTime.getTime();
-        if (ageMs > 5000) {
-          return state;
-        }
-
-        // If it's very fresh (< 5s), it might be a double-init or a quick program switch.
-        // We only allow reinit if no work has been done (checked above).
-      }
-
       return createInitialSessionState(
         action.payload.program,
         action.payload.readinessModifier,
         weightUnit,
-        action.payload.resolveExerciseName ?? resolveExerciseName
+        action.payload.resolveExerciseName ?? resolveExerciseName,
+        action.payload.readinessLoadModifiers
       );
     }
 
@@ -988,25 +1060,27 @@ export function useWorkoutSession(
   options: UseWorkoutSessionOptions = {}
 ) {
   const resolveExerciseName = options.resolveExerciseName ?? formatExerciseName;
+  const readinessLoadModifiers = options.readinessLoadModifiers;
   const [state, dispatch] = useReducer(
     (stateValue: SessionState, action: WorkoutSessionAction) =>
       workoutSessionReducer(stateValue, action, weightUnit, resolveExerciseName),
     program,
-    () => options.initialState
-      ? normalizeSessionState(options.initialState, weightUnit)
-      : createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName)
-  );
+	    () => options.initialState
+	      ? normalizeSessionState(options.initialState, weightUnit)
+	      : createInitialSessionState(program, readinessModifier, weightUnit, resolveExerciseName, readinessLoadModifiers)
+	  );
 
   const reinitializeSession = useCallback(() => {
     dispatch({
       type: 'INITIALIZE_SESSION',
       payload: {
-        program,
-        readinessModifier,
-        resolveExerciseName,
-      },
-    });
-  }, [program, readinessModifier, resolveExerciseName]);
+	        program,
+	        readinessModifier,
+	        resolveExerciseName,
+	        readinessLoadModifiers,
+	      },
+	    });
+  }, [program, readinessModifier, resolveExerciseName, readinessLoadModifiers]);
 
   const updateSet = useCallback(
     (blockId: string, exerciseId: string, setId: string, updates: UpdateSetPayload) => {

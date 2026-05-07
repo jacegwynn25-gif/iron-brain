@@ -44,19 +44,27 @@ type TrainingLoadSignal = {
   hasWorkout: boolean;
 };
 
+type RecentWorkoutStats = {
+  end_time: string | null;
+  average_rpe: number | null;
+  total_sets: number | null;
+  total_volume_load: number | null;
+  name: string | null;
+};
+
 const QUERY_TIMEOUT_MS = 7000;
 const MANUAL_CONTEXT_FRESH_DAYS = 2;
 
 export async function calculateTrainingReadiness(userId: string): Promise<TrainingReadiness> {
-  const [contexts, lastWorkout] = await Promise.all([
+  const [contexts, recentWorkouts] = await Promise.all([
     fetchRecentManualContexts(userId),
-    fetchLastWorkoutStats(userId),
+    fetchRecentWorkoutStats(userId),
   ]);
 
   const context = contexts[0] ?? {};
   const contextIsFresh = isContextFresh(context.date);
   const hasManualRecoveryInput = contextIsFresh && hasMeaningfulContext(context);
-  const training = calculateTrainingLoadSignal(lastWorkout);
+  const training = calculateTrainingLoadSignal(recentWorkouts);
 
   const manualScore = hasManualRecoveryInput
     ? calculateManualRecoveryScore(context, contexts.slice(1))
@@ -192,7 +200,12 @@ function calculateManualRecoveryScore(context: UserContext, history: UserContext
   return clamp(Math.round(weightedScore), 25, 100);
 }
 
-function calculateTrainingLoadSignal(lastWorkout: Awaited<ReturnType<typeof fetchLastWorkoutStats>>): TrainingLoadSignal {
+function calculateTrainingLoadSignal(recentWorkouts: RecentWorkoutStats[]): TrainingLoadSignal {
+  const completed = recentWorkouts
+    .filter((workout) => workout.end_time)
+    .sort((a, b) => new Date(b.end_time ?? 0).getTime() - new Date(a.end_time ?? 0).getTime());
+  const lastWorkout = completed[0];
+
   if (!lastWorkout?.end_time) {
     return {
       score: 72,
@@ -204,38 +217,60 @@ function calculateTrainingLoadSignal(lastWorkout: Awaited<ReturnType<typeof fetc
   }
 
   const hoursSince = Math.max(0, (Date.now() - new Date(lastWorkout.end_time).getTime()) / (1000 * 60 * 60));
-  const averageRpe = Number(lastWorkout.average_rpe ?? 7);
-  const totalSets = Number(lastWorkout.total_sets ?? 0);
-  const volumeLoad = Number(lastWorkout.total_volume_load ?? 0);
-  const isHighIntensity = averageRpe >= 8.5;
-  const isHighVolume = totalSets >= 18 || volumeLoad >= 12000;
+  const now = Date.now();
+  const workouts7d = completed.filter((workout) =>
+    workout.end_time && now - new Date(workout.end_time).getTime() <= 7 * 24 * 60 * 60 * 1000
+  );
+  const workouts48h = completed.filter((workout) =>
+    workout.end_time && now - new Date(workout.end_time).getTime() <= 48 * 60 * 60 * 1000
+  );
+  const lastAverageRpe = Number(lastWorkout.average_rpe ?? 7);
+  const lastSets = Number(lastWorkout.total_sets ?? 0);
+  const lastVolumeLoad = Number(lastWorkout.total_volume_load ?? 0);
+  const lastIsHighIntensity = lastAverageRpe >= 8.5;
+  const lastIsHighVolume = lastSets >= 18 || lastVolumeLoad >= 12000;
+  const sets7d = workouts7d.reduce((sum, workout) => sum + Number(workout.total_sets ?? 0), 0);
+  const volume7d = workouts7d.reduce((sum, workout) => sum + Number(workout.total_volume_load ?? 0), 0);
+  const hardSessions7d = workouts7d.filter((workout) =>
+    Number(workout.average_rpe ?? 7) >= 8.5 ||
+    Number(workout.total_sets ?? 0) >= 18 ||
+    Number(workout.total_volume_load ?? 0) >= 12000
+  ).length;
 
-  let score = 78;
-  if (hoursSince < 12) score -= isHighIntensity || isHighVolume ? 26 : 18;
-  else if (hoursSince < 24) score -= isHighIntensity || isHighVolume ? 18 : 10;
-  else if (hoursSince < 36) score -= isHighIntensity && isHighVolume ? 12 : 5;
-  else if (hoursSince > 72) score += 4;
+  let score = 80;
+  if (hoursSince < 12) score -= lastIsHighIntensity || lastIsHighVolume ? 28 : 18;
+  else if (hoursSince < 24) score -= lastIsHighIntensity || lastIsHighVolume ? 20 : 10;
+  else if (hoursSince < 36) score -= lastIsHighIntensity && lastIsHighVolume ? 12 : 5;
+  else if (hoursSince > 72) score += Math.min(6, Math.floor((hoursSince - 72) / 24) + 4);
 
-  let upperModifier = 1;
-  let lowerModifier = 1;
-  const localModifier = hoursSince < 18
-    ? 0.9
-    : hoursSince < 36
-      ? 0.94
-      : hoursSince < 48 && isHighIntensity && isHighVolume
-        ? 0.97
-        : 1;
+  if (workouts7d.length >= 6) score -= 10;
+  else if (workouts7d.length >= 5) score -= 6;
+  else if (workouts7d.length >= 4) score -= 3;
 
-  if (localModifier < 1) {
-    if (isUpperBody(lastWorkout.name)) upperModifier = localModifier;
-    if (isLowerBody(lastWorkout.name)) lowerModifier = localModifier;
-  }
+  if (sets7d >= 75) score -= 8;
+  else if (sets7d >= 55) score -= 5;
+  else if (sets7d >= 40) score -= 2;
+
+  if (volume7d >= 60000) score -= 4;
+  if (hardSessions7d >= 3) score -= 6;
+  if (workouts7d.length === 0) score += 4;
+
+  const upperStress = calculateBodyStress(workouts48h, isUpperBody);
+  const lowerStress = calculateBodyStress(workouts48h, isLowerBody);
+  const upperModifier = getLocalLoadModifier(upperStress);
+  const lowerModifier = getLocalLoadModifier(lowerStress);
 
   return {
     score: clamp(Math.round(score), 40, 92),
     upperModifier,
     lowerModifier,
-    reason: describeTrainingLoad(hoursSince, averageRpe, totalSets),
+    reason: describeTrainingLoad({
+      hoursSince,
+      averageRpe: lastAverageRpe,
+      totalSets: lastSets,
+      sessions7d: workouts7d.length,
+      hardSessions7d,
+    }),
     hasWorkout: true,
   };
 }
@@ -270,13 +305,47 @@ function buildReason({
   return `Daily Check-In based: ${contextText}. ${training.reason}`;
 }
 
-function describeTrainingLoad(hoursSince: number, averageRpe: number, totalSets: number) {
+function calculateBodyStress(
+  workouts: RecentWorkoutStats[],
+  matcher: (name: string | null) => boolean
+) {
+  return workouts
+    .filter((workout) => matcher(workout.name))
+    .reduce((sum, workout) => {
+      const averageRpe = Number(workout.average_rpe ?? 7);
+      const sets = Number(workout.total_sets ?? 0);
+      const volumeLoad = Number(workout.total_volume_load ?? 0);
+      return sum + sets * Math.max(0.75, averageRpe / 8) + Math.min(10, volumeLoad / 5000);
+    }, 0);
+}
+
+function getLocalLoadModifier(stress: number) {
+  if (stress >= 35) return 0.9;
+  if (stress >= 24) return 0.94;
+  if (stress >= 14) return 0.97;
+  return 1;
+}
+
+function describeTrainingLoad({
+  hoursSince,
+  averageRpe,
+  totalSets,
+  sessions7d,
+  hardSessions7d,
+}: {
+  hoursSince: number;
+  averageRpe: number;
+  totalSets: number;
+  sessions7d: number;
+  hardSessions7d: number;
+}) {
   const roundedHours = Math.round(hoursSince);
+  const recentLoad = `${sessions7d} sessions in 7d${hardSessions7d > 0 ? `, ${hardSessions7d} hard` : ''}`;
   if (hoursSince < 24) {
-    return `Last session was ${roundedHours}h ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets.`;
+    return `Last session was ${roundedHours}h ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets; ${recentLoad}.`;
   }
   const roundedDays = Math.max(1, Math.round(hoursSince / 24));
-  return `Last session was ${roundedDays}d ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets.`;
+  return `Last session was ${roundedDays}d ago at ${averageRpe.toFixed(1)} RPE across ${totalSets} sets; ${recentLoad}.`;
 }
 
 function hasMeaningfulContext(context: UserContext) {
@@ -392,7 +461,7 @@ async function fetchRecentManualContexts(userId: string): Promise<UserContext[]>
   }
 }
 
-async function fetchLastWorkoutStats(userId: string) {
+async function fetchRecentWorkoutStats(userId: string): Promise<RecentWorkoutStats[]> {
   try {
     const { data } = await withQueryTimeout(
       supabase
@@ -402,14 +471,13 @@ async function fetchLastWorkoutStats(userId: string) {
         .neq('status', 'in_progress')
         .not('end_time', 'is', null)
         .order('end_time', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(20),
       QUERY_TIMEOUT_MS,
-      'last workout'
+      'recent workouts'
     );
 
-    return data;
+    return (data ?? []) as RecentWorkoutStats[];
   } catch {
-    return null;
+    return [];
   }
 }

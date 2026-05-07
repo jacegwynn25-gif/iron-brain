@@ -42,6 +42,7 @@ type SupabaseSetLogRow = Pick<
   | 'prescribed_rpe'
   | 'prescribed_rir'
   | 'prescribed_percentage'
+  | 'prescribed_weight'
   | 'actual_weight'
   | 'weight_unit'
   | 'actual_reps'
@@ -122,6 +123,7 @@ const transformSupabaseWorkout = (session: SupabaseWorkoutSessionRow): WorkoutSe
       prescribedRPE: set.prescribed_rpe,
       prescribedRIR: set.prescribed_rir,
       prescribedPercentage: set.prescribed_percentage,
+      prescribedWeight: set.prescribed_weight,
       actualWeight: set.actual_weight,
       weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lbs',
       actualReps: set.actual_reps,

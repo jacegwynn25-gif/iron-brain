@@ -381,6 +381,7 @@ type SupabaseSetLogRow = Pick<
   | 'prescribed_rpe'
   | 'prescribed_rir'
   | 'prescribed_percentage'
+  | 'prescribed_weight'
   | 'actual_weight'
   | 'weight_unit'
   | 'actual_reps'

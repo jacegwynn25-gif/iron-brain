@@ -7,6 +7,7 @@ import { logger } from '../logger';
 import { isValidUuid } from '../uuid';
 import { resolveExerciseIds, upsertPersonalRecordsForSetLogs } from '../supabase/workouts';
 import { convertWeight } from '../units';
+import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from '../supabase/set-log-schema';
 
 const QUEUE_KEY = 'iron_brain_sync_queue';
 const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
@@ -202,6 +203,7 @@ const syncWorkoutToCloud = async (
       prescribed_rpe: set.prescribedRPE,
       prescribed_rir: set.prescribedRIR,
       prescribed_percentage: set.prescribedPercentage,
+      prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
       actual_weight: set.actualWeight,
       weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
       actual_reps: set.actualReps,
@@ -225,10 +227,19 @@ const syncWorkoutToCloud = async (
       skipped: set.completed === false,
     }));
 
-    const { data: insertedSetRows, error: setsError } = await client
+    let { data: insertedSetRows, error: setsError } = await client
       .from('set_logs')
       .insert(setLogs)
       .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+
+    if (isMissingPrescribedWeightColumn(setsError)) {
+      const retry = await client
+        .from('set_logs')
+        .insert(stripPrescribedWeight(setLogs))
+        .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+      insertedSetRows = retry.data;
+      setsError = retry.error;
+    }
 
     if (setsError) {
       throw setsError;

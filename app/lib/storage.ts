@@ -16,6 +16,7 @@ import {
   upsertPersonalRecordsForSetLogs,
   type PersonalRecordHit,
 } from './supabase/workouts';
+import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from './supabase/set-log-schema';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -545,6 +546,7 @@ export async function saveWorkout(
             prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
             prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
             prescribed_percentage: set.prescribedPercentage,
+            prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
             // Actual values (what was actually done)
             actual_weight: set.actualWeight,
             weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
@@ -578,10 +580,19 @@ export async function saveWorkout(
           return payload;
         });
 
-        const { data: insertedSetRows, error: setError } = await supabase
+        let { data: insertedSetRows, error: setError } = await supabase
           .from('set_logs')
           .insert(setPayloads)
           .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+
+        if (isMissingPrescribedWeightColumn(setError)) {
+          const retry = await supabase
+            .from('set_logs')
+            .insert(stripPrescribedWeight(setPayloads))
+            .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+          insertedSetRows = retry.data;
+          setError = retry.error;
+        }
 
         if (setError) {
           setLogsSynced = false;
@@ -1054,6 +1065,7 @@ export async function updateWorkoutSessionContent(
               prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
               prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
               prescribed_percentage: set.prescribedPercentage ?? null,
+              prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
               actual_weight: set.actualWeight != null ? Number(set.actualWeight) : null,
               weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
               actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
@@ -1084,9 +1096,16 @@ export async function updateWorkoutSessionContent(
             return payload;
           });
 
-          const { error: insertError } = await supabase
+          let { error: insertError } = await supabase
             .from('set_logs')
             .insert(setPayloads);
+
+          if (isMissingPrescribedWeightColumn(insertError)) {
+            const retry = await supabase
+              .from('set_logs')
+              .insert(stripPrescribedWeight(setPayloads));
+            insertError = retry.error;
+          }
 
           if (insertError) {
             console.error('Failed to save edited set logs to Supabase:', insertError);
