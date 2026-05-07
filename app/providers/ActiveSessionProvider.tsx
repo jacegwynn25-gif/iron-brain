@@ -40,6 +40,8 @@ export interface ActiveSessionSnapshot {
 interface ActiveSessionContextValue {
     /** Current snapshot of the active workout, or null if none */
     snapshot: ActiveSessionSnapshot | null;
+    /** Whether local active-session storage has been loaded for the current namespace */
+    isReady: boolean;
     /** Whether a workout is currently in progress */
     isSessionActive: boolean;
     /** Store a new or updated session snapshot */
@@ -224,11 +226,12 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     }, [storageKey]);
 
     const activeSnapshot = loadedStorageKey === storageKey ? snapshot : null;
+    const isReady = loadedStorageKey === storageKey;
     const isSessionActive = activeSnapshot !== null && activeSnapshot.status === 'active';
 
     return (
         <ActiveSessionContext.Provider
-            value={{ snapshot: activeSnapshot, isSessionActive, saveSnapshot, clearSession }}
+            value={{ snapshot: activeSnapshot, isReady, isSessionActive, saveSnapshot, clearSession }}
         >
             {children}
         </ActiveSessionContext.Provider>

@@ -19,11 +19,11 @@ export default function NewWorkoutPage() {
   const namespaceId = user?.id ?? 'guest';
 
   const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
-  const { snapshot, isSessionActive } = useActiveSession();
+  const { snapshot, isReady: activeSessionReady, isSessionActive } = useActiveSession();
 
   // When resuming an active session, use its stored program/day metadata
   // instead of the default selectedProgram + getProgramProgress flow.
-  const resumeMeta = isSessionActive && !requestedProgramId && !forceQuickStart
+  const resumeMeta = activeSessionReady && isSessionActive && !requestedProgramId && !forceQuickStart
     ? snapshot?.meta ?? null
     : null;
 
@@ -89,6 +89,16 @@ export default function NewWorkoutPage() {
     if (selectedProgram?.id === resolvedProgram.id) return;
     selectProgram(resolvedProgram);
   }, [forceQuickStart, requestedProgramId, resolvedProgram, selectProgram, selectedProgram?.id]);
+
+  if (!activeSessionReady && !requestedProgramId && !forceQuickStart) {
+    return (
+      <div className="mx-auto w-full max-w-3xl py-6">
+        <div className="px-4 py-12 text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+          Loading Workout...
+        </div>
+      </div>
+    );
+  }
 
   if (!forceQuickStart && requestedProgramId && loading && !resolvedProgram) {
     return (

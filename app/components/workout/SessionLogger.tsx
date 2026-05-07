@@ -779,7 +779,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   );
   // ── Active session provider (persistent background session) ──
   // Must be initialized before useWorkoutSession so we can inject the saved state
-  const { snapshot, saveSnapshot, clearSession } = useActiveSession();
+  const { snapshot, isReady: activeSessionReady, saveSnapshot, clearSession } = useActiveSession();
   const resumeSnapshot = ignoreActiveSnapshot ? null : snapshot;
   const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(() =>
     getSnapshotDefaultWeightUnit(resumeSnapshot, preferredWeightUnit)
@@ -825,6 +825,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
   // ── Sync session to provider so it persists across navigation ──
   useEffect(() => {
+    if (!activeSessionReady) return;
     if (session.status === 'finished') return;
     const snap: ActiveSessionSnapshot = {
       status: session.status,
@@ -844,6 +845,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     };
     saveSnapshot(snap);
   }, [
+    activeSessionReady,
     baseProgram.id,
     baseProgram.name,
     programDayContext?.cycleNumber,

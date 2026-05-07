@@ -153,9 +153,11 @@ async function checkCorruptedActiveSession(browser) {
 }
 
 async function checkResumeDataIntegrity(browser) {
+  const originalStartTime = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+  const snapshot = activeSessionSnapshot({ startTime: originalStartTime });
   const page = await newPage(
     browser,
-    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
+    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(snapshot))});`
   );
 
   await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
@@ -180,13 +182,16 @@ async function checkResumeDataIntegrity(browser) {
   }, ACTIVE_SESSION_KEY, { timeout: 5000 });
 
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), ACTIVE_SESSION_KEY);
+  if (saved.startTime !== originalStartTime) {
+    throw new Error(`Resumed workout timer start changed: ${saved.startTime} !== ${originalStartTime}`);
+  }
   const set = saved.blocks[0].exercises[0].sets.find((entry) => entry.id === 'set_resume');
   if (set.notes !== 'Keep elbows tucked on the descent.') {
     throw new Error('Set notes did not survive resume/unit update');
   }
 
   await page.close();
-  console.log('✅ resume preserves display name, per-set units, converted weight, and notes');
+  console.log('✅ resume preserves display name, timer start, per-set units, converted weight, and notes');
 }
 
 async function checkMiniBarLayout(browser) {
@@ -231,6 +236,28 @@ async function checkWorkoutExitKeepsResume(browser) {
   await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
   await page.close();
   console.log('✅ exiting an active workout keeps dashboard resume CTA visible');
+}
+
+async function checkResumedWorkoutDiscard(browser) {
+  const page = await newPage(
+    browser,
+    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
+  );
+  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
+  await page.getByText(/All progress will be lost/i).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByRole('button', { name: /^Discard Session$/i }).last().tap({ timeout: 10000 });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+
+  const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
+  if (raw !== null) {
+    throw new Error('Discarding a resumed workout did not clear active-session storage');
+  }
+
+  await page.close();
+  console.log('✅ resumed workout discard clears storage and returns to Start Session CTA');
 }
 
 async function checkWorkoutRouteChrome(browser) {
@@ -365,6 +392,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkCorruptedActiveSession(browser);
     await checkResumeDataIntegrity(browser);
     await checkWorkoutExitKeepsResume(browser);
+    await checkResumedWorkoutDiscard(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkSmartTrainingTargets(browser);

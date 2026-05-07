@@ -23,7 +23,7 @@ import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 
 export default function Dashboard() {
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
-  const { isSessionActive } = useActiveSession();
+  const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
 
@@ -143,8 +143,8 @@ export default function Dashboard() {
       <section className="grid gap-2 px-1 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {/* Primary CTA */}
         <Link
-          href={isSessionActive ? "/workout/new" : "/start"}
-          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.1rem] px-4 py-3 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${isSessionActive
+          href={activeSessionReady && isSessionActive ? "/workout/new" : "/start"}
+          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.1rem] px-4 py-3 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${activeSessionReady && isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
@@ -154,7 +154,7 @@ export default function Dashboard() {
               <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
             </div>
             <h3 className="text-sm font-black italic tracking-tight text-white sm:text-lg">
-              {isSessionActive ? "RESUME SESSION" : "START SESSION"}
+              {activeSessionReady && isSessionActive ? "RESUME SESSION" : "START SESSION"}
             </h3>
           </div>
           <ArrowRight className="relative z-10 h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
