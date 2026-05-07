@@ -40,6 +40,7 @@ import {
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { supabase } from '@/app/lib/supabase/client';
 import { resolveExerciseIds } from '@/app/lib/supabase/workouts';
+import { fetchJsonWithAuth } from '@/app/lib/api/authed-fetch';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
@@ -52,6 +53,15 @@ import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
+import {
+  buildTrainingRecommendations,
+  recommendationHasApplyPatch,
+  type TrainingHistorySet,
+  type TrainingPersonalRecord,
+  type TrainingRecommendation,
+  type TrainingRecommendationInput,
+  type TrainingSetInput,
+} from '@/app/lib/intelligence/training-recommendations';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 type InfoPanel = 'set-unit' | 'rpe' | null;
@@ -351,6 +361,70 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
   );
 };
 
+function formatSmartWeight(value: number | null | undefined, unit: WeightUnit | undefined): string | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  const display = unit === 'kg' ? Number(value.toFixed(2)).toString() : Math.round(value).toString();
+  return `${display} ${unit?.toUpperCase() ?? 'LBS'}`;
+}
+
+function SmartTargetReadout({
+  recommendation,
+  onApply,
+  label = 'Smart Target',
+  testId = 'smart-target-card',
+  applyTestId = 'smart-target-apply',
+}: {
+  recommendation: TrainingRecommendation | null;
+  onApply: (recommendation: TrainingRecommendation) => void;
+  label?: string;
+  testId?: string;
+  applyTestId?: string;
+}) {
+  if (!recommendation) return null;
+
+  const targetWeight = formatSmartWeight(recommendation.target?.weight, recommendation.target?.weightUnit);
+  const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} REPS` : null;
+  const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s REST` : null;
+  const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'BASELINE';
+  const canApply = recommendationHasApplyPatch(recommendation);
+
+  return (
+    <div
+      className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+      data-testid={testId}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+            {label}
+          </p>
+          <p className="mt-1 font-mono text-lg font-black uppercase tracking-tight text-white">
+            {targetText}
+          </p>
+        </div>
+        <p className="shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          {recommendation.confidence}
+        </p>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="min-w-0 text-xs leading-snug text-zinc-400">
+          {recommendation.reason}
+        </p>
+        {canApply && (
+          <button
+            type="button"
+            onClick={() => onApply(recommendation)}
+            className="shrink-0 rounded-xl border border-emerald-400/40 bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 shadow-[0_12px_28px_-20px_rgba(52,211,153,0.9)] active:scale-95"
+            data-testid={applyTestId}
+          >
+            Apply
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: ResolveMuscleProfile): ExerciseStyle => {
   const { primary, secondary } = resolveMuscleProfile(exercise);
   const primaryKey = MUSCLE_COLORS[primary] ? primary : 'other';
@@ -431,6 +505,113 @@ function getFocusSet(exercise: Exercise, activeCell: ActiveCell | null, blockId:
   }
 
   return exercise.sets.find((set) => !set.completed) ?? exercise.sets[exercise.sets.length - 1] ?? null;
+}
+
+function toTrainingSetInput(
+  blockId: string,
+  exercise: Exercise,
+  set: SessionSet,
+  setIndex: number,
+  exerciseName: string
+): TrainingSetInput {
+  return {
+    blockId,
+    exerciseId: exercise.id,
+    exerciseName,
+    setId: set.id,
+    setIndex: setIndex + 1,
+    weight: set.weight,
+    weightUnit: set.weightUnit,
+    reps: set.reps,
+    rpe: set.rpe,
+    prescribedRPE: set.prescribedRPE,
+    prescribedRIR: set.prescribedRIR,
+    prescribedPercentage: set.prescribedPercentage,
+    prescribedWeight: set.prescribedWeight,
+    completed: set.completed,
+    skipped: set.skipped,
+    type: set.type,
+  };
+}
+
+function toTrainingHistorySets(sessions: WorkoutSession[]): TrainingHistorySet[] {
+  return sessions.flatMap((session) =>
+    session.sets.map((set) => ({
+      id: set.id,
+      workoutSessionId: session.id,
+      exerciseId: set.exerciseId,
+      exerciseName: set.exerciseName,
+      actualWeight: set.actualWeight,
+      weightUnit: set.weightUnit,
+      actualReps: set.actualReps,
+      actualRPE: set.actualRPE,
+      actualRIR: set.actualRIR,
+      prescribedReps: set.prescribedReps,
+      prescribedRPE: set.prescribedRPE,
+      prescribedRIR: set.prescribedRIR,
+      prescribedPercentage: set.prescribedPercentage,
+      prescribedWeight: set.prescribedWeight,
+      e1rm: set.e1rm,
+      completed: set.completed,
+      performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
+    }))
+  );
+}
+
+function getLocalPersonalRecordInputs(exerciseId: string | null | undefined): TrainingPersonalRecord[] {
+  if (!exerciseId) return [];
+  const records = storage.getPersonalRecords(exerciseId);
+  if (!records) return [];
+  return [
+    {
+      exerciseId,
+      recordType: 'max_weight',
+      weight: records.maxWeight.weight,
+      reps: records.maxWeight.reps,
+    },
+    {
+      exerciseId,
+      recordType: 'max_reps',
+      weight: records.maxReps.weight,
+      reps: records.maxReps.reps,
+    },
+    {
+      exerciseId,
+      recordType: 'max_e1rm',
+      weight: records.maxE1RM.weight,
+      reps: records.maxE1RM.reps,
+      e1rm: records.maxE1RM.e1rm,
+    },
+    {
+      exerciseId,
+      recordType: 'max_volume',
+      weight: records.maxVolume.weight,
+      reps: records.maxVolume.reps,
+      volume: records.maxVolume.volume,
+    },
+  ];
+}
+
+function locateSetForPatch(blocks: Block[], recommendation: TrainingRecommendation) {
+  const patch = recommendation.apply;
+  if (!patch?.setId) return null;
+  if (patch.blockId && patch.exerciseId) {
+    return findSetByActiveCell(blocks, {
+      blockId: patch.blockId,
+      exerciseId: patch.exerciseId,
+      setId: patch.setId,
+      field: 'weight',
+    });
+  }
+
+  for (const block of blocks) {
+    for (const exercise of block.exercises) {
+      const set = exercise.sets.find((entry) => entry.id === patch.setId);
+      if (set) return { block, exercise, set };
+    }
+  }
+
+  return null;
 }
 
 function sortSupersetExercisesBySlot(exercises: Exercise[]): Exercise[] {
@@ -794,6 +975,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [clusterProgressBySetId, setClusterProgressBySetId] = useState<Record<string, number>>({});
   const [tempoMetronomeEnabled, setTempoMetronomeEnabled] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
+  const [remoteSmartRecommendations, setRemoteSmartRecommendations] = useState<Record<string, TrainingRecommendation[]>>({});
+  const [restBoostBySetId, setRestBoostBySetId] = useState<Record<string, number>>({});
   const [restContext, setRestContext] = useState<{
     blockId: string;
     exerciseId: string;
@@ -1254,6 +1437,176 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   }, [focusedRef, focusedSet]);
 
   const nextSetContext = useMemo(() => findSetByActiveCell(session.blocks, session.activeCell), [session.blocks, session.activeCell]);
+  const localHistorySets = useMemo<TrainingHistorySet[]>(() => {
+    void namespaceId;
+    if (typeof window === 'undefined') return [];
+    return toTrainingHistorySets(storage.getWorkoutHistory().slice(0, 30));
+  }, [namespaceId]);
+  const sessionTrainingSets = useMemo<TrainingSetInput[]>(() => {
+    return session.blocks.flatMap((block) =>
+      block.exercises.flatMap((exercise) => {
+        const exerciseName = getExerciseDisplayName(exercise);
+        return exercise.sets.map((set, index) => toTrainingSetInput(block.id, exercise, set, index, exerciseName));
+      })
+    );
+  }, [getExerciseDisplayName, session.blocks]);
+  const focusTrainingSet = useMemo<TrainingSetInput | null>(() => {
+    if (!focusContext) return null;
+    const setIndex = focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId);
+    return toTrainingSetInput(
+      focusContext.blockId,
+      focusContext.exercise,
+      focusContext.set,
+      Math.max(0, setIndex),
+      getExerciseDisplayName(focusContext.exercise)
+    );
+  }, [focusContext, getExerciseDisplayName]);
+  const nextTrainingSet = useMemo<TrainingSetInput | null>(() => {
+    if (!nextSetContext) return null;
+    const setIndex = nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id);
+    return toTrainingSetInput(
+      nextSetContext.block.id,
+      nextSetContext.exercise,
+      nextSetContext.set,
+      Math.max(0, setIndex),
+      getExerciseDisplayName(nextSetContext.exercise)
+    );
+  }, [getExerciseDisplayName, nextSetContext]);
+  const readinessTrainingInput = useMemo(() => ({
+    score: readiness?.score ?? null,
+    modifier: readiness?.modifier ?? null,
+    source: readiness?.source ?? null,
+    focusAdjustments: {
+      overallModifier: sessionReadinessModifiers.overall,
+      upperBodyModifier: sessionReadinessModifiers.upperBody,
+      lowerBodyModifier: sessionReadinessModifiers.lowerBody,
+    },
+  }), [
+    readiness?.modifier,
+    readiness?.score,
+    readiness?.source,
+    sessionReadinessModifiers.lowerBody,
+    sessionReadinessModifiers.overall,
+    sessionReadinessModifiers.upperBody,
+  ]);
+  const buildSmartInput = useCallback((
+    setInput: TrainingSetInput | null,
+    exercise: Exercise | null | undefined
+  ): TrainingRecommendationInput => {
+    const profile = exercise ? resolveMuscleProfile(exercise) : null;
+    return {
+      currentSet: setInput,
+      sessionSets: sessionTrainingSets,
+      historySets: localHistorySets,
+      personalRecords: getLocalPersonalRecordInputs(setInput?.exerciseId),
+      readiness: readinessTrainingInput,
+      exerciseMuscleProfile: profile
+        ? {
+          primary: profile.primary,
+          secondary: profile.secondary,
+          groups: [profile.primary, profile.secondary].filter(Boolean) as string[],
+        }
+        : null,
+      weightUnit: sessionWeightUnit,
+    };
+  }, [
+    localHistorySets,
+    readinessTrainingInput,
+    resolveMuscleProfile,
+    sessionTrainingSets,
+    sessionWeightUnit,
+  ]);
+  const localFocusRecommendations = useMemo(() => {
+    if (!focusTrainingSet) return [];
+    return buildTrainingRecommendations(buildSmartInput(focusTrainingSet, focusContext?.exercise));
+  }, [buildSmartInput, focusContext?.exercise, focusTrainingSet]);
+  const activeSmartRecommendations = useMemo(() => {
+    if (!focusTrainingSet?.setId) return localFocusRecommendations;
+    return remoteSmartRecommendations[focusTrainingSet.setId] ?? localFocusRecommendations;
+  }, [focusTrainingSet?.setId, localFocusRecommendations, remoteSmartRecommendations]);
+  const smartTargetRecommendation = useMemo(
+    () => activeSmartRecommendations.find((recommendation) => recommendation.scope === 'next_set') ?? null,
+    [activeSmartRecommendations]
+  );
+  const nextSmartRecommendation = useMemo(() => {
+    if (!nextTrainingSet || restContext?.clusterTransition) return null;
+    return buildTrainingRecommendations(buildSmartInput(nextTrainingSet, nextSetContext?.exercise))
+      .find((recommendation) => recommendation.scope === 'next_set') ?? null;
+  }, [buildSmartInput, nextSetContext?.exercise, nextTrainingSet, restContext?.clusterTransition]);
+  const summarySmartRecommendations = useMemo(() => {
+    if (!isSummaryOpen) return [];
+    return buildTrainingRecommendations({
+      sessionSets: sessionTrainingSets,
+      historySets: localHistorySets,
+      readiness: readinessTrainingInput,
+      weightUnit: sessionWeightUnit,
+    }).filter((recommendation) => recommendation.scope === 'session').slice(0, 2);
+  }, [isSummaryOpen, localHistorySets, readinessTrainingInput, sessionTrainingSets, sessionWeightUnit]);
+  const smartRequestKey = useMemo(() => {
+    if (!focusTrainingSet?.setId) return null;
+    const completedKey = sessionTrainingSets
+      .filter((set) => set.completed)
+      .map((set) => `${set.setId}:${set.weight}:${set.reps}:${set.rpe}`)
+      .join(',');
+    return [
+      focusTrainingSet.setId,
+      focusTrainingSet.weight,
+      focusTrainingSet.reps,
+      focusTrainingSet.rpe,
+      readinessTrainingInput.score,
+      readinessTrainingInput.modifier,
+      completedKey,
+    ].join('|');
+  }, [
+    focusTrainingSet?.reps,
+    focusTrainingSet?.rpe,
+    focusTrainingSet?.setId,
+    focusTrainingSet?.weight,
+    readinessTrainingInput.modifier,
+    readinessTrainingInput.score,
+    sessionTrainingSets,
+  ]);
+
+  useEffect(() => {
+    if (!user?.id || !focusTrainingSet?.setId || !smartRequestKey) return;
+    if (viewMode !== 'cockpit') return;
+    let active = true;
+    const setId = focusTrainingSet.setId;
+    const requestInput = buildSmartInput(focusTrainingSet, focusContext?.exercise);
+
+    void fetchJsonWithAuth<{ recommendations: TrainingRecommendation[] }>('/api/training/recommendations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(requestInput),
+    })
+      .then((payload) => {
+        if (!active) return;
+        setRemoteSmartRecommendations((current) => ({
+          ...current,
+          [setId]: payload.recommendations,
+        }));
+      })
+      .catch(() => {
+        if (!active) return;
+        setRemoteSmartRecommendations((current) => {
+          if (!(setId in current)) return current;
+          const next = { ...current };
+          delete next[setId];
+          return next;
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    buildSmartInput,
+    focusContext?.exercise,
+    focusTrainingSet,
+    smartRequestKey,
+    user?.id,
+    viewMode,
+  ]);
 
   useEffect(() => {
     setActiveInput(null);
@@ -1519,6 +1872,36 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     });
     setSessionWeightUnit(nextUnit);
   };
+
+  const applySmartRecommendation = useCallback((recommendation: TrainingRecommendation | null) => {
+    if (!recommendation?.apply) return;
+    const target = locateSetForPatch(session.blocks, recommendation);
+    const patch = recommendation.apply;
+
+    if (patch.restSeconds != null && patch.setId) {
+      setRestBoostBySetId((current) => ({
+        ...current,
+        [patch.setId as string]: Math.max(0, Math.round(patch.restSeconds ?? 0)),
+      }));
+    }
+
+    if (!target) return;
+    const updates: Partial<Pick<SessionSet, 'weight' | 'weightUnit' | 'reps'>> = {};
+    if (patch.weight !== undefined) updates.weight = patch.weight;
+    if (patch.weightUnit !== undefined) updates.weightUnit = patch.weightUnit;
+    if (patch.reps !== undefined) updates.reps = patch.reps;
+    if (Object.keys(updates).length === 0) return;
+
+    dispatch({
+      type: 'UPDATE_SET',
+      payload: {
+        blockId: target.block.id,
+        exerciseId: target.exercise.id,
+        setId: target.set.id,
+        updates,
+      },
+    });
+  }, [dispatch, session.blocks]);
 
   const handleLogSet = () => {
     if (!focusContext) return;
@@ -2081,8 +2464,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     }
     const exercise = block?.exercises.find((entry) => entry.id === restContext.exerciseId);
     if (!exercise) return DEFAULT_REST_SECONDS;
-    return getRestDurationSeconds(exercise, resolveMuscleProfile);
-  }, [resolveMuscleProfile, restContext, session.blocks]);
+    const baseRest = getRestDurationSeconds(exercise, resolveMuscleProfile);
+    const nextSetBoost = nextSetContext?.set.id ? restBoostBySetId[nextSetContext.set.id] ?? 0 : 0;
+    return baseRest + nextSetBoost;
+  }, [nextSetContext?.set.id, resolveMuscleProfile, restBoostBySetId, restContext, session.blocks]);
 
   const availableExercises = useMemo<CommonExercise[]>(() => {
     const byId = new Map<string, CommonExercise>();
@@ -2453,6 +2838,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     />
                   </div>
 
+                  <SmartTargetReadout
+                    recommendation={smartTargetRecommendation}
+                    onApply={applySmartRecommendation}
+                  />
+
                   {!bodyweightExercise && (
                     <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-zinc-900 bg-zinc-950/70 px-3 py-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -2600,10 +2990,13 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     : nextExerciseDisplayName,
                   setNumber: restContext?.clusterTransition ? undefined : nextSetNumber,
                   weight: restContext?.clusterTransition ? undefined : nextSetContext?.set.weight ?? undefined,
+                  suggestedWeight: restContext?.clusterTransition ? undefined : nextSmartRecommendation?.target?.weight ?? undefined,
                   reps: restContext?.clusterTransition
                     ? `Cluster ${restContext?.nextClusterRound ?? 1}/${restContext?.clusterTotalRounds ?? 1}`
                     : nextSetContext?.set.reps ?? undefined,
                 }}
+                smartRecommendation={nextSmartRecommendation}
+                onApplyRecommendation={applySmartRecommendation}
                 isLastSetOfExercise={Boolean(
                   restContext?.wasLastSet &&
                   !restContext?.wasEditing &&
@@ -3139,6 +3532,34 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                             }}
                           />
                           <span>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {summarySmartRecommendations.length > 0 && (
+                  <div className="mb-10" data-testid="next-session-adjustments">
+                    <p className="text-center text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                      Next Session Adjustments
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {summarySmartRecommendations.map((recommendation) => (
+                        <div
+                          key={recommendation.id}
+                          className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-black uppercase tracking-[0.16em] text-zinc-100">
+                              {recommendation.title}
+                            </p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                              {recommendation.confidence}
+                            </p>
+                          </div>
+                          <p className="mt-2 text-xs leading-snug text-zinc-400">
+                            {recommendation.reason}
+                          </p>
                         </div>
                       ))}
                     </div>

@@ -33,12 +33,20 @@ import { createUuid } from '@/app/lib/uuid';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { useProgramContext } from '@/app/providers/ProgramProvider';
 import { useDialog } from '@/app/providers/DialogProvider';
+import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 
 import EditableNumberInput from '@/app/components/ui/EditableNumberInput';
 import FancySelect from '@/app/components/ui/FancySelect';
 import ProgramsCalendarView from '@/app/components/program-builder/ProgramsCalendarView';
 import CoachCollabPanel from '@/app/components/program-builder/CoachCollabPanel';
 import { FEATURES } from '@/app/lib/features';
+import { storage } from '@/app/lib/storage';
+import {
+  applyProgramTuneUp,
+  buildProgramTuneUpRecommendation,
+  type TrainingHistorySet,
+  type TrainingRecommendation,
+} from '@/app/lib/intelligence/training-recommendations';
 
 type ProgramFilter = 'all' | 'mine' | 'built-in';
 type EditorMode = 'create' | 'edit' | null;
@@ -85,6 +93,31 @@ type ExerciseRemovalUndoPayload = {
   afterBlocksFingerprint: string;
   message: string;
 };
+
+function getLocalTrainingHistorySets(): TrainingHistorySet[] {
+  if (typeof window === 'undefined') return [];
+  return storage.getWorkoutHistory().slice(0, 30).flatMap((session) =>
+    session.sets.map((set) => ({
+      id: set.id,
+      workoutSessionId: session.id,
+      exerciseId: set.exerciseId,
+      exerciseName: set.exerciseName,
+      actualWeight: set.actualWeight,
+      weightUnit: set.weightUnit,
+      actualReps: set.actualReps,
+      actualRPE: set.actualRPE,
+      actualRIR: set.actualRIR,
+      prescribedReps: set.prescribedReps,
+      prescribedRPE: set.prescribedRPE,
+      prescribedRIR: set.prescribedRIR,
+      prescribedPercentage: set.prescribedPercentage,
+      prescribedWeight: set.prescribedWeight,
+      e1rm: set.e1rm,
+      completed: set.completed,
+      performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
+    }))
+  );
+}
 
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -674,6 +707,7 @@ function applySetTargetInput(set: SetTemplate, rawValue: string): SetTemplate {
 export default function ProgramsPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { readiness } = useRecoveryState();
   const {
     selectedProgram,
     allPrograms,
@@ -726,6 +760,7 @@ export default function ProgramsPage() {
   const [weekCountFocused, setWeekCountFocused] = useState(false);
   const [daysPerWeekFocused, setDaysPerWeekFocused] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<'builder' | 'calendar' | 'collab'>('builder');
+  const [dismissedTuneUps, setDismissedTuneUps] = useState<Record<string, boolean>>({});
   const showWorkspaceTabs = FEATURES.programCalendar || FEATURES.coachCollab;
   const prefersReducedMotion = useReducedMotion();
 
@@ -810,6 +845,38 @@ export default function ProgramsPage() {
   }, [allPrograms, builtInProgramIds, filter, query]);
 
   const activeProgram = selectedProgram ?? null;
+  const localTrainingHistorySets = useMemo(() => {
+    void namespaceId;
+    return getLocalTrainingHistorySets();
+  }, [namespaceId]);
+  const programTuneUp = useMemo(() => {
+    if (!activeProgram) return null;
+    const recommendation = buildProgramTuneUpRecommendation({
+      program: activeProgram,
+      historySets: localTrainingHistorySets,
+      readiness: {
+        score: readiness?.score ?? null,
+        modifier: readiness?.modifier ?? null,
+        source: readiness?.source ?? null,
+        focusAdjustments: {
+          overallModifier: readiness?.modifier ?? null,
+          upperBodyModifier: readiness?.focus_adjustments.upper_body_modifier ?? null,
+          lowerBodyModifier: readiness?.focus_adjustments.lower_body_modifier ?? null,
+        },
+      },
+    });
+    return recommendation?.action === 'hold_program' ? null : recommendation;
+  }, [
+    activeProgram,
+    localTrainingHistorySets,
+    readiness?.focus_adjustments.lower_body_modifier,
+    readiness?.focus_adjustments.upper_body_modifier,
+    readiness?.modifier,
+    readiness?.score,
+    readiness?.source,
+  ]);
+  const programTuneUpKey = programTuneUp && activeProgram ? `${activeProgram.id}:${programTuneUp.id}` : null;
+  const visibleProgramTuneUp = programTuneUpKey && !dismissedTuneUps[programTuneUpKey] ? programTuneUp : null;
   const currentWeek = draft?.weeks[activeWeekIndex] ?? null;
   const currentDay = currentWeek?.days[activeDayIndex] ?? null;
   const currentDayBlocks = useMemo(() => getDayBlocks(currentDay), [currentDay]);
@@ -841,6 +908,18 @@ export default function ProgramsPage() {
     }
     document.body.removeAttribute('data-hide-bottom-nav');
   }, [hasProgramBuilderOverlay]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('iron_brain_dismissed_tuneups_v1');
+      if (raw) {
+        setDismissedTuneUps(JSON.parse(raw) as Record<string, boolean>);
+      }
+    } catch {
+      setDismissedTuneUps({});
+    }
+  }, []);
 
   useEffect(() => {
     if (!exerciseActionMenu) return;
@@ -969,6 +1048,44 @@ export default function ProgramsPage() {
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
     setExerciseActionMenu(null);
+  };
+
+  const openTuneUpEditor = (program: ProgramTemplate, recommendation: TrainingRecommendation) => {
+    const builtIn = builtInProgramIds.has(program.id);
+    const resolved = builtIn ? resolveProgramSelection(program) : program;
+    const baselineProgram = normalizeProgramForSave(deepClone(resolved));
+    const tunedProgram = normalizeProgramForSave(applyProgramTuneUp(resolved, recommendation));
+    selectProgram(resolved);
+    setDraft(tunedProgram);
+    setEditorBaselineFingerprint(fingerprintProgram(baselineProgram));
+    setEditorMode('edit');
+    setEditorError(null);
+    setEditorNotice(
+      builtIn
+        ? `Built-in duplicated to "Mine". Tune-up staged for review; save to keep it.`
+        : `Tune-up staged for review; save to keep it.`
+    );
+    setPendingExerciseUndo(null);
+    resetCustomExerciseBuilder();
+    setActiveWeekIndex(0);
+    setActiveDayIndex(0);
+    setDetailsProgramId(null);
+    setEditorSetFocus(null);
+    setEditorDetailMode('simple');
+    setEditorJumpPicker(null);
+    setExerciseActionMenu(null);
+  };
+
+  const dismissTuneUp = (key: string) => {
+    setDismissedTuneUps((current) => {
+      const next = { ...current, [key]: true };
+      try {
+        window.localStorage.setItem('iron_brain_dismissed_tuneups_v1', JSON.stringify(next));
+      } catch {
+        // ignore local persistence failures
+      }
+      return next;
+    });
   };
 
   const resetEditorState = () => {
@@ -2340,6 +2457,47 @@ export default function ProgramsPage() {
                   </button>
                 )}
               </div>
+              {activeProgram && visibleProgramTuneUp && programTuneUpKey && (
+                <div
+                  className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3"
+                  data-testid="program-tune-up"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+                        Program Tune-Up
+                      </p>
+                      <p className="mt-1 text-sm font-black uppercase tracking-[0.16em] text-zinc-100">
+                        {visibleProgramTuneUp.title}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      {visibleProgramTuneUp.confidence}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs leading-snug text-zinc-400">
+                    {visibleProgramTuneUp.reason}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openTuneUpEditor(activeProgram, visibleProgramTuneUp)}
+                      className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
+                      data-testid="program-tune-up-apply"
+                    >
+                      Review Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dismissTuneUp(programTuneUpKey)}
+                      className="rounded-xl border border-zinc-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400 hover:text-zinc-200"
+                      data-testid="program-tune-up-dismiss"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="py-4 [overflow-anchor:none]">

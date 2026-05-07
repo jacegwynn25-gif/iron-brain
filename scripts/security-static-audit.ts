@@ -104,11 +104,13 @@ function checkProtectedApiRoutes(files: Array<{ file: string; text: string }>) {
     'app/api/oura/disconnect/route.ts',
     'app/api/oura/sync/route.ts',
     'app/api/programs/generate/route.ts',
+    'app/api/training/recommendations/route.ts',
   ];
 
   const byFile = new Map(files.map((entry) => [entry.file, entry.text]));
   const offenders = requiredAuthRoutes.filter((file) => {
-    const text = byFile.get(file) ?? '';
+    const filePath = path.join(ROOT, file);
+    const text = byFile.get(file) ?? (fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '');
     return !text.includes('getSupabaseUserFromRequest') || !/if\s*\(!user\)/.test(text);
   });
 

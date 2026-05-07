@@ -126,6 +126,12 @@ async function checkUnauthenticatedApis() {
     body: '{}',
   }, 401);
 
+  await expectHttpStatus('/api/training/recommendations', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  }, 401);
+
   await expectHttpStatus('/api/oura/connect', { method: 'GET' }, 401);
 
   await expectHttpStatus('/api/webhooks/stripe', {
@@ -237,6 +243,57 @@ async function checkWorkoutRouteChrome(browser) {
   console.log('✅ workout logger hides bottom navigation');
 }
 
+async function checkSmartTrainingTargets(browser) {
+  const snapshot = activeSessionSnapshot();
+  const exercise = snapshot.blocks[0].exercises[0];
+  exercise.sets[0].rpe = 10;
+  exercise.sets[0].prescribedRPE = 8;
+  exercise.sets[1].prescribedRPE = 8;
+  exercise.sets.push({
+    id: 'set_third',
+    type: 'working',
+    weight: 225,
+    weightUnit: 'lbs',
+    reps: 5,
+    rpe: null,
+    prescribedRPE: 8,
+    touchedWeight: false,
+    touchedReps: false,
+    touchedRpe: false,
+    tempo: null,
+    supersetGroup: null,
+    cluster: null,
+    completed: false,
+    previous: '225lbs x 5',
+    previousNote: 'Keep elbows tucked on the descent.',
+    notes: '',
+  });
+
+  const page = await newPage(
+    browser,
+    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(snapshot))});`
+  );
+
+  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText('Resume Custom Press').first().click();
+  await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByTestId('smart-target-apply').tap({ timeout: 10000 });
+
+  await page.waitForFunction((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    const set = saved.blocks?.[0]?.exercises?.[0]?.sets?.find((entry) => entry.id === 'set_next');
+    return Number(set?.weight) > 0 && Number(set?.weight) < 225;
+  }, ACTIVE_SESSION_KEY, { timeout: 5000 });
+
+  await page.getByRole('button', { name: /LOG SET/i }).tap({ timeout: 10000 });
+  await page.getByTestId('smart-rest-target').waitFor({ state: 'visible', timeout: 15000 });
+  await page.close();
+  console.log('✅ smart target appears, applies to selected set, and rest timer renders next target');
+}
+
 async function checkSettingsPolish(browser) {
   const page = await newPage(browser);
   await page.goto(`${BASE_URL}/profile/settings`, { waitUntil: 'networkidle' });
@@ -310,6 +367,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkWorkoutExitKeepsResume(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
+    await checkSmartTrainingTargets(browser);
     await checkSettingsPolish(browser);
     await checkBottomNavTapTargets(browser);
   } finally {

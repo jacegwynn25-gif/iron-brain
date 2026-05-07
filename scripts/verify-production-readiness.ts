@@ -419,6 +419,11 @@ async function checkLiveRoutes() {
     headers: { 'content-type': 'application/json' },
     body: '{}',
   });
+  await checkHttp('live:/api/training/recommendations:unauth', `${base}/api/training/recommendations`, 401, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  });
   await checkHttp('live:/api/checkout:unauth', `${base}/api/checkout`, 401, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

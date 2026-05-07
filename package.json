@@ -9,6 +9,7 @@
     "lint": "eslint",
     "qa:builder": "node scripts/qa-program-builder.js",
     "qa:hardening": "node scripts/qa-release-hardening.js",
+    "qa:smart": "tsx scripts/qa-smart-training.ts",
     "qa:workout": "node scripts/qa-workout-session.js",
     "release:gate": "node scripts/release-gate.js",
     "security:audit": "tsx scripts/security-static-audit.ts",

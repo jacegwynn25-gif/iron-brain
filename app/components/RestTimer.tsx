@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { WorkoutSession } from '../lib/types';
+import {
+  recommendationHasApplyPatch,
+  type TrainingRecommendation,
+} from '../lib/intelligence/training-recommendations';
 
 interface NextSetInfo {
   exerciseName?: string;
@@ -27,6 +31,8 @@ interface RestTimerProps {
   onSkipExercise?: () => void;
   isLastSetOfExercise?: boolean;
   exerciseName?: string;
+  smartRecommendation?: TrainingRecommendation | null;
+  onApplyRecommendation?: (recommendation: TrainingRecommendation) => void;
 }
 
 export default function RestTimer({
@@ -39,6 +45,8 @@ export default function RestTimer({
   weightUnit = 'lbs',
   isLastSetOfExercise = false,
   exerciseName,
+  smartRecommendation,
+  onApplyRecommendation,
 }: RestTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [addExtraSet, setAddExtraSet] = useState(false);
@@ -124,6 +132,14 @@ export default function RestTimer({
     nextWeight != null ? `${nextWeight}${weightUnit}` : null,
     nextReps != null ? `${nextReps} reps` : null,
   ].filter(Boolean);
+  const smartWeight = smartRecommendation?.target?.weight;
+  const smartUnit = smartRecommendation?.target?.weightUnit ?? weightUnit;
+  const smartReps = smartRecommendation?.target?.reps;
+  const smartRest = smartRecommendation?.target?.restSeconds;
+  const smartTargetText = [
+    smartWeight != null ? `${smartUnit === 'kg' ? Number(smartWeight.toFixed(2)) : Math.round(smartWeight)}${smartUnit}` : null,
+    smartReps != null ? `${Math.round(smartReps)} reps` : null,
+  ].filter(Boolean).join(' • ') || (smartRest != null ? `+${smartRest}s rest` : null);
 
   return (
     <div className="fixed inset-0 z-50 bg-black px-6 text-white">
@@ -136,6 +152,37 @@ export default function RestTimer({
           <p className="text-2xl font-medium text-zinc-400">
             {upNextTextParts.join(' \u2022 ')}
           </p>
+        )}
+
+        {showUpNext && smartRecommendation && (
+          <div
+            className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-left"
+            data-testid="smart-rest-target"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
+                  Next Target
+                </p>
+                <p className="mt-1 font-mono text-xl font-black uppercase text-white">
+                  {smartTargetText ?? smartRecommendation.title}
+                </p>
+              </div>
+              {recommendationHasApplyPatch(smartRecommendation) && (
+                <button
+                  type="button"
+                  onClick={() => onApplyRecommendation?.(smartRecommendation)}
+                  className="shrink-0 rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
+                  data-testid="smart-rest-apply"
+                >
+                  Apply
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs leading-snug text-zinc-400">
+              {smartRecommendation.reason}
+            </p>
+          </div>
         )}
 
         <div className="flex items-center gap-6">

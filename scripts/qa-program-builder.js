@@ -130,6 +130,54 @@ async function expectSheetWithinViewport(page, selector, label) {
   await page.getByText(/Loading Programs/i).waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
   await expectVisible(page.getByText(new RegExp(programName, 'i')).first(), 'Saved program survives reload');
 
+  console.log('▶️ Checking program tune-up review and dismiss...');
+  await page.evaluate(() => {
+    const history = [{
+      id: 'qa_tuneup_session',
+      programId: 'qa_builder',
+      programName: 'Builder QA',
+      date: '2026-05-07',
+      startTime: '2026-05-07T12:00:00.000Z',
+      endTime: '2026-05-07T13:00:00.000Z',
+      durationMinutes: 60,
+      totalVolumeLoad: 9000,
+      averageRPE: 9.5,
+      sets: Array.from({ length: 8 }, (_, index) => ({
+        id: `qa_tuneup_set_${index}`,
+        exerciseId: 'bench_tng',
+        exerciseName: 'Bench Press (Touch & Go)',
+        setIndex: index + 1,
+        prescribedReps: '5',
+        prescribedRPE: 8,
+        actualWeight: 225,
+        weightUnit: 'lbs',
+        actualReps: 5,
+        actualRPE: 9.5,
+        completed: true,
+        e1rm: 265,
+        volumeLoad: 1125,
+        timestamp: '2026-05-07T12:30:00.000Z',
+      })),
+      createdAt: '2026-05-07T13:00:00.000Z',
+      updatedAt: '2026-05-07T13:00:00.000Z',
+    }];
+    localStorage.setItem('iron_brain_workout_history__default', JSON.stringify(history));
+    localStorage.removeItem('iron_brain_dismissed_tuneups_v1');
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByText(/Loading Programs/i).waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
+  await expectVisible(page.getByTestId('program-tune-up'), 'Program Tune-Up appears with seeded high-RPE history');
+  await page.getByTestId('program-tune-up-apply').click();
+  await expectVisible(page.getByText(/Tune-up staged for review/i), 'Program Tune-Up stages editor changes');
+  await page.locator('header').getByRole('button', { name: /^Done$/i }).first().click();
+  await expectVisible(page.getByText(new RegExp(programName, 'i')).first(), 'Program remains visible after tune-up save');
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByText(/Loading Programs/i).waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
+  await expectVisible(page.getByTestId('program-tune-up'), 'Program Tune-Up can be shown again');
+  await page.getByTestId('program-tune-up-dismiss').click();
+  await page.getByTestId('program-tune-up').waitFor({ state: 'hidden', timeout: 5000 });
+  console.log('✅ Program Tune-Up review/dismiss flow passed');
+
   console.log('✅ Program builder QA flow passed');
   await browser.close();
 })().catch((error) => {

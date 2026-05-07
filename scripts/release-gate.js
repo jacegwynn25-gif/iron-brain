@@ -70,6 +70,7 @@ async function main() {
   await run('npm', ['run', 'build']);
   await run('npm', ['audit', '--audit-level=high', '--omit=dev']);
   await run('npm', ['run', 'security:audit']);
+  await run('npm', ['run', 'qa:smart']);
 
   await withDevServer(async () => {
     await run('npm', ['run', 'qa:workout']);
