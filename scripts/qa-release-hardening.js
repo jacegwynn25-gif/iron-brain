@@ -274,6 +274,25 @@ async function checkForceDiscardRoute(browser) {
   console.log('✅ force-discard URL clears active workout storage');
 }
 
+async function checkStandaloneResetWorkoutRoute(browser) {
+  const page = await newPage(
+    browser,
+    `if (!sessionStorage.getItem('iron_brain_reset_workout_seeded')) {
+      localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});
+      sessionStorage.setItem('iron_brain_reset_workout_seeded', 'true');
+    }`
+  );
+  await page.goto(`${BASE_URL}/reset-workout`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
+  if (raw !== null) {
+    throw new Error('Standalone reset-workout route did not clear active-session storage');
+  }
+  await page.close();
+  console.log('✅ standalone reset-workout page clears active workout storage before app boot');
+}
+
 async function checkWorkoutRouteChrome(browser) {
   const page = await newPage(browser);
   await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'networkidle' });
@@ -408,6 +427,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkWorkoutExitKeepsResume(browser);
     await checkResumedWorkoutDiscard(browser);
     await checkForceDiscardRoute(browser);
+    await checkStandaloneResetWorkoutRoute(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkSmartTrainingTargets(browser);
