@@ -685,11 +685,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       const localWorkouts = getWorkoutHistory();
       const localCompleted = buildCompletedWorkouts(localWorkouts);
       updateCoreAnalytics(localCompleted);
+      setLoading(false);
+      initialLoadRef.current = false;
 
       // If not logged in, show local data only
       if (!user) {
-        setLoading(false);
-        initialLoadRef.current = false;
         return;
       }
 
@@ -720,7 +720,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             `)
             .eq('user_id', user.id)
             .is('deleted_at', null)
-            .order('start_time', { ascending: false }),
+            .order('start_time', { ascending: false })
+            .limit(250),
           9000,
           'insights workout history'
         );
@@ -782,7 +783,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
         const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
         updateCoreAnalytics(mergedCompleted);
-        initialLoadRef.current = false;
       } catch {
       } finally {
         setCloudSyncing(false);

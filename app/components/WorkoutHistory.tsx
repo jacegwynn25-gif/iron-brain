@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Flame, History, Trophy, TrendingUp } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronDown,
+  Clock3,
+  Dumbbell,
+  Edit3,
+  Flame,
+  History,
+  Trash2,
+  Trophy,
+  TrendingUp,
+} from 'lucide-react';
 import { WorkoutSession, SetLog, CustomExercise, WeightUnit } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
@@ -68,12 +79,9 @@ export default function WorkoutHistory({
   const [deleteTarget, setDeleteTarget] = useState<WorkoutSession | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<WorkoutSession | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editStartTime, setEditStartTime] = useState('');
   const [editDuration, setEditDuration] = useState('');
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
   const [contentEditTarget, setContentEditTarget] = useState<WorkoutSession | null>(null);
   const [contentWorkoutName, setContentWorkoutName] = useState('');
   const [contentWorkoutNotes, setContentWorkoutNotes] = useState('');
@@ -82,7 +90,7 @@ export default function WorkoutHistory({
   const [contentEditBusy, setContentEditBusy] = useState(false);
   const [contentEditError, setContentEditError] = useState<string | null>(null);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
-  const isAnyModalOpen = Boolean(deleteTarget || editTarget || contentEditTarget);
+  const isAnyModalOpen = Boolean(deleteTarget || contentEditTarget);
   useBodyScrollLock(isAnyModalOpen, 'history-modal');
 
   useEffect(() => {
@@ -335,10 +343,49 @@ export default function WorkoutHistory({
     return { totalVolume, avgRPE };
   };
 
+  const getSessionSourceLabel = (session: WorkoutSession) => {
+    const programName = (session.programName || '').trim();
+    if (programName && programName.toLowerCase() !== 'custom' && programName.toLowerCase() !== 'workout') {
+      return programName;
+    }
+    if (session.programId) {
+      return programName || 'Program session';
+    }
+    return 'Quick log';
+  };
+
+  const formatSessionDate = (session: WorkoutSession) =>
+    parseLocalDate(session.date).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+  const formatSessionTimeRange = (session: WorkoutSession) => {
+    const start = session.startTime
+      ? new Date(session.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : null;
+    const end = session.endTime
+      ? new Date(session.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : null;
+
+    if (start && end) return `${start} - ${end}`;
+    if (start) return start;
+    return 'Time not set';
+  };
+
+  const formatDurationLabel = (minutes?: number) => {
+    if (!minutes || !Number.isFinite(minutes)) return 'No duration';
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const hours = Math.floor(minutes / 60);
+    const remaining = Math.round(minutes % 60);
+    return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
+  };
+
   const deleteSession = (sessionId: string) => {
     const session = workoutHistory.find(w => w.id === sessionId);
     if (!session) return;
-    setEditTarget(null);
     setContentEditTarget(null);
     setDeleteTarget(session);
     setDeleteError(null);
@@ -375,72 +422,17 @@ export default function WorkoutHistory({
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
 
-  const openEditSession = (session: WorkoutSession) => {
-    setDeleteTarget(null);
-    setContentEditTarget(null);
-    setEditTarget(session);
-    setEditDate(session.date);
-    setEditStartTime(formatTime(session.startTime));
-    setEditDuration(session.durationMinutes ? String(session.durationMinutes) : '');
-    setEditError(null);
-  };
-
   const openContentEditSession = (session: WorkoutSession) => {
     setDeleteTarget(null);
-    setEditTarget(null);
     setContentEditTarget(session);
     setContentWorkoutName(session.dayName || 'Workout');
     setContentWorkoutNotes(session.notes ?? '');
     setContentExercises(buildEditableExercises(session));
     setContentNewExerciseName('');
+    setEditDate(session.date);
+    setEditStartTime(formatTime(session.startTime));
+    setEditDuration(session.durationMinutes ? String(session.durationMinutes) : '');
     setContentEditError(null);
-  };
-
-  const handleConfirmEdit = async () => {
-    if (!editTarget) return;
-    if (!editDate) {
-      setEditError('Please choose a date.');
-      return;
-    }
-
-    setEditBusy(true);
-    setEditError(null);
-
-    try {
-      const resolvedStart = editStartTime || formatTime(editTarget.startTime);
-      const resolvedDuration = editDuration ? parseInt(editDuration, 10) : editTarget.durationMinutes;
-      const startDateTime = resolvedStart ? toDateTime(editDate, resolvedStart) : null;
-
-      let endDateTime: Date | null = null;
-      if (startDateTime && Number.isFinite(resolvedDuration)) {
-        endDateTime = new Date(startDateTime.getTime() + (resolvedDuration as number) * 60000);
-      } else if (editTarget.endTime) {
-        const resolvedEnd = formatTime(editTarget.endTime);
-        endDateTime = resolvedEnd ? toDateTime(editDate, resolvedEnd) : null;
-      }
-
-      const updates: Partial<WorkoutSession> = {
-        date: editDate,
-      };
-
-      if (startDateTime) {
-        updates.startTime = startDateTime.toISOString();
-      }
-      if (endDateTime) {
-        updates.endTime = endDateTime.toISOString();
-      }
-      if (Number.isFinite(resolvedDuration)) {
-        updates.durationMinutes = resolvedDuration as number;
-      }
-
-      await storage.updateWorkoutDetails(editTarget.id, updates);
-      setEditTarget(null);
-      onHistoryUpdate();
-    } catch {
-      setEditError('Could not save changes. Please try again.');
-    } finally {
-      setEditBusy(false);
-    }
   };
 
   const handleAddExerciseToContentEdit = () => {
@@ -527,11 +519,33 @@ export default function WorkoutHistory({
 
   const handleConfirmContentEdit = async () => {
     if (!contentEditTarget) return;
+    if (!editDate) {
+      setContentEditError('Please choose a date.');
+      return;
+    }
 
     setContentEditBusy(true);
     setContentEditError(null);
 
     try {
+      const parsedDuration = editDuration.trim() ? parseInt(editDuration, 10) : contentEditTarget.durationMinutes;
+      if (editDuration.trim() && (!Number.isFinite(parsedDuration) || Number(parsedDuration) < 1)) {
+        setContentEditError('Duration must be at least 1 minute.');
+        setContentEditBusy(false);
+        return;
+      }
+
+      const resolvedStart = editStartTime || formatTime(contentEditTarget.startTime);
+      const startDateTime = resolvedStart ? toDateTime(editDate, resolvedStart) : null;
+      let endDateTime: Date | null = null;
+
+      if (startDateTime && Number.isFinite(parsedDuration)) {
+        endDateTime = new Date(startDateTime.getTime() + Number(parsedDuration) * 60000);
+      } else if (contentEditTarget.endTime) {
+        const resolvedEnd = formatTime(contentEditTarget.endTime);
+        endDateTime = resolvedEnd ? toDateTime(editDate, resolvedEnd) : null;
+      }
+
       const nextSets: SetLog[] = [];
       const nowIso = new Date().toISOString();
 
@@ -600,11 +614,17 @@ export default function WorkoutHistory({
         return;
       }
 
-      await storage.updateWorkoutSessionContent(contentEditTarget.id, {
+      const contentUpdates: Partial<WorkoutSession> = {
+        date: editDate,
         dayName: contentWorkoutName.trim() || contentEditTarget.dayName,
         notes: contentWorkoutNotes.trim() || undefined,
         sets: nextSets,
-      });
+      };
+      if (startDateTime) contentUpdates.startTime = startDateTime.toISOString();
+      if (endDateTime) contentUpdates.endTime = endDateTime.toISOString();
+      if (Number.isFinite(parsedDuration)) contentUpdates.durationMinutes = Number(parsedDuration);
+
+      await storage.updateWorkoutSessionContent(contentEditTarget.id, contentUpdates);
 
       setContentEditTarget(null);
       onHistoryUpdate();
@@ -616,15 +636,15 @@ export default function WorkoutHistory({
   };
 
   const editEndTimeLabel = useMemo(() => {
-    if (!editDate || !editTarget) return null;
-    const resolvedStart = editStartTime || formatTime(editTarget.startTime);
-    const resolvedDuration = editDuration ? parseInt(editDuration, 10) : editTarget.durationMinutes;
+    if (!editDate || !contentEditTarget) return null;
+    const resolvedStart = editStartTime || formatTime(contentEditTarget.startTime);
+    const resolvedDuration = editDuration ? parseInt(editDuration, 10) : contentEditTarget.durationMinutes;
     if (!resolvedStart || !Number.isFinite(resolvedDuration)) return null;
     const startDateTime = toDateTime(editDate, resolvedStart);
     if (!startDateTime) return null;
     const endDateTime = new Date(startDateTime.getTime() + (resolvedDuration as number) * 60000);
     return endDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }, [editDate, editStartTime, editDuration, editTarget]);
+  }, [contentEditTarget, editDate, editStartTime, editDuration]);
 
   const sortedHistory = useMemo(() => {
     const getSortTime = (session: WorkoutSession) =>
@@ -694,129 +714,102 @@ export default function WorkoutHistory({
             const stats = calculateSessionStats(session);
             const groupedSets = groupSetsByExercise(session.sets);
             const exerciseIds = Object.keys(groupedSets);
+            const completedSetCount = session.sets.filter(s => s.completed).length;
+            const completedExerciseCount = exerciseIds.filter((exerciseId) =>
+              groupedSets[exerciseId].some((set) => set.completed)
+            ).length;
+            const sourceLabel = getSessionSourceLabel(session);
 
             return (
-              <div
+              <article
                 key={session.id}
-                className="stagger-item group surface-card mb-4 p-4 sm:p-5 pb-6"
+                className="stagger-item overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 shadow-[0_24px_54px_rgba(0,0,0,0.35)]"
                 style={{ animationDelay: `${sessionIdx * 50}ms` }}
               >
                 {/* Session Header */}
-                <div
-                  className="cursor-pointer"
-                  onClick={() => toggleSession(session.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="mb-3 flex items-start justify-between gap-3 sm:items-center">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="text-xl font-black italic text-zinc-100 sm:text-2xl">
-                            {session.dayName || 'Workout'}
-                          </h3>
-                          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400 sm:text-[10px] sm:tracking-[0.35em]">
-                            {session.programName || 'Custom'}
-                          </span>
-                        </div>
+                <div className="p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={() => toggleSession(session.id)}
+                      className="min-w-0 flex-1 text-left"
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                        <Dumbbell className="h-3.5 w-3.5 text-emerald-300" />
+                        <span className="min-w-0 truncate">{sourceLabel}</span>
                       </div>
-
-                      {/* Date */}
-                      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-400">
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {parseLocalDate(session.date).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
+                      <h3 className="text-xl font-black italic leading-tight tracking-tight text-zinc-100 sm:text-2xl">
+                        {session.dayName || 'Workout'}
+                      </h3>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-zinc-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          <CalendarDays className="h-4 w-4 text-zinc-500" />
+                          {formatSessionDate(session)}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock3 className="h-4 w-4 text-zinc-500" />
+                          {formatSessionTimeRange(session)}
+                        </span>
+                        <span>{formatDurationLabel(session.durationMinutes)}</span>
                       </div>
+                    </button>
 
-                      {/* Stats */}
-                      <div className="mt-4 flex flex-wrap gap-6 text-sm">
-                        <div>
-                          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                            Sets
-                          </p>
-                          <p className="mt-1 text-2xl font-black text-white">
-                            {session.sets.filter(s => s.completed).length}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                            Volume
-                          </p>
-                          <p className="mt-1 text-2xl font-black text-white">
-                            {Math.round(stats.totalVolume / 1000)}k
-                          </p>
-                        </div>
-
-                        {stats.avgRPE > 0 && (
-                          <div>
-                            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                              Avg RPE
-                            </p>
-                            <p className="mt-1 text-2xl font-black text-white">
-                              {stats.avgRPE.toFixed(1)}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-3">
+                    <div className="flex shrink-0 items-center gap-2">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openContentEditSession(session);
-                        }}
-                        className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:text-emerald-200 active:scale-[0.98]"
-                        title="Edit exercises and sets"
+                        type="button"
+                        onClick={() => openContentEditSession(session)}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition-colors hover:border-emerald-400/40 hover:text-emerald-200 active:scale-[0.98]"
+                        title="Edit workout"
                       >
-                        Sets
+                        <Edit3 className="h-4 w-4" />
+                        Edit
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditSession(session);
-                        }}
-                        className="p-2 text-zinc-500 transition-colors hover:text-white active:scale-[0.98]"
-                        title="Edit workout details"
-                      >
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.862 4.487a2.25 2.25 0 113.182 3.182L7.5 20.213 3 21l.787-4.5L16.862 4.487z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSession(session.id);
-                        }}
-                        className="p-2 text-rose-400 transition-colors hover:text-rose-300 active:scale-[0.98]"
+                        type="button"
+                        onClick={() => deleteSession(session.id)}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-rose-300 transition-colors hover:border-rose-400/40 hover:text-rose-200 active:scale-[0.98]"
                         title="Delete workout"
+                        aria-label="Delete workout"
                       >
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 className="h-4 w-4" />
                       </button>
-                      <div className="p-2">
-                        <svg
-                          className={`h-6 w-6 text-zinc-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
                     </div>
                   </div>
+
+                  <div className="mt-4 grid grid-cols-4 divide-x divide-zinc-900 border-y border-zinc-900 py-3">
+                    <div className="px-2 first:pl-0">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Exercises</p>
+                      <p className="mt-1 text-xl font-black text-white">{completedExerciseCount}</p>
+                    </div>
+                    <div className="px-2">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Sets</p>
+                      <p className="mt-1 text-xl font-black text-white">{completedSetCount}</p>
+                    </div>
+                    <div className="px-2">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Volume</p>
+                      <p className="mt-1 text-xl font-black text-white">{Math.round(stats.totalVolume / 1000)}k</p>
+                    </div>
+                    <div className="px-2 last:pr-0">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Avg RPE</p>
+                      <p className="mt-1 text-xl font-black text-white">{stats.avgRPE > 0 ? stats.avgRPE.toFixed(1) : '-'}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleSession(session.id)}
+                    className="mt-3 flex min-h-11 w-full items-center justify-between rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400 transition-colors hover:border-zinc-800 hover:text-zinc-100 active:scale-[0.99]"
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? 'Hide details' : 'View details'}
+                    <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-900 pt-5">
+                  <div className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5">
                     <div className="space-y-6">
                       {exerciseIds.map((exerciseId, exIdx) => {
                         const exerciseSets = groupedSets[exerciseId];
@@ -890,7 +883,7 @@ export default function WorkoutHistory({
                                         {set.actualRPE && (
                                           <>
                                             <span className="text-zinc-500">@</span>
-                                            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                                            <span className="text-xs font-semibold text-amber-300">
                                               RPE {set.actualRPE}
                                             </span>
                                           </>
@@ -900,15 +893,15 @@ export default function WorkoutHistory({
 
                                     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                                       {set.e1rm && (
-                                        <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
+                                        <span className="text-xs font-semibold text-sky-300">
                                           {displayE1RM != null && Number.isFinite(displayE1RM)
-                                            ? `${Math.round(displayE1RM)} E1RM`
+                                            ? `${Math.round(displayE1RM)} e1RM`
                                             : 'E1RM'}
                                         </span>
                                       )}
                                       {pr && (
                                         <span
-                                          className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
+                                          className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300"
                                           title={pr.type}
                                         >
                                           <span className="text-base leading-none">{pr.icon}</span>
@@ -934,7 +927,7 @@ export default function WorkoutHistory({
                     )}
                   </div>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
@@ -987,101 +980,6 @@ export default function WorkoutHistory({
           </div>
         </div>
       )}
-      {editTarget && (
-        <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
-          data-swipe-scope="local"
-        >
-          <div className="w-full max-w-xl max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
-            <div className="p-6 sm:p-8 text-white">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-sky-300">
-                Adjust Details
-              </div>
-              <h3 className="text-2xl font-black sm:text-3xl">Edit workout date & time</h3>
-              <p className="mt-2 text-sm text-zinc-400">
-                Backdate a workout or tweak the session timing. Stats will update automatically.
-              </p>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-                  <p className="text-xs font-mono uppercase tracking-[0.35em] text-zinc-500">Workout</p>
-                  <p className="text-lg font-bold">{editTarget.dayName || 'Workout'}</p>
-                  <p className="text-sm text-zinc-500">
-                    {editTarget.programName || 'Custom'} • {parseLocalDate(editTarget.date).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={e => setEditDate(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={editStartTime}
-                    onChange={e => setEditStartTime(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
-                    Duration (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={editDuration}
-                    onChange={e => setEditDuration(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <div className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm text-zinc-300">
-                    <span className="font-semibold text-white">Ends</span>{' '}
-                    {editEndTimeLabel ? `around ${editEndTimeLabel}` : '-'}
-                  </div>
-                </div>
-              </div>
-
-              {editError && (
-                <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/20 px-4 py-3 text-sm text-rose-100">
-                  {editError}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:p-6">
-              <button
-                onClick={() => setEditTarget(null)}
-                disabled={editBusy}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmEdit}
-                disabled={editBusy}
-                className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                {editBusy ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {contentEditTarget && (
         <div
           className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
@@ -1089,15 +987,15 @@ export default function WorkoutHistory({
         >
           <div className="flex w-full max-w-5xl max-h-[100dvh] flex-col overflow-hidden rounded-t-3xl border border-zinc-800 bg-zinc-950/95 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-8 text-white sm:p-8">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
-                Full Session Edit
-              </div>
-              <h3 className="text-2xl font-black sm:text-3xl">Edit exercises, sets, and values</h3>
+              <p className="mb-4 text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                Workout Editor
+              </p>
+              <h3 className="text-2xl font-black sm:text-3xl">Edit workout</h3>
               <p className="mt-2 text-sm text-zinc-400">
-                Update workout details, add/remove exercises, and fix set data for missed logs.
+                Update the session details, exercises, and set values in one place.
               </p>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                     Workout Name
@@ -1111,6 +1009,54 @@ export default function WorkoutHistory({
                 </div>
 
                 <div>
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={e => setEditDate(e.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Start
+                  </label>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={e => setEditStartTime(e.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Duration
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={editDuration}
+                    onChange={e => setEditDuration(e.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="Minutes"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+                    Ends
+                  </label>
+                  <div className="flex min-h-12 items-center rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 text-sm font-semibold text-zinc-300">
+                    {editEndTimeLabel ?? '-'}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3">
                   <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                     Add Exercise
                   </label>
@@ -1132,7 +1078,7 @@ export default function WorkoutHistory({
                   </div>
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-4">
                   <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                     Notes
                   </label>
@@ -1306,9 +1252,9 @@ export default function WorkoutHistory({
               <button
                 onClick={handleConfirmContentEdit}
                 disabled={contentEditBusy}
-                className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                {contentEditBusy ? 'Saving...' : 'Save Full Workout'}
+                {contentEditBusy ? 'Saving...' : 'Save Workout'}
               </button>
             </div>
           </div>

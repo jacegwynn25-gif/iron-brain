@@ -215,13 +215,15 @@ export default function Dashboard() {
       <section className="stagger-item mx-1">
         <Link
           href="/upgrade"
-          className="group flex min-h-12 items-center justify-between gap-4 rounded-[1.1rem] border border-amber-300/70 bg-amber-400 px-4 py-2.5 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
+          className="group flex min-h-12 items-center justify-between gap-3 rounded-[1.1rem] border border-amber-300/70 bg-amber-400 px-3.5 py-2.5 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500 sm:px-4"
         >
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
               <Sparkles className="h-4 w-4 text-zinc-950" />
             </div>
-            <h3 className="truncate text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</h3>
+            <h3 className="min-w-0 text-sm font-black italic leading-tight tracking-normal [word-spacing:0.1em] sm:text-base">
+              SUPPORT IRON BRAIN
+            </h3>
           </div>
           <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>

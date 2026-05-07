@@ -1,12 +1,22 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { Brain, CalendarDays, Check, Moon, Save, Utensils } from 'lucide-react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Activity,
+  Brain,
+  CalendarDays,
+  Check,
+  Clock3,
+  Moon,
+  Save,
+  Utensils,
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase/client';
 import { useAuth } from '../../lib/supabase/auth-context';
 
 type Quality = 'poor' | 'fair' | 'good' | 'excellent';
 type CalorieBalance = 'deficit' | 'maintenance' | 'surplus';
+type MealTiming = 'poor' | 'fair' | 'good';
 
 interface CheckInData {
   date: string;
@@ -17,9 +27,12 @@ interface CheckInData {
   carbIntake: number | null;
   calorieBalance: CalorieBalance | null;
   hydrationLevel: Quality | null;
+  mealTiming: MealTiming | null;
   workStress: number;
   lifeStress: number;
   perceivedStress: number;
+  restingHeartRate: number | null;
+  heartRateVariability: number | null;
   subjectiveReadiness: number;
 }
 
@@ -31,27 +44,53 @@ interface CheckInSectionProps {
   icon: ReactNode;
   eyebrow: string;
   title: string;
+  aside?: ReactNode;
   children: ReactNode;
 }
 
 const QUALITY_OPTIONS: Quality[] = ['poor', 'fair', 'good', 'excellent'];
 const CALORIE_OPTIONS: CalorieBalance[] = ['deficit', 'maintenance', 'surplus'];
+const MEAL_TIMING_OPTIONS: MealTiming[] = ['poor', 'fair', 'good'];
+
+const inputClass =
+  'h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 text-sm font-semibold text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/50 focus:bg-zinc-900';
 
 function titleize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function CheckInSection({ icon, eyebrow, title, children }: CheckInSectionProps) {
+function getFuelScore(data: CheckInData) {
+  let score = 0;
+  let total = 0;
+
+  const add = (value: number) => {
+    score += value;
+    total += 1;
+  };
+
+  if (data.proteinIntake != null) add(data.proteinIntake >= 1.6 ? 1 : data.proteinIntake >= 1.2 ? 0.7 : 0.35);
+  if (data.carbIntake != null) add(data.carbIntake >= 3 ? 1 : data.carbIntake >= 1.5 ? 0.65 : 0.35);
+  if (data.calorieBalance) add(data.calorieBalance === 'surplus' ? 1 : data.calorieBalance === 'maintenance' ? 0.85 : 0.5);
+  if (data.hydrationLevel) add({ poor: 0.25, fair: 0.55, good: 0.85, excellent: 1 }[data.hydrationLevel]);
+  if (data.mealTiming) add({ poor: 0.3, fair: 0.65, good: 1 }[data.mealTiming]);
+
+  return total === 0 ? null : Math.round((score / total) * 100);
+}
+
+function CheckInSection({ icon, eyebrow, title, aside, children }: CheckInSectionProps) {
   return (
-    <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 sm:p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-emerald-300">
-          {icon}
+    <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:p-5">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/80 text-emerald-300">
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">{eyebrow}</p>
+            <h2 className="text-lg font-black italic leading-tight tracking-tight text-zinc-100">{title}</h2>
+          </div>
         </div>
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">{eyebrow}</p>
-          <h2 className="text-lg font-black italic tracking-tight text-zinc-100">{title}</h2>
-        </div>
+        {aside}
       </div>
       <div className="space-y-4">{children}</div>
     </section>
@@ -65,6 +104,7 @@ function NumberField({
   max,
   step,
   placeholder,
+  suffix,
   onChange,
 }: {
   label: string;
@@ -73,26 +113,34 @@ function NumberField({
   max: number;
   step?: number;
   placeholder: string;
+  suffix?: string;
   onChange: (value: number | null) => void;
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
         {label}
       </span>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value ?? ''}
-        onChange={(event) => {
-          const next = event.target.value;
-          onChange(next === '' ? null : Number(next));
-        }}
-        className="h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 text-sm font-semibold text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/50 focus:bg-zinc-900"
-        placeholder={placeholder}
-      />
+      <div className="relative">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value ?? ''}
+          onChange={(event) => {
+            const next = event.target.value;
+            onChange(next === '' ? null : Number(next));
+          }}
+          className={`${inputClass} ${suffix ? 'pr-14' : ''}`}
+          placeholder={placeholder}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-bold text-zinc-500">
+            {suffix}
+          </span>
+        )}
+      </div>
     </label>
   );
 }
@@ -110,7 +158,7 @@ function OptionGroup<T extends string>({
 }) {
   return (
     <div>
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {options.map((option) => {
           const active = value === option;
@@ -119,7 +167,7 @@ function OptionGroup<T extends string>({
               key={option}
               type="button"
               onClick={() => onChange(option)}
-              className={`min-h-11 rounded-xl border px-3 text-xs font-bold uppercase tracking-[0.12em] transition-colors ${active
+              className={`min-h-11 rounded-xl border px-3 text-xs font-bold uppercase tracking-[0.1em] transition-colors ${active
                 ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
                 : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                 }`}
@@ -136,34 +184,55 @@ function OptionGroup<T extends string>({
 function RangeField({
   label,
   value,
+  min = 0,
   left,
   right,
   onChange,
 }: {
   label: string;
   value: number;
+  min?: number;
   left: string;
   right: string;
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+    <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
         <p className="text-xl font-black italic text-zinc-100">{value}</p>
       </div>
       <input
         type="range"
-        min="0"
+        min={min}
         max="10"
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
         className="h-8 w-full accent-emerald-400"
       />
-      <div className="mt-1 flex justify-between text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
+      <div className="mt-1 flex justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
         <span>{left}</span>
         <span>{right}</span>
       </div>
+    </div>
+  );
+}
+
+function FuelSummary({ score }: { score: number | null }) {
+  const label = score == null ? 'Not logged' : score >= 80 ? 'Covered' : score >= 60 ? 'Partial' : 'Low';
+  const tone =
+    score == null
+      ? 'text-zinc-500'
+      : score >= 80
+        ? 'text-emerald-300'
+        : score >= 60
+          ? 'text-amber-300'
+          : 'text-rose-300';
+
+  return (
+    <div className="shrink-0 text-right">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Fuel</p>
+      <p className={`text-sm font-black italic uppercase ${tone}`}>{label}</p>
     </div>
   );
 }
@@ -182,13 +251,18 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
     carbIntake: null,
     calorieBalance: null,
     hydrationLevel: null,
+    mealTiming: null,
     workStress: 5,
     lifeStress: 5,
     perceivedStress: 5,
+    restingHeartRate: null,
+    heartRateVariability: null,
     subjectiveReadiness: 7,
   });
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const fuelScore = useMemo(() => getFuelScore(formData), [formData]);
+
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
@@ -212,9 +286,12 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
           carb_intake: formData.carbIntake,
           calorie_balance: formData.calorieBalance,
           hydration_level: formData.hydrationLevel,
+          meal_timing: formData.mealTiming,
           work_stress: formData.workStress,
           life_stress: formData.lifeStress,
           perceived_stress: formData.perceivedStress,
+          resting_heart_rate: formData.restingHeartRate,
+          heart_rate_variability: formData.heartRateVariability,
           subjective_readiness: formData.subjectiveReadiness,
           source: 'manual',
         }, {
@@ -248,24 +325,26 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 sm:p-5">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="flex items-center gap-3">
+      <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/70 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-zinc-950">
               <CalendarDays className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">Today</p>
-              <h2 className="text-lg font-black italic tracking-tight text-zinc-100">RECOVERY INPUT</h2>
+              <h2 className="text-lg font-black italic leading-tight tracking-tight text-zinc-100">RECOVERY INPUT</h2>
             </div>
           </div>
-          <label className="block sm:w-44">
-            <span className="sr-only">Date</span>
+          <label className="block w-full sm:w-52">
+            <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:text-right">
+              Date
+            </span>
             <input
               type="date"
               value={formData.date}
               onChange={(event) => setFormData({ ...formData, date: event.target.value })}
-              className="h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 text-sm font-semibold text-zinc-100 outline-none transition-colors focus:border-emerald-400/50"
+              className={inputClass}
             />
           </label>
         </div>
@@ -279,32 +358,40 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
 
       <div className="grid gap-4 lg:grid-cols-2">
         <CheckInSection eyebrow="Sleep" title="SLEEP" icon={<Moon className="h-4 w-4" />}>
-          <NumberField
-            label="Hours slept"
-            min={0}
-            max={24}
-            step={0.5}
-            value={formData.sleepHours}
-            placeholder="8.0"
-            onChange={(sleepHours) => setFormData({ ...formData, sleepHours })}
-          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <NumberField
+              label="Hours"
+              min={0}
+              max={24}
+              step={0.5}
+              value={formData.sleepHours}
+              placeholder="8.0"
+              suffix="hrs"
+              onChange={(sleepHours) => setFormData({ ...formData, sleepHours })}
+            />
+            <NumberField
+              label="Wake-ups"
+              min={0}
+              max={20}
+              value={formData.sleepInterruptions}
+              placeholder="0"
+              onChange={(sleepInterruptions) => setFormData({ ...formData, sleepInterruptions: sleepInterruptions ?? 0 })}
+            />
+          </div>
           <OptionGroup
             label="Sleep quality"
             options={QUALITY_OPTIONS}
             value={formData.sleepQuality}
             onChange={(sleepQuality) => setFormData({ ...formData, sleepQuality })}
           />
-          <NumberField
-            label="Wake-ups"
-            min={0}
-            max={20}
-            value={formData.sleepInterruptions}
-            placeholder="0"
-            onChange={(sleepInterruptions) => setFormData({ ...formData, sleepInterruptions: sleepInterruptions ?? 0 })}
-          />
         </CheckInSection>
 
-        <CheckInSection eyebrow="Fuel" title="NUTRITION" icon={<Utensils className="h-4 w-4" />}>
+        <CheckInSection
+          eyebrow="Fuel"
+          title="NUTRITION"
+          icon={<Utensils className="h-4 w-4" />}
+          aside={<FuelSummary score={fuelScore} />}
+        >
           <div className="grid gap-3 sm:grid-cols-2">
             <NumberField
               label="Protein"
@@ -312,7 +399,8 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
               max={10}
               step={0.1}
               value={formData.proteinIntake}
-              placeholder="g per kg"
+              placeholder="1.8"
+              suffix="g/kg"
               onChange={(proteinIntake) => setFormData({ ...formData, proteinIntake })}
             />
             <NumberField
@@ -321,7 +409,8 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
               max={20}
               step={0.1}
               value={formData.carbIntake}
-              placeholder="g per kg"
+              placeholder="3.5"
+              suffix="g/kg"
               onChange={(carbIntake) => setFormData({ ...formData, carbIntake })}
             />
           </div>
@@ -331,12 +420,20 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
             value={formData.calorieBalance}
             onChange={(calorieBalance) => setFormData({ ...formData, calorieBalance })}
           />
-          <OptionGroup
-            label="Hydration"
-            options={QUALITY_OPTIONS}
-            value={formData.hydrationLevel}
-            onChange={(hydrationLevel) => setFormData({ ...formData, hydrationLevel })}
-          />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <OptionGroup
+              label="Hydration"
+              options={QUALITY_OPTIONS}
+              value={formData.hydrationLevel}
+              onChange={(hydrationLevel) => setFormData({ ...formData, hydrationLevel })}
+            />
+            <OptionGroup
+              label="Meal timing"
+              options={MEAL_TIMING_OPTIONS}
+              value={formData.mealTiming}
+              onChange={(mealTiming) => setFormData({ ...formData, mealTiming })}
+            />
+          </div>
         </CheckInSection>
       </div>
 
@@ -345,6 +442,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
           <RangeField
             label="Overall readiness"
             value={formData.subjectiveReadiness}
+            min={1}
             left="low"
             right="ready"
             onChange={(subjectiveReadiness) => setFormData({ ...formData, subjectiveReadiness })}
@@ -370,6 +468,32 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
             right="high"
             onChange={(lifeStress) => setFormData({ ...formData, lifeStress })}
           />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+            <Activity className="h-4 w-4 shrink-0 text-rose-300" />
+            <NumberField
+              label="Resting heart rate"
+              min={20}
+              max={220}
+              value={formData.restingHeartRate}
+              placeholder="58"
+              suffix="bpm"
+              onChange={(restingHeartRate) => setFormData({ ...formData, restingHeartRate })}
+            />
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+            <Clock3 className="h-4 w-4 shrink-0 text-sky-300" />
+            <NumberField
+              label="HRV"
+              min={0}
+              max={300}
+              value={formData.heartRateVariability}
+              placeholder="72"
+              suffix="ms"
+              onChange={(heartRateVariability) => setFormData({ ...formData, heartRateVariability })}
+            />
+          </div>
         </div>
       </CheckInSection>
 
