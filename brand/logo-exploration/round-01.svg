@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1180" viewBox="0 0 1800 1180" role="img" aria-label="Iron Brain logo exploration round 01">
+  <defs>
+    <symbol id="mark-forge-ib" viewBox="0 0 128 128">
+      <path d="M18 26h30l-7 16h-5v44h12l-7 16H10l7-16h5V42H10l8-16Z" fill="currentColor"/>
+      <path d="M63 30v72M63 34h23c16 0 25 8 25 20s-9 20-25 20H63M63 74h26c18 0 28 8 28 22 0 15-11 24-30 24H63" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+
+    <symbol id="mark-neural-bolt" viewBox="0 0 128 128">
+      <path d="M79 10 25 68h31l-13 50 60-67H70l9-41Z" fill="currentColor"/>
+      <circle cx="29" cy="68" r="8" fill="currentColor"/>
+      <circle cx="101" cy="51" r="8" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="mark-loaded-core" viewBox="0 0 128 128">
+      <circle cx="64" cy="64" r="39" fill="none" stroke="currentColor" stroke-width="14"/>
+      <circle cx="64" cy="64" r="11" fill="currentColor"/>
+      <path d="M64 25v78M22 46v36M106 46v36" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="square"/>
+      <path d="M9 54v20M119 54v20" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+    </symbol>
+
+    <symbol id="mark-iron-crown" viewBox="0 0 128 128">
+      <path d="M11 35 31 103h15l18-42 18 42h15l20-68-20 11-9 34-17-48H57L40 80l-9-34-20-11Z" fill="currentColor"/>
+      <circle cx="64" cy="22" r="9" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="mark-signal-bar" viewBox="0 0 128 128">
+      <path d="M18 95h92" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="square"/>
+      <path d="M23 80 40 43l18 32 18-49 18 54 13-28" fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M17 30h20M91 30h20" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="square"/>
+    </symbol>
+
+    <style>
+      .sheet { fill: #050608; }
+      .title { fill: #f4f0e6; font-family: Inter, Arial, sans-serif; font-size: 44px; font-weight: 950; font-style: italic; letter-spacing: -0.02em; }
+      .kicker { fill: #a6adba; font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 850; letter-spacing: 0.2em; }
+      .panel { fill: #0b0e13; stroke: #272e38; stroke-width: 1.5; }
+      .tile { fill: #050608; stroke: #242a34; stroke-width: 1.5; }
+      .label { fill: #f4f0e6; font-family: Inter, Arial, sans-serif; font-size: 22px; font-weight: 950; font-style: italic; letter-spacing: -0.01em; }
+      .meta { fill: #8f98a8; font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.15em; }
+      .copy { fill: #b7bdc8; font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 650; }
+      .tiny { fill: #8f98a8; font-family: Inter, Arial, sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; }
+    </style>
+  </defs>
+
+  <rect class="sheet" width="1800" height="1180"/>
+  <text class="kicker" x="64" y="72">IRON BRAIN LOGO EXPLORATION / ROUND 01</text>
+  <text class="title" x="64" y="126">MONOCHROME STRUCTURE FIRST</text>
+  <text class="copy" x="64" y="164">No gradients. No literal brain cartoons. No production swap. Pick a direction, then refine the strongest structure.</text>
+
+  <g transform="translate(52 220)">
+    <rect class="panel" width="320" height="790" rx="28"/>
+    <text class="meta" x="30" y="54">01</text>
+    <text class="label" x="30" y="92">FORGE IB</text>
+    <text class="copy" x="30" y="126">Plate-cut monogram. Built for</text>
+    <text class="copy" x="30" y="148">equipment-brand toughness.</text>
+    <rect class="tile" x="40" y="190" width="240" height="240" rx="42"/>
+    <use href="#mark-forge-ib" x="84" y="234" width="152" height="152" color="#f4f0e6"/>
+    <text class="tiny" x="40" y="490">SMALL-SIZE READ</text>
+    <rect x="40" y="520" width="72" height="72" rx="18" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-forge-ib" x="52" y="532" width="48" height="48" color="#f4f0e6"/>
+    <rect x="128" y="528" width="56" height="56" rx="14" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-forge-ib" x="140" y="540" width="32" height="32" color="#f4f0e6"/>
+    <rect x="200" y="536" width="40" height="40" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-forge-ib" x="212" y="548" width="16" height="16" color="#f4f0e6"/>
+    <rect x="40" y="632" width="240" height="86" rx="20" fill="#f4f0e6"/>
+    <use href="#mark-forge-ib" x="121" y="645" width="64" height="64" color="#050608"/>
+  </g>
+
+  <g transform="translate(396 220)">
+    <rect class="panel" width="320" height="790" rx="28"/>
+    <text class="meta" x="30" y="54">02</text>
+    <text class="label" x="30" y="92">NEURAL BOLT</text>
+    <text class="copy" x="30" y="126">Fast, sharp, high-output.</text>
+    <text class="copy" x="30" y="148">Smart training without a brain icon.</text>
+    <rect class="tile" x="40" y="190" width="240" height="240" rx="42"/>
+    <use href="#mark-neural-bolt" x="88" y="230" width="144" height="160" color="#f4f0e6"/>
+    <text class="tiny" x="40" y="490">SMALL-SIZE READ</text>
+    <rect x="40" y="520" width="72" height="72" rx="18" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-neural-bolt" x="52" y="532" width="48" height="48" color="#f4f0e6"/>
+    <rect x="128" y="528" width="56" height="56" rx="14" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-neural-bolt" x="140" y="540" width="32" height="32" color="#f4f0e6"/>
+    <rect x="200" y="536" width="40" height="40" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-neural-bolt" x="212" y="548" width="16" height="16" color="#f4f0e6"/>
+    <rect x="40" y="632" width="240" height="86" rx="20" fill="#f4f0e6"/>
+    <use href="#mark-neural-bolt" x="125" y="642" width="56" height="66" color="#050608"/>
+  </g>
+
+  <g transform="translate(740 220)">
+    <rect class="panel" width="320" height="790" rx="28"/>
+    <text class="meta" x="30" y="54">03</text>
+    <text class="label" x="30" y="92">LOADED CORE</text>
+    <text class="copy" x="30" y="126">Plate geometry with a central</text>
+    <text class="copy" x="30" y="148">decision axis.</text>
+    <rect class="tile" x="40" y="190" width="240" height="240" rx="42"/>
+    <use href="#mark-loaded-core" x="82" y="232" width="156" height="156" color="#f4f0e6"/>
+    <text class="tiny" x="40" y="490">SMALL-SIZE READ</text>
+    <rect x="40" y="520" width="72" height="72" rx="18" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-loaded-core" x="52" y="532" width="48" height="48" color="#f4f0e6"/>
+    <rect x="128" y="528" width="56" height="56" rx="14" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-loaded-core" x="140" y="540" width="32" height="32" color="#f4f0e6"/>
+    <rect x="200" y="536" width="40" height="40" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-loaded-core" x="212" y="548" width="16" height="16" color="#f4f0e6"/>
+    <rect x="40" y="632" width="240" height="86" rx="20" fill="#f4f0e6"/>
+    <use href="#mark-loaded-core" x="122" y="644" width="64" height="64" color="#050608"/>
+  </g>
+
+  <g transform="translate(1084 220)">
+    <rect class="panel" width="320" height="790" rx="28"/>
+    <text class="meta" x="30" y="54">04</text>
+    <text class="label" x="30" y="92">IRON CROWN</text>
+    <text class="copy" x="30" y="126">Aggressive, iconic, closest to</text>
+    <text class="copy" x="30" y="148">the current mark's energy.</text>
+    <rect class="tile" x="40" y="190" width="240" height="240" rx="42"/>
+    <use href="#mark-iron-crown" x="78" y="232" width="164" height="164" color="#f4f0e6"/>
+    <text class="tiny" x="40" y="490">SMALL-SIZE READ</text>
+    <rect x="40" y="520" width="72" height="72" rx="18" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-iron-crown" x="52" y="532" width="48" height="48" color="#f4f0e6"/>
+    <rect x="128" y="528" width="56" height="56" rx="14" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-iron-crown" x="140" y="540" width="32" height="32" color="#f4f0e6"/>
+    <rect x="200" y="536" width="40" height="40" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-iron-crown" x="212" y="548" width="16" height="16" color="#f4f0e6"/>
+    <rect x="40" y="632" width="240" height="86" rx="20" fill="#f4f0e6"/>
+    <use href="#mark-iron-crown" x="121" y="644" width="64" height="64" color="#050608"/>
+  </g>
+
+  <g transform="translate(1428 220)">
+    <rect class="panel" width="320" height="790" rx="28"/>
+    <text class="meta" x="30" y="54">05</text>
+    <text class="label" x="30" y="92">SIGNAL BAR</text>
+    <text class="copy" x="30" y="126">Training data plus load.</text>
+    <text class="copy" x="30" y="148">Abstract, simple, scalable.</text>
+    <rect class="tile" x="40" y="190" width="240" height="240" rx="42"/>
+    <use href="#mark-signal-bar" x="78" y="232" width="164" height="164" color="#f4f0e6"/>
+    <text class="tiny" x="40" y="490">SMALL-SIZE READ</text>
+    <rect x="40" y="520" width="72" height="72" rx="18" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-signal-bar" x="52" y="532" width="48" height="48" color="#f4f0e6"/>
+    <rect x="128" y="528" width="56" height="56" rx="14" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-signal-bar" x="140" y="540" width="32" height="32" color="#f4f0e6"/>
+    <rect x="200" y="536" width="40" height="40" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#mark-signal-bar" x="212" y="548" width="16" height="16" color="#f4f0e6"/>
+    <rect x="40" y="632" width="240" height="86" rx="20" fill="#f4f0e6"/>
+    <use href="#mark-signal-bar" x="121" y="644" width="64" height="64" color="#050608"/>
+  </g>
+
+  <text class="copy" x="64" y="1094">Read test: the 16px preview matters. If the mark collapses there, it is not app-icon ready.</text>
+  <text class="copy" x="64" y="1124">Next step: pick one direction or kill all five. Then refine proportions in SVG before color or app-icon treatment.</text>
+</svg>

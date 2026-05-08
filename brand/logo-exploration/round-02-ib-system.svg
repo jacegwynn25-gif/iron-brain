@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240" role="img" aria-label="Iron Brain logo exploration round 02">
+  <defs>
+    <symbol id="ib-lock" viewBox="0 0 128 128">
+      <path d="M17 18h37l-6 16H39v60h12l-7 16H9l7-16h10V34H11l6-16Z" fill="currentColor"/>
+      <path fill="currentColor" fill-rule="evenodd" d="M58 18h31c21 0 34 11 34 29 0 10-5 18-15 24 12 5 18 14 18 27 0 20-15 32-39 32H58V18Zm18 16v30h12c11 0 18-6 18-15 0-10-7-15-19-15H76Zm0 46v32h13c13 0 20-6 20-16s-7-16-21-16H76Z"/>
+      <path d="M58 18h18v112H58V18Z" fill="currentColor"/>
+      <path d="M39 34h16l-16 16V34Zm0 60h18l-18 16V94Z" fill="#050608"/>
+    </symbol>
+
+    <symbol id="ib-spine" viewBox="0 0 128 128">
+      <path d="M26 17h27l-6 16h-8v62h12l-6 16H18l6-16h7V33H20l6-16Z" fill="currentColor"/>
+      <path d="M60 18v92h30c22 0 35-11 35-29 0-13-7-23-20-27 10-5 15-13 15-23 0-17-12-27-33-27H60Zm18 16h8c11 0 17 5 17 14s-6 14-17 14h-8V34Zm0 43h10c13 0 20 6 20 16s-7 16-20 16H78V77Z" fill="currentColor" fill-rule="evenodd"/>
+      <path d="M60 18h18v92H60V18Z" fill="currentColor"/>
+      <path d="M17 17h38l-6 16H11l6-16Zm0 78h38l-6 16H11l6-16Z" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="ib-plate" viewBox="0 0 128 128">
+      <path d="M64 10c30 0 54 24 54 54s-24 54-54 54-54-24-54-54 24-54 54-54Zm0 15c-22 0-39 17-39 39s17 39 39 39 39-17 39-39-17-39-39-39Z" fill="currentColor"/>
+      <path d="M22 52H8v24h14V52Zm98 0h-14v24h14V52Z" fill="currentColor"/>
+      <path d="M54 31h20v66H54V31Z" fill="currentColor"/>
+      <circle cx="64" cy="64" r="16" fill="#050608"/>
+      <circle cx="64" cy="64" r="7" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="ib-crown" viewBox="0 0 128 128">
+      <path d="M12 31 34 107h18l12-38 13 38h18l21-76-21 13-10 37-13-48H56L43 81 33 44 12 31Z" fill="currentColor"/>
+      <path d="M57 21h14v77H57V21Z" fill="currentColor"/>
+      <circle cx="64" cy="16" r="8" fill="currentColor"/>
+      <path d="M56 99h16l-8 18-8-18Z" fill="#050608"/>
+    </symbol>
+
+    <symbol id="ib-word" viewBox="0 0 360 90">
+      <path d="M6 17h49l-7 16H37v37h15l-7 16H0l7-16h13V33H0l6-16Z" fill="currentColor"/>
+      <path fill="currentColor" fill-rule="evenodd" d="M69 17h43c26 0 42 12 42 31 0 11-6 20-18 26 15 5 23 16 23 31 0 22-18 35-47 35H69V17Zm22 16v34h18c13 0 21-6 21-17 0-10-8-17-22-17H91Zm0 51v39h20c15 0 24-7 24-20s-9-19-25-19H91Z"/>
+      <text x="178" y="69" fill="currentColor" font-family="Inter, Arial, sans-serif" font-size="45" font-weight="950" font-style="italic" letter-spacing="-1">IRON BRAIN</text>
+    </symbol>
+
+    <style>
+      .sheet { fill: #050608; }
+      .title { fill: #f4f0e6; font-family: Inter, Arial, sans-serif; font-size: 44px; font-weight: 950; font-style: italic; letter-spacing: -0.02em; }
+      .kicker { fill: #a6adba; font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 850; letter-spacing: 0.2em; }
+      .copy { fill: #b7bdc8; font-family: Inter, Arial, sans-serif; font-size: 16px; font-weight: 650; }
+      .panel { fill: #0b0e13; stroke: #2a313c; stroke-width: 1.5; }
+      .tile { fill: #050608; stroke: #242a34; stroke-width: 1.5; }
+      .label { fill: #f4f0e6; font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 950; font-style: italic; letter-spacing: -0.01em; }
+      .meta { fill: #8f98a8; font-family: Inter, Arial, sans-serif; font-size: 12px; font-weight: 850; letter-spacing: 0.16em; }
+      .note { fill: #a6adba; font-family: Inter, Arial, sans-serif; font-size: 13px; font-weight: 760; letter-spacing: 0.08em; }
+      .recommend { fill: #f4f0e6; stroke: #f4f0e6; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect class="sheet" width="1800" height="1240"/>
+  <text class="kicker" x="64" y="70">IRON BRAIN LOGO EXPLORATION / ROUND 02</text>
+  <text class="title" x="64" y="124">CUSTOM IB SYSTEM, NOT PICTOGRAMS</text>
+  <text class="copy" x="64" y="164">Decision target: one ownable mark that works as a logo first, then as an app icon. No app files changed from this sheet.</text>
+
+  <g transform="translate(64 224)">
+    <rect class="panel" width="390" height="800" rx="30"/>
+    <text class="meta" x="32" y="54">RECOMMENDED</text>
+    <text class="label" x="32" y="94">01 / SPINE LOCK</text>
+    <text class="copy" x="32" y="132">Custom IB, hard-cut, strongest</text>
+    <text class="copy" x="32" y="154">balance of gym brand and app icon.</text>
+    <rect class="tile" x="48" y="204" width="294" height="294" rx="64"/>
+    <use href="#ib-lock" x="104" y="260" width="182" height="182" color="#f4f0e6"/>
+    <text class="note" x="48" y="552">SIZE TEST</text>
+    <rect x="48" y="582" width="82" height="82" rx="20" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="64" y="598" width="50" height="50" color="#f4f0e6"/>
+    <rect x="150" y="594" width="58" height="58" rx="15" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="164" y="608" width="30" height="30" color="#f4f0e6"/>
+    <rect x="228" y="604" width="38" height="38" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="239" y="615" width="16" height="16" color="#f4f0e6"/>
+    <rect x="48" y="704" width="294" height="58" rx="18" fill="#f4f0e6"/>
+    <use href="#ib-lock" x="171" y="713" width="40" height="40" color="#050608"/>
+  </g>
+
+  <g transform="translate(492 224)">
+    <rect class="panel" width="390" height="800" rx="30"/>
+    <text class="meta" x="32" y="54">ALT</text>
+    <text class="label" x="32" y="94">02 / PLATE CORE</text>
+    <text class="copy" x="32" y="132">Closest to the selected Loaded Core,</text>
+    <text class="copy" x="32" y="154">but still reads like a gym pictogram.</text>
+    <rect class="tile" x="48" y="204" width="294" height="294" rx="64"/>
+    <use href="#ib-plate" x="106" y="262" width="178" height="178" color="#f4f0e6"/>
+    <text class="note" x="48" y="552">SIZE TEST</text>
+    <rect x="48" y="582" width="82" height="82" rx="20" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-plate" x="64" y="598" width="50" height="50" color="#f4f0e6"/>
+    <rect x="150" y="594" width="58" height="58" rx="15" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-plate" x="164" y="608" width="30" height="30" color="#f4f0e6"/>
+    <rect x="228" y="604" width="38" height="38" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-plate" x="239" y="615" width="16" height="16" color="#f4f0e6"/>
+    <rect x="48" y="704" width="294" height="58" rx="18" fill="#f4f0e6"/>
+    <use href="#ib-plate" x="171" y="713" width="40" height="40" color="#050608"/>
+  </g>
+
+  <g transform="translate(920 224)">
+    <rect class="panel" width="390" height="800" rx="30"/>
+    <text class="meta" x="32" y="54">ALT</text>
+    <text class="label" x="32" y="94">03 / IRON CROWN</text>
+    <text class="copy" x="32" y="132">Most similar to the current icon's</text>
+    <text class="copy" x="32" y="154">energy, but less ownable.</text>
+    <rect class="tile" x="48" y="204" width="294" height="294" rx="64"/>
+    <use href="#ib-crown" x="106" y="262" width="178" height="178" color="#f4f0e6"/>
+    <text class="note" x="48" y="552">SIZE TEST</text>
+    <rect x="48" y="582" width="82" height="82" rx="20" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-crown" x="64" y="598" width="50" height="50" color="#f4f0e6"/>
+    <rect x="150" y="594" width="58" height="58" rx="15" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-crown" x="164" y="608" width="30" height="30" color="#f4f0e6"/>
+    <rect x="228" y="604" width="38" height="38" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-crown" x="239" y="615" width="16" height="16" color="#f4f0e6"/>
+    <rect x="48" y="704" width="294" height="58" rx="18" fill="#f4f0e6"/>
+    <use href="#ib-crown" x="171" y="713" width="40" height="40" color="#050608"/>
+  </g>
+
+  <g transform="translate(1348 224)">
+    <rect class="panel" width="390" height="800" rx="30"/>
+    <text class="meta" x="32" y="54">SYSTEM</text>
+    <text class="label" x="32" y="94">04 / WORDMARK</text>
+    <text class="copy" x="32" y="132">How the selected mark can extend</text>
+    <text class="copy" x="32" y="154">into the full brand lockup.</text>
+    <rect class="tile" x="48" y="204" width="294" height="294" rx="64"/>
+    <use href="#ib-word" x="78" y="308" width="238" height="60" color="#f4f0e6"/>
+    <text class="note" x="48" y="552">APP ICON CROP</text>
+    <rect x="48" y="582" width="82" height="82" rx="20" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="64" y="598" width="50" height="50" color="#f4f0e6"/>
+    <rect x="150" y="594" width="58" height="58" rx="15" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="164" y="608" width="30" height="30" color="#f4f0e6"/>
+    <rect x="228" y="604" width="38" height="38" rx="10" fill="#050608" stroke="#242a34"/>
+    <use href="#ib-lock" x="239" y="615" width="16" height="16" color="#f4f0e6"/>
+    <rect x="48" y="704" width="294" height="58" rx="18" fill="#f4f0e6"/>
+    <use href="#ib-word" x="75" y="718" width="240" height="32" color="#050608"/>
+  </g>
+
+  <text class="copy" x="64" y="1104">My decision: if we ship a new icon, use 01 / SPINE LOCK as the base. 02 is the loaded-core idea, but I do not recommend it anymore.</text>
+  <text class="copy" x="64" y="1138">Reason: the app needs an ownable brand mark more than another fitness pictogram. 01 can become favicon, app icon, wordmark, merch, and loading mark.</text>
+  <text class="copy" x="64" y="1172">No production icon files should change until this direction is approved.</text>
+</svg>
