@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase/client';
 import { useAuth } from '../../lib/supabase/auth-context';
+import { useUnitPreference } from '../../lib/hooks/useUnitPreference';
+import { KG_TO_LBS } from '../../lib/units';
 
 type Quality = 'poor' | 'fair' | 'good' | 'excellent';
 type CalorieBalance = 'deficit' | 'maintenance' | 'surplus';
@@ -79,7 +81,7 @@ function getFuelScore(data: CheckInData) {
 
 function CheckInSection({ icon, eyebrow, title, aside, children }: CheckInSectionProps) {
   return (
-    <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:p-5">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/80 text-emerald-300">
@@ -92,7 +94,7 @@ function CheckInSection({ icon, eyebrow, title, aside, children }: CheckInSectio
         </div>
         {aside}
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="min-w-0 space-y-4">{children}</div>
     </section>
   );
 }
@@ -117,8 +119,8 @@ function NumberField({
   onChange: (value: number | null) => void;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+    <label className="block min-w-0 flex-1">
+      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:tracking-[0.18em]">
         {label}
       </span>
       <div className="relative">
@@ -157,9 +159,9 @@ function OptionGroup<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div>
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="min-w-0">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:tracking-[0.18em]">{label}</p>
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
         {options.map((option) => {
           const active = value === option;
           return (
@@ -167,7 +169,7 @@ function OptionGroup<T extends string>({
               key={option}
               type="button"
               onClick={() => onChange(option)}
-              className={`min-h-11 rounded-xl border px-3 text-xs font-bold uppercase tracking-[0.1em] transition-colors ${active
+              className={`min-h-11 min-w-0 rounded-xl border px-2 text-[11px] font-bold uppercase tracking-[0.04em] transition-colors sm:px-3 sm:text-xs sm:tracking-[0.1em] ${active
                 ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
                 : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                 }`}
@@ -197,9 +199,9 @@ function RangeField({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+    <div className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
+        <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:tracking-[0.18em]">{label}</p>
         <p className="text-xl font-black italic text-zinc-100">{value}</p>
       </div>
       <input
@@ -237,8 +239,21 @@ function FuelSummary({ score }: { score: number | null }) {
   );
 }
 
+function toNutritionDisplay(value: number | null, weightUnit: 'lbs' | 'kg') {
+  if (value == null) return null;
+  const displayValue = weightUnit === 'lbs' ? value / KG_TO_LBS : value;
+  return Number(displayValue.toFixed(2));
+}
+
+function fromNutritionDisplay(value: number | null, weightUnit: 'lbs' | 'kg') {
+  if (value == null) return null;
+  const storedValue = weightUnit === 'lbs' ? value * KG_TO_LBS : value;
+  return Number(storedValue.toFixed(3));
+}
+
 export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) {
   const { user } = useAuth();
+  const { weightUnit } = useUnitPreference();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -261,6 +276,9 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
   });
 
   const fuelScore = useMemo(() => getFuelScore(formData), [formData]);
+  const nutritionUnit = weightUnit === 'lbs' ? 'g/lb' : 'g/kg';
+  const proteinMax = weightUnit === 'lbs' ? 4.5 : 10;
+  const carbMax = weightUnit === 'lbs' ? 9 : 20;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -324,8 +342,8 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <section className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/70 p-4 sm:p-5">
+    <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
+      <section className="min-w-0 overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/70 p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-zinc-950">
@@ -336,7 +354,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
               <h2 className="text-lg font-black italic leading-tight tracking-tight text-zinc-100">RECOVERY INPUT</h2>
             </div>
           </div>
-          <label className="block w-full sm:w-52">
+          <label className="block min-w-0 w-full sm:w-52">
             <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:text-right">
               Date
             </span>
@@ -356,7 +374,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <CheckInSection eyebrow="Sleep" title="SLEEP" icon={<Moon className="h-4 w-4" />}>
           <div className="grid gap-3 sm:grid-cols-2">
             <NumberField
@@ -394,24 +412,30 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <NumberField
-              label="Protein"
+              label="Protein / BW"
               min={0}
-              max={10}
+              max={proteinMax}
               step={0.1}
-              value={formData.proteinIntake}
-              placeholder="1.8"
-              suffix="g/kg"
-              onChange={(proteinIntake) => setFormData({ ...formData, proteinIntake })}
+              value={toNutritionDisplay(formData.proteinIntake, weightUnit)}
+              placeholder={weightUnit === 'lbs' ? '0.8' : '1.8'}
+              suffix={nutritionUnit}
+              onChange={(proteinIntake) => setFormData({
+                ...formData,
+                proteinIntake: fromNutritionDisplay(proteinIntake, weightUnit),
+              })}
             />
             <NumberField
-              label="Carbs"
+              label="Carbs / BW"
               min={0}
-              max={20}
+              max={carbMax}
               step={0.1}
-              value={formData.carbIntake}
-              placeholder="3.5"
-              suffix="g/kg"
-              onChange={(carbIntake) => setFormData({ ...formData, carbIntake })}
+              value={toNutritionDisplay(formData.carbIntake, weightUnit)}
+              placeholder={weightUnit === 'lbs' ? '1.6' : '3.5'}
+              suffix={nutritionUnit}
+              onChange={(carbIntake) => setFormData({
+                ...formData,
+                carbIntake: fromNutritionDisplay(carbIntake, weightUnit),
+              })}
             />
           </div>
           <OptionGroup
@@ -470,7 +494,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
           />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
             <Activity className="h-4 w-4 shrink-0 text-rose-300" />
             <NumberField
               label="Resting heart rate"
@@ -482,7 +506,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
               onChange={(restingHeartRate) => setFormData({ ...formData, restingHeartRate })}
             />
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
             <Clock3 className="h-4 w-4 shrink-0 text-sky-300" />
             <NumberField
               label="HRV"
