@@ -1,64 +1,88 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Iron Brain">
   <defs>
-    <linearGradient id="field" x1="180" x2="844" y1="90" y2="936" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#171b22"/>
-      <stop offset="0.48" stop-color="#090b10"/>
-      <stop offset="1" stop-color="#040507"/>
+    <linearGradient id="field" x1="160" x2="864" y1="84" y2="948" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#171c24"/>
+      <stop offset="0.52" stop-color="#080b10"/>
+      <stop offset="1" stop-color="#030406"/>
     </linearGradient>
-    <linearGradient id="edge" x1="160" x2="864" y1="112" y2="912" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#47515d"/>
-      <stop offset="0.5" stop-color="#141922"/>
-      <stop offset="1" stop-color="#020304"/>
+    <linearGradient id="rim" x1="114" x2="910" y1="58" y2="956" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5e6674"/>
+      <stop offset="0.4" stop-color="#202834"/>
+      <stop offset="1" stop-color="#030405"/>
     </linearGradient>
-    <linearGradient id="iron" x1="212" x2="355" y1="248" y2="764" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#fff6c7"/>
-      <stop offset="0.28" stop-color="#f8c84e"/>
-      <stop offset="0.62" stop-color="#b77718"/>
-      <stop offset="1" stop-color="#f6d67b"/>
+    <linearGradient id="gold" x1="210" x2="798" y1="182" y2="850" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff0a5"/>
+      <stop offset="0.27" stop-color="#f7c64a"/>
+      <stop offset="0.68" stop-color="#a86c18"/>
+      <stop offset="1" stop-color="#f2d173"/>
     </linearGradient>
-    <linearGradient id="brain" x1="398" x2="792" y1="232" y2="792" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#e9fff7"/>
-      <stop offset="0.34" stop-color="#34d399"/>
-      <stop offset="0.72" stop-color="#109169"/>
-      <stop offset="1" stop-color="#d6b15b"/>
+    <linearGradient id="green" x1="286" x2="760" y1="202" y2="826" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d7fff2"/>
+      <stop offset="0.26" stop-color="#37d399"/>
+      <stop offset="0.68" stop-color="#0f8f68"/>
+      <stop offset="1" stop-color="#d7aa4c"/>
     </linearGradient>
+    <linearGradient id="plate" x1="196" x2="828" y1="184" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#121923"/>
+      <stop offset="0.55" stop-color="#05080c"/>
+      <stop offset="1" stop-color="#10151d"/>
+    </linearGradient>
+    <clipPath id="octagon">
+      <path d="M512 145 676 189 797 310 841 512 797 714 676 835 512 879 348 835 227 714 183 512 227 310 348 189Z"/>
+    </clipPath>
   </defs>
 
-  <rect width="1024" height="1024" fill="#06080c"/>
-  <rect x="54" y="54" width="916" height="916" rx="214" fill="url(#edge)"/>
-  <rect x="78" y="78" width="868" height="868" rx="198" fill="url(#field)"/>
+  <rect width="1024" height="1024" fill="#05070a"/>
+  <rect x="54" y="54" width="916" height="916" rx="214" fill="url(#rim)"/>
+  <rect x="82" y="82" width="860" height="860" rx="194" fill="url(#field)"/>
   <path
-    d="M132 802C214 900 364 940 512 940c204 0 368-84 434-222v228H78V78h244C174 142 82 276 82 450c0 134 20 260 50 352Z"
+    d="M82 642c84 178 257 262 460 262 170 0 311-61 400-169v207H82V82h224C166 154 82 289 82 464v178Z"
     fill="#111722"
     opacity="0.34"
   />
 
-  <g opacity="0.52" transform="translate(0 22)">
-    <path
-      d="M222 250h164l-26 86h-39v352h65l-28 86H184l28-86h43V336h-61l28-86Z"
-      fill="#000000"
-    />
-    <path
-      fill="#000000"
-      fill-rule="evenodd"
-      d="M426 250h190c98 0 166 58 166 146 0 54-28 96-76 122 62 22 100 72 100 143 0 72-28 128-83 167-42 30-94 46-157 46H426V250Zm91 84v151h89c48 0 80-30 80-76 0-47-32-75-85-75h-84Zm0 229v226h75c74 0 122-42 122-113 0-70-48-113-126-113h-71Z"
-    />
-  </g>
-
   <g>
     <path
-      d="M222 250h164l-26 86h-39v352h65l-28 86H184l28-86h43V336h-61l28-86Z"
-      fill="url(#iron)"
+      d="M512 145 676 189 797 310 841 512 797 714 676 835 512 879 348 835 227 714 183 512 227 310 348 189Z"
+      fill="#030405"
+      opacity="0.6"
+      transform="translate(0 24)"
     />
     <path
-      d="M252 334h69v354h-69V334Z"
-      fill="#fff4bf"
-      opacity="0.22"
+      d="M512 145 676 189 797 310 841 512 797 714 676 835 512 879 348 835 227 714 183 512 227 310 348 189Z"
+      fill="url(#plate)"
+      stroke="url(#gold)"
+      stroke-linejoin="round"
+      stroke-width="24"
     />
-    <path
-      fill="url(#brain)"
-      fill-rule="evenodd"
-      d="M426 250h190c98 0 166 58 166 146 0 54-28 96-76 122 62 22 100 72 100 143 0 72-28 128-83 167-42 30-94 46-157 46H426V250Zm91 84v151h89c48 0 80-30 80-76 0-47-32-75-85-75h-84Zm0 229v226h75c74 0 122-42 122-113 0-70-48-113-126-113h-71Z"
-    />
+    <g clip-path="url(#octagon)">
+      <path
+        d="M512 221c-48-38-127-42-190-10-69 35-109 101-106 177-58 34-91 91-91 158 0 60 27 113 73 148-10 74 41 143 118 158 33 54 99 80 161 58 16-6 27-13 35-21 8 8 19 15 35 21 62 22 128-4 161-58 77-15 128-84 118-158 46-35 73-88 73-148 0-67-33-124-91-158 3-76-37-142-106-177-63-32-142-28-190 10Z"
+        fill="url(#green)"
+      />
+      <path d="M188 512h648" stroke="#f5c84b" stroke-width="34" opacity="0.18"/>
+      <path d="M512 202v668" stroke="#06100c" stroke-width="38" stroke-linecap="round" opacity="0.66"/>
+      <path
+        d="M392 298c-68 38-92 90-72 154 13 43 2 79-34 109m85 28c-45 42-51 91-19 146"
+        fill="none"
+        stroke="#06100c"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="34"
+        opacity="0.72"
+      />
+      <path
+        d="M632 298c68 38 92 90 72 154-13 43-2 79 34 109m-85 28c45 42 51 91 19 146"
+        fill="none"
+        stroke="#06100c"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="34"
+        opacity="0.72"
+      />
+    </g>
+    <circle cx="512" cy="512" r="92" fill="#05070a" opacity="0.9"/>
+    <circle cx="512" cy="512" r="56" fill="none" stroke="url(#gold)" stroke-width="22"/>
+    <circle cx="512" cy="512" r="20" fill="#f5c84b"/>
   </g>
 </svg>
