@@ -70,6 +70,20 @@ const baseSet = {
 
 {
   const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: null, weightUnit: 'kg', reps: 5, prescribedPercentage: 80, prescribedRPE: 8 },
+    personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
+    historySets: [],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+    weightUnit: 'kg',
+  });
+
+  assert.equal(recommendation.target?.weightUnit, 'kg');
+  assert.equal(recommendation.target?.weight, 108.75);
+}
+
+{
+  const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
     historySets: [{
       exerciseId: 'back_squat',
@@ -217,6 +231,135 @@ const baseSet = {
 }
 
 {
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 95, reps: 8, prescribedRPE: 6, type: 'warmup' },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 6.5,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 92, modifier: 1.05 },
+  });
+
+  assert.equal(recommendation.action, 'maintain_load');
+  assert.equal(recommendation.target?.weight, 95);
+  assert.equal(recommendation.apply, undefined);
+  assert.match(recommendation.reason, /Warm-up sets stay as written/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: {
+      ...baseSet,
+      exerciseId: 'pull_up',
+      exerciseName: 'Pull-Up',
+      weight: null,
+      reps: 8,
+      prescribedRPE: 8,
+    },
+    historySets: [{
+      exerciseId: 'lat_pulldown',
+      exerciseName: 'Lat Pulldown',
+      actualWeight: 160,
+      weightUnit: 'lbs',
+      actualReps: 8,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, null);
+  assert.equal(recommendation.apply, undefined);
+  assert.match(recommendation.reason, /Bodyweight sets stay focused/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: {
+      ...baseSet,
+      exerciseId: 'shoulder_press',
+      exerciseName: 'Shoulder Press',
+      weight: null,
+      reps: 8,
+      prescribedRPE: 8,
+    },
+    historySets: [{
+      exerciseId: 'bench_press',
+      exerciseName: 'Bench Press',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 8,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, null);
+  assert.equal(recommendation.apply, undefined);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: {
+      ...baseSet,
+      exerciseId: 'barbell_row',
+      exerciseName: 'Barbell Row',
+      weight: null,
+      reps: 8,
+      prescribedRPE: 8,
+    },
+    historySets: [{
+      exerciseId: 'cable_row',
+      exerciseName: 'Cable Row',
+      actualWeight: 120,
+      weightUnit: 'lbs',
+      actualReps: 8,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation.confidence, 'low');
+  assert.equal(recommendation.target?.weight, 120);
+  assert.equal(recommendation.apply, undefined);
+  assert.match(recommendation.reason, /similar movement history/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRIR: 2 },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRIR: 4,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 80, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'increase_load');
+  assert.equal(recommendation.apply?.weight, 205);
+}
+
+{
   const program: ProgramTemplate = {
     id: 'qa_program',
     name: 'QA Program',
@@ -226,6 +369,14 @@ const baseSet = {
         dayOfWeek: 'Mon',
         name: 'Lower',
         sets: [{
+          exerciseId: 'back_squat',
+          setIndex: 0,
+          prescribedReps: '5',
+          prescriptionMethod: 'fixed_weight',
+          fixedWeight: 135,
+          targetRPE: 6,
+          setType: 'warmup',
+        }, {
           exerciseId: 'back_squat',
           setIndex: 1,
           prescribedReps: '5',
@@ -254,7 +405,8 @@ const baseSet = {
   assert.equal(recommendation?.scope, 'program');
   assert.notEqual(recommendation?.action, 'hold_program');
   const tuned = applyProgramTuneUp(program, recommendation!);
-  assert.equal(tuned.weeks[0]?.days[0]?.sets[0]?.fixedWeight, 190);
+  assert.equal(tuned.weeks[0]?.days[0]?.sets[0]?.fixedWeight, 135);
+  assert.equal(tuned.weeks[0]?.days[0]?.sets[1]?.fixedWeight, 190);
 }
 
 console.log('✅ Smart training recommendation QA passed');

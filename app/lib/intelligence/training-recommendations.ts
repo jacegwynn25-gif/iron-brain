@@ -144,6 +144,7 @@ type BaseLoad = {
   unit: WeightUnit;
   source: TrainingRecommendation['source'];
   confidence: RecommendationConfidence;
+  basis: 'prescription' | 'direct_history' | 'similar_history' | 'e1rm' | 'current' | 'none';
 };
 
 type PerformanceSignal = {
@@ -157,6 +158,18 @@ type PerformanceSignal = {
 const LBS_INCREMENT = 5;
 const KG_INCREMENT = 0.25;
 const DEFAULT_WEIGHT_UNIT: WeightUnit = 'lbs';
+const BODYWEIGHT_KEYWORDS = [
+  'bodyweight',
+  'pull-up',
+  'pull up',
+  'chin-up',
+  'chin up',
+  'dip',
+  'plank',
+  'ab wheel',
+  'push-up',
+  'push up',
+];
 
 function stableId(parts: Array<string | number | null | undefined>): string {
   return parts
@@ -257,6 +270,30 @@ function representativeHistoryWeight(
   return roundRecommendationWeight(converted, unit);
 }
 
+function isLoadAdjustableSet(set: TrainingSetInput): boolean {
+  const type = (set.type ?? '').toLowerCase();
+  return type !== 'warmup';
+}
+
+function isBodyweightOnlySet(set: TrainingSetInput): boolean {
+  const lowerName = (set.exerciseName ?? '').toLowerCase();
+  if (lowerName.includes('weighted')) return false;
+  const looksBodyweight = BODYWEIGHT_KEYWORDS.some((keyword) => lowerName.includes(keyword));
+  if (!looksBodyweight) return false;
+
+  return (
+    positiveNumber(set.weight) == null &&
+    positiveNumber(set.prescribedWeight) == null &&
+    positiveNumber(set.prescribedPercentage) == null
+  );
+}
+
+function timestampMs(value: string | null | undefined): number {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function isLowerBodyProfile(input: TrainingRecommendationInput): boolean {
   const groups = [
     input.exerciseMuscleProfile?.primary,
@@ -317,9 +354,7 @@ function getDirectHistory(input: TrainingRecommendationInput, exerciseId?: strin
   return (input.historySets ?? [])
     .filter((set) => set.completed !== false && set.exerciseId === exerciseId)
     .sort((a, b) => {
-      const aTime = a.performedAt ? new Date(a.performedAt).getTime() : 0;
-      const bTime = b.performedAt ? new Date(b.performedAt).getTime() : 0;
-      return bTime - aTime;
+      return timestampMs(b.performedAt) - timestampMs(a.performedAt);
     });
 }
 
@@ -327,68 +362,38 @@ function historyWithLoad(history: TrainingHistorySet[]): TrainingHistorySet[] {
   return history.filter((entry) => positiveNumber(entry.actualWeight) != null);
 }
 
-function normalizeNameTokens(value: string | null | undefined): Set<string> {
-  const tokens = (value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]+/g, ' ')
-    .split(/\s+/)
-    .filter((token) => token.length >= 3);
-
-  const meaningful = tokens.filter((token) => !new Set([
-    'the',
-    'and',
-    'with',
-    'machine',
-    'plate',
-    'loaded',
-    'single',
-    'double',
-    'standing',
-    'seated',
-  ]).has(token));
-
-  return new Set(meaningful);
+function inferMovementFamily(value: string | null | undefined): string | null {
+  const lower = (value ?? '').toLowerCase();
+  if (/\b(calf|calves)\b/.test(lower)) return 'calf';
+  if (/\b(ab|abs|core|crunch|sit[-\s]?up|plank|hanging knee|leg raise)\b/.test(lower)) return 'core';
+  if (/\b(lunge|split squat|step[-\s]?up)\b/.test(lower)) return 'lunge';
+  if (/\b(squat|leg press|hack squat)\b/.test(lower)) return 'squat';
+  if (/\b(deadlift|rdl|romanian|hinge|good morning)\b/.test(lower)) return 'hinge';
+  if (/\b(hip thrust|glute bridge)\b/.test(lower)) return 'hip-thrust';
+  if (/\b(row)\b/.test(lower)) return 'row';
+  if (/\b(pull[-\s]?up|chin[-\s]?up|pulldown|lat pull)\b/.test(lower)) return 'vertical-pull';
+  if (/\b(overhead|military|shoulder press|arnold)\b/.test(lower)) return 'vertical-press';
+  if (/\b(bench|chest press|push[-\s]?up)\b/.test(lower)) return 'horizontal-press';
+  if (/\b(fly|flye|pec deck)\b/.test(lower)) return 'fly';
+  if (/\b(curl)\b/.test(lower)) return 'curl';
+  if (/\b(pushdown|pressdown|skull|tricep|triceps|extension)\b/.test(lower)) return 'triceps-extension';
+  if (/\b(lateral raise|front raise|rear delt|reverse fly)\b/.test(lower)) return 'delt-raise';
+  return null;
 }
 
 function getSimilarHistory(input: TrainingRecommendationInput, set: TrainingSetInput): TrainingHistorySet[] {
-  const targetTokens = normalizeNameTokens(set.exerciseName);
-  const profileTokens = normalizeNameTokens([
-    input.exerciseMuscleProfile?.primary,
-    input.exerciseMuscleProfile?.secondary,
-    ...(input.exerciseMuscleProfile?.groups ?? []),
-  ].filter(Boolean).join(' '));
-
-  const movementTokens = new Set([
-    'squat',
-    'deadlift',
-    'hinge',
-    'bench',
-    'press',
-    'row',
-    'pull',
-    'pulldown',
-    'curl',
-    'extension',
-    'raise',
-    'lunge',
-    'thrust',
-    'fly',
-  ]);
+  const targetFamily = inferMovementFamily(set.exerciseName);
+  if (!targetFamily) return [];
 
   return (input.historySets ?? [])
     .filter((entry) => {
       if (entry.completed === false || entry.exerciseId === set.exerciseId) return false;
       if (positiveNumber(entry.actualWeight) == null) return false;
 
-      const entryTokens = normalizeNameTokens(entry.exerciseName);
-      const sharesMovement = [...targetTokens].some((token) => movementTokens.has(token) && entryTokens.has(token));
-      const sharesMuscle = [...profileTokens].some((token) => entryTokens.has(token));
-      return sharesMovement || sharesMuscle;
+      return inferMovementFamily(entry.exerciseName) === targetFamily;
     })
     .sort((a, b) => {
-      const aTime = a.performedAt ? new Date(a.performedAt).getTime() : 0;
-      const bTime = b.performedAt ? new Date(b.performedAt).getTime() : 0;
-      return bTime - aTime;
+      return timestampMs(b.performedAt) - timestampMs(a.performedAt);
     });
 }
 
@@ -426,7 +431,8 @@ function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetI
         weight: converted,
         unit,
         source: usesE1rm ? 'e1rm' : 'exercise_history',
-        confidence: effortCount >= 2 ? 'high' : historyEffort(directEntry) != null ? 'high' : 'medium',
+        confidence: effortCount >= 2 ? 'high' : 'medium',
+        basis: 'direct_history',
       };
     }
   }
@@ -438,6 +444,7 @@ function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetI
       unit,
       source: 'e1rm',
       confidence: 'medium',
+      basis: 'e1rm',
     };
   }
 
@@ -448,7 +455,8 @@ function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetI
       weight: similarWeight,
       unit,
       source: 'exercise_history',
-      confidence: historyEffort(similarEntry) != null ? 'medium' : 'low',
+      confidence: 'low',
+      basis: 'similar_history',
     };
   }
 
@@ -457,6 +465,7 @@ function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetI
     unit,
     source: 'baseline',
     confidence: 'low',
+    basis: 'none',
   };
 }
 
@@ -486,6 +495,7 @@ function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetIn
       unit,
       source: 'prescription',
       confidence: getDirectHistory(input, set.exerciseId).length > 0 ? 'high' : 'medium',
+      basis: 'prescription',
     };
   }
 
@@ -497,6 +507,7 @@ function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetIn
       unit,
       source: 'prescription',
       confidence: 'medium',
+      basis: 'prescription',
     };
   }
 
@@ -507,18 +518,29 @@ function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInp
   const prescribed = prescriptionLoad(input, set, unit);
   if (prescribed) return prescribed;
 
+  const existing = positiveNumber(set.weight);
+  if (!isLoadAdjustableSet(set)) {
+    return {
+      weight: existing != null ? roundRecommendationWeight(existing, unit) : null,
+      unit,
+      source: 'baseline',
+      confidence: 'low',
+      basis: existing != null ? 'current' : 'none',
+    };
+  }
+
   const history = latestHistoryLoad(input, set, unit);
-  if (history.weight != null && set.touchedWeight !== true) {
+  if (history.weight != null && history.basis !== 'similar_history' && set.touchedWeight !== true) {
     return history;
   }
 
-  const existing = positiveNumber(set.weight);
   if (existing != null) {
     return {
       weight: roundRecommendationWeight(existing, unit),
       unit,
       source: 'baseline',
       confidence: history.weight != null ? history.confidence : getDirectHistory(input, set.exerciseId).length > 0 ? 'medium' : 'low',
+      basis: 'current',
     };
   }
 
@@ -655,18 +677,28 @@ function fatigueModifier(input: TrainingRecommendationInput, set: TrainingSetInp
 function buildSetRecommendation(input: TrainingRecommendationInput, set: TrainingSetInput): TrainingRecommendation {
   const unit = normalizeUnit(set.weightUnit, input.weightUnit);
   const base = resolveBaseLoad(input, set, unit);
-  const readiness = readinessModifier(input);
-  const fatigue = fatigueModifier(input, set);
+  const canAdjustSet = isLoadAdjustableSet(set);
+  const canAdjustLoad = canAdjustSet && !isBodyweightOnlySet(set);
+  const readiness = canAdjustLoad ? readinessModifier(input) : 1;
+  const fatigue = canAdjustSet ? fatigueModifier(input, set) : {
+    modifier: 1,
+    restSeconds: null,
+    reason: null,
+    source: null,
+    confidence: null,
+  };
   const targetReps = targetRepsForSet(set);
   const hasExplicitPrescription = positiveNumber(set.prescribedWeight) != null || positiveNumber(set.prescribedPercentage) != null;
   const combinedModifier = clamp(readiness * fatigue.modifier, 0.82, 1.08);
   const baseWeight = base.weight;
-  const suggestedWeight = baseWeight != null
+  const suggestedWeight = baseWeight != null && canAdjustLoad
     ? roundRecommendationWeight(baseWeight * combinedModifier, unit)
-    : null;
+    : canAdjustSet ? null : baseWeight;
   const currentWeight = positiveNumber(set.weight);
   const delta = baseWeight && suggestedWeight ? (suggestedWeight - baseWeight) / baseWeight : 0;
   const shouldApplyWeight =
+    canAdjustLoad &&
+    base.basis !== 'similar_history' &&
     suggestedWeight != null &&
     (currentWeight == null || Math.abs(suggestedWeight - currentWeight) >= (unit === 'kg' ? KG_INCREMENT : LBS_INCREMENT));
   const apply: TrainingRecommendationApplyPatch | undefined = shouldApplyWeight
@@ -704,7 +736,11 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   const readinessScore = finiteNumber(input.readiness?.score);
   const reasons: string[] = [];
 
-  if (baseWeight == null) {
+  if (!canAdjustSet) {
+    reasons.push('Warm-up sets stay as written.');
+  } else if (!canAdjustLoad) {
+    reasons.push('Bodyweight sets stay focused on reps and effort.');
+  } else if (baseWeight == null) {
     reasons.push('No direct load history yet, so this stays conservative.');
   } else if (hasExplicitPrescription && suggestedWeight != null && Math.abs(suggestedWeight - baseWeight) > 0) {
     reasons.push(`Prescription stays ${formatWeight(baseWeight, unit)}; apply ${formatWeight(suggestedWeight, unit)} only if this set feels right.`);
@@ -713,7 +749,9 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   } else if (readinessScore != null && readiness !== 1) {
     reasons.push(`Readiness is ${Math.round(readinessScore)}, so load is nudged ${readiness < 1 ? 'down' : 'up'}.`);
   } else if (base.source === 'exercise_history') {
-    reasons.push('Based on recent completed sets for this exercise.');
+    reasons.push(base.basis === 'similar_history'
+      ? 'No direct history yet; using similar movement history as a low-confidence starting point.'
+      : 'Based on recent completed sets for this exercise.');
   } else if (base.source === 'e1rm') {
     reasons.push('Estimated from max strength data and target reps.');
   } else if (base.source === 'prescription') {
@@ -768,7 +806,7 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
 }
 
 function buildSessionRecommendation(input: TrainingRecommendationInput): TrainingRecommendation | null {
-  const completed = (input.sessionSets ?? []).filter((set) => set.completed && !set.skipped);
+  const completed = (input.sessionSets ?? []).filter((set) => set.completed && !set.skipped && isLoadAdjustableSet(set));
   if (completed.length < 3) return null;
 
   const rpes = completed.map((set) => finiteNumber(set.rpe)).filter((value): value is number => value != null);
@@ -812,28 +850,29 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
   if (!input.program) return null;
 
   const history = (input.historySets ?? []).filter((set) => set.completed !== false);
-  const rpes = history.map((set) => finiteNumber(set.actualRPE)).filter((value): value is number => value != null);
+  const effortHistory = history.filter((set) => historyEffort(set) != null);
+  const rpes = effortHistory.map((set) => historyEffort(set)).filter((value): value is number => value != null);
   const avgRpe = rpes.length > 0 ? rpes.reduce((sum, value) => sum + value, 0) / rpes.length : null;
   const readinessScore = finiteNumber(input.readiness?.score);
   const programId = input.program.id;
 
-  if ((readinessScore != null && readinessScore <= 52) || (avgRpe != null && avgRpe >= 9)) {
+  if ((readinessScore != null && readinessScore <= 52) || (rpes.length >= 4 && avgRpe != null && avgRpe >= 9)) {
     return {
       id: stableId(['program', programId, 'deload', Math.round(readinessScore ?? 0), Math.round((avgRpe ?? 0) * 10)]),
       scope: 'program',
       action: readinessScore != null && readinessScore <= 45 ? 'deload' : 'trim_volume',
       severity: readinessScore != null && readinessScore <= 45 ? 'deload' : 'adjust',
-      confidence: history.length >= 8 || readinessScore != null ? 'medium' : 'low',
+      confidence: rpes.length >= 8 || readinessScore != null ? 'medium' : 'low',
       title: 'Stage Easier Targets',
-      reason: avgRpe != null && avgRpe >= 9
+      reason: rpes.length >= 4 && avgRpe != null && avgRpe >= 9
         ? `Recent logged sets average ${avgRpe.toFixed(1)} RPE. Review a lighter next-week setup.`
         : `Readiness is ${Math.round(readinessScore ?? 0)}. Review a lighter next-week setup.`,
-      source: avgRpe != null ? 'program_load' : 'readiness',
+      source: rpes.length >= 4 && avgRpe != null && avgRpe >= 9 ? 'program_load' : 'readiness',
       apply: { setCountDelta: -1 },
     };
   }
 
-  if (history.length >= 8 && avgRpe != null && avgRpe <= 7.2 && readinessModifier(input) >= 0.98) {
+  if (rpes.length >= 8 && avgRpe != null && avgRpe <= 7.2 && readinessModifier(input) >= 0.98) {
     return {
       id: stableId(['program', programId, 'increase', Math.round(avgRpe * 10)]),
       scope: 'program',
@@ -891,6 +930,8 @@ function cloneProgram(program: ProgramTemplate): ProgramTemplate {
 
 function adjustSetTemplate(set: SetTemplate, recommendation: TrainingRecommendation): SetTemplate {
   const next = { ...set };
+  if (next.setType === 'warmup') return next;
+
   const reduce = recommendation.action === 'deload' || recommendation.action === 'trim_volume' || recommendation.action === 'reduce_load';
   const increase = recommendation.action === 'increase_load' || recommendation.action === 'add_volume';
   const reductionFactor = recommendation.action === 'deload' ? 0.9 : 0.95;
