@@ -67,6 +67,9 @@ export interface TrainingSetInput {
   prescribedRIR?: number | null;
   prescribedPercentage?: number | null;
   prescribedWeight?: number | null;
+  touchedWeight?: boolean | null;
+  touchedReps?: boolean | null;
+  touchedRpe?: boolean | null;
   completed?: boolean | null;
   skipped?: boolean | null;
   type?: string | null;
@@ -143,6 +146,14 @@ type BaseLoad = {
   confidence: RecommendationConfidence;
 };
 
+type PerformanceSignal = {
+  modifier: number;
+  restSeconds: number | null;
+  reason: string | null;
+  source: TrainingRecommendation['source'] | null;
+  confidence: RecommendationConfidence | null;
+};
+
 const LBS_INCREMENT = 5;
 const KG_INCREMENT = 0.25;
 const DEFAULT_WEIGHT_UNIT: WeightUnit = 'lbs';
@@ -198,6 +209,52 @@ function targetRepsForSet(set: TrainingSetInput | null | undefined): number | nu
   if (!set) return null;
   const reps = finiteNumber(set.reps);
   return reps != null && reps > 0 ? Math.round(reps) : null;
+}
+
+function effortFromRpeRir(rpe: unknown, rir: unknown): number | null {
+  const explicitRpe = finiteNumber(rpe);
+  if (explicitRpe != null) return clamp(explicitRpe, 1, 10);
+  const explicitRir = finiteNumber(rir);
+  if (explicitRir != null) return clamp(10 - explicitRir, 1, 10);
+  return null;
+}
+
+function historyEffort(set: TrainingHistorySet | null | undefined): number | null {
+  return effortFromRpeRir(set?.actualRPE, set?.actualRIR);
+}
+
+function sessionEffort(set: TrainingSetInput | null | undefined): number | null {
+  return effortFromRpeRir(set?.rpe, set?.rir);
+}
+
+function historyReps(set: TrainingHistorySet | null | undefined): number | null {
+  return positiveNumber(set?.actualReps);
+}
+
+function e1rmFromLoad(weight: number | null, reps: number | null): number | null {
+  if (weight == null || reps == null || reps <= 0) return null;
+  return weight * (1 + reps / 30);
+}
+
+function representativeHistoryWeight(
+  entry: TrainingHistorySet,
+  targetReps: number | null,
+  unit: WeightUnit
+): number | null {
+  const rawWeight = positiveNumber(entry.actualWeight);
+  if (rawWeight == null) return null;
+
+  const sourceUnit = normalizeUnit(entry.weightUnit, unit);
+  const actualReps = historyReps(entry);
+  const e1rm = positiveNumber(entry.e1rm) ?? e1rmFromLoad(rawWeight, actualReps);
+  const shouldEstimateFromE1rm =
+    e1rm != null &&
+    targetReps != null &&
+    actualReps != null &&
+    Math.abs(targetReps - actualReps) >= 2;
+  const rawTargetWeight = shouldEstimateFromE1rm ? e1rm / (1 + targetReps / 30) : rawWeight;
+  const converted = sourceUnit === unit ? rawTargetWeight : convertWeight(rawTargetWeight, sourceUnit, unit);
+  return roundRecommendationWeight(converted, unit);
 }
 
 function isLowerBodyProfile(input: TrainingRecommendationInput): boolean {
@@ -266,6 +323,75 @@ function getDirectHistory(input: TrainingRecommendationInput, exerciseId?: strin
     });
 }
 
+function historyWithLoad(history: TrainingHistorySet[]): TrainingHistorySet[] {
+  return history.filter((entry) => positiveNumber(entry.actualWeight) != null);
+}
+
+function normalizeNameTokens(value: string | null | undefined): Set<string> {
+  const tokens = (value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 3);
+
+  const meaningful = tokens.filter((token) => !new Set([
+    'the',
+    'and',
+    'with',
+    'machine',
+    'plate',
+    'loaded',
+    'single',
+    'double',
+    'standing',
+    'seated',
+  ]).has(token));
+
+  return new Set(meaningful);
+}
+
+function getSimilarHistory(input: TrainingRecommendationInput, set: TrainingSetInput): TrainingHistorySet[] {
+  const targetTokens = normalizeNameTokens(set.exerciseName);
+  const profileTokens = normalizeNameTokens([
+    input.exerciseMuscleProfile?.primary,
+    input.exerciseMuscleProfile?.secondary,
+    ...(input.exerciseMuscleProfile?.groups ?? []),
+  ].filter(Boolean).join(' '));
+
+  const movementTokens = new Set([
+    'squat',
+    'deadlift',
+    'hinge',
+    'bench',
+    'press',
+    'row',
+    'pull',
+    'pulldown',
+    'curl',
+    'extension',
+    'raise',
+    'lunge',
+    'thrust',
+    'fly',
+  ]);
+
+  return (input.historySets ?? [])
+    .filter((entry) => {
+      if (entry.completed === false || entry.exerciseId === set.exerciseId) return false;
+      if (positiveNumber(entry.actualWeight) == null) return false;
+
+      const entryTokens = normalizeNameTokens(entry.exerciseName);
+      const sharesMovement = [...targetTokens].some((token) => movementTokens.has(token) && entryTokens.has(token));
+      const sharesMuscle = [...profileTokens].some((token) => entryTokens.has(token));
+      return sharesMovement || sharesMuscle;
+    })
+    .sort((a, b) => {
+      const aTime = a.performedAt ? new Date(a.performedAt).getTime() : 0;
+      const bTime = b.performedAt ? new Date(b.performedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+}
+
 function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: string | null): TrainingSetInput | null {
   if (!exerciseId) return null;
   const sets = input.sessionSets ?? [];
@@ -281,23 +407,28 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
 function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad {
   const directHistory = getDirectHistory(input, set.exerciseId);
   const targetReps = targetRepsForSet(set);
-  const directWithLoad = directHistory.find((entry) => positiveNumber(entry.actualWeight) != null);
+  const directWithLoad = historyWithLoad(directHistory);
+  const comparableDirect = targetReps != null
+    ? directWithLoad.filter((entry) => {
+      const reps = historyReps(entry);
+      return reps != null && Math.abs(reps - targetReps) <= 2;
+    })
+    : directWithLoad;
+  const directEntry = comparableDirect[0] ?? directWithLoad[0];
 
-  if (directWithLoad?.actualWeight) {
-    const sourceUnit = normalizeUnit(directWithLoad.weightUnit, unit);
-    const e1rm = positiveNumber(directWithLoad.e1rm);
-    const historyReps = positiveNumber(directWithLoad.actualReps);
-    const shouldUseE1rm = e1rm != null && targetReps != null && historyReps != null && Math.abs(targetReps - historyReps) >= 2;
-    const rawWeight = shouldUseE1rm
-      ? e1rm / (1 + targetReps / 30)
-      : directWithLoad.actualWeight;
-    const converted = sourceUnit === unit ? rawWeight : convertWeight(rawWeight, sourceUnit, unit);
-    return {
-      weight: roundRecommendationWeight(converted, unit),
-      unit,
-      source: shouldUseE1rm ? 'e1rm' : 'exercise_history',
-      confidence: directWithLoad.actualRPE != null || directWithLoad.actualRIR != null ? 'high' : 'medium',
-    };
+  if (directEntry) {
+    const converted = representativeHistoryWeight(directEntry, targetReps, unit);
+    if (converted != null) {
+      const effortCount = directWithLoad.slice(0, 6).filter((entry) => historyEffort(entry) != null).length;
+      const reps = historyReps(directEntry);
+      const usesE1rm = targetReps != null && reps != null && Math.abs(targetReps - reps) >= 2;
+      return {
+        weight: converted,
+        unit,
+        source: usesE1rm ? 'e1rm' : 'exercise_history',
+        confidence: effortCount >= 2 ? 'high' : historyEffort(directEntry) != null ? 'high' : 'medium',
+      };
+    }
   }
 
   const e1rm = getE1rmForExercise(input, set.exerciseId, unit);
@@ -307,6 +438,17 @@ function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetI
       unit,
       source: 'e1rm',
       confidence: 'medium',
+    };
+  }
+
+  const similarEntry = getSimilarHistory(input, set)[0];
+  const similarWeight = similarEntry ? representativeHistoryWeight(similarEntry, targetReps, unit) : null;
+  if (similarWeight != null) {
+    return {
+      weight: similarWeight,
+      unit,
+      source: 'exercise_history',
+      confidence: historyEffort(similarEntry) != null ? 'medium' : 'low',
     };
   }
 
@@ -331,8 +473,9 @@ function getE1rmForExercise(input: TrainingRecommendationInput, exerciseId?: str
     return positiveNumber(entry.e1rm) != null || positiveNumber(entry.weight) != null;
   });
   const e1rm = positiveNumber(directRecord?.e1rm);
-  if (e1rm != null) return e1rm;
-  return positiveNumber(directRecord?.weight);
+  if (e1rm != null) return unit === 'lbs' ? e1rm : convertWeight(e1rm, 'lbs', unit);
+  const recordWeight = positiveNumber(directRecord?.weight);
+  return recordWeight != null ? (unit === 'lbs' ? recordWeight : convertWeight(recordWeight, 'lbs', unit)) : null;
 }
 
 function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad | null {
@@ -364,91 +507,140 @@ function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInp
   const prescribed = prescriptionLoad(input, set, unit);
   if (prescribed) return prescribed;
 
+  const history = latestHistoryLoad(input, set, unit);
+  if (history.weight != null && set.touchedWeight !== true) {
+    return history;
+  }
+
   const existing = positiveNumber(set.weight);
   if (existing != null) {
     return {
       weight: roundRecommendationWeight(existing, unit),
       unit,
       source: 'baseline',
-      confidence: getDirectHistory(input, set.exerciseId).length > 0 ? 'medium' : 'low',
+      confidence: history.weight != null ? history.confidence : getDirectHistory(input, set.exerciseId).length > 0 ? 'medium' : 'low',
     };
   }
 
-  return latestHistoryLoad(input, set, unit);
+  return history;
 }
 
-function fatigueModifier(input: TrainingRecommendationInput, set: TrainingSetInput): {
-  modifier: number;
-  restSeconds: number | null;
-  reason: string | null;
-  source: TrainingRecommendation['source'] | null;
-  confidence: RecommendationConfidence | null;
-} {
+function isHardAttempt(
+  effort: number | null,
+  reps: number | null,
+  targetRpe: number | null,
+  targetReps: number | null
+): boolean {
+  const missedReps = targetReps != null && reps != null && reps < targetReps;
+  if (targetRpe != null && effort != null && effort >= targetRpe + 1) return true;
+  if (targetRpe != null && missedReps && effort != null && effort >= targetRpe - 0.25) return true;
+  if (targetRpe == null && effort != null && effort >= 9.5) return true;
+  return missedReps && (effort == null || effort >= 9);
+}
+
+function isEasyAttempt(
+  effort: number | null,
+  reps: number | null,
+  targetRpe: number | null,
+  targetReps: number | null
+): boolean {
+  if (targetRpe == null || effort == null) return false;
+  if (targetReps != null && (reps == null || reps < targetReps)) return false;
+  return effort <= targetRpe - 0.75;
+}
+
+function fatigueModifier(input: TrainingRecommendationInput, set: TrainingSetInput): PerformanceSignal {
   const targetRpe = targetRpeForSet(set);
   const targetReps = targetRepsForSet(set);
   const latestSessionSet = findRecentSessionSet(input, set.exerciseId);
+  const completedSessionSets = (input.sessionSets ?? [])
+    .filter((entry) => entry.exerciseId === set.exerciseId && entry.completed && !entry.skipped)
+    .slice(-4);
 
   if (latestSessionSet) {
-    const rpe = finiteNumber(latestSessionSet.rpe);
+    const rpe = sessionEffort(latestSessionSet);
     const reps = finiteNumber(latestSessionSet.reps);
-    if (rpe != null && targetRpe != null && rpe >= Math.max(9.5, targetRpe + 1.25)) {
+    const hardSetCount = completedSessionSets.filter((entry) => isHardAttempt(
+      sessionEffort(entry),
+      finiteNumber(entry.reps),
+      targetRpe,
+      targetReps
+    )).length;
+
+    if (isHardAttempt(rpe, reps, targetRpe, targetReps)) {
+      const repeatedHard = hardSetCount >= 2;
       return {
-        modifier: rpe >= 9.5 ? 0.9 : 0.95,
-        restSeconds: 30,
-        reason: `Last set was ${rpe.toFixed(1)} RPE against a ${targetRpe.toFixed(1)} target.`,
+        modifier: repeatedHard ? 0.875 : rpe != null && rpe >= 9.5 ? 0.9 : 0.95,
+        restSeconds: repeatedHard ? 60 : 30,
+        reason: repeatedHard
+          ? 'Multiple sets for this lift ran over target effort. Pull load back and take more rest.'
+          : rpe != null && targetRpe != null
+            ? `Last set was ${rpe.toFixed(1)} RPE against a ${targetRpe.toFixed(1)} target.`
+            : 'Last set missed the rep target. Pull load back before the next attempt.',
         source: 'session_fatigue',
         confidence: 'high',
       };
     }
 
-    if (
-      rpe != null &&
-      targetRpe != null &&
-      rpe <= targetRpe - 1 &&
-      reps != null &&
-      targetReps != null &&
-      reps >= targetReps
-    ) {
+    if (isEasyAttempt(rpe, reps, targetRpe, targetReps) && readinessModifier(input) >= 0.98) {
       return {
         modifier: 1.025,
         restSeconds: null,
-        reason: `Last set landed under target effort at RPE ${rpe.toFixed(1)}.`,
+        reason: `Last set landed under target effort at RPE ${rpe?.toFixed(1) ?? '--'}.`,
         source: 'session_fatigue',
         confidence: 'high',
       };
     }
   }
 
-  const directHistory = getDirectHistory(input, set.exerciseId);
-  const lastHistory = directHistory[0];
-  const historyRpe = finiteNumber(lastHistory?.actualRPE);
-  const historyReps = positiveNumber(lastHistory?.actualReps);
+  const directHistory = historyWithLoad(getDirectHistory(input, set.exerciseId));
+  const comparableHistory = targetReps != null
+    ? directHistory.filter((entry) => {
+      const reps = historyReps(entry);
+      return reps != null && Math.abs(reps - targetReps) <= 2;
+    })
+    : directHistory;
+  const recentHistory = (comparableHistory.length > 0 ? comparableHistory : directHistory).slice(0, 6);
+  const scoredHistory = recentHistory.map((entry) => ({
+    entry,
+    effort: historyEffort(entry),
+    reps: historyReps(entry),
+  }));
+  const latest = scoredHistory[0];
+  const hardHistoryCount = scoredHistory.filter((entry) =>
+    isHardAttempt(entry.effort, entry.reps, targetRpe, targetReps)
+  ).length;
+  const easyHistoryCount = scoredHistory.filter((entry) =>
+    isEasyAttempt(entry.effort, entry.reps, targetRpe, targetReps)
+  ).length;
+  const historyConfidence: RecommendationConfidence =
+    scoredHistory.filter((entry) => entry.effort != null).length >= 2 ? 'high' : latest?.effort != null ? 'high' : 'medium';
 
-  if (lastHistory && historyRpe != null && targetRpe != null) {
-    if (historyRpe >= targetRpe + 1) {
-      return {
-        modifier: 0.975,
-        restSeconds: 30,
-        reason: `Last session overshot target effort at RPE ${historyRpe.toFixed(1)}.`,
-        source: 'exercise_history',
-        confidence: 'high',
-      };
-    }
+  if (latest && isHardAttempt(latest.effort, latest.reps, targetRpe, targetReps)) {
+    const repeatedHard = hardHistoryCount >= 2;
+    return {
+      modifier: repeatedHard ? 0.95 : 0.975,
+      restSeconds: repeatedHard ? 60 : 30,
+      reason: repeatedHard
+        ? 'Recent logged sets missed reps or ran hot against target effort.'
+        : latest.effort != null && targetRpe != null
+          ? `Last session overshot target effort at RPE ${latest.effort.toFixed(1)}.`
+          : 'Last session missed the rep target.',
+      source: 'exercise_history',
+      confidence: historyConfidence,
+    };
+  }
 
-    if (
-      historyRpe <= targetRpe - 1 &&
-      historyReps != null &&
-      targetReps != null &&
-      historyReps >= targetReps
-    ) {
-      return {
-        modifier: 1.025,
-        restSeconds: null,
-        reason: `Last session hit reps below target effort at RPE ${historyRpe.toFixed(1)}.`,
-        source: 'exercise_history',
-        confidence: 'high',
-      };
-    }
+  if (latest && isEasyAttempt(latest.effort, latest.reps, targetRpe, targetReps) && readinessModifier(input) >= 0.98) {
+    return {
+      modifier: easyHistoryCount >= 2 ? 1.05 : 1.025,
+      restSeconds: null,
+      reason: easyHistoryCount >= 2
+        ? 'Recent logged sets have hit reps below target effort.'
+        : `Last session hit reps below target effort at RPE ${latest.effort?.toFixed(1) ?? '--'}.`,
+      source: 'exercise_history',
+      confidence: historyConfidence,
+    };
   }
 
   return {
@@ -526,8 +718,14 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
     reasons.push('Estimated from max strength data and target reps.');
   } else if (base.source === 'prescription') {
     reasons.push('Using the program prescription as the base target.');
+  } else if (base.source === 'baseline' && set.touchedWeight === true) {
+    reasons.push('Using your edited load as the base target.');
   } else {
     reasons.push('Establish today’s baseline and adjust after the set.');
+  }
+
+  if (fatigue.reason && readinessScore != null && readiness !== 1) {
+    reasons.push(`Readiness is ${Math.round(readinessScore)}, so the target is also nudged ${readiness < 1 ? 'down' : 'up'}.`);
   }
 
   if (fatigue.restSeconds != null && !reasons.some((reason) => /rest/i.test(reason))) {

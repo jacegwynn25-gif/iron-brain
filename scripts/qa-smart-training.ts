@@ -133,6 +133,90 @@ const baseSet = {
 }
 
 {
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 205, reps: 5, prescribedRPE: 8, touchedWeight: false },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 225);
+  assert.equal(recommendation.apply?.weight, 225);
+  assert.match(recommendation.reason, /recent completed sets/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 205, reps: 5, prescribedRPE: 8, touchedWeight: true },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 205);
+  assert.equal(recommendation.apply, undefined);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
+    historySets: [0, 1].map((offset) => ({
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 6.8,
+      completed: true,
+      performedAt: `2026-05-0${6 - offset}T12:00:00.000Z`,
+    })),
+    sessionSets: [],
+    readiness: { score: 82, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'increase_load');
+  assert.equal(recommendation.apply?.weight, 210);
+  assert.match(recommendation.reason, /Recent logged sets have hit reps/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
+    historySets: [0, 1].map((offset) => ({
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: offset === 0 ? 4 : 5,
+      actualRPE: 9.2,
+      completed: true,
+      performedAt: `2026-05-0${6 - offset}T12:00:00.000Z`,
+    })),
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'reduce_load');
+  assert.equal(recommendation.apply?.weight, 190);
+  assert.equal(recommendation.apply?.restSeconds, 60);
+  assert.match(recommendation.reason, /Recent logged sets missed reps/i);
+}
+
+{
   const program: ProgramTemplate = {
     id: 'qa_program',
     name: 'QA Program',
