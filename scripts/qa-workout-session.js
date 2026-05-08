@@ -15,6 +15,12 @@ async function expectVisible(locator, label) {
   await page.addInitScript(() => {
     localStorage.setItem('iron_brain_onboarding_complete', 'true');
     localStorage.setItem('iron_brain_coach_marks_complete', 'true');
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (payload) => {
+        window.__ironBrainShared = payload;
+      },
+    });
   });
 
   console.log('▶️  Opening workout logger...');
@@ -74,6 +80,18 @@ async function expectVisible(locator, label) {
   console.log('▶️  Opening summary...');
   await page.getByRole('button', { name: /Review Finish/i }).click();
   await expectVisible(page.getByText(/SESSION REPORT/i), 'Summary modal shown');
+  await expectVisible(page.getByTestId('workout-summary-totals'), 'Summary totals visible without scrolling');
+  const summaryBox = await page.getByTestId('workout-summary-totals').boundingBox();
+  const viewport = page.viewportSize();
+  if (!summaryBox || !viewport || summaryBox.y + summaryBox.height > viewport.height - 120) {
+    throw new Error('Workout summary totals are not visible within the initial mobile viewport');
+  }
+  await page.getByRole('button', { name: /^Share$/i }).click();
+  await expectVisible(page.getByTestId('workout-summary-status').getByText(/Share sheet opened/i), 'Share sheet wired');
+  const sharedPayload = await page.evaluate(() => window.__ironBrainShared);
+  if (!sharedPayload?.text?.includes('IRON BRAIN SESSION')) {
+    throw new Error('Share payload was not populated with the workout summary');
+  }
 
   console.log('▶️  Finishing workout...');
   await page.getByRole('button', { name: /^Complete Workout$/i }).click();
@@ -83,6 +101,8 @@ async function expectVisible(locator, label) {
   console.log('▶️  Checking history...');
   await page.goto('http://localhost:3000/history', { waitUntil: 'networkidle' });
   await expectVisible(page.getByRole('heading', { name: /Workout History/i }).first(), 'History page loaded');
+  await page.getByRole('button', { name: /View details/i }).first().click();
+  await expectVisible(page.getByTestId('history-session-details').first(), 'History details expand on first tap');
 
   console.log('✅ QA sweep completed');
   await browser.close();

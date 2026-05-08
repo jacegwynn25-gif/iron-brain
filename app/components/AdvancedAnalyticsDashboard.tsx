@@ -98,6 +98,9 @@ interface AnalyticsData {
     status: string;
     acuteLoad: number;
     chronicLoad: number;
+    chronicWeeklyLoad: number;
+    baselineConfidence: 'low' | 'medium' | 'high';
+    recommendation: string;
   };
   fitnessFatigue?: {
     currentFitness: number;
@@ -398,22 +401,24 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       return fallback;
     };
 
-    const resolveWorkoutVolumeLoad = (workout: WorkoutSession) => {
+    const resolveWorkoutEffortLoad = (workout: WorkoutSession) => {
       const calculatedLoad = workout.sets.reduce((sum, set) => {
         if (set.completed === false || set.setType === 'warmup') return sum;
         const weight = resolveSetWeight(set);
         const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
-        if (weight > 0 && reps > 0 && !Number.isNaN(weight) && !Number.isNaN(reps) && weight < 2000 && reps < 200) {
-          return sum + (weight * reps);
-        }
-        return sum;
+        const rpe = Number(set.actualRPE ?? set.prescribedRPE ?? workout.averageRPE ?? workout.sessionRPE ?? 7);
+        if (weight <= 0 || reps <= 0 || !Number.isFinite(weight) || !Number.isFinite(reps)) return sum;
+        const effortFactor = clampValue(Number.isFinite(rpe) ? rpe / 10 : 0.7, 0.45, 1.05);
+        return sum + (weight * reps * effortFactor);
       }, 0);
-      return calculatedLoad > 0 ? calculatedLoad : resolveFallbackVolumeLoad(workout);
+      if (calculatedLoad > 0) return calculatedLoad;
+      const fallbackRpe = Number(workout.averageRPE ?? workout.sessionRPE ?? 7);
+      return resolveFallbackVolumeLoad(workout) * clampValue(Number.isFinite(fallbackRpe) ? fallbackRpe / 10 : 0.7, 0.45, 1.05);
     };
 
     const workoutsWithLoad = workouts.map((workout) => ({
       date: new Date(workout.endTime || workout.startTime || workout.date),
-      load: resolveWorkoutVolumeLoad(workout),
+      load: resolveWorkoutEffortLoad(workout),
     }));
 
     const acwrMetrics = calculateACWR(workoutsWithLoad);
@@ -514,6 +519,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         status: acwrMetrics.status,
         acuteLoad: toDisplay(clampValue(acwrMetrics.acuteLoad, 0, 1000000)),
         chronicLoad: toDisplay(clampValue(acwrMetrics.chronicLoad, 0, 1000000)),
+        chronicWeeklyLoad: toDisplay(clampValue(acwrMetrics.chronicWeeklyLoad, 0, 1000000)),
+        baselineConfidence: acwrMetrics.baselineConfidence,
+        recommendation: acwrMetrics.recommendation,
       },
       fitnessFatigue: fitnessFatigueModel
         ? {
@@ -863,18 +871,21 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }
   }, [selectedView, user, loadAdherenceAnalytics]);
 
-  // Get injury risk status
-  const getInjuryRiskStatus = () => {
+  // Get load-pressure status from effort-weighted acute/chronic workload.
+  const getLoadPressureStatus = () => {
     if (!analytics.acwr) return { tone: 'zinc' as Tone, label: 'Unknown' };
+    if (analytics.acwr.baselineConfidence === 'low') {
+      return { tone: 'zinc' as Tone, label: 'Building baseline' };
+    }
     const ratio = analytics.acwr.ratio;
-    if (ratio >= 0.8 && ratio <= 1.3) return { tone: 'emerald' as Tone, label: 'Low Risk' };
-    if (ratio < 0.8) return { tone: 'amber' as Tone, label: 'Undertraining' };
-    if (ratio <= 1.5) return { tone: 'amber' as Tone, label: 'Elevated' };
-    if (ratio <= 2.0) return { tone: 'rose' as Tone, label: 'High Risk' };
-    return { tone: 'rose' as Tone, label: 'Danger' };
+    if (ratio >= 0.8 && ratio <= 1.3) return { tone: 'emerald' as Tone, label: 'Steady' };
+    if (ratio < 0.8) return { tone: 'amber' as Tone, label: 'Deloading' };
+    if (ratio <= 1.5) return { tone: 'amber' as Tone, label: 'Building' };
+    if (ratio <= 2.0) return { tone: 'rose' as Tone, label: 'Spike' };
+    return { tone: 'rose' as Tone, label: 'Major spike' };
   };
 
-  const injuryRisk = getInjuryRiskStatus();
+  const loadPressure = getLoadPressureStatus();
 
   // Compute unified readiness score combining fitness-fatigue model with actual muscle recovery
   // Muscle recovery is weighted more heavily since it directly indicates training readiness
@@ -924,6 +935,29 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         : 'rose';
   const hasMuscleRecoveryData = Boolean(analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0);
   const readinessTitle = hasMuscleRecoveryData ? 'READINESS' : 'TRAINING BALANCE';
+  const fitnessFatigueDelta = analytics.fitnessFatigue
+    ? analytics.fitnessFatigue.currentFitness - analytics.fitnessFatigue.currentFatigue
+    : null;
+  const trainingBalanceLabel = hasMuscleRecoveryData
+    ? readinessStatus
+    : fitnessFatigueDelta == null
+      ? readinessStatus
+      : fitnessFatigueDelta >= 8
+        ? 'fitness leads'
+        : fitnessFatigueDelta <= -8
+          ? 'fatigue leads'
+          : 'even';
+  const trainingBalanceSummary = analytics.fitnessFatigue && fitnessFatigueDelta != null
+    ? fitnessFatigueDelta >= 8
+      ? `Fitness is ${Math.round(fitnessFatigueDelta)} points ahead of fatigue. Good day to train normally.`
+      : fitnessFatigueDelta <= -8
+        ? `Fatigue is ${Math.round(Math.abs(fitnessFatigueDelta))} points ahead. Keep the next session conservative.`
+        : `Fitness and fatigue are nearly even (${Math.round(fitnessFatigueDelta)}). A score near 50 means balanced, not broken.`
+    : readinessStatus === 'excellent' || readinessStatus === 'good'
+      ? 'Great day for a hard workout'
+      : readinessStatus === 'moderate'
+        ? 'Moderate intensity recommended'
+        : 'Consider a lighter session or rest';
   const adherence = analytics.adherence;
   const getRateToneClass = (rate: number) => {
     if (rate >= 80) return 'text-emerald-300';
@@ -1079,17 +1113,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>{readinessTitle}</h2>
-                <StatusReadout label="Status" value={readinessStatus} tone={readinessTone} />
+                <StatusReadout label="Signal" value={trainingBalanceLabel} tone={readinessTone} />
               </div>
               <div className="mb-2 text-6xl font-black italic tracking-tight text-white">
                 {unifiedReadiness}
               </div>
               <p className="text-sm text-zinc-400">
-                {readinessStatus === 'excellent' || readinessStatus === 'good'
-                  ? 'Great day for a hard workout'
-                  : readinessStatus === 'moderate'
-                    ? 'Moderate intensity recommended'
-                    : 'Consider a lighter session or rest'}
+                {trainingBalanceSummary}
               </p>
               {analytics.fitnessFatigue && (
                 <div className="mt-4 space-y-3">
@@ -1110,38 +1140,44 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     </div>
                   </div>
                   <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
-                    Readiness = how much fitness exceeds fatigue. Train when Fitness &gt; Fatigue.
+                    50 is neutral. Above 50 means fitness leads; below 50 means fatigue leads.
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Injury Risk Card */}
+          {/* Load Pressure Card */}
           {analytics.acwr && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Shield className={`h-5 w-5 ${toneTextClass[injuryRisk.tone]}`} />
-                  <h2 className={SECTION_TITLE_CLASS}>INJURY RISK</h2>
+                  <Shield className={`h-5 w-5 ${toneTextClass[loadPressure.tone]}`} />
+                  <h2 className={SECTION_TITLE_CLASS}>LOAD PRESSURE</h2>
                 </div>
-                <StatusReadout label="Load State" value={injuryRisk.label} tone={injuryRisk.tone} />
+                <StatusReadout label="Signal" value={loadPressure.label} tone={loadPressure.tone} />
               </div>
               <div className="flex items-baseline gap-2 mb-2">
                 <span className="text-4xl font-black italic tracking-tight text-white">{analytics.acwr.ratio.toFixed(2)}</span>
-                <span className="text-sm text-zinc-400">load ratio</span>
+                <span className="text-sm text-zinc-400">7d / baseline</span>
               </div>
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all ${toneBgClass[injuryRisk.tone]}`}
+                  className={`h-full transition-all ${toneBgClass[loadPressure.tone]}`}
                   style={{ width: `${Math.min(100, (analytics.acwr.ratio / 2) * 100)}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-zinc-500 mt-1">
                 <span>0</span>
-                <span className="text-emerald-500">Sweet spot: 0.8-1.3</span>
+                <span className="text-emerald-500">Steady: 0.8-1.3</span>
                 <span>2.0</span>
               </div>
+              <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+                {analytics.acwr.recommendation}
+              </p>
+              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                Effort-weighted load. Baseline confidence: {analytics.acwr.baselineConfidence}.
+              </p>
             </div>
           )}
 
@@ -1417,13 +1453,19 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-zinc-400">Last 7 days</span>
                   <span className="text-sm font-semibold text-white">
-                    {Math.round(analytics.acwr.acuteLoad).toLocaleString()} {weightUnit}
+                    {Math.round(analytics.acwr.acuteLoad).toLocaleString()} load
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-zinc-400">28-day average</span>
+                  <span className="text-sm text-zinc-400">28-day weekly baseline</span>
                   <span className="text-sm font-semibold text-white">
-                    {Math.round(analytics.acwr.chronicLoad).toLocaleString()} {weightUnit}
+                    {Math.round(analytics.acwr.chronicWeeklyLoad).toLocaleString()} load
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-400">28-day total</span>
+                  <span className="text-sm font-semibold text-white">
+                    {Math.round(analytics.acwr.chronicLoad).toLocaleString()} load
                   </span>
                 </div>
               </div>
@@ -1434,8 +1476,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-4">
             <h3 className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">METRIC NOTES</h3>
             <ul className="text-xs text-zinc-400 space-y-2">
-              <li><span className="text-zinc-200">Readiness</span> - Based on your fitness vs fatigue balance</li>
-              <li><span className="text-zinc-200">Injury Risk</span> - Compares recent load to your baseline</li>
+              <li><span className="text-zinc-200">Training Balance</span> - 50 is neutral; above means fitness leads, below means fatigue leads</li>
+              <li><span className="text-zinc-200">Load Pressure</span> - Compares effort-weighted 7-day load to your recent weekly baseline</li>
               <li><span className="text-zinc-200">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
             </ul>
           </div>

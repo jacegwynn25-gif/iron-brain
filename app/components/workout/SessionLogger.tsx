@@ -963,6 +963,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isFinishingWorkout, setIsFinishingWorkout] = useState(false);
   const [finishStatusMessage, setFinishStatusMessage] = useState<string | null>(null);
+  const [shareStatusMessage, setShareStatusMessage] = useState<string | null>(null);
   const [isAddMovementOpen, setIsAddMovementOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
@@ -2368,6 +2369,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     if (isFinishingWorkout) return;
     setIsSummaryOpen(false);
     setFinishStatusMessage(null);
+    setShareStatusMessage(null);
   };
 
   const handleCancelWorkout = () => {
@@ -2383,21 +2385,43 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     return () => window.clearTimeout(timer);
   }, [finishStatusMessage, isSummaryOpen]);
 
+  useEffect(() => {
+    if (!isSummaryOpen || !shareStatusMessage) return;
+    const timer = window.setTimeout(() => {
+      setShareStatusMessage((current) => (current === shareStatusMessage ? null : current));
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [isSummaryOpen, shareStatusMessage]);
+
   const handleShare = async () => {
-    const text = `IRON BRAIN SESSION\nVolume: ${sessionStats.totalVolume.toLocaleString()} ${sessionWeightUnit.toUpperCase()}\nSets: ${sessionStats.totalSets}\nReps: ${sessionStats.totalReps}\n\nCompleted with Iron Brain app.`;
-    if (navigator.share) {
+    const text = [
+      'IRON BRAIN SESSION',
+      `Volume: ${Math.round(sessionStats.totalVolume).toLocaleString()} ${sessionWeightUnit.toUpperCase()}`,
+      `Sets: ${sessionStats.totalSets}`,
+      `Reps: ${sessionStats.totalReps}`,
+      '',
+      'Logged with Iron Brain.',
+    ].join('\n');
+    const url = typeof window !== 'undefined' ? window.location.origin : undefined;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
-        await navigator.share({ title: 'Iron Brain Session', text });
+        await navigator.share({ title: 'Iron Brain Session', text, url });
+        setShareStatusMessage('Share sheet opened');
       } catch {
-        // no-op
+        setShareStatusMessage('Share canceled');
       }
       return;
     }
 
     try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard) {
+        throw new Error('Clipboard unavailable');
+      }
       await navigator.clipboard.writeText(text);
+      setShareStatusMessage('Summary copied');
     } catch {
-      // no-op
+      setShareStatusMessage('Share unavailable');
     }
   };
 
@@ -2714,6 +2738,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   onClick={() => {
                     setActiveInput(null);
                     setFinishStatusMessage(null);
+                    setShareStatusMessage(null);
                     setIsSummaryOpen(true);
                   }}
                   className="w-full bg-emerald-500 text-zinc-950 font-black tracking-widest uppercase py-4 rounded-2xl shadow-lg shadow-emerald-500/20"
@@ -3418,7 +3443,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             className="fixed inset-0 z-[100] bg-zinc-950 overflow-y-auto text-white scroll-smooth"
             data-swipe-ignore="true"
           >
-            <div className="pt-[calc(env(safe-area-inset-top)+3rem)] px-6 pb-[calc(12rem+env(safe-area-inset-bottom))]">
+            <div className="px-5 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+3rem)]">
               <div className="mx-auto w-full max-w-xl">
                 <div className="mb-4 flex justify-end">
                   <button
@@ -3433,7 +3458,27 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500 text-center">
                   SESSION REPORT
                 </p>
-                <div className="relative h-64 w-full flex items-center justify-center gap-[3px] mb-8 mt-8">
+
+                <div className="mt-5 grid gap-2 text-center sm:mt-8" data-testid="workout-summary-totals">
+                  <p className="text-5xl font-black leading-none tracking-tight text-white sm:text-7xl">
+                    {Math.round(sessionStats.totalVolume).toLocaleString()}
+                    <span className="ml-2 align-baseline text-lg font-black italic text-zinc-500 sm:text-2xl">
+                      {sessionWeightUnit.toUpperCase()}
+                    </span>
+                  </p>
+                  <div className="mx-auto grid w-full max-w-sm grid-cols-2 divide-x divide-zinc-900 border-y border-zinc-900 py-2">
+                    <div>
+                      <p className="text-lg font-black italic text-zinc-100">{sessionStats.totalSets}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Sets</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black italic text-zinc-100">{sessionStats.totalReps}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Reps</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative mb-6 mt-6 flex h-44 w-full items-center justify-center gap-[3px] sm:mb-8 sm:mt-8 sm:h-64">
                   {pulseBars.map((bar) => (
                     <div key={bar.key} className="relative z-10 flex-1 max-w-4 h-full flex items-center justify-center">
                       {bar.echoOffsets.map((offset, echoIndex) => (
@@ -3611,17 +3656,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   </div>
                 )}
 
-                <div className="grid gap-2 text-center">
-                  <p className="text-5xl sm:text-7xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent break-words">
-                    {sessionStats.totalVolume.toLocaleString()} {sessionWeightUnit.toUpperCase()}
-                  </p>
-                  <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500">
-                    {sessionStats.totalSets} SETS
-                  </p>
-                </div>
-                {finishStatusMessage && (
-                  <p className="mt-5 text-center text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                    {finishStatusMessage}
+                {(finishStatusMessage || shareStatusMessage) && (
+                  <p
+                    className="mt-5 text-center text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500"
+                    data-testid="workout-summary-status"
+                  >
+                    {finishStatusMessage || shareStatusMessage}
                   </p>
                 )}
               </div>

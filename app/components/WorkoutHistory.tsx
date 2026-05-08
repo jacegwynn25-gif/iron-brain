@@ -66,6 +66,8 @@ const slugifyExerciseId = (name: string) =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '') || `exercise_${Math.random().toString(36).slice(2, 8)}`;
 
+const normalizeSessionKey = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
+
 export default function WorkoutHistory({
   workoutHistory,
   onHistoryUpdate,
@@ -241,13 +243,16 @@ export default function WorkoutHistory({
   }, [workoutHistory]);
 
   const toggleSession = (sessionId: string) => {
-    const newExpanded = new Set(expandedSessions);
-    if (newExpanded.has(sessionId)) {
-      newExpanded.delete(sessionId);
-    } else {
-      newExpanded.add(sessionId);
-    }
-    setExpandedSessions(newExpanded);
+    const sessionKey = normalizeSessionKey(sessionId);
+    setExpandedSessions((current) => {
+      const next = new Set(current);
+      if (next.has(sessionKey)) {
+        next.delete(sessionKey);
+      } else {
+        next.add(sessionKey);
+      }
+      return next;
+    });
   };
 
   const getExerciseName = (exerciseId: string, cachedName?: string): string => {
@@ -403,7 +408,7 @@ export default function WorkoutHistory({
       }
       setExpandedSessions(prev => {
         const next = new Set(prev);
-        next.delete(target.id);
+        next.delete(normalizeSessionKey(target.id));
         return next;
       });
       setDeleteTarget(null);
@@ -718,7 +723,8 @@ export default function WorkoutHistory({
 
         <div className="space-y-6">
           {sortedHistory.map((session, sessionIdx) => {
-            const isExpanded = expandedSessions.has(session.id);
+            const sessionKey = normalizeSessionKey(session.id);
+            const isExpanded = expandedSessions.has(sessionKey);
             const stats = calculateSessionStats(session);
             const groupedSets = groupSetsByExercise(session.sets);
             const exerciseIds = Object.keys(groupedSets);
@@ -730,7 +736,7 @@ export default function WorkoutHistory({
 
             return (
               <article
-                key={session.id}
+                key={sessionKey}
                 className="stagger-item overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 shadow-[0_24px_54px_rgba(0,0,0,0.35)]"
                 style={{ animationDelay: `${sessionIdx * 50}ms` }}
               >
@@ -740,8 +746,9 @@ export default function WorkoutHistory({
                     <button
                       type="button"
                       onClick={() => toggleSession(session.id)}
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 touch-manipulation text-left"
                       aria-expanded={isExpanded}
+                      aria-controls={`history-details-${sessionKey}`}
                     >
                       <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
                         <Dumbbell className="h-3.5 w-3.5 text-emerald-300" />
@@ -807,8 +814,9 @@ export default function WorkoutHistory({
                   <button
                     type="button"
                     onClick={() => toggleSession(session.id)}
-                    className="mt-3 flex min-h-11 w-full items-center justify-between rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400 transition-colors hover:border-zinc-800 hover:text-zinc-100 active:scale-[0.99]"
+                    className="mt-3 flex min-h-11 w-full touch-manipulation items-center justify-between rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400 transition-colors hover:border-zinc-800 hover:text-zinc-100 active:scale-[0.99]"
                     aria-expanded={isExpanded}
+                    aria-controls={`history-details-${sessionKey}`}
                   >
                     {isExpanded ? 'Hide details' : 'View details'}
                     <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -817,7 +825,11 @@ export default function WorkoutHistory({
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5">
+                  <div
+                    id={`history-details-${sessionKey}`}
+                    data-testid="history-session-details"
+                    className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5"
+                  >
                     <div className="space-y-6">
                       {exerciseIds.map((exerciseId, exIdx) => {
                         const exerciseSets = groupedSets[exerciseId];

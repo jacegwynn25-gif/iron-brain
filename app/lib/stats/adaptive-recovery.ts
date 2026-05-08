@@ -48,10 +48,12 @@ export interface FitnessFatigueModel {
 export interface WorkloadMetrics {
   acuteLoad: number; // Last 7 days
   chronicLoad: number; // Last 28 days
+  chronicWeeklyLoad: number; // 28-day load expressed as a weekly baseline
   acwr: number; // Acute:Chronic Workload Ratio
   trainingMonotony: number; // Lack of variation
   trainingStrain: number; // Load × monotony
   status: 'optimal' | 'building' | 'maintaining' | 'detraining' | 'overreaching' | 'danger';
+  baselineConfidence: 'low' | 'medium' | 'high';
   recommendation: string;
   scientificBasis: string;
 }
@@ -155,9 +157,9 @@ export function calculateTrainingLoad(sets: SetLog[]): number {
  * Calculate ACWR and workload metrics
  *
  * Research: Hulin et al. (2016) - Injury risk vs ACWR
- * - ACWR 0.8-1.3 = "Sweet spot" (optimal adaptation)
- * - ACWR < 0.8 = Detraining risk
- * - ACWR > 1.5 = Injury risk (too much too soon)
+ * - ACWR 0.8-1.3 = steady load progression zone
+ * - ACWR < 0.8 = lower recent load than baseline
+ * - ACWR > 1.5 = acute workload spike that deserves recovery management
  *
  * Uses exponentially weighted moving average (EWMA) for robustness
  */
@@ -170,12 +172,26 @@ export function calculateACWR(workouts: Array<{ date: Date; load: number }>): Wo
   const acuteWorkouts = workouts.filter(w => w.date >= sevenDaysAgo);
   const acuteLoad = acuteWorkouts.reduce((sum, w) => sum + w.load, 0);
 
-  // Chronic load (last 28 days)
+  // Chronic load (last 28 days) and weekly baseline
   const chronicWorkouts = workouts.filter(w => w.date >= twentyEightDaysAgo);
-  const chronicLoad = chronicWorkouts.reduce((sum, w) => sum + w.load, 0) / 4; // Average per week
+  const chronicTotalLoad = chronicWorkouts.reduce((sum, w) => sum + w.load, 0);
+  const chronicWeeklyLoad = chronicTotalLoad / 4;
 
   // ACWR
-  const acwr = chronicLoad > 0 ? acuteLoad / chronicLoad : 1.0;
+  const acwr = chronicWeeklyLoad > 0 ? acuteLoad / chronicWeeklyLoad : 1.0;
+  const oldestChronicTime = chronicWorkouts.reduce(
+    (oldest, workout) => Math.min(oldest, workout.date.getTime()),
+    Number.POSITIVE_INFINITY
+  );
+  const baselineAgeDays = Number.isFinite(oldestChronicTime)
+    ? (now.getTime() - oldestChronicTime) / (24 * 60 * 60 * 1000)
+    : 0;
+  const baselineConfidence: WorkloadMetrics['baselineConfidence'] =
+    chronicWorkouts.length >= 8 && baselineAgeDays >= 21
+      ? 'high'
+      : chronicWorkouts.length >= 4 && baselineAgeDays >= 14
+        ? 'medium'
+        : 'low';
 
   // Training Monotony = Mean / SD (Foster, 1998)
   const loads = chronicWorkouts.map(w => w.load);
@@ -183,37 +199,41 @@ export function calculateACWR(workouts: Array<{ date: Date; load: number }>): Wo
   const trainingMonotony = stats.stdDev > 0 ? stats.mean / stats.stdDev : 1.0;
 
   // Training Strain = Total Load × Monotony
-  const trainingStrain = chronicLoad * 4 * trainingMonotony;
+  const trainingStrain = chronicTotalLoad * trainingMonotony;
 
   // Status determination
   let status: WorkloadMetrics['status'];
   let recommendation: string;
   let scientificBasis: string;
 
-  if (acwr < 0.5) {
+  if (baselineConfidence === 'low') {
+    status = 'building';
+    recommendation = 'Still building a reliable load baseline. Use this as a direction signal, not a risk verdict.';
+    scientificBasis = 'Load-ratio metrics need several weeks of history before thresholds become useful for decisions.';
+  } else if (acwr < 0.5) {
     status = 'detraining';
-    recommendation = 'Training volume too low. Increase training frequency or intensity to maintain adaptations.';
-    scientificBasis = 'Schoenfeld et al. (2016): Minimum effective dose - at least 10 sets per muscle per week needed for growth.';
+    recommendation = 'Recent workload is well below your baseline. Build back gradually before pushing max effort.';
+    scientificBasis = 'Acute load materially below baseline can mean detraining or a planned deload, depending on context.';
   } else if (acwr < 0.8) {
     status = 'maintaining';
-    recommendation = 'Maintenance phase. Sufficient to preserve adaptations but insufficient for optimal progress.';
-    scientificBasis = 'Hulin et al. (2016): ACWR <0.8 maintains but does not build fitness.';
+    recommendation = 'Recent workload is below baseline. Good for recovery or a lighter week.';
+    scientificBasis = 'A lower acute-to-chronic ratio usually reflects a reduced loading week, not a problem by itself.';
   } else if (acwr >= 0.8 && acwr <= 1.3) {
     status = 'optimal';
-    recommendation = 'Optimal training load. Well-positioned for continued adaptation with minimal injury risk.';
-    scientificBasis = 'Hulin et al. (2016): ACWR 0.8-1.3 represents the "sweet spot" - maximal adaptation, minimal risk.';
+    recommendation = 'Recent workload is close to your weekly baseline. This is the most stable training-load range.';
+    scientificBasis = 'A ratio near 1.0 means acute load is tracking close to recent chronic load.';
   } else if (acwr > 1.3 && acwr <= 1.5) {
     status = 'building';
-    recommendation = 'Progressive overload zone. Monitor for fatigue accumulation and ensure adequate recovery.';
-    scientificBasis = 'Gabbett (2016): ACWR 1.3-1.5 builds fitness but requires careful fatigue management.';
+    recommendation = 'Workload is building above baseline. Keep effort honest and watch recovery.';
+    scientificBasis = 'Moderate acute load increases can be useful when fatigue and recovery stay controlled.';
   } else if (acwr > 1.5 && acwr <= 2.0) {
     status = 'overreaching';
-    recommendation = 'Functional overreaching. Acute spike in load - ensure deload within 1-2 weeks to avoid maladaptation.';
-    scientificBasis = 'Meeusen et al. (2013): Short-term overreaching can boost adaptation if followed by recovery.';
+    recommendation = 'Acute workload is spiking. Consider holding load, trimming sets, or adding recovery.';
+    scientificBasis = 'Large short-term load spikes are a recovery-management flag, especially without a planned overload block.';
   } else {
     status = 'danger';
-    recommendation = 'DANGER: Excessive acute load spike. Very high injury risk. Implement immediate deload (50% volume reduction).';
-    scientificBasis = 'Hulin et al. (2016): ACWR >2.0 associated with 2-4x injury risk. Immediate intervention required.';
+    recommendation = 'Very large workload spike. Treat the next session as a recovery-managed session unless this was planned.';
+    scientificBasis = 'Very high acute-to-chronic ratios are best handled as load-spike warnings, not deterministic injury predictions.';
   }
 
   // Additional warning for high monotony
@@ -223,11 +243,13 @@ export function calculateACWR(workouts: Array<{ date: Date; load: number }>): Wo
 
   return {
     acuteLoad,
-    chronicLoad: chronicLoad * 4, // Convert back to 28-day total
+    chronicLoad: chronicTotalLoad,
+    chronicWeeklyLoad,
     acwr,
     trainingMonotony,
     trainingStrain,
     status,
+    baselineConfidence,
     recommendation,
     scientificBasis
   };
