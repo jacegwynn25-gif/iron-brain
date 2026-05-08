@@ -15,7 +15,7 @@ interface AuthContextType {
   isSyncing: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithGoogle: (redirectTo?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -186,12 +186,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectTo?: string) => {
     try {
+      const fallbackRedirect = typeof window !== 'undefined'
+        ? `${window.location.origin}/login?returnTo=${encodeURIComponent('/')}`
+        : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/`,
+          redirectTo: redirectTo ?? fallbackRedirect,
+          queryParams: {
+            prompt: 'select_account',
+          },
         },
       });
       if (error) throw error;

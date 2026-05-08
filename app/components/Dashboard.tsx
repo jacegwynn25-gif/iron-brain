@@ -20,16 +20,24 @@ import { ReadinessCard } from './dashboard/ReadinessCard';
 import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
 import { getWorkoutHistory } from '@/app/lib/storage';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
+import { useAuth } from '@/app/lib/supabase/auth-context';
+import { AuthModal } from './Auth';
 
 export default function Dashboard() {
+  const { user, loading: authLoading } = useAuth();
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
+  const [localProfileResolved, setLocalProfileResolved] = useState(false);
+  const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      const localOnboardingComplete = localStorage.getItem('iron_brain_onboarding_complete') === 'true';
+      const localCoachMarksComplete = localStorage.getItem('iron_brain_coach_marks_complete') === 'true';
+
       // Load recent PR hits
       const raw = localStorage.getItem('iron_brain_last_pr_hits');
       if (raw) {
@@ -44,7 +52,10 @@ export default function Dashboard() {
       const history = getWorkoutHistory();
       const dates = history.map(w => w.date).filter(Boolean);
       setWorkoutDates(dates);
+      setHasPriorLocalUse(localOnboardingComplete || localCoachMarksComplete || history.length > 0);
     } catch {
+    } finally {
+      setLocalProfileResolved(true);
     }
   }, []);
 
@@ -73,9 +84,21 @@ export default function Dashboard() {
 
   const showReadiness = loading || Boolean(readiness);
   const showSystemFooter = lastUpdated && !loading && Boolean(readiness?.hasRecoveryInput);
+  const showFreshUserAuthPrompt =
+    localProfileResolved &&
+    !authLoading &&
+    !user &&
+    !hasPriorLocalUse;
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-3 pb-8 pt-3 sm:space-y-8 sm:pt-10">
+      {showFreshUserAuthPrompt && (
+        <AuthModal
+          hideClose
+          onSuccess={() => setHasPriorLocalUse(true)}
+        />
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">

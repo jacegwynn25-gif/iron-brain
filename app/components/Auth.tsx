@@ -19,8 +19,9 @@ export function AuthModal({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const isSignIn = mode === 'signin';
 
   const handleSuccess = () => {
@@ -34,6 +35,31 @@ export function AuthModal({
   const switchMode = () => {
     setMode(isSignIn ? 'signup' : 'signin');
     setError('');
+  };
+
+  const getOAuthRedirect = () => {
+    if (typeof window === 'undefined') return undefined;
+
+    const current = `${window.location.pathname}${window.location.search}`;
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = window.location.pathname === '/login'
+      ? params.get('returnTo') || '/'
+      : current;
+
+    return `${window.location.origin}/login?returnTo=${encodeURIComponent(returnTo)}`;
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+
+    try {
+      const { error } = await signInWithGoogle(getOAuthRedirect());
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+      setGoogleLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +129,27 @@ export function AuthModal({
           Save workouts, sync programs, and keep history tied to your account.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+          className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-[1.1rem] border border-zinc-700 bg-zinc-100 px-6 text-sm font-black italic uppercase tracking-tight text-zinc-950 transition-colors hover:bg-white active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-950 text-xs font-black not-italic text-white">
+            G
+          </span>
+          {googleLoading ? 'CONNECTING...' : 'CONTINUE WITH GOOGLE'}
+        </button>
+
+        <div className="mt-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-zinc-900" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">
+            Or use email
+          </span>
+          <div className="h-px flex-1 bg-zinc-900" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
               Email
