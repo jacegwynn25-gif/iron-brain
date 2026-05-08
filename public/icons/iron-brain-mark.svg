@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Iron Brain">
+  <defs>
+    <linearGradient id="field" x1="180" x2="844" y1="90" y2="936" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#171b22"/>
+      <stop offset="0.48" stop-color="#090b10"/>
+      <stop offset="1" stop-color="#040507"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="160" x2="864" y1="112" y2="912" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#47515d"/>
+      <stop offset="0.5" stop-color="#141922"/>
+      <stop offset="1" stop-color="#020304"/>
+    </linearGradient>
+    <linearGradient id="iron" x1="212" x2="355" y1="248" y2="764" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff6c7"/>
+      <stop offset="0.28" stop-color="#f8c84e"/>
+      <stop offset="0.62" stop-color="#b77718"/>
+      <stop offset="1" stop-color="#f6d67b"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="398" x2="792" y1="232" y2="792" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e9fff7"/>
+      <stop offset="0.34" stop-color="#34d399"/>
+      <stop offset="0.72" stop-color="#109169"/>
+      <stop offset="1" stop-color="#d6b15b"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#06080c"/>
+  <rect x="54" y="54" width="916" height="916" rx="214" fill="url(#edge)"/>
+  <rect x="78" y="78" width="868" height="868" rx="198" fill="url(#field)"/>
+  <path
+    d="M132 802C214 900 364 940 512 940c204 0 368-84 434-222v228H78V78h244C174 142 82 276 82 450c0 134 20 260 50 352Z"
+    fill="#111722"
+    opacity="0.34"
+  />
+
+  <g opacity="0.52" transform="translate(0 22)">
+    <path
+      d="M222 250h164l-26 86h-39v352h65l-28 86H184l28-86h43V336h-61l28-86Z"
+      fill="#000000"
+    />
+    <path
+      fill="#000000"
+      fill-rule="evenodd"
+      d="M426 250h190c98 0 166 58 166 146 0 54-28 96-76 122 62 22 100 72 100 143 0 72-28 128-83 167-42 30-94 46-157 46H426V250Zm91 84v151h89c48 0 80-30 80-76 0-47-32-75-85-75h-84Zm0 229v226h75c74 0 122-42 122-113 0-70-48-113-126-113h-71Z"
+    />
+  </g>
+
+  <g>
+    <path
+      d="M222 250h164l-26 86h-39v352h65l-28 86H184l28-86h43V336h-61l28-86Z"
+      fill="url(#iron)"
+    />
+    <path
+      d="M252 334h69v354h-69V334Z"
+      fill="#fff4bf"
+      opacity="0.22"
+    />
+    <path
+      fill="url(#brain)"
+      fill-rule="evenodd"
+      d="M426 250h190c98 0 166 58 166 146 0 54-28 96-76 122 62 22 100 72 100 143 0 72-28 128-83 167-42 30-94 46-157 46H426V250Zm91 84v151h89c48 0 80-30 80-76 0-47-32-75-85-75h-84Zm0 229v226h75c74 0 122-42 122-113 0-70-48-113-126-113h-71Z"
+    />
+  </g>
+</svg>
