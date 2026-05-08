@@ -20,9 +20,37 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Iron Brain - Training Planner',
-  description: 'Workout tracking, planning, and analytics',
+  metadataBase: new URL('https://iron-brain.vercel.app'),
+  title: {
+    default: 'Iron Brain - Smart Workout Planning',
+    template: '%s | Iron Brain',
+  },
+  description: 'Smart workout logging, readiness, and program adjustments for lifters.',
+  applicationName: 'Iron Brain',
+  creator: 'Iron Brain',
+  publisher: 'Iron Brain',
   manifest: '/manifest.json',
+  openGraph: {
+    title: 'Iron Brain - Smart Workout Planning',
+    description: 'Smart workout logging, readiness, and program adjustments for lifters.',
+    url: 'https://iron-brain.vercel.app',
+    siteName: 'Iron Brain',
+    type: 'website',
+    images: [
+      {
+        url: '/icons/iron-brain-ib-1024.png',
+        width: 1024,
+        height: 1024,
+        alt: 'Iron Brain logo',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Iron Brain - Smart Workout Planning',
+    description: 'Smart workout logging, readiness, and program adjustments for lifters.',
+    images: ['/icons/iron-brain-ib-1024.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

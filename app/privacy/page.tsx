@@ -1,3 +1,5 @@
+import { PUBLIC_SUPPORT_EMAIL } from '@/app/lib/public-contact';
+
 export const metadata = {
   title: 'Iron Brain Privacy Policy',
 };
@@ -24,7 +26,9 @@ export default function PrivacyPolicyPage() {
         </p>
         <p>
           You can request deletion of your data by contacting us at
-          <span className="text-zinc-100"> jacegwynn25@gmail.com</span>.
+          <a className="text-zinc-100 underline decoration-zinc-700 underline-offset-4" href={`mailto:${PUBLIC_SUPPORT_EMAIL}`}>
+            {' '}{PUBLIC_SUPPORT_EMAIL}
+          </a>.
         </p>
       </div>
     </div>

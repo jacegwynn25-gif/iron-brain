@@ -1,3 +1,5 @@
+import { PUBLIC_SUPPORT_EMAIL } from '@/app/lib/public-contact';
+
 export const metadata = {
   title: 'Iron Brain Terms of Service',
 };
@@ -24,7 +26,10 @@ export default function TermsPage() {
           updated terms.
         </p>
         <p>
-          Questions? Contact us at <span className="text-zinc-100">jacegwynn25@gmail.com</span>.
+          Questions? Contact us at
+          <a className="text-zinc-100 underline decoration-zinc-700 underline-offset-4" href={`mailto:${PUBLIC_SUPPORT_EMAIL}`}>
+            {' '}{PUBLIC_SUPPORT_EMAIL}
+          </a>.
         </p>
       </div>
     </div>
