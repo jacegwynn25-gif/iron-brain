@@ -844,14 +844,15 @@ export function getWorkoutById(id: string): WorkoutSession | null {
   return history.find(w => w.id === id) || null;
 }
 
-export async function deleteWorkout(id: string): Promise<void> {
+export async function deleteWorkout(id: string, workoutSnapshot?: WorkoutSession): Promise<boolean> {
   // Import trash functions dynamically to avoid circular dependencies
   const { moveToTrash } = await import('./trash');
 
   try {
     // Move to trash instead of permanent delete
-    await moveToTrash(id);
+    const moved = await moveToTrash(id, workoutSnapshot);
     logger.debug(`✅ Moved workout ${id} to trash`);
+    return moved;
   } catch (error) {
     console.error('Failed to move workout to trash:', error);
     throw error;

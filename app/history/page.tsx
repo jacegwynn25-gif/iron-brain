@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkoutHistory from '../components/WorkoutHistory';
 import { storage, setUserNamespace } from '../lib/storage';
+import { getTrash } from '../lib/trash';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
 import { defaultExercises } from '../lib/programs';
@@ -17,6 +18,8 @@ import type {
 const HISTORY_CLOUD_LIMIT = 180;
 
 type WorkoutSet = WorkoutSession['sets'][number];
+
+const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
 
 const normalizeSetKey = (set: WorkoutSet): string => {
   if (set.id) return `id:${set.id}`;
@@ -108,8 +111,12 @@ export default function HistoryPage() {
       const resolvedUserId = await resolveUserId();
       const localCustomExercises = getLocalCustomExercises();
       const localExerciseCatalog = buildExerciseCatalog(defaultExercises, localCustomExercises);
+      const trashedWorkoutIds = new Set(
+        getTrash().map((item) => normalizeWorkoutId(item.workout.id))
+      );
       const localWorkouts = storage
         .getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId)
+        .filter((workout) => !trashedWorkoutIds.has(normalizeWorkoutId(workout.id)))
         .map((workout) => enrichWorkoutSetNames(workout, localExerciseCatalog));
       const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
@@ -187,7 +194,9 @@ export default function HistoryPage() {
       }
       setCloudFetchFailed(false);
 
-      const sessionRows = sessions ?? [];
+      const sessionRows = (sessions ?? []).filter(
+        (session) => !trashedWorkoutIds.has(normalizeWorkoutId(session.id))
+      );
       const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
         const metadata = (s.metadata ?? {}) as SessionMetadata;
         const resolvedProgramName = metadata.programName || s.name || 'Workout';
@@ -232,7 +241,6 @@ export default function HistoryPage() {
         }, exerciseCatalog);
       });
 
-      const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
       const mergedById = new Map<string, WorkoutSession>();
 
       supabaseWorkouts.forEach((workout) => {

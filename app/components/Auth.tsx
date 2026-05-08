@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
+import { ArrowRight, X } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 
 export function AuthModal({
@@ -19,6 +21,7 @@ export function AuthModal({
   const [loading, setLoading] = useState(false);
 
   const { signIn, signUp } = useAuth();
+  const isSignIn = mode === 'signin';
 
   const handleSuccess = () => {
     if (onSuccess) {
@@ -28,13 +31,18 @@ export function AuthModal({
     onClose?.();
   };
 
+  const switchMode = () => {
+    setMode(isSignIn ? 'signup' : 'signin');
+    setError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      if (mode === 'signin') {
+      if (isSignIn) {
         const { error } = await signIn(email, password);
         if (error) throw error;
       } else {
@@ -50,7 +58,7 @@ export function AuthModal({
         }
         handleSuccess();
       }
-      if (mode === 'signin') {
+      if (isSignIn) {
         handleSuccess();
       }
     } catch (err) {
@@ -61,47 +69,77 @@ export function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="surface-card rounded-2xl p-6 sm:p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-6 text-white">
-          {mode === 'signin' ? 'Sign In' : 'Create Account'}
-        </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07080b]/90 p-4 backdrop-blur-xl">
+      <div className="relative w-full max-w-md overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950/95 p-5 text-white shadow-[0_28px_90px_rgba(0,0,0,0.68)] sm:p-7">
+        {onClose && !hideClose && (
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-black/30 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+            aria-label="Close sign in"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex items-center gap-4 pr-10">
+          <Image
+            src="/icons/iron-brain-ib-192.png"
+            alt=""
+            width={56}
+            height={56}
+            className="h-14 w-14 shrink-0 rounded-[1.05rem] border border-zinc-800 bg-black object-cover"
+          />
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-emerald-300">
+              Iron Brain
+            </p>
+            <h2 className="mt-1 text-3xl font-black italic leading-none tracking-tight text-zinc-100">
+              {isSignIn ? 'SIGN IN' : 'CREATE ACCOUNT'}
+            </h2>
+          </div>
+        </div>
+
+        <p className="mt-5 text-sm leading-6 text-zinc-400">
+          Save workouts, sync programs, and keep history tied to your account.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full input-field rounded-lg px-4 py-3 text-white"
+              className="mt-2 min-h-12 w-full rounded-xl border border-zinc-800 bg-black/40 px-4 text-base text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/70 focus:bg-black/55"
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
               Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full input-field rounded-lg px-4 py-3 text-white"
-              placeholder="••••••••"
+              className="mt-2 min-h-12 w-full rounded-xl border border-zinc-800 bg-black/40 px-4 text-base text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/70 focus:bg-black/55"
+              placeholder="Minimum 6 characters"
+              autoComplete={isSignIn ? 'current-password' : 'new-password'}
               required
               minLength={6}
             />
           </div>
 
           {error && (
-            <div className={`text-sm p-3 rounded-lg border ${
-              error.includes('verification')
-                ? 'bg-purple-500/10 text-purple-300 border-purple-500/20'
-                : 'bg-red-500/10 text-red-300 border-red-500/20'
+            <div className={`rounded-xl border px-4 py-3 text-sm leading-5 ${
+              error.includes('verification') || error.includes('email')
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                : 'border-rose-500/35 bg-rose-500/10 text-rose-200'
             }`}>
               {error}
             </div>
@@ -110,36 +148,23 @@ export function AuthModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-primary text-white rounded-xl px-6 py-3 font-semibold shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] bg-emerald-400 px-6 text-sm font-black italic uppercase tracking-tight text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
+            <span>{loading ? 'WORKING...' : isSignIn ? 'SIGN IN' : 'CREATE ACCOUNT'}</span>
+            {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-5 border-t border-zinc-900 pt-5 text-center">
           <button
-            onClick={() => {
-              setMode(mode === 'signin' ? 'signup' : 'signin');
-              setError('');
-            }}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
+            onClick={switchMode}
+            className="text-sm font-bold text-zinc-400 transition-colors hover:text-zinc-100"
           >
-            {mode === 'signin'
-              ? "Don't have an account? Sign up"
+            {isSignIn
+              ? 'Need an account? Create one'
               : 'Already have an account? Sign in'}
           </button>
         </div>
-
-        {onClose && !hideClose && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
     </div>
   );

@@ -96,6 +96,24 @@ const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.subst
 const matchesWorkoutId = (candidate: string, target: string) =>
   normalizeWorkoutId(candidate) === normalizeWorkoutId(target);
 
+const withTimeout = async <T, F = T>(
+  promise: PromiseLike<T>,
+  timeoutMs: number,
+  fallback: F
+): Promise<T | F> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<F>((resolve) => {
+        timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 const transformSupabaseWorkout = (session: SupabaseWorkoutSessionRow): WorkoutSession => {
   const metadata = (session.metadata ?? {}) as SessionMetadata;
   const resolvedProgramName = metadata.programName || session.name || 'Workout';
@@ -161,20 +179,52 @@ const fetchWorkoutFromSupabase = async (workoutId: string): Promise<WorkoutSessi
   return transformSupabaseWorkout(data as SupabaseWorkoutSessionRow);
 };
 
+const softDeleteWorkoutInSupabase = async (workoutId: string, deletedAt: string) => {
+  try {
+    const authResult = await withTimeout(
+      supabase.auth.getUser(),
+      2500,
+      { data: { user: null }, error: null }
+    );
+    const user = authResult.data.user;
+    if (!user) return;
+
+    const result = await withTimeout(
+      supabase
+        .from('workout_sessions')
+        .update({ deleted_at: deletedAt })
+        .eq('id', workoutId)
+        .eq('user_id', user.id),
+      8000,
+      { data: null, error: new Error('Workout trash sync timed out') }
+    );
+
+    if (result.error) {
+      logger.debug('Failed to sync workout trash state to Supabase:', result.error);
+      return;
+    }
+
+    logger.debug(`✅ Synced workout ${workoutId} trash state to Supabase`);
+  } catch (err) {
+    logger.debug('Failed to sync workout trash state to Supabase:', err);
+  }
+};
+
 /**
  * Soft delete: Move workout to trash
  *
  * @param workoutId - ID of workout to delete
+ * @param workoutSnapshot - Existing workout data when the caller already has it
  * @returns true if successful
  */
-export async function moveToTrash(workoutId: string): Promise<boolean> {
+export async function moveToTrash(workoutId: string, workoutSnapshot?: WorkoutSession): Promise<boolean> {
   try {
     const normalizedId = normalizeWorkoutId(workoutId);
     const history = storage.getWorkoutHistory();
-    let workout = history.find(w => matchesWorkoutId(w.id, workoutId));
+    let workout = workoutSnapshot ?? history.find(w => matchesWorkoutId(w.id, workoutId));
 
     if (!workout) {
-      workout = await fetchWorkoutFromSupabase(normalizedId);
+      workout = await withTimeout(fetchWorkoutFromSupabase(normalizedId), 2500, undefined);
     }
 
     if (!workout) {
@@ -183,29 +233,24 @@ export async function moveToTrash(workoutId: string): Promise<boolean> {
     }
 
     // Add to trash
+    const deletedAt = new Date().toISOString();
     const trash = getTrash();
     const filteredTrash = trash.filter(item => !matchesWorkoutId(item.workout.id, workout.id));
     filteredTrash.push({
       workout,
-      deletedAt: new Date().toISOString()
+      deletedAt
     });
     localStorage.setItem(TRASH_KEY, JSON.stringify(filteredTrash));
 
     // Remove from history
-    const filteredHistory = history.filter(w => !matchesWorkoutId(w.id, workout.id));
+    const filteredHistory = history.filter(
+      w => !matchesWorkoutId(w.id, workout.id) && !matchesWorkoutId(w.id, workoutId)
+    );
     storage.setWorkoutHistory(filteredHistory);
 
-    // Soft delete in Supabase (mark with deleted_at timestamp)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('workout_sessions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', normalizedId)
-        .eq('user_id', user.id);
-
-      logger.debug(`✅ Moved workout ${workoutId} to trash`);
-    }
+    // Keep the UI instant. Cloud trash sync is best-effort and should never block closing the modal.
+    void softDeleteWorkoutInSupabase(normalizedId, deletedAt);
+    logger.debug(`✅ Moved workout ${workoutId} to local trash`);
 
     return true;
   } catch (err) {

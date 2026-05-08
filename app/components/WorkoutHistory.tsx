@@ -393,11 +393,19 @@ export default function WorkoutHistory({
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
     setDeleteBusy(true);
     setDeleteError(null);
     try {
-      await storage.deleteWorkoutSession(deleteTarget.id);
-      // Close modal immediately for instant feel
+      const moved = await storage.deleteWorkoutSession(target.id, target);
+      if (!moved) {
+        throw new Error('Workout could not be moved to trash');
+      }
+      setExpandedSessions(prev => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
       setDeleteTarget(null);
       setDeleteBusy(false);
       // Fire cloud re-sync in the background — don't block UI
@@ -939,17 +947,17 @@ export default function WorkoutHistory({
         >
           <div className="w-full max-w-lg max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
             <div className="p-6 sm:p-8 text-white">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.35em] text-rose-300">
+              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-rose-300">
                 Confirm Delete
-              </div>
-              <h3 className="text-2xl font-black sm:text-3xl">Move workout to trash?</h3>
+              </p>
+              <h3 className="mt-2 text-2xl font-black italic tracking-tight sm:text-3xl">MOVE WORKOUT TO TRASH?</h3>
               <p className="mt-2 text-sm text-zinc-400">
                 You can restore it from Data / Recently Deleted within 30 days.
               </p>
 
               <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-xs font-mono uppercase tracking-[0.35em] text-zinc-500">Workout</p>
-                <p className="text-lg font-bold">{deleteTarget.dayName || 'Workout'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-zinc-500">Workout</p>
+                <p className="mt-1 text-lg font-black italic tracking-tight">{deleteTarget.dayName || 'Workout'}</p>
                 <p className="text-sm text-zinc-500">
                   {deleteTarget.programName || 'Custom'} • {parseLocalDate(deleteTarget.date).toLocaleDateString()}
                 </p>
@@ -965,16 +973,16 @@ export default function WorkoutHistory({
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteBusy}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-black italic uppercase tracking-tight text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleteBusy}
-                className="rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 px-6 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+                className="rounded-xl bg-rose-400 px-6 py-3 text-xs font-black italic uppercase tracking-tight text-zinc-950 shadow-lg shadow-rose-500/15 transition-colors hover:bg-rose-300 active:bg-rose-500 disabled:opacity-50"
               >
-                {deleteBusy ? 'Moving...' : 'Move to Trash'}
+                {deleteBusy ? 'MOVING...' : 'MOVE TO TRASH'}
               </button>
             </div>
           </div>
