@@ -25,6 +25,26 @@ const baseSet = {
   skipped: false,
 };
 
+function isoDaysAgo(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRecommendationInput['historySets']>[number]> = {}) {
+  return {
+    exerciseId: 'back_squat',
+    exerciseName: 'Back Squat',
+    actualWeight: 225,
+    weightUnit: 'lbs' as const,
+    actualReps: 5,
+    actualRPE: 8,
+    prescribedReps: '5',
+    prescribedRPE: 8,
+    completed: true,
+    performedAt: isoDaysAgo(daysAgo),
+    ...overrides,
+  };
+}
+
 {
   const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: null, reps: 8, prescribedRPE: 8 },
@@ -360,6 +380,100 @@ const baseSet = {
 }
 
 {
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 225, reps: 5, prescribedRPE: 8 },
+    historySets: [
+      ...Array.from({ length: 8 }, (_, index) => squatHistory(1 + (index % 4))),
+      ...Array.from({ length: 8 }, (_, index) => squatHistory(10 + index * 2)),
+    ],
+    sessionSets: [],
+    readiness: { score: 80, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'reduce_load');
+  assert.equal(recommendation.source, 'load_pressure');
+  assert.equal(recommendation.apply?.weight, 210);
+  assert.match(recommendation.reason, /above its recent weekly baseline|above baseline/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 225, reps: 5, prescribedRPE: 8 },
+    historySets: Array.from({ length: 4 }, (_, index) => squatHistory(1 + index)),
+    sessionSets: [],
+    readiness: { score: 80, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'maintain_load');
+  assert.equal(recommendation.source, 'exercise_history');
+  assert.equal(recommendation.apply, undefined);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 6 },
+    historySets: [
+      squatHistory(1, { actualWeight: 200, actualRPE: 5.0, prescribedRPE: 6 }),
+      squatHistory(3, { actualWeight: 200, actualRPE: 5.2, prescribedRPE: 6 }),
+    ],
+    sessionSets: [],
+    readiness: { score: 90, modifier: 1.025 },
+  });
+
+  assert.notEqual(recommendation.action, 'increase_load');
+  assert.notEqual(recommendation.apply?.weight, 210);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: {
+      ...baseSet,
+      exerciseId: 'pull_up',
+      exerciseName: 'Pull-Up',
+      weight: null,
+      reps: 8,
+      prescribedRPE: 8,
+    },
+    historySets: [1, 3].map((daysAgo) => ({
+      exerciseId: 'pull_up',
+      exerciseName: 'Pull-Up',
+      actualWeight: null,
+      weightUnit: 'lbs' as const,
+      actualReps: 8,
+      actualRPE: 6.5,
+      prescribedReps: '8',
+      prescribedRPE: 8,
+      completed: true,
+      performedAt: isoDaysAgo(daysAgo),
+    })),
+    sessionSets: [],
+    readiness: { score: 82, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'adjust_reps');
+  assert.equal(recommendation.target?.reps, 9);
+  assert.equal(recommendation.apply?.reps, 9);
+}
+
+{
+  const recommendations = buildTrainingRecommendations({
+    sessionSets: Array.from({ length: 5 }, (_, index) => ({
+      ...baseSet,
+      setId: `deload_${index}`,
+      weight: 185,
+      reps: 5,
+      rpe: 6.2,
+      prescribedRPE: 6,
+      completed: true,
+    })),
+    historySets: [],
+    readiness: { score: 82, modifier: 1 },
+  });
+
+  assert.equal(recommendations.some((entry) => entry.scope === 'session' && entry.action === 'add_volume'), false);
+}
+
+{
   const program: ProgramTemplate = {
     id: 'qa_program',
     name: 'QA Program',
@@ -395,8 +509,10 @@ const baseSet = {
       weightUnit: 'lbs',
       actualReps: 5,
       actualRPE: 9.5,
+      prescribedReps: '5',
+      prescribedRPE: 8,
       completed: true,
-      performedAt: `2026-05-0${Math.min(index + 1, 9)}T12:00:00.000Z`,
+      performedAt: isoDaysAgo(index + 1),
     })),
     readiness: { score: 72, modifier: 1 },
   });

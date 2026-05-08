@@ -338,6 +338,10 @@ async function checkSmartTrainingTargets(browser) {
   await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByText('Resume Custom Press').first().click();
   await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 15000 });
+  const smartTargetText = await page.getByTestId('smart-target-card').innerText();
+  if (!/SET SIGNAL|HISTORY|READINESS|LOAD|TREND|PLAN/i.test(smartTargetText)) {
+    throw new Error(`Smart target did not expose its signal source: ${smartTargetText}`);
+  }
   await page.getByTestId('smart-target-apply').tap({ timeout: 10000 });
 
   await page.waitForFunction((key) => {

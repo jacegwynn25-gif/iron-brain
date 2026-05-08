@@ -119,6 +119,15 @@ function getLocalTrainingHistorySets(): TrainingHistorySet[] {
   );
 }
 
+function formatTuneUpSource(source: TrainingRecommendation['source']): string {
+  if (source === 'load_pressure') return 'Load';
+  if (source === 'program_load') return 'Program';
+  if (source === 'readiness') return 'Readiness';
+  if (source === 'session_fatigue') return 'Set Signal';
+  if (source === 'performance_trend') return 'Trend';
+  return 'Baseline';
+}
+
 const DAYS: DayTemplate['dayOfWeek'][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const GOAL_OPTIONS: GoalOption[] = ['strength', 'hypertrophy', 'powerlifting', 'general', 'peaking'];
@@ -2471,8 +2480,8 @@ export default function ProgramsPage() {
                         {visibleProgramTuneUp.title}
                       </p>
                     </div>
-                    <p className="shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      {visibleProgramTuneUp.confidence}
+                    <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      {visibleProgramTuneUp.confidence} · {formatTuneUpSource(visibleProgramTuneUp.source)}
                     </p>
                   </div>
                   <p className="mt-2 text-xs leading-snug text-zinc-400">

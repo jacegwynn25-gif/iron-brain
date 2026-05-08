@@ -366,6 +366,18 @@ function formatSmartWeight(value: number | null | undefined, unit: WeightUnit | 
   return `${display} ${unit?.toUpperCase() ?? 'LBS'}`;
 }
 
+function formatRecommendationSource(source: TrainingRecommendation['source']): string {
+  if (source === 'exercise_history') return 'History';
+  if (source === 'session_fatigue') return 'Set Signal';
+  if (source === 'load_pressure') return 'Load';
+  if (source === 'performance_trend') return 'Trend';
+  if (source === 'prescription') return 'Plan';
+  if (source === 'readiness') return 'Readiness';
+  if (source === 'e1rm') return 'Max Data';
+  if (source === 'program_load') return 'Program';
+  return 'Baseline';
+}
+
 function SmartTargetReadout({
   recommendation,
   onApply,
@@ -401,8 +413,8 @@ function SmartTargetReadout({
             {targetText}
           </p>
         </div>
-        <p className="shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-          {recommendation.confidence}
+        <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          {recommendation.confidence} · {formatRecommendationSource(recommendation.source)}
         </p>
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">

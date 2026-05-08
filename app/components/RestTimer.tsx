@@ -35,6 +35,18 @@ interface RestTimerProps {
   onApplyRecommendation?: (recommendation: TrainingRecommendation) => void;
 }
 
+function formatRecommendationSource(source: TrainingRecommendation['source']): string {
+  if (source === 'exercise_history') return 'History';
+  if (source === 'session_fatigue') return 'Set Signal';
+  if (source === 'load_pressure') return 'Load';
+  if (source === 'performance_trend') return 'Trend';
+  if (source === 'prescription') return 'Plan';
+  if (source === 'readiness') return 'Readiness';
+  if (source === 'e1rm') return 'Max Data';
+  if (source === 'program_load') return 'Program';
+  return 'Baseline';
+}
+
 export default function RestTimer({
   isActive,
   duration,
@@ -181,6 +193,9 @@ export default function RestTimer({
             </div>
             <p className="mt-2 text-xs leading-snug text-zinc-400">
               {smartRecommendation.reason}
+            </p>
+            <p className="mt-2 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
+              {smartRecommendation.confidence} · {formatRecommendationSource(smartRecommendation.source)}
             </p>
           </div>
         )}
