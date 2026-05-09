@@ -12,6 +12,7 @@ import OnboardingWrapper from './components/onboarding/OnboardingWrapper';
 import SyncQueueListener from './components/SyncQueueListener';
 import RouteTransition from './components/RouteTransition';
 import AppLayout from './components/layout/AppLayout';
+import { PUBLIC_APP_URL } from './lib/public-url';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -20,7 +21,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://iron-brain.vercel.app'),
+  metadataBase: new URL(PUBLIC_APP_URL),
   title: {
     default: 'Iron Brain - Smart Workout Planning',
     template: '%s | Iron Brain',
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Iron Brain - Smart Workout Planning',
     description: 'Smart workout logging, readiness, and program adjustments for lifters.',
-    url: 'https://iron-brain.vercel.app',
+    url: PUBLIC_APP_URL,
     siteName: 'Iron Brain',
     type: 'website',
     images: [

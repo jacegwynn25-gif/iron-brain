@@ -45,6 +45,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const hideBottomNavByRoute =
     pathname.startsWith('/workout') ||
     pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/reset-auth');
   const [hideBottomNavByOverlay, setHideBottomNavByOverlay] = useState(false);

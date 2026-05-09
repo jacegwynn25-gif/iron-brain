@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getSupabaseUserFromRequest } from '@/app/lib/supabase/admin';
+import { publicAppUrl } from '@/app/lib/public-url';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: '2025-12-15.clover' }) : null;
@@ -17,10 +18,6 @@ export async function POST(request: NextRequest) {
 
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
-  }
-
-  if (!process.env.NEXT_PUBLIC_APP_URL) {
-    return NextResponse.json({ error: 'App URL is not configured' }, { status: 500 });
   }
 
   let body: { amountCents?: number };
@@ -58,8 +55,8 @@ export async function POST(request: NextRequest) {
         },
         quantity: 1,
       }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cancel`,
+      success_url: publicAppUrl('/success?session_id={CHECKOUT_SESSION_ID}'),
+      cancel_url: publicAppUrl('/cancel'),
       client_reference_id: user.id,
       customer_email: user.email,
       metadata: {

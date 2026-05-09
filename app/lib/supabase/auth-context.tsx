@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/`,
+          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback?next=${encodeURIComponent('/')}`,
         },
       });
       if (error) throw error;
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async (redirectTo?: string) => {
     try {
       const fallbackRedirect = typeof window !== 'undefined'
-        ? `${window.location.origin}/login?returnTo=${encodeURIComponent('/')}`
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent('/')}`
         : undefined;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

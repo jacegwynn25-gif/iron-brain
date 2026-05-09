@@ -46,7 +46,7 @@ export function AuthModal({
       ? params.get('returnTo') || '/'
       : current;
 
-    return `${window.location.origin}/login?returnTo=${encodeURIComponent(returnTo)}`;
+    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
   };
 
   const handleGoogleSignIn = async () => {

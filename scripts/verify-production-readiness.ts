@@ -7,7 +7,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, '.env.local');
-const DEFAULT_APP_URL = 'https://iron-brain.vercel.app';
+const DEFAULT_APP_URL = 'https://ironbrain.dev';
+const LEGACY_APP_URLS = new Set(['https://iron-brain.vercel.app']);
 
 loadDotenv({ path: ENV_PATH, quiet: true });
 
@@ -28,7 +29,8 @@ function isPlaceholder(value: string | undefined) {
 }
 
 function appUrl() {
-  return process.env.PRODUCTION_APP_URL || DEFAULT_APP_URL;
+  const configured = process.env.PRODUCTION_APP_URL?.replace(/\/+$/, '');
+  return configured && !LEGACY_APP_URLS.has(configured) ? configured : DEFAULT_APP_URL;
 }
 
 async function checkHttp(

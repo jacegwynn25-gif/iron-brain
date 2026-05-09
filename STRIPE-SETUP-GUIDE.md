@@ -15,7 +15,7 @@ Iron Brain is shipping as a free beta. Stripe is used only for optional support 
 ```env
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_APP_URL=https://iron-brain.vercel.app
+NEXT_PUBLIC_APP_URL=https://ironbrain.dev
 ```
 
 No Stripe Price IDs are required for the current support flow.
@@ -25,7 +25,7 @@ No Stripe Price IDs are required for the current support flow.
 Endpoint:
 
 ```text
-https://iron-brain.vercel.app/api/webhooks/stripe
+https://ironbrain.dev/api/webhooks/stripe
 ```
 
 Required event:
