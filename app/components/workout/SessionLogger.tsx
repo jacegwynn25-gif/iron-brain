@@ -52,6 +52,7 @@ import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
+import { useDialog } from '@/app/providers/DialogProvider';
 import {
   buildTrainingRecommendations,
   recommendationHasApplyPatch,
@@ -743,6 +744,7 @@ function getSnapshotDefaultWeightUnit(snapshot: ActiveSessionSnapshot | null, fa
 export default function SessionLogger({ initialData, initialProgress, ignoreActiveSnapshot = false }: SessionLoggerProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { confirm } = useDialog();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness, loading: readinessLoading } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
@@ -1027,6 +1029,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   } | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isFinishingWorkout, setIsFinishingWorkout] = useState(false);
+  const [isDiscardingWorkout, setIsDiscardingWorkout] = useState(false);
   const [finishStatusMessage, setFinishStatusMessage] = useState<string | null>(null);
   const [shareStatusMessage, setShareStatusMessage] = useState<string | null>(null);
   const [isAddMovementOpen, setIsAddMovementOpen] = useState(false);
@@ -2237,9 +2240,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
     const completedSets = sets.filter((set) => set.completed);
     const totalVolumeLoad = completedSets.reduce((sum, set) => sum + (set.volumeLoad ?? 0), 0);
+    const completedRpeValues = completedSets
+      .map((set) => set.actualRPE)
+      .filter((value): value is number => value != null && Number.isFinite(value));
     const averageRPE =
-      completedSets.length > 0
-        ? completedSets.reduce((sum, set) => sum + (set.actualRPE ?? 0), 0) / completedSets.length
+      completedRpeValues.length > 0
+        ? completedRpeValues.reduce((sum, value) => sum + value, 0) / completedRpeValues.length
         : undefined;
 
     return {
@@ -2439,11 +2445,35 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setShareStatusMessage(null);
   };
 
-  const handleCancelWorkout = () => {
+  const handleCancelWorkout = async () => {
+    if (isFinishingWorkout || isDiscardingWorkout) return;
+
+    const confirmed = await confirm(
+      'Discard Session?',
+      'This will delete the workout currently in progress on this device. Completed workout history will stay untouched.',
+      {
+        variant: 'danger',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep Training',
+      }
+    );
+    if (!confirmed) return;
+
+    setIsDiscardingWorkout(true);
     isExitingWorkoutRef.current = true;
+    setActiveInput(null);
+    setInfoPanel(null);
+    setIsSummaryOpen(false);
+    setIsHistoryOpen(false);
+    setIsNotesOpen(false);
     clearSession();
     clearActiveWorkoutStorageKeys();
     router.replace('/');
+    window.setTimeout(() => {
+      if (window.location.pathname.startsWith('/workout')) {
+        window.location.assign('/');
+      }
+    }, 900);
   };
 
   useEffect(() => {
@@ -2618,7 +2648,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   <button
                     type="button"
                     onClick={handleCancelWorkout}
-                    className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/25 bg-zinc-950/80 px-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 active:bg-rose-500/15"
+                    disabled={isFinishingWorkout || isDiscardingWorkout}
+                    className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/25 bg-zinc-950/80 px-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 active:bg-rose-500/15 disabled:cursor-wait disabled:opacity-50"
                   >
                     <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
                     <span>Discard Session</span>
@@ -3518,7 +3549,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   <button
                     type="button"
                     onClick={handleCloseSummary}
-                    disabled={isFinishingWorkout}
+                    disabled={isFinishingWorkout || isDiscardingWorkout}
                     className="rounded-full border border-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-40"
                   >
                     Back
@@ -3741,7 +3772,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 <button
                   type="button"
                   onClick={handleShare}
-                  disabled={isFinishingWorkout}
+                  disabled={isFinishingWorkout || isDiscardingWorkout}
                   className="w-full rounded-2xl bg-zinc-900 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:bg-zinc-800 disabled:opacity-40"
                 >
                   Share
@@ -3749,7 +3780,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 <button
                   type="button"
                   onClick={handleFinishWorkout}
-                  disabled={isFinishingWorkout}
+                  disabled={isFinishingWorkout || isDiscardingWorkout}
                   className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-65"
                 >
                   {isFinishingWorkout ? (
@@ -3769,7 +3800,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               <button
                 type="button"
                 onClick={handleCancelWorkout}
-                disabled={isFinishingWorkout}
+                disabled={isFinishingWorkout || isDiscardingWorkout}
                 className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
               >
                 Cancel & Discard Workout

@@ -132,6 +132,7 @@ function createId(prefix: string): string {
 
 const LBS_INCREMENT = 5;
 const KG_INCREMENT = 0.25;
+const DEFAULT_QUICK_START_TARGET_RPE = 8;
 
 function roundToIncrement(value: number, unit: WeightUnit): number {
   const increment = unit === 'kg' ? KG_INCREMENT : LBS_INCREMENT;
@@ -857,8 +858,8 @@ function workoutSessionReducer(
         weight: lastSet?.weight ?? null,
         weightUnit: lastSet?.weightUnit ?? weightUnit,
         reps: lastSet?.reps ?? null,
-        rpe: lastSet?.rpe ?? null,
-        prescribedRPE: lastSet?.prescribedRPE ?? null,
+        rpe: null,
+        prescribedRPE: lastSet?.prescribedRPE ?? lastSet?.rpe ?? DEFAULT_QUICK_START_TARGET_RPE,
         prescribedRIR: lastSet?.prescribedRIR ?? null,
         prescribedPercentage: lastSet?.prescribedPercentage ?? null,
         prescribedWeight: lastSet?.prescribedWeight ?? null,
@@ -909,7 +910,7 @@ function workoutSessionReducer(
         weightUnit,
         reps: 8,
         rpe: null,
-        prescribedRPE: null,
+        prescribedRPE: DEFAULT_QUICK_START_TARGET_RPE,
         prescribedRIR: null,
         prescribedPercentage: null,
         prescribedWeight: null,

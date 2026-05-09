@@ -246,6 +246,13 @@ async function checkResumedWorkoutDiscard(browser) {
   await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
   await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByRole('button', { name: /Keep Training/i }).tap({ timeout: 10000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'hidden', timeout: 10000 });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByRole('button', { name: /^Discard$/i }).tap({ timeout: 10000 });
   await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
   await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
 

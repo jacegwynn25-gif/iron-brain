@@ -35,6 +35,20 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: '2', exact: true }).click();
   await page.getByRole('button', { name: /ADD \d+ SETS/i }).click();
   await expectVisible(page.getByText(/Bench Press/i).first(), 'Exercise appears in overview');
+  await page.waitForFunction(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    if (!activeKey) return false;
+    const raw = localStorage.getItem(activeKey);
+    if (!raw) return false;
+    try {
+      const snapshot = JSON.parse(raw);
+      const sets = snapshot.blocks?.[0]?.exercises?.[0]?.sets ?? [];
+      return sets.length > 0 && sets.every((set) => set.prescribedRPE === 8 && set.rpe === null);
+    } catch {
+      return false;
+    }
+  }, null, { timeout: 5000 });
+  console.log('✅ Quick Start sets use RPE 8 target while actual RPE stays blank');
 
   console.log('▶️  Opening cockpit...');
   await page.getByText(/Bench Press/i).first().click();
