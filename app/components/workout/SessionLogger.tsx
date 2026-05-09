@@ -77,6 +77,12 @@ const ISOLATION_REST_SECONDS = 90;
 const SMALL_ISO_REST_SECONDS = 75;
 const CORE_REST_SECONDS = 60;
 const METRONOME_BEAT_MS = 600;
+const ACTIVE_WORKOUT_STORAGE_PREFIXES = [
+  'iron_brain_active_session',
+  'iron_brain_active_session_v1',
+  'iron_brain_session_timestamp',
+  'iron_brain_session_version',
+];
 
 type CommonExercise = {
   id: string;
@@ -116,6 +122,29 @@ const COMMON_EXERCISES: CommonExercise[] = [
 ];
 
 const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
+
+function clearActiveWorkoutStorageKeys() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key) continue;
+      if (
+        ACTIVE_WORKOUT_STORAGE_PREFIXES.some(
+          (prefix) => key === prefix || key.startsWith(`${prefix}__`)
+        )
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+    sessionStorage.removeItem('iron_brain_active_session_pending');
+  } catch {
+    // Continue with navigation even if browser storage is unavailable.
+  }
+}
 
 const MUSCLE_COLORS: Record<MuscleGroup, { color: string; glow: string }> = {
   chest: { color: '#fb7185', glow: 'rgba(251,113,133,0.55)' },
@@ -257,86 +286,107 @@ const formatProjectedPrValue = (metric: PrMetric, value: number, unit: 'lbs' | '
 };
 
 function MuscleGlyph({ group }: { group: MuscleGroup }) {
+  const mark = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2.35,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
   const glyphs: Record<MuscleGroup, ReactNode> = {
     chest: (
       <>
-        <path fill="currentColor" d="M16 12.2C12.2 7.7 5.7 8.9 4.1 15.5c1 5.7 6.5 7.7 11.9 3.9 5.4 3.8 10.9 1.8 11.9-3.9-1.6-6.6-8.1-7.8-11.9-3.3Z" />
-        <path fill="currentColor" opacity="0.38" d="M9.3 12.6c2.3 0 4.2 1.4 5.4 3.9-3.5 1.9-6.6.7-7.4-2.1.5-1.1 1.2-1.8 2-1.8Zm13.4 0c.8 0 1.5.7 2 1.8-.8 2.8-3.9 4-7.4 2.1 1.2-2.5 3.1-3.9 5.4-3.9Z" />
+        <path
+          fill="currentColor"
+          fillRule="evenodd"
+          d="M5.6 14.8c1.4-4 4.4-6.4 8.9-7.1l1.5 5.2 1.5-5.2c4.5.7 7.5 3.1 8.9 7.1-2.4 6.7-6.7 9.4-10.4 6.5-3.7 2.9-8 0-10.4-6.5Zm8.6-.4c-2.2-.3-4.1.4-5.5 2.1 1.3 2.5 3.3 3.6 5.9 3.2l-.4-5.3Zm3.6 0-.4 5.3c2.6.4 4.6-.7 5.9-3.2-1.4-1.7-3.3-2.4-5.5-2.1Z"
+        />
+        <path {...mark} d="M16 12.9v9.4" opacity="0.65" />
       </>
     ),
     shoulders: (
       <>
-        <path fill="currentColor" d="M16 8.4c-2.7 0-4.7 1.6-5.8 4.4-3.6-1.4-6.9.7-7.9 5.3 4.3 1.5 8.2.1 11.1-3.9.8-.2 1.7-.2 2.6-.2s1.8 0 2.6.2c2.9 4 6.8 5.4 11.1 3.9-1-4.6-4.3-6.7-7.9-5.3-1.1-2.8-3.1-4.4-5.8-4.4Z" />
-        <path fill="currentColor" opacity="0.35" d="M16 10.9c1.2 0 2.2.5 2.9 1.5-1.8-.3-3.9-.3-5.8 0 .7-1 1.7-1.5 2.9-1.5Z" />
+        <path fill="currentColor" d="M16 5.2 27.4 25.4H4.6L16 5.2Z" opacity="0.22" />
+        <path {...mark} d="M16 5.2 27.4 25.4H4.6L16 5.2Z" />
+        <path {...mark} d="M16 10.6v10.1M10.8 22.1h10.4" opacity="0.75" />
       </>
     ),
     triceps: (
       <>
-        <path fill="currentColor" d="M12.1 5.8c5.1.2 9.1 3.6 9.1 8.6 0 5.4-4.8 8.8-10.2 7.1 2.8-3.1 2.9-6.6.3-9.1l-3 5.5-4-2.2 4.9-9.1c.8-.5 1.8-.8 2.9-.8Z" />
-        <path fill="currentColor" opacity="0.32" d="M14.3 10.2c2.3 1 3.8 2.8 3.8 4.9 0 2.4-1.8 4-4.4 4.2 1.2-2.7 1.3-5.7.6-9.1Z" />
+        <path {...mark} d="M9.2 7.4c4.6 1.8 9 1.8 13.6 0" />
+        <path {...mark} d="M10.7 10.2c-2.2 4.4-.5 9.5 5.3 14.4 5.8-4.9 7.5-10 5.3-14.4" />
+        <path {...mark} d="M16 11v13.6" opacity="0.82" />
       </>
     ),
     biceps: (
       <>
-        <path fill="currentColor" d="M7.1 18.7c1.6-7.7 7-12.7 12.2-9.4 3.6 2.3 3.3 7.4-.7 10.1-3.8 2.6-8.6 2.4-11.5-.7Z" />
-        <path fill="currentColor" d="M4.6 16.3 8 18.5l-2.1 4.1-3.4-2.1 2.1-4.2Z" opacity="0.78" />
-        <path fill="currentColor" opacity="0.3" d="M14.1 11.2c2.7-.7 5 .4 5.5 2.3.5 1.8-.8 3.8-3.4 4.7 1.5-2.4.8-5-2.1-7Z" />
+        <path fill="currentColor" d="m5.4 18.8 4.8 2.8-2.7 4.6-4.8-2.8 2.7-4.6Z" />
+        <path {...mark} d="M9 20.6h5.2c5.3 0 9.4-2.7 9.4-6.6 0-2.8-2-4.9-4.9-4.9-2.8 0-5.1 1.9-6.6 5.4" />
+        <path {...mark} d="M12.6 13.1c1-4 3.4-6.5 7.2-7.3" opacity="0.7" />
       </>
     ),
     back: (
       <>
-        <path fill="currentColor" d="M16 6.4c-2.1 2.1-3.8 5.4-5.1 9.8-2.3-4.4-5.2-6.3-8.2-5.3.4 8.4 5.2 12.2 13.3 14.7 8.1-2.5 12.9-6.3 13.3-14.7-3-1-5.9.9-8.2 5.3-1.3-4.4-3-7.7-5.1-9.8Z" />
-        <path fill="currentColor" opacity="0.32" d="M16 12c1.4 2.8 2.3 6.1 2.8 9.8-.8.4-1.7.7-2.8 1-1.1-.3-2-.6-2.8-1 .5-3.7 1.4-7 2.8-9.8Z" />
+        <path
+          fill="currentColor"
+          fillRule="evenodd"
+          d="M16 5.6c-1.3 2.8-2.3 5.7-3.1 8.7-1.8-2.8-4.6-4.9-8.4-6.2-.2 7.6 3.7 13.5 11.5 17.9 7.8-4.4 11.7-10.3 11.5-17.9-3.8 1.3-6.6 3.4-8.4 6.2-.8-3-1.8-5.9-3.1-8.7Zm-1.3 16.1v-8.6c-1 2.6-1.7 5.3-2 8 .6.3 1.3.5 2 .6Zm2.6 0c.7-.1 1.4-.3 2-.6-.3-2.7-1-5.4-2-8v8.6Zm-5.8-2.5c-.8-2.5-2.1-4.4-4.2-5.8.7 2.8 2.1 4.8 4.2 5.8Zm9 0c2.1-1 3.5-3 4.2-5.8-2.1 1.4-3.4 3.3-4.2 5.8Z"
+        />
       </>
     ),
     quads: (
       <>
-        <path fill="currentColor" d="M9.4 5.7h13.2c1.9 5.3 2.3 12.2.9 20.6H18l-2-10-2 10H8.5c-1.4-8.4-1-15.3.9-20.6Z" />
-        <path fill="currentColor" opacity="0.32" d="M12.3 8.4h2.4l-1.3 14.5h-2.6c-.7-5.8-.2-10.7 1.5-14.5Zm5 0h2.4c1.7 3.8 2.2 8.7 1.5 14.5h-2.6L17.3 8.4Z" />
+        <rect fill="currentColor" x="5.3" y="6.6" width="4.4" height="18.8" rx="1.35" />
+        <rect fill="currentColor" x="11.1" y="6.6" width="4.4" height="18.8" rx="1.35" opacity="0.72" />
+        <rect fill="currentColor" x="16.5" y="6.6" width="4.4" height="18.8" rx="1.35" opacity="0.72" />
+        <rect fill="currentColor" x="22.3" y="6.6" width="4.4" height="18.8" rx="1.35" />
       </>
     ),
     hamstrings: (
       <>
-        <path fill="currentColor" d="M9.2 5.8h13.6c2.1 6.1 1.1 13.5-3.6 20.4h-4.1L16 15l.9 11.2h-4.1C8.1 19.3 7.1 11.9 9.2 5.8Z" />
-        <path fill="currentColor" opacity="0.34" d="M10.8 8.5h3.1c-.7 5.7-.2 10.4 1.4 14.2h-2c-2.6-4.4-3.4-9.1-2.5-14.2Zm7.3 0h3.1c.9 5.1.1 9.8-2.5 14.2h-2c1.6-3.8 2.1-8.5 1.4-14.2Z" />
+        <path fill="currentColor" d="M8.7 6.3h6.1c-.4 5.9.1 12.3 1.6 19.2h-5.1C8.5 19.3 7.6 12.9 8.7 6.3Z" />
+        <path fill="currentColor" d="M17.2 6.3h6.1c1.1 6.6.2 13-2.6 19.2h-5.1c1.5-6.9 2-13.3 1.6-19.2Z" />
+        <path {...mark} d="M11.8 8.9c-.8 4.5-.4 9.1 1.1 13.8M20.2 8.9c.8 4.5.4 9.1-1.1 13.8" opacity="0.42" />
       </>
     ),
     glutes: (
       <>
-        <path fill="currentColor" d="M16 9.8c-3.6-5-10.1-2-10.1 4.2 0 6.8 6.5 10.7 10.1 7.2 3.6 3.5 10.1-.4 10.1-7.2 0-6.2-6.5-9.2-10.1-4.2Z" />
-        <path fill="currentColor" opacity="0.32" d="M12.6 11.7c.8 2.7.7 5.3-.2 7.8-2.1-.3-3.8-2.6-3.8-5.3 0-2.5 1.7-3.9 4-2.5Zm6.8 0c2.3-1.4 4 .1 4 2.5 0 2.7-1.7 5-3.8 5.3-.9-2.5-1-5.1-.2-7.8Z" />
+        <path fill="currentColor" d="M15.1 10.1c-2.7-4.3-8.8-1.8-8.8 4.2 0 6.1 5.2 9.9 8.8 6.7V10.1Z" />
+        <path fill="currentColor" d="M16.9 10.1c2.7-4.3 8.8-1.8 8.8 4.2 0 6.1-5.2 9.9-8.8 6.7V10.1Z" />
+        <path {...mark} d="M16 10.1v11.8" opacity="0.48" />
       </>
     ),
     calves: (
       <>
-        <path fill="currentColor" d="M11.3 5.6c3.1 2.1 4 6.5 1.8 13l-2.5 7.8H6.9l2.3-7.1C11 13.5 10.2 9.8 7.5 6.9c1.1-.8 2.4-1.2 3.8-1.3Zm9.4 0c1.4.1 2.7.5 3.8 1.3-2.7 2.9-3.5 6.6-1.7 12.4l2.3 7.1h-3.7l-2.5-7.8c-2.2-6.5-1.3-10.9 1.8-13Z" />
-        <path fill="currentColor" opacity="0.32" d="M11.2 12.9h3.1c-.1 1.7-.5 3.7-1.2 5.8l-1.5 4.4h-1.8l1.5-4.6c.7-2.1.7-4 .1-5.6Zm6.5 0h3.1c-.6 1.6-.6 3.5.1 5.6l1.5 4.6h-1.8l-1.5-4.4c-.7-2.1-1.1-4.1-1.4-5.8Z" />
+        <path fill="currentColor" d="M10.9 5.8c3.3 3.6 3.4 7.9.4 13.1l-3 5.4H4.9l3-7.3c1.8-4.5 1.2-7.7-1.7-9.7 1.5-.9 3.1-1.4 4.7-1.5Z" />
+        <path fill="currentColor" d="M21.1 5.8c-3.3 3.6-3.4 7.9-.4 13.1l3 5.4h3.4l-3-7.3c-1.8-4.5-1.2-7.7 1.7-9.7-1.5-.9-3.1-1.4-4.7-1.5Z" />
+        <path {...mark} d="M7.3 25.8h17.4" opacity="0.45" />
       </>
     ),
     core: (
       <>
-        <path fill="currentColor" d="M11.2 5.5h9.6c2.4 5.6 2.4 12.6 0 21h-9.6c-2.4-8.4-2.4-15.4 0-21Z" />
-        <rect fill="currentColor" opacity="0.32" x="12.4" y="8.2" width="3.1" height="4.1" rx="1" />
-        <rect fill="currentColor" opacity="0.32" x="16.5" y="8.2" width="3.1" height="4.1" rx="1" />
-        <rect fill="currentColor" opacity="0.32" x="12.2" y="14" width="3.3" height="4.2" rx="1" />
-        <rect fill="currentColor" opacity="0.32" x="16.5" y="14" width="3.3" height="4.2" rx="1" />
-        <rect fill="currentColor" opacity="0.32" x="12.8" y="19.9" width="2.9" height="3.4" rx="1" />
-        <rect fill="currentColor" opacity="0.32" x="16.3" y="19.9" width="2.9" height="3.4" rx="1" />
+        <rect fill="currentColor" x="10.2" y="5.9" width="4.7" height="5.1" rx="1.25" />
+        <rect fill="currentColor" x="17.1" y="5.9" width="4.7" height="5.1" rx="1.25" />
+        <rect fill="currentColor" x="9.8" y="13.2" width="5.1" height="5.2" rx="1.25" />
+        <rect fill="currentColor" x="17.1" y="13.2" width="5.1" height="5.2" rx="1.25" />
+        <rect fill="currentColor" x="10.6" y="20.4" width="4.3" height="4.5" rx="1.2" />
+        <rect fill="currentColor" x="17.1" y="20.4" width="4.3" height="4.5" rx="1.2" />
       </>
     ),
     other: (
       <>
-        <rect fill="currentColor" x="6.8" y="14.2" width="18.4" height="3.6" rx="1.2" />
-        <rect fill="currentColor" opacity="0.55" x="2.8" y="11.2" width="3.2" height="9.6" rx="1" />
-        <rect fill="currentColor" opacity="0.55" x="26" y="11.2" width="3.2" height="9.6" rx="1" />
-        <rect fill="currentColor" opacity="0.8" x="7" y="9.5" width="4" height="13" rx="1.1" />
-        <rect fill="currentColor" opacity="0.8" x="21" y="9.5" width="4" height="13" rx="1.1" />
+        <rect fill="currentColor" x="6.2" y="14.4" width="19.6" height="3.2" rx="1.1" />
+        <rect fill="currentColor" x="2.8" y="12.2" width="3.4" height="7.6" rx="1" opacity="0.6" />
+        <rect fill="currentColor" x="25.8" y="12.2" width="3.4" height="7.6" rx="1" opacity="0.6" />
+        <rect fill="currentColor" x="8.2" y="10.3" width="4.2" height="11.4" rx="1.1" />
+        <rect fill="currentColor" x="19.6" y="10.3" width="4.2" height="11.4" rx="1.1" />
       </>
     ),
   };
 
   return (
-    <svg aria-hidden="true" viewBox="0 0 32 32" className="h-5 w-5">
+    <svg aria-hidden="true" viewBox="0 0 32 32" className="h-[1.15rem] w-[1.15rem] overflow-visible">
       {glyphs[group] ?? glyphs.other}
     </svg>
   );
@@ -349,10 +399,17 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
   const glowColor = style.isCompound ? style.secondaryColor : style.primaryColor;
 
   return (
-    <span className="inline-flex rounded-full p-[1px]" style={ringStyle}>
+    <span
+      className="inline-flex rounded-full p-[1.5px]"
+      style={{ ...ringStyle, boxShadow: `0 0 14px ${glowColor}30` }}
+    >
       <span
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-950"
-        style={{ boxShadow: `0 0 12px ${glowColor}55`, color: style.primaryColor }}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/5"
+        style={{
+          background: 'radial-gradient(circle at 35% 22%, rgba(255,255,255,0.14), rgba(24,24,27,0.72) 42%, rgba(9,9,11,0.98) 100%)',
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 13px ${glowColor}50`,
+          color: style.primaryColor,
+        }}
       >
         <MuscleGlyph group={style.primaryGroup} />
       </span>
@@ -819,6 +876,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const hydratedSnapshotKeyRef = useRef<string | null>(
     resumeSnapshot ? `${resumeSnapshot.startTime}:${resumeSnapshot.meta.programId}` : null
   );
+  const isExitingWorkoutRef = useRef(false);
 
   // ── Elapsed timer ──
   const [elapsedDisplay, setElapsedDisplay] = useState('0:00');
@@ -839,6 +897,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   // ── Sync session to provider so it persists across navigation ──
   useEffect(() => {
     if (!activeSessionReady) return;
+    if (isExitingWorkoutRef.current) return;
     if (session.status === 'finished') return;
     const snap: ActiveSessionSnapshot = {
       status: session.status,
@@ -2339,7 +2398,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
       setFinishStatusMessage('Saved. Finishing up...');
       // Clear persistent session before navigating away
+      isExitingWorkoutRef.current = true;
       clearSession();
+      clearActiveWorkoutStorageKeys();
       // Save succeeded — navigate out
       setIsSummaryOpen(false);
       router.replace('/');
@@ -2385,7 +2446,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   };
 
   const handleCancelWorkout = () => {
+    isExitingWorkoutRef.current = true;
     clearSession();
+    clearActiveWorkoutStorageKeys();
     router.replace('/');
   };
 
