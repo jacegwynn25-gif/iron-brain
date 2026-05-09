@@ -310,6 +310,68 @@ async function checkWorkoutRouteChrome(browser) {
   console.log('✅ workout logger hides bottom navigation');
 }
 
+async function checkStartPageLaunchpad(browser) {
+  const page = await newPage(
+    browser,
+    "localStorage.setItem('iron_brain_selected_program__guest', 'starting_strength_v1');"
+  );
+
+  await page.goto(`${BASE_URL}/start`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText(/QUICK LOG/i).waitFor({ state: 'visible', timeout: 15000 });
+
+  const report = await page.evaluate(() => {
+    const text = document.body.innerText;
+    const controls = Array.from(document.querySelectorAll('button'))
+      .filter((button) => {
+        const label = button.textContent ?? '';
+        return /DAY|PROGRAM|EMPTY/i.test(label) && !/START/i.test(label);
+      })
+      .map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          text: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        };
+      });
+
+    return {
+      viewportWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      hasOldLabels: /Gym Floor|Current Program|Recent Programs|QUICK START/.test(text),
+      hasQuickLog: /QUICK LOG/.test(text),
+      controls,
+    };
+  });
+
+  if (report.scrollWidth > report.viewportWidth + 1) {
+    throw new Error(`Start page has horizontal overflow: ${report.scrollWidth}px > ${report.viewportWidth}px`);
+  }
+  if (report.hasOldLabels) {
+    throw new Error('Start page still exposes removed filler labels');
+  }
+  if (!report.hasQuickLog) {
+    throw new Error('Start page quick-log action is missing or clipped');
+  }
+  if (report.controls.length < 3) {
+    throw new Error(`Start page expected 3 compact launch controls, found ${report.controls.length}`);
+  }
+  const controlTops = report.controls.slice(0, 3).map((control) => control.top);
+  if (Math.max(...controlTops) - Math.min(...controlTops) > 2) {
+    throw new Error(`Start page launch controls are not aligned: ${JSON.stringify(report.controls)}`);
+  }
+  const undersized = report.controls.slice(0, 3).filter((control) => control.height < 48 || control.width < 88);
+  if (undersized.length > 0) {
+    throw new Error(`Start page launch controls are undersized: ${JSON.stringify(undersized)}`);
+  }
+
+  await page.close();
+  console.log('✅ start page launchpad is compact, aligned, and free of old filler labels');
+}
+
 async function checkSmartTrainingTargets(browser) {
   const snapshot = activeSessionSnapshot();
   const exercise = snapshot.blocks[0].exercises[0];
@@ -441,6 +503,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkStandaloneResetWorkoutRoute(browser);
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
+    await checkStartPageLaunchpad(browser);
     await checkSmartTrainingTargets(browser);
     await checkSettingsPolish(browser);
     await checkBottomNavTapTargets(browser);
