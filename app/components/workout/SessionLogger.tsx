@@ -286,44 +286,39 @@ const formatProjectedPrValue = (metric: PrMetric, value: number, unit: 'lbs' | '
 };
 
 function MuscleGlyph({ group }: { group: MuscleGroup }) {
-  const mark = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 2.35,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-  };
-
   const glyphs: Record<MuscleGroup, ReactNode> = {
     chest: (
       <>
         <path
           fill="currentColor"
           fillRule="evenodd"
-          d="M5.6 14.8c1.4-4 4.4-6.4 8.9-7.1l1.5 5.2 1.5-5.2c4.5.7 7.5 3.1 8.9 7.1-2.4 6.7-6.7 9.4-10.4 6.5-3.7 2.9-8 0-10.4-6.5Zm8.6-.4c-2.2-.3-4.1.4-5.5 2.1 1.3 2.5 3.3 3.6 5.9 3.2l-.4-5.3Zm3.6 0-.4 5.3c2.6.4 4.6-.7 5.9-3.2-1.4-1.7-3.3-2.4-5.5-2.1Z"
+          d="M4.9 12.4C8.1 9 11.8 7.3 16 7.3S23.9 9 27.1 12.4l-2.6 11.3h-6.1L16 17.4l-2.4 6.3H7.5L4.9 12.4Zm4.1 2.2 1.2 5h2.1l2-7.3c-2 .2-3.8 1-5.3 2.3Zm8.7-2.3 2 7.3h2.1l1.2-5c-1.5-1.3-3.3-2.1-5.3-2.3Z"
         />
-        <path {...mark} d="M16 12.9v9.4" opacity="0.65" />
       </>
     ),
     shoulders: (
       <>
-        <path fill="currentColor" d="M16 5.2 27.4 25.4H4.6L16 5.2Z" opacity="0.22" />
-        <path {...mark} d="M16 5.2 27.4 25.4H4.6L16 5.2Z" />
-        <path {...mark} d="M16 10.6v10.1M10.8 22.1h10.4" opacity="0.75" />
+        <path
+          fill="currentColor"
+          fillRule="evenodd"
+          d="M16 4.8 27.5 25.4H4.5L16 4.8Zm0 6.5-5.2 9.6h10.4L16 11.3Z"
+        />
+        <path fill="currentColor" d="M7.5 22.5h17v3.1h-17v-3.1Z" opacity="0.34" />
       </>
     ),
     triceps: (
       <>
-        <path {...mark} d="M9.2 7.4c4.6 1.8 9 1.8 13.6 0" />
-        <path {...mark} d="M10.7 10.2c-2.2 4.4-.5 9.5 5.3 14.4 5.8-4.9 7.5-10 5.3-14.4" />
-        <path {...mark} d="M16 11v13.6" opacity="0.82" />
+        <path fill="currentColor" d="M16 5.2 27.2 25.4H4.8L16 5.2Z" opacity="0.3" />
+        <path fill="currentColor" d="M14.4 10.6h3.2v14.8h-3.2V10.6Z" />
+        <path fill="currentColor" d="M8.9 19.1h3.5v6.3H8.9v-6.3Z" opacity="0.82" />
+        <path fill="currentColor" d="M19.6 19.1h3.5v6.3h-3.5v-6.3Z" opacity="0.82" />
       </>
     ),
     biceps: (
       <>
-        <path fill="currentColor" d="m5.4 18.8 4.8 2.8-2.7 4.6-4.8-2.8 2.7-4.6Z" />
-        <path {...mark} d="M9 20.6h5.2c5.3 0 9.4-2.7 9.4-6.6 0-2.8-2-4.9-4.9-4.9-2.8 0-5.1 1.9-6.6 5.4" />
-        <path {...mark} d="M12.6 13.1c1-4 3.4-6.5 7.2-7.3" opacity="0.7" />
+        <path fill="currentColor" d="M7.1 19.3h6.8c4.4 0 7.5-2.1 7.5-5.2 0-2.2-1.7-3.8-4.1-3.8-2.7 0-4.6 1.9-5.5 5.3H8.4c1-5.8 4.3-9.5 9-9.5 4.4 0 7.7 3.2 7.7 7.7 0 5.6-4.7 9.5-11.3 9.5H7.1v-4Z" />
+        <path fill="currentColor" d="M4.3 18.2h4.5v8H4.3v-8Z" opacity="0.78" />
+        <path fill="currentColor" d="M15.5 12.6c1.6-.8 3.3-.4 4 .8.6 1.1.1 2.5-1.1 3.3.1-1.8-.8-3.1-2.9-4.1Z" opacity="0.34" />
       </>
     ),
     back: (
@@ -331,7 +326,7 @@ function MuscleGlyph({ group }: { group: MuscleGroup }) {
         <path
           fill="currentColor"
           fillRule="evenodd"
-          d="M16 5.6c-1.3 2.8-2.3 5.7-3.1 8.7-1.8-2.8-4.6-4.9-8.4-6.2-.2 7.6 3.7 13.5 11.5 17.9 7.8-4.4 11.7-10.3 11.5-17.9-3.8 1.3-6.6 3.4-8.4 6.2-.8-3-1.8-5.9-3.1-8.7Zm-1.3 16.1v-8.6c-1 2.6-1.7 5.3-2 8 .6.3 1.3.5 2 .6Zm2.6 0c.7-.1 1.4-.3 2-.6-.3-2.7-1-5.4-2-8v8.6Zm-5.8-2.5c-.8-2.5-2.1-4.4-4.2-5.8.7 2.8 2.1 4.8 4.2 5.8Zm9 0c2.1-1 3.5-3 4.2-5.8-2.1 1.4-3.4 3.3-4.2 5.8Z"
+          d="M5.1 7.7h7.1L16 22.3l3.8-14.6h7.1c-.9 8.2-4.5 14.3-10.9 18.6C9.6 22 6 15.9 5.1 7.7Zm4.1 4.5c1 3.7 2.4 6.6 4.3 8.6l-2.2-8.6H9.2Zm11.5 0-2.2 8.6c1.9-2 3.3-4.9 4.3-8.6h-2.1Z"
         />
       </>
     ),
@@ -345,23 +340,22 @@ function MuscleGlyph({ group }: { group: MuscleGroup }) {
     ),
     hamstrings: (
       <>
-        <path fill="currentColor" d="M8.7 6.3h6.1c-.4 5.9.1 12.3 1.6 19.2h-5.1C8.5 19.3 7.6 12.9 8.7 6.3Z" />
-        <path fill="currentColor" d="M17.2 6.3h6.1c1.1 6.6.2 13-2.6 19.2h-5.1c1.5-6.9 2-13.3 1.6-19.2Z" />
-        <path {...mark} d="M11.8 8.9c-.8 4.5-.4 9.1 1.1 13.8M20.2 8.9c.8 4.5.4 9.1-1.1 13.8" opacity="0.42" />
+        <path fill="currentColor" d="M8.5 6.4h6.2c-.7 6.5-.1 12.8 1.8 19.1h-5.6C8.3 19.3 7.5 13 8.5 6.4Z" />
+        <path fill="currentColor" d="M17.3 6.4h6.2c1 6.6.2 12.9-2.4 19.1h-5.6c1.9-6.3 2.5-12.6 1.8-19.1Z" />
+        <path fill="currentColor" d="M12.2 9.4h2.1c-.3 4.3 0 8.2 1 11.8h-1.8c-1.3-3.5-1.7-7.5-1.3-11.8Zm5.5 0h2.1c.4 4.3 0 8.3-1.3 11.8h-1.8c1-3.6 1.3-7.5 1-11.8Z" opacity="0.32" />
       </>
     ),
     glutes: (
       <>
-        <path fill="currentColor" d="M15.1 10.1c-2.7-4.3-8.8-1.8-8.8 4.2 0 6.1 5.2 9.9 8.8 6.7V10.1Z" />
-        <path fill="currentColor" d="M16.9 10.1c2.7-4.3 8.8-1.8 8.8 4.2 0 6.1-5.2 9.9-8.8 6.7V10.1Z" />
-        <path {...mark} d="M16 10.1v11.8" opacity="0.48" />
+        <path fill="currentColor" d="M16 9.5c-2.8-4.2-9.7-1.2-9.7 5.1 0 6.5 6.1 10.7 9.7 6.7 3.6 4 9.7-.2 9.7-6.7 0-6.3-6.9-9.3-9.7-5.1Z" />
+        <path fill="currentColor" d="M10.4 13.3c1.4-1.1 3-.8 4.2.9v4.4c-2.3.5-4.4-1.3-4.9-4 .2-.6.4-1 .7-1.3Zm11.2 0c.3.3.5.7.7 1.3-.5 2.7-2.6 4.5-4.9 4v-4.4c1.2-1.7 2.8-2 4.2-.9Z" opacity="0.3" />
       </>
     ),
     calves: (
       <>
-        <path fill="currentColor" d="M10.9 5.8c3.3 3.6 3.4 7.9.4 13.1l-3 5.4H4.9l3-7.3c1.8-4.5 1.2-7.7-1.7-9.7 1.5-.9 3.1-1.4 4.7-1.5Z" />
-        <path fill="currentColor" d="M21.1 5.8c-3.3 3.6-3.4 7.9-.4 13.1l3 5.4h3.4l-3-7.3c-1.8-4.5-1.2-7.7 1.7-9.7-1.5-.9-3.1-1.4-4.7-1.5Z" />
-        <path {...mark} d="M7.3 25.8h17.4" opacity="0.45" />
+        <path fill="currentColor" d="M10.5 5.9h4.7c.5 5.3-.2 10.1-2.1 14.4l-2.4 5.4H5.8l3-7.3c1.7-4.2 2.3-8.4 1.7-12.5Z" />
+        <path fill="currentColor" d="M16.8 5.9h4.7c-.6 4.1 0 8.3 1.7 12.5l3 7.3h-4.9l-2.4-5.4c-1.9-4.3-2.6-9.1-2.1-14.4Z" />
+        <path fill="currentColor" d="M9 22.4h5.8v3.3H9v-3.3Zm8.2 0H23v3.3h-5.8v-3.3Z" opacity="0.34" />
       </>
     ),
     core: (

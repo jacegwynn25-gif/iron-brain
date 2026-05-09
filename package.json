@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "qa:builder": "node scripts/qa-program-builder.js",
+    "qa:catalog": "tsx scripts/qa-exercise-catalog.ts",
     "qa:hardening": "node scripts/qa-release-hardening.js",
     "qa:smart": "tsx scripts/qa-smart-training.ts",
     "qa:workout": "node scripts/qa-workout-session.js",

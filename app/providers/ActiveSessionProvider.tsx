@@ -108,6 +108,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     const pendingWriteRef = useRef<ActiveSessionSnapshot | null | undefined>(undefined);
     const preStorageSnapshotRef = useRef<ActiveSessionSnapshot | null>(null);
     const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastClearTimeRef = useRef(0);
 
     const flushWrite = useCallback(() => {
         if (storageKey && pendingWriteRef.current !== undefined) {
@@ -181,6 +182,16 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
 
     const saveSnapshot = useCallback(
         (next: ActiveSessionSnapshot) => {
+            const nextStartTime = Date.parse(next.startTime);
+            const recentlyCleared = lastClearTimeRef.current > 0 && Date.now() - lastClearTimeRef.current < 5000;
+            if (
+                recentlyCleared &&
+                Number.isFinite(nextStartTime) &&
+                nextStartTime <= lastClearTimeRef.current
+            ) {
+                return;
+            }
+
             const shouldWriteImmediately = storageKey && snapshotRef.current?.status !== 'active';
             if (storageKey) {
                 setLoadedStorageKey(storageKey);
@@ -209,6 +220,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     );
 
     const clearSession = useCallback(() => {
+        lastClearTimeRef.current = Date.now();
         snapshotRef.current = null;
         setSnapshot(null);
         preStorageSnapshotRef.current = null;

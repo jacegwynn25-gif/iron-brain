@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { defaultExercises } from '@/app/lib/programs';
 import { createCustomExercise, getCustomExercises, getLocalCustomExercises } from '@/app/lib/exercises/custom-exercises';
+import { inferCustomExerciseDefaults } from '@/app/lib/exercises/catalog';
 import { getProgramProgress } from '@/app/lib/programs/progress';
 import { blocksToProgramSets, setsToProgramBlocks } from '@/app/lib/programs/structure';
 import type {
@@ -75,6 +76,7 @@ type CustomExerciseDraft = {
   primaryMusclesText: string;
   secondaryMusclesText: string;
   movementPattern: NonNullable<CustomExercise['movementPattern']> | '';
+  defaultRestSeconds: number;
 };
 type SessionExerciseRow = {
   key: string;
@@ -225,13 +227,17 @@ const CUSTOM_EXERCISE_MUSCLE_OPTIONS = [
 ];
 
 function createCustomExerciseDraft(name = ''): CustomExerciseDraft {
+  const trimmedName = name.trim();
+  const inferred = trimmedName ? inferCustomExerciseDefaults(trimmedName) : null;
+
   return {
     name,
-    equipment: 'bodyweight',
-    exerciseType: 'compound',
-    primaryMusclesText: '',
-    secondaryMusclesText: '',
-    movementPattern: '',
+    equipment: inferred?.equipment ?? 'other',
+    exerciseType: inferred?.exerciseType ?? 'compound',
+    primaryMusclesText: inferred ? formatDraftMuscleText(inferred.primaryMuscles) : '',
+    secondaryMusclesText: inferred ? formatDraftMuscleText(inferred.secondaryMuscles) : '',
+    movementPattern: inferred?.movementPattern ?? '',
+    defaultRestSeconds: inferred?.defaultRestSeconds ?? 90,
   };
 }
 
@@ -261,6 +267,10 @@ function toggleMuscleInputValue(value: string, muscle: string): string {
     ? muscles.filter((entry) => entry !== muscle)
     : [...muscles, muscle];
   return next.join(', ');
+}
+
+function formatDraftMuscleText(muscles: string[]): string {
+  return muscles.map((muscle) => muscle.toLowerCase()).join(', ');
 }
 
 function fingerprintProgram(program: ProgramTemplate): string {
@@ -1759,10 +1769,7 @@ export default function ProgramsPage() {
       applyPickedExercise(matchingExerciseByName.id);
       return;
     }
-    setCustomExerciseDraft((current) => ({
-      ...current,
-      name: seedName,
-    }));
+    setCustomExerciseDraft(createCustomExerciseDraft(seedName));
     setCustomExerciseError(null);
     setShowCustomExerciseAdvanced(false);
     setShowCreateCustomExercise(true);
@@ -1800,7 +1807,7 @@ export default function ProgramsPage() {
         trackWeight: customExerciseDraft.equipment !== 'bodyweight',
         trackReps: true,
         trackTime: false,
-        defaultRestSeconds: 90,
+        defaultRestSeconds: customExerciseDraft.defaultRestSeconds,
       });
 
       setCustomExercises((current) => {

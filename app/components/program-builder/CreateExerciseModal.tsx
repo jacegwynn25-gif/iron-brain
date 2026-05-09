@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createCustomExercise } from '../../lib/exercises/custom-exercises';
+import { inferCustomExerciseDefaults } from '../../lib/exercises/catalog';
 import type { CustomExercise } from '../../lib/types';
 
 interface CreateExerciseModalProps {
@@ -19,6 +20,15 @@ const MUSCLE_OPTIONS = [
   'Abs', 'Obliques', 'Lower Back', 'Traps', 'Lats', 'Rear Delts'
 ];
 
+const EMPTY_MANUAL_FIELDS = {
+  equipment: false,
+  exerciseType: false,
+  primaryMuscles: false,
+  secondaryMuscles: false,
+  movementPattern: false,
+  defaultRestSeconds: false,
+};
+
 export default function CreateExerciseModal({
   isOpen,
   onClose,
@@ -34,6 +44,12 @@ export default function CreateExerciseModal({
   const [movementPattern, setMovementPattern] = useState<CustomExercise['movementPattern']>('push');
   const [defaultRestSeconds, setDefaultRestSeconds] = useState(90);
   const [loading, setLoading] = useState(false);
+  const [manualFields, setManualFields] = useState(EMPTY_MANUAL_FIELDS);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setManualFields(EMPTY_MANUAL_FIELDS);
+  }, [isOpen, initialName]);
 
   // Sync name with initialName when it changes
   useEffect(() => {
@@ -41,6 +57,18 @@ export default function CreateExerciseModal({
       setName(initialName);
     }
   }, [initialName]);
+
+  useEffect(() => {
+    if (!isOpen || !name.trim()) return;
+
+    const inferred = inferCustomExerciseDefaults(name);
+    if (!manualFields.equipment) setEquipment(inferred.equipment);
+    if (!manualFields.exerciseType) setExerciseType(inferred.exerciseType);
+    if (!manualFields.primaryMuscles) setPrimaryMuscles(inferred.primaryMuscles);
+    if (!manualFields.secondaryMuscles) setSecondaryMuscles(inferred.secondaryMuscles);
+    if (!manualFields.movementPattern) setMovementPattern(inferred.movementPattern);
+    if (!manualFields.defaultRestSeconds) setDefaultRestSeconds(inferred.defaultRestSeconds);
+  }, [isOpen, manualFields, name]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,10 +129,12 @@ export default function CreateExerciseModal({
 
   const toggleMuscle = (muscle: string, isPrimary: boolean) => {
     if (isPrimary) {
+      setManualFields((prev) => ({ ...prev, primaryMuscles: true }));
       setPrimaryMuscles(prev =>
         prev.includes(muscle) ? prev.filter(m => m !== muscle) : [...prev, muscle]
       );
     } else {
+      setManualFields((prev) => ({ ...prev, secondaryMuscles: true }));
       setSecondaryMuscles(prev =>
         prev.includes(muscle) ? prev.filter(m => m !== muscle) : [...prev, muscle]
       );
@@ -157,7 +187,10 @@ export default function CreateExerciseModal({
                 <button
                   key={eq}
                   type="button"
-                  onClick={() => setEquipment(eq)}
+                  onClick={() => {
+                    setManualFields((prev) => ({ ...prev, equipment: true }));
+                    setEquipment(eq);
+                  }}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold capitalize transition-colors ${
                     equipment === eq
                       ? 'bg-emerald-400 text-zinc-950'
@@ -180,7 +213,10 @@ export default function CreateExerciseModal({
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setExerciseType(type)}
+                  onClick={() => {
+                    setManualFields((prev) => ({ ...prev, exerciseType: true }));
+                    setExerciseType(type);
+                  }}
                   className={`flex-1 rounded-lg px-4 py-2 font-semibold capitalize transition-colors ${
                     exerciseType === type
                       ? 'bg-emerald-400 text-zinc-950'
@@ -246,7 +282,10 @@ export default function CreateExerciseModal({
             </label>
             <select
               value={movementPattern || ''}
-              onChange={(e) => setMovementPattern(e.target.value as CustomExercise['movementPattern'])}
+              onChange={(e) => {
+                setManualFields((prev) => ({ ...prev, movementPattern: true }));
+                setMovementPattern(e.target.value as CustomExercise['movementPattern']);
+              }}
               className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
             >
               <option value="">None</option>
@@ -268,7 +307,10 @@ export default function CreateExerciseModal({
             <input
               type="number"
               value={defaultRestSeconds}
-              onChange={(e) => setDefaultRestSeconds(parseInt(e.target.value) || 90)}
+              onChange={(e) => {
+                setManualFields((prev) => ({ ...prev, defaultRestSeconds: true }));
+                setDefaultRestSeconds(parseInt(e.target.value) || 90);
+              }}
               min="0"
               step="15"
               className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"

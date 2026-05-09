@@ -42,6 +42,14 @@ type ResolveExerciseMuscleProfileOptions = {
   catalog?: ExerciseCatalog | null;
 };
 
+export type InferredCustomExerciseDefaults = Pick<
+  CustomExercise,
+  'equipment' | 'exerciseType' | 'movementPattern' | 'defaultRestSeconds'
+> & {
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+};
+
 const CUSTOM_PREFIX = /^custom[_-]+/i;
 const KNOWN_ACRONYMS = new Set(['rdl', 'ssb', 'ohp', 'db', 'bb', 'ez', 'pr', 'rm']);
 
@@ -96,6 +104,151 @@ const HEURISTIC_PRIMARY_BY_ID: Record<string, ExerciseMuscleGroup> = {
   ab_wheel: 'core',
   hanging_leg_raise: 'core',
 };
+
+const PROFILE_TO_CUSTOM_LABEL: Record<ExerciseMuscleGroup, string | null> = {
+  chest: 'Chest',
+  shoulders: 'Shoulders',
+  triceps: 'Triceps',
+  biceps: 'Biceps',
+  back: 'Back',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  calves: 'Calves',
+  core: 'Abs',
+  other: null,
+};
+
+const PULL_TERMS = [
+  /\brow\b/,
+  /\brows\b/,
+  /\bt bar\b/,
+  /\bseal row\b/,
+  /\bmeadows row\b/,
+  /\bpulldown\b/,
+  /\bpull down\b/,
+  /\bpull up\b/,
+  /\bpullup\b/,
+  /\bchin up\b/,
+  /\bchinup\b/,
+  /\bhigh row\b/,
+  /\blow row\b/,
+  /\bface pull\b/,
+  /\bstraight arm pulldown\b/,
+  /\bshrug\b/,
+];
+
+const SHOULDER_ISOLATION_TERMS = [
+  /\blateral raise\b/,
+  /\blat raise\b/,
+  /\bside raise\b/,
+  /\bfront raise\b/,
+  /\brear delt\b/,
+  /\breverse fly\b/,
+  /\bupright row\b/,
+  /\bface pull\b/,
+];
+
+const SHOULDER_PRESS_TERMS = [
+  /\bshoulder\b/,
+  /\bohp\b/,
+  /\boverhead press\b/,
+  /\bmilitary press\b/,
+  /\bpush press\b/,
+  /\barnold press\b/,
+];
+
+const CHEST_TERMS = [
+  /\bbench\b/,
+  /\bchest press\b/,
+  /\bpec\b/,
+  /\bpush up\b/,
+  /\bpushup\b/,
+  /\bfly\b/,
+  /\bflies\b/,
+  /\bdip\b/,
+  /\bincline press\b/,
+  /\bdecline press\b/,
+  /\bflat press\b/,
+];
+
+const SQUAT_TERMS = [
+  /\bsquat\b/,
+  /\bleg press\b/,
+  /\blunge\b/,
+  /\bsplit squat\b/,
+  /\bstep up\b/,
+  /\bleg extension\b/,
+];
+
+const HINGE_TERMS = [
+  /\bdeadlift\b/,
+  /\brdl\b/,
+  /\bromanian deadlift\b/,
+  /\bgood morning\b/,
+  /\bleg curl\b/,
+  /\bhamstring curl\b/,
+  /\bnordic\b/,
+  /\bglute ham\b/,
+];
+
+const GLUTE_TERMS = [
+  /\bhip thrust\b/,
+  /\bglute bridge\b/,
+  /\bglute\b/,
+  /\bkickback\b/,
+  /\babductor\b/,
+];
+
+const CORE_TERMS = [
+  /\bplank\b/,
+  /\bab\b/,
+  /\babs\b/,
+  /\bcrunch\b/,
+  /\bsit up\b/,
+  /\bsitup\b/,
+  /\bdead bug\b/,
+  /\bhanging leg\b/,
+  /\brussian twist\b/,
+  /\bpallof\b/,
+  /\bwoodchop\b/,
+  /\brotation\b/,
+];
+
+const TRICEPS_TERMS = [
+  /\btricep\b/,
+  /\bskull crusher\b/,
+  /\bpressdown\b/,
+  /\bpushdown\b/,
+];
+
+const BICEPS_TERMS = [
+  /\bbicep\b/,
+  /\bhammer curl\b/,
+  /\bpreacher curl\b/,
+  /\bcurl\b/,
+];
+
+const CARRY_TERMS = [
+  /\bcarry\b/,
+  /\bfarmer\b/,
+  /\bsuitcase\b/,
+];
+
+const STRONG_CLASSIFICATION_TERMS = [
+  ...PULL_TERMS,
+  ...SHOULDER_ISOLATION_TERMS,
+  ...SHOULDER_PRESS_TERMS,
+  ...CHEST_TERMS,
+  ...SQUAT_TERMS,
+  ...HINGE_TERMS,
+  ...GLUTE_TERMS,
+  ...CORE_TERMS,
+  ...TRICEPS_TERMS,
+  ...BICEPS_TERMS,
+  ...CARRY_TERMS,
+  /\bcalf\b/,
+];
 
 const COMMON_TARGET_BY_ID: Record<string, 'push' | 'pull' | 'legs' | 'core'> = {
   back_squat: 'legs',
@@ -376,6 +529,7 @@ function mapRawMuscleToGroup(rawValue: string): ExerciseMuscleGroup | null {
   if (/glute/.test(normalized)) return 'glutes';
   if (/calf|soleus|gastrocnemius/.test(normalized)) return 'calves';
   if (/core|abs|abdom|oblique|transverse/.test(normalized)) return 'core';
+  if (/forearm|wrist|grip/.test(normalized)) return 'other';
 
   return null;
 }
@@ -414,6 +568,241 @@ function resolveFromMuscleLists(
   };
 }
 
+function normalizeExerciseText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[-_/]+/g, ' ')
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasAnyTerm(value: string, terms: RegExp[]) {
+  return terms.some((term) => term.test(value));
+}
+
+function inferEquipmentFromName(name: string): CustomExercise['equipment'] {
+  if (/\b(db|dumbbell|dumbbells)\b/.test(name)) return 'dumbbell';
+  if (/\b(kb|kettlebell|kettlebells)\b/.test(name)) return 'kettlebell';
+  if (/\b(cable|cables)\b/.test(name)) return 'cable';
+  if (/\b(band|bands)\b/.test(name)) return 'band';
+  if (/\b(machine|smith|hack squat|leg press|pec deck)\b/.test(name)) return 'machine';
+  if (/\b(bodyweight|push up|pushup|pull up|pullup|chin up|chinup|dip|plank|crunch|sit up|situp)\b/.test(name)) {
+    return 'bodyweight';
+  }
+  if (/\b(bb|barbell|ez bar|t bar|trap bar|landmine)\b/.test(name)) return 'barbell';
+  return 'other';
+}
+
+function toCustomMuscleLabel(group: ExerciseMuscleGroup | undefined): string | null {
+  return group ? PROFILE_TO_CUSTOM_LABEL[group] : null;
+}
+
+function labelsFromProfile(
+  primary: ExerciseMuscleGroup,
+  secondary?: ExerciseMuscleGroup
+): Pick<InferredCustomExerciseDefaults, 'primaryMuscles' | 'secondaryMuscles'> {
+  const primaryLabel = toCustomMuscleLabel(primary);
+  const secondaryLabel = secondary && secondary !== primary ? toCustomMuscleLabel(secondary) : null;
+
+  return {
+    primaryMuscles: primaryLabel ? [primaryLabel] : [],
+    secondaryMuscles: secondaryLabel ? [secondaryLabel] : [],
+  };
+}
+
+type HeuristicProfile = {
+  primary: ExerciseMuscleGroup;
+  secondary?: ExerciseMuscleGroup;
+  exerciseType: CustomExercise['exerciseType'];
+  movementPattern: CustomExercise['movementPattern'];
+  defaultRestSeconds: number;
+};
+
+function classifyExerciseByName(exerciseName: string): HeuristicProfile {
+  const name = normalizeExerciseText(exerciseName);
+  const compact = name.replace(/\s+/g, ' ');
+
+  // Pulling motions win over support descriptors: "chest supported row" is a back row.
+  if (hasAnyTerm(compact, PULL_TERMS)) {
+    if (
+      hasAnyTerm(compact, SHOULDER_ISOLATION_TERMS) &&
+      !/\brow\b/.test(compact) &&
+      !/\bupright row\b/.test(compact) &&
+      !/\bpulldown\b/.test(compact)
+    ) {
+      return {
+        primary: 'shoulders',
+        secondary: 'back',
+        exerciseType: 'isolation',
+        movementPattern: 'pull',
+        defaultRestSeconds: 75,
+      };
+    }
+
+    if (/\bupright row\b/.test(compact)) {
+      return {
+        primary: 'shoulders',
+        secondary: 'back',
+        exerciseType: 'compound',
+        movementPattern: 'pull',
+        defaultRestSeconds: 120,
+      };
+    }
+
+    return {
+      primary: 'back',
+      secondary: 'biceps',
+      exerciseType: 'compound',
+      movementPattern: 'pull',
+      defaultRestSeconds: 150,
+    };
+  }
+
+  if (hasAnyTerm(compact, SHOULDER_ISOLATION_TERMS)) {
+    return {
+      primary: 'shoulders',
+      secondary: compact.includes('rear delt') || compact.includes('face pull') ? 'back' : undefined,
+      exerciseType: 'isolation',
+      movementPattern: compact.includes('rear delt') || compact.includes('face pull') ? 'pull' : 'push',
+      defaultRestSeconds: 75,
+    };
+  }
+
+  if (hasAnyTerm(compact, SHOULDER_PRESS_TERMS)) {
+    return {
+      primary: 'shoulders',
+      secondary: 'triceps',
+      exerciseType: 'compound',
+      movementPattern: 'push',
+      defaultRestSeconds: 150,
+    };
+  }
+
+  if (hasAnyTerm(compact, SQUAT_TERMS)) {
+    const isIsolation = /\bleg extension\b/.test(compact);
+    return {
+      primary: 'quads',
+      secondary: isIsolation ? undefined : 'glutes',
+      exerciseType: isIsolation ? 'isolation' : 'compound',
+      movementPattern: 'squat',
+      defaultRestSeconds: isIsolation ? 90 : 180,
+    };
+  }
+
+  if (hasAnyTerm(compact, HINGE_TERMS)) {
+    const isIsolation = /\bcurl\b/.test(compact) || /\bnordic\b/.test(compact);
+    return {
+      primary: 'hamstrings',
+      secondary: isIsolation ? undefined : 'glutes',
+      exerciseType: isIsolation ? 'isolation' : 'compound',
+      movementPattern: 'hinge',
+      defaultRestSeconds: isIsolation ? 90 : 180,
+    };
+  }
+
+  if (hasAnyTerm(compact, GLUTE_TERMS)) {
+    return {
+      primary: 'glutes',
+      secondary: compact.includes('kickback') || compact.includes('abductor') ? undefined : 'hamstrings',
+      exerciseType: compact.includes('kickback') || compact.includes('abductor') ? 'isolation' : 'compound',
+      movementPattern: 'hinge',
+      defaultRestSeconds: compact.includes('kickback') || compact.includes('abductor') ? 75 : 150,
+    };
+  }
+
+  if (/\bcalf\b/.test(compact)) {
+    return {
+      primary: 'calves',
+      exerciseType: 'isolation',
+      movementPattern: 'other',
+      defaultRestSeconds: 75,
+    };
+  }
+
+  if (hasAnyTerm(compact, CORE_TERMS)) {
+    return {
+      primary: 'core',
+      exerciseType: 'isolation',
+      movementPattern: compact.includes('rotation') || compact.includes('twist') || compact.includes('woodchop') ? 'rotation' : 'other',
+      defaultRestSeconds: 60,
+    };
+  }
+
+  if (hasAnyTerm(compact, TRICEPS_TERMS)) {
+    return {
+      primary: 'triceps',
+      exerciseType: 'isolation',
+      movementPattern: 'push',
+      defaultRestSeconds: 75,
+    };
+  }
+
+  if (hasAnyTerm(compact, BICEPS_TERMS)) {
+    return {
+      primary: 'biceps',
+      exerciseType: 'isolation',
+      movementPattern: 'pull',
+      defaultRestSeconds: 75,
+    };
+  }
+
+  if (hasAnyTerm(compact, CHEST_TERMS)) {
+    const isIsolation = /\bfly\b/.test(compact) || /\bflies\b/.test(compact) || /\bpec deck\b/.test(compact);
+    return {
+      primary: 'chest',
+      secondary: isIsolation ? undefined : 'triceps',
+      exerciseType: isIsolation ? 'isolation' : 'compound',
+      movementPattern: 'push',
+      defaultRestSeconds: isIsolation ? 90 : 150,
+    };
+  }
+
+  if (hasAnyTerm(compact, CARRY_TERMS)) {
+    return {
+      primary: 'core',
+      secondary: 'back',
+      exerciseType: 'compound',
+      movementPattern: 'carry',
+      defaultRestSeconds: 90,
+    };
+  }
+
+  return {
+    primary: 'other',
+    exerciseType: 'isolation',
+    movementPattern: 'other',
+    defaultRestSeconds: 90,
+  };
+}
+
+function shouldPreferNameProfileForCustom(
+  exerciseName: string,
+  customProfile: { primary: ExerciseMuscleGroup; secondary?: ExerciseMuscleGroup } | null,
+  classified: HeuristicProfile
+): boolean {
+  if (classified.primary === 'other') return false;
+  if (!customProfile) return true;
+  if (customProfile.primary === classified.primary) return false;
+
+  const name = normalizeExerciseText(exerciseName);
+  return hasAnyTerm(name, STRONG_CLASSIFICATION_TERMS);
+}
+
+export function inferCustomExerciseDefaults(exerciseName: string): InferredCustomExerciseDefaults {
+  const classification = classifyExerciseByName(exerciseName);
+  const labels = labelsFromProfile(classification.primary, classification.secondary);
+
+  return {
+    equipment: inferEquipmentFromName(normalizeExerciseText(exerciseName)),
+    exerciseType: classification.exerciseType,
+    primaryMuscles: labels.primaryMuscles,
+    secondaryMuscles: labels.secondaryMuscles,
+    movementPattern: classification.movementPattern,
+    defaultRestSeconds: classification.defaultRestSeconds,
+  };
+}
+
 function inferMuscleProfileFromHeuristics(
   exerciseId: string,
   exerciseName: string
@@ -429,46 +818,13 @@ function inferMuscleProfileFromHeuristics(
     return { primary: HEURISTIC_PRIMARY_BY_ID[normalizedId] };
   }
 
-  const name = exerciseName.toLowerCase();
-
-  // Shoulders — check BEFORE the back/pull group so 'lateral' isn't caught by 'lat'
-  if (name.includes('lateral') || name.includes('side delt') || name.includes('front raise') || name.includes('rear delt') || name.includes('raise')) {
-    return { primary: 'shoulders' };
+  const classified = classifyExerciseByName(exerciseName);
+  if (classified.primary !== 'other') {
+    return {
+      primary: classified.primary,
+      secondary: classified.secondary,
+    };
   }
-  if (name.includes('shoulder') || name.includes('ohp') || name.includes('military')) {
-    return { primary: 'shoulders', secondary: 'triceps' };
-  }
-
-  if (name.includes('bench') || name.includes('chest') || name.includes('pec')) {
-    return { primary: 'chest', secondary: 'triceps' };
-  }
-  if (name.includes('dip')) {
-    return { primary: 'chest', secondary: 'triceps' };
-  }
-  if (name.includes('overhead') || name.includes('press')) {
-    if (name.includes('leg press')) {
-      return { primary: 'quads', secondary: 'glutes' };
-    }
-    return { primary: 'shoulders', secondary: 'triceps' };
-  }
-  if (name.includes('squat') || name.includes('leg press') || name.includes('lunge') || name.includes('split squat')) {
-    return { primary: 'quads', secondary: 'glutes' };
-  }
-  if (name.includes('deadlift') || name.includes('rdl')) {
-    return { primary: 'hamstrings', secondary: 'glutes' };
-  }
-  // Back — use word-boundary matching for 'lat' to avoid matching 'lateral'
-  if (name.includes('row') || name.includes('pulldown') || name.includes('pull-up') || name.includes('pull up') || name.includes('pullup') || name.includes('chin') || /\blat\b/.test(name) || name.includes('lat ')) {
-    return { primary: 'back', secondary: 'biceps' };
-  }
-  if (name.includes('tricep')) return { primary: 'triceps' };
-  if (name.includes('bicep') || name.includes('curl')) return { primary: 'biceps' };
-  if (name.includes('calf')) return { primary: 'calves' };
-  if (name.includes('plank') || name.includes('ab ') || name.includes('core') || name.includes('hanging leg')) {
-    return { primary: 'core' };
-  }
-  if (name.includes('hip thrust') || name.includes('glute')) return { primary: 'glutes' };
-  if (name.includes('hamstring') || name.includes('leg curl')) return { primary: 'hamstrings' };
 
   const target = COMMON_TARGET_BY_ID[normalizedId] ?? null;
   if (target === 'core') return { primary: 'core' };
@@ -487,6 +843,13 @@ export function resolveExerciseMuscleProfile(
 
   if (entry?.source === 'custom') {
     const customProfile = resolveFromMuscleLists(entry.primaryMuscles, entry.secondaryMuscles);
+    const nameProfile = classifyExerciseByName(exercise.name?.trim() || entry.name);
+    if (shouldPreferNameProfileForCustom(entry.name, customProfile, nameProfile)) {
+      return {
+        primary: nameProfile.primary,
+        secondary: nameProfile.secondary,
+      };
+    }
     if (customProfile) {
       return customProfile;
     }
