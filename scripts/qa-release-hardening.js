@@ -132,6 +132,8 @@ async function checkUnauthenticatedApis() {
     body: '{}',
   }, 401);
 
+  await expectHttpStatus('/api/app-version', { method: 'GET' }, 200);
+
   await expectHttpStatus('/api/oura/connect', { method: 'GET' }, 401);
 
   await expectHttpStatus('/api/webhooks/stripe', {
@@ -218,6 +220,46 @@ async function checkMiniBarLayout(browser) {
 
   await page.close();
   console.log(`✅ active workout mini bar sits above bottom nav (${Math.round(boxes.gap)}px gap)`);
+}
+
+async function checkAppResilienceStatus(browser) {
+  const updatePage = await newPage(browser);
+  await updatePage.route('**/api/app-version*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'cache-control': 'no-store' },
+      body: JSON.stringify({
+        version: 'qa-new-build',
+        deployment: 'qa',
+        checkedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await updatePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'visible', timeout: 15000 });
+  const updateText = await updatePage.getByTestId('app-resilience-update').innerText();
+  if (!/UPDATE READY/i.test(updateText) || !/Active workouts stay saved locally/i.test(updateText)) {
+    throw new Error(`Update status copy is unclear: ${updateText}`);
+  }
+  await updatePage.getByLabel('Dismiss update notice').tap({ timeout: 10000 });
+  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'hidden', timeout: 10000 });
+  await updatePage.close();
+
+  const offlinePage = await newPage(browser);
+  await offlinePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await offlinePage.context().setOffline(true);
+  await offlinePage.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await offlinePage.getByTestId('app-resilience-offline').waitFor({ state: 'visible', timeout: 10000 });
+  const offlineText = await offlinePage.getByTestId('app-resilience-offline').innerText();
+  if (!/OFFLINE MODE/i.test(offlineText) || !/stay on this device|waiting to sync/i.test(offlineText)) {
+    throw new Error(`Offline status copy is unclear: ${offlineText}`);
+  }
+  await offlinePage.context().setOffline(false);
+  await offlinePage.close();
+
+  console.log('✅ app resilience status covers stale builds and offline mode');
 }
 
 async function checkWorkoutExitKeepsResume(browser) {
@@ -544,6 +586,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkForceDiscardRoute(browser);
     await checkStandaloneResetWorkoutRoute(browser);
     await checkMiniBarLayout(browser);
+    await checkAppResilienceStatus(browser);
     await checkWorkoutRouteChrome(browser);
     await checkStartPageLaunchpad(browser);
     await checkProgramsNoFalseReadinessTuneUp(browser);

@@ -13,6 +13,8 @@ import SyncQueueListener from './components/SyncQueueListener';
 import RouteTransition from './components/RouteTransition';
 import AppLayout from './components/layout/AppLayout';
 import { PUBLIC_APP_URL } from './lib/public-url';
+import { APP_VERSION } from './lib/app-version';
+import AppResilienceStatus from './components/AppResilienceStatus';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -95,6 +97,7 @@ export default function RootLayout({
             <ProgramProvider>
               <WorkoutDataProvider>
                 <SyncQueueListener />
+                <AppResilienceStatus currentVersion={APP_VERSION} />
                 <ActiveSessionProvider>
                   <DialogProvider>
                     <OnboardingWrapper>
