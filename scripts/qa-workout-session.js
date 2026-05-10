@@ -10,7 +10,11 @@ async function expectVisible(locator, label) {
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
 
   await page.addInitScript(() => {
     localStorage.setItem('iron_brain_onboarding_complete', 'true');
@@ -30,6 +34,33 @@ async function expectVisible(locator, label) {
   console.log('▶️  Opening workout logger...');
   await page.goto(BASE_URL, { waitUntil: 'networkidle' });
   await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Overview loaded');
+
+  console.log('▶️  Checking custom add/cancel/remove flow...');
+  await page.getByRole('button', { name: /Add Exercise/i }).click();
+  await expectVisible(page.getByText(/ADD MOVEMENT/i), 'Add movement modal opened for custom flow');
+  await page.getByPlaceholder(/Search/i).fill('QA Logger Row');
+  await page.getByRole('button', { name: /Create "QA Logger Row"/i }).click();
+  await expectVisible(page.getByRole('button', { name: /ADD \d+ SETS/i }), 'Custom set count step opened');
+  await page.getByRole('button', { name: /Back/i }).click();
+  await expectVisible(page.getByText(/ADD MOVEMENT/i), 'Set count back returns to search');
+  await page.getByPlaceholder(/Search/i).fill('QA Logger Row');
+  await page.getByRole('button', { name: /Create "QA Logger Row"/i }).click();
+  await page.getByRole('button', { name: '1', exact: true }).click();
+  await page.getByRole('button', { name: /ADD \d+ SET/i }).click();
+  await expectVisible(page.getByText(/QA Logger Row/i).first(), 'Custom movement added to overview');
+  await page.getByRole('button', { name: /Delete QA Logger Row/i }).tap({ timeout: 10000 });
+  await page.getByText(/QA Logger Row/i).waitFor({ state: 'hidden', timeout: 10000 });
+  const customStillStored = await page.evaluate(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    if (!activeKey) return true;
+    const raw = localStorage.getItem(activeKey);
+    if (!raw) return true;
+    return raw.includes('QA Logger Row');
+  });
+  if (customStillStored) {
+    throw new Error('Deleted logger exercise remained in active-session storage');
+  }
+  console.log('✅ Custom logger exercise can be added, backed out, and removed cleanly');
 
   console.log('▶️  Adding exercise...');
   await page.getByRole('button', { name: /Add Exercise/i }).click();
@@ -139,6 +170,16 @@ async function expectVisible(locator, label) {
   await expectVisible(page.getByRole('heading', { name: /Workout History/i }).first(), 'History page loaded');
   await page.getByRole('button', { name: /View details/i }).first().click();
   await expectVisible(page.getByTestId('history-session-details').first(), 'History details expand on first tap');
+  await page.getByRole('button', { name: /Delete workout/i }).first().tap({ timeout: 10000 });
+  await expectVisible(page.getByText(/MOVE WORKOUT TO TRASH/i), 'History delete confirmation opened');
+  await page.getByRole('button', { name: /Cancel/i }).click();
+  await page.getByText(/MOVE WORKOUT TO TRASH/i).waitFor({ state: 'hidden', timeout: 10000 });
+  await page.getByRole('button', { name: /Delete workout/i }).first().tap({ timeout: 10000 });
+  await expectVisible(page.getByText(/MOVE WORKOUT TO TRASH/i), 'History delete confirmation reopened');
+  await page.getByRole('button', { name: /MOVE TO TRASH/i }).click();
+  await page.getByText(/MOVE WORKOUT TO TRASH/i).waitFor({ state: 'hidden', timeout: 15000 });
+  await page.waitForFunction(() => !document.body.innerText.includes('Bench Press'), null, { timeout: 15000 });
+  console.log('✅ History workout delete-to-trash opens, cancels, confirms, and removes the session');
 
   console.log('✅ QA sweep completed');
   await browser.close();
