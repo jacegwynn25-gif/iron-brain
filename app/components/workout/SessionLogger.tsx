@@ -62,7 +62,6 @@ import {
   type WarmupSetTarget,
 } from '@/app/lib/workout-tools';
 import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
-import { useDialog } from '@/app/providers/DialogProvider';
 import {
   buildTrainingRecommendations,
   recommendationHasApplyPatch,
@@ -973,7 +972,6 @@ function getSnapshotDefaultWeightUnit(snapshot: ActiveSessionSnapshot | null, fa
 export default function SessionLogger({ initialData, initialProgress, ignoreActiveSnapshot = false }: SessionLoggerProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { confirm } = useDialog();
   const { weightUnit: preferredWeightUnit } = useUnitPreference();
   const { readiness, loading: readinessLoading } = useRecoveryState();
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
@@ -1263,6 +1261,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isFinishingWorkout, setIsFinishingWorkout] = useState(false);
   const [isDiscardingWorkout, setIsDiscardingWorkout] = useState(false);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   const [finishStatusMessage, setFinishStatusMessage] = useState<string | null>(null);
   const [shareStatusMessage, setShareStatusMessage] = useState<string | null>(null);
   const [isAddMovementOpen, setIsAddMovementOpen] = useState(false);
@@ -1302,7 +1301,14 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const saveInFlightRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen || infoPanel !== null || activeTool !== null;
+  const isAnyModalOpen =
+    isHistoryOpen ||
+    isNotesOpen ||
+    isAddMovementOpen ||
+    isSummaryOpen ||
+    isDiscardConfirmOpen ||
+    infoPanel !== null ||
+    activeTool !== null;
   useBodyScrollLock(isAnyModalOpen);
 
   const calculateSessionStats = useCallback((blocks: Block[]) => {
@@ -2677,27 +2683,30 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setShareStatusMessage(null);
   };
 
-  const handleCancelWorkout = async () => {
+  const requestCancelWorkout = () => {
     if (isFinishingWorkout || isDiscardingWorkout) return;
+    setActiveInput(null);
+    setInfoPanel(null);
+    setActiveTool(null);
+    setIsHistoryOpen(false);
+    setIsNotesOpen(false);
+    setIsAddMovementOpen(false);
+    setIsDiscardConfirmOpen(true);
+  };
 
-    const confirmed = await confirm(
-      'Discard Session?',
-      'This will delete the workout currently in progress on this device. Completed workout history will stay untouched.',
-      {
-        variant: 'danger',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep Training',
-      }
-    );
-    if (!confirmed) return;
+  const handleConfirmDiscardWorkout = () => {
+    if (isFinishingWorkout || isDiscardingWorkout) return;
 
     setIsDiscardingWorkout(true);
     isExitingWorkoutRef.current = true;
     setActiveInput(null);
     setInfoPanel(null);
+    setActiveTool(null);
+    setIsDiscardConfirmOpen(false);
     setIsSummaryOpen(false);
     setIsHistoryOpen(false);
     setIsNotesOpen(false);
+    setIsAddMovementOpen(false);
     clearSession();
     clearActiveWorkoutStorageKeys();
     router.replace('/');
@@ -2954,7 +2963,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 <div className="mb-8 flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={handleCancelWorkout}
+                    onClick={requestCancelWorkout}
                     disabled={isFinishingWorkout || isDiscardingWorkout}
                     className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/25 bg-zinc-950/80 px-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 active:bg-rose-500/15 disabled:cursor-wait disabled:opacity-50"
                   >
@@ -3962,6 +3971,76 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       </AnimatePresence>
 
       <AnimatePresence>
+        {isDiscardConfirmOpen && (
+          <motion.div
+            key="discard-confirm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[260] flex items-end justify-center bg-black/85 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:items-center sm:p-4"
+            data-testid="workout-discard-confirm"
+            data-swipe-scope="local"
+          >
+            <button
+              type="button"
+              aria-label="Close discard confirmation"
+              className="absolute inset-0 cursor-default"
+              onClick={() => setIsDiscardConfirmOpen(false)}
+            />
+            <motion.div
+              initial={{ y: 24, scale: 0.98 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 24, scale: 0.98 }}
+              transition={{ duration: 0.16 }}
+              className="relative w-full max-w-sm overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950 shadow-[0_30px_90px_rgba(0,0,0,0.7)]"
+            >
+              <div className="flex items-start justify-between gap-4 p-5">
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-[0.26em] text-rose-300">
+                    Workout In Progress
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black italic leading-none tracking-tight text-white">
+                    DISCARD SESSION?
+                  </h2>
+                  <p className="mt-2 text-sm leading-snug text-zinc-400">
+                    This clears the workout currently open on this device. Saved workout history stays untouched.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDiscardConfirmOpen(false)}
+                  disabled={isDiscardingWorkout}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:text-zinc-200 disabled:opacity-40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid gap-2 border-t border-zinc-900 bg-zinc-900/35 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+                <button
+                  type="button"
+                  onClick={handleConfirmDiscardWorkout}
+                  disabled={isDiscardingWorkout}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-rose-400 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 active:bg-rose-500 disabled:cursor-wait disabled:opacity-70"
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={3} />
+                  {isDiscardingWorkout ? 'Discarding...' : 'Discard'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDiscardConfirmOpen(false)}
+                  disabled={isDiscardingWorkout}
+                  className="min-h-12 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-400 active:bg-zinc-900 disabled:opacity-40"
+                >
+                  Keep Training
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {isSummaryOpen && (
           <motion.div
             key="summary"
@@ -4227,7 +4306,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             <div className="mt-6 border-t border-zinc-900/50 pt-6 px-4 pb-2">
               <button
                 type="button"
-                onClick={handleCancelWorkout}
+                onClick={requestCancelWorkout}
                 disabled={isFinishingWorkout || isDiscardingWorkout}
                 className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
               >
