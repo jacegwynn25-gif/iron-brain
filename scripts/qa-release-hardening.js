@@ -372,6 +372,41 @@ async function checkStartPageLaunchpad(browser) {
   console.log('✅ start page launchpad is compact, aligned, and free of old filler labels');
 }
 
+async function checkProgramsNoFalseReadinessTuneUp(browser) {
+  const page = await newPage(
+    browser,
+    "localStorage.setItem('iron_brain_selected_program__guest', 'starting_strength_v1');"
+  );
+
+  await page.goto(`${BASE_URL}/programs`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: 'PROGRAMS' }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText(/Starting Strength/i).first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.waitForTimeout(500);
+
+  const report = await page.evaluate(() => {
+    const text = document.body.innerText;
+    return {
+      viewportWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      hasFalseReadinessZero: /readiness is 0/i.test(text),
+      hasTuneUpWithoutEvidence: /PROGRAM TUNE-UP/i.test(text),
+    };
+  });
+
+  if (report.scrollWidth > report.viewportWidth + 1) {
+    throw new Error(`Programs page has horizontal overflow: ${report.scrollWidth}px > ${report.viewportWidth}px`);
+  }
+  if (report.hasFalseReadinessZero) {
+    throw new Error('Programs page shows a fake readiness=0 tune-up when readiness is missing');
+  }
+  if (report.hasTuneUpWithoutEvidence) {
+    throw new Error('Programs page shows Program Tune-Up without workout/readiness evidence');
+  }
+
+  await page.close();
+  console.log('✅ programs page does not show false tune-up guidance without readiness/history');
+}
+
 async function checkSmartTrainingTargets(browser) {
   const snapshot = activeSessionSnapshot();
   const exercise = snapshot.blocks[0].exercises[0];
@@ -504,6 +539,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkMiniBarLayout(browser);
     await checkWorkoutRouteChrome(browser);
     await checkStartPageLaunchpad(browser);
+    await checkProgramsNoFalseReadinessTuneUp(browser);
     await checkSmartTrainingTargets(browser);
     await checkSettingsPolish(browser);
     await checkBottomNavTapTargets(browser);

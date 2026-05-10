@@ -2742,11 +2742,12 @@ export default function ProgramsPage() {
 
               <section className="border-b border-zinc-900 py-4">
                 <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
-                <input
+                <textarea
                   value={draft.name}
                   onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Program name"
-                  className="mt-2 w-full bg-transparent text-2xl font-black italic tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none sm:text-3xl"
+                  rows={2}
+                  className="mt-2 w-full resize-none bg-transparent text-2xl font-black italic leading-tight tracking-tight text-zinc-100 placeholder:text-zinc-700 focus:outline-none sm:text-3xl"
                 />
 
                 <textarea

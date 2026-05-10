@@ -525,4 +525,41 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.equal(tuned.weeks[0]?.days[0]?.sets[1]?.fixedWeight, 190);
 }
 
+{
+  const program: ProgramTemplate = {
+    id: 'qa_null_readiness_program',
+    name: 'QA Null Readiness Program',
+    weeks: [{
+      weekNumber: 1,
+      days: [{
+        dayOfWeek: 'Mon',
+        name: 'Baseline',
+        sets: [{
+          exerciseId: 'back_squat',
+          setIndex: 0,
+          prescribedReps: '5',
+          targetRPE: 8,
+        }],
+      }],
+    }],
+  };
+
+  const recommendation = buildProgramTuneUpRecommendation({
+    program,
+    historySets: [],
+    readiness: {
+      score: null,
+      modifier: null,
+      focusAdjustments: {
+        overallModifier: null,
+        upperBodyModifier: null,
+        lowerBodyModifier: null,
+      },
+    },
+  });
+
+  assert.equal(recommendation?.action, 'hold_program');
+  assert.doesNotMatch(recommendation?.reason ?? '', /readiness is 0/i);
+}
+
 console.log('✅ Smart training recommendation QA passed');
