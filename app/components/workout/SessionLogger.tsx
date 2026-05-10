@@ -1074,6 +1074,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
   // ── Elapsed timer ──
   const [elapsedDisplay, setElapsedDisplay] = useState('0:00');
+  const elapsedDisplayRef = useRef('0:00');
   useEffect(() => {
     const tick = () => {
       const elapsed = Math.max(0, Math.floor((Date.now() - session.startTime.getTime()) / 1000));
@@ -1081,7 +1082,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       const minutes = Math.floor((elapsed % 3600) / 60);
       const seconds = elapsed % 60;
       const pad = (n: number) => String(n).padStart(2, '0');
-      setElapsedDisplay(hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`);
+      const nextDisplay = hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+      if (elapsedDisplayRef.current !== nextDisplay) {
+        elapsedDisplayRef.current = nextDisplay;
+        setElapsedDisplay(nextDisplay);
+      }
     };
     tick();
     const interval = setInterval(tick, 1000);
