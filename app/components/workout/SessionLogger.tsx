@@ -1219,7 +1219,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
-  const [revealedExerciseId, setRevealedExerciseId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
@@ -2084,7 +2083,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   };
 
   const handleOpenFocus = (entry: ExerciseRef, targetSetId?: string) => {
-    setRevealedExerciseId(null);
     const targetSet =
       (targetSetId
         ? entry.exercise.sets.find((set) => set.id === targetSetId)
@@ -2779,7 +2777,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   };
 
   const handleRemoveExercise = (blockId: string, exerciseId: string) => {
-    setRevealedExerciseId((current) => (current === exerciseId ? null : current));
     removeExercise(blockId, exerciseId);
   };
 
@@ -2972,37 +2969,23 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   const displayName = getExerciseDisplayName(entry.exercise);
                   const bodyweightExercise = isBodyweight(displayName);
 
-                  const isRevealed = revealedExerciseId === entry.exercise.id;
-
                   return (
                     <div
                       key={entry.exercise.id}
-                      className="relative overflow-hidden rounded-2xl bg-rose-500/10 shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
+                      className="overflow-x-auto rounded-2xl shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
                       data-testid="logger-exercise-row"
+                      style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }}
                     >
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleRemoveExercise(entry.blockId, entry.exercise.id);
-                        }}
-                        className="absolute inset-y-0 right-0 flex w-[4.75rem] items-center justify-center border-l border-rose-400/20 bg-rose-500/18 text-rose-200"
-                        aria-label={`Slide delete ${displayName}`}
+                      <div
+                        className="flex"
+                        style={{ width: 'calc(100% + 4rem)' }}
                       >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                      <motion.div
-                        drag="x"
-                        dragDirectionLock
-                        dragConstraints={{ left: -76, right: 0 }}
-                        dragElastic={0.04}
-                        animate={{ x: isRevealed ? -68 : 0 }}
-                        transition={{ type: 'spring', stiffness: 520, damping: 42 }}
-                        onDragEnd={(_, info) => {
-                          const shouldReveal = info.offset.x < -42 || info.velocity.x < -420;
-                          setRevealedExerciseId(shouldReveal ? entry.exercise.id : null);
-                        }}
-                        className="rounded-2xl border border-zinc-900 bg-zinc-950 p-3"
+                      <div
+                        className="shrink-0 rounded-2xl border border-zinc-900 bg-zinc-950 p-3"
+                        style={{ width: 'calc(100% - 4rem)' }}
                       >
                       <div className="flex items-start gap-3">
                         <button
@@ -3037,19 +3020,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                           <p className="break-words text-3xl font-black italic leading-tight text-white">
                             {displayName}
                           </p>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setRevealedExerciseId(null);
-                            handleRemoveExercise(entry.blockId, entry.exercise.id);
-                          }}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-900 bg-zinc-950 text-zinc-600 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-300 active:bg-rose-500/15"
-                          aria-label={`Delete ${displayName}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
 
@@ -3106,7 +3076,19 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                 );
                         })}
                       </div>
-                      </motion.div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRemoveExercise(entry.blockId, entry.exercise.id);
+                        }}
+                        className="ml-2 flex w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-900 bg-zinc-950 text-rose-300 active:bg-rose-500/10"
+                        aria-label={`Delete ${displayName}`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                      </div>
                     </div>
                   );
                 })}

@@ -13,10 +13,9 @@ async function swipeRowLeft(page, row, label) {
   if (!box) {
     throw new Error(`Could not find row bounds for ${label}`);
   }
-  await page.mouse.move(box.x + box.width - 24, box.y + Math.min(52, Math.max(28, box.height / 2)));
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width - 118, box.y + Math.min(52, Math.max(28, box.height / 2)), { steps: 8 });
-  await page.mouse.up();
+  await row.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
 }
 
 (async () => {
@@ -62,10 +61,16 @@ async function swipeRowLeft(page, row, label) {
   await page.getByRole('button', { name: /Create "QA Logger Row"/i }).click();
   await page.getByRole('button', { name: '1', exact: true }).click();
   await page.getByRole('button', { name: /ADD \d+ SET/i }).click();
+  await page.getByText(/How many sets\?/i).waitFor({ state: 'hidden', timeout: 10000 });
   await expectVisible(page.getByText(/QA Logger Row/i).first(), 'Custom movement added to overview');
   const customRow = page.locator('[data-testid="logger-exercise-row"]').filter({ hasText: /QA Logger Row/i }).first();
+  const customRowBox = await customRow.boundingBox();
+  const hiddenDeleteBox = await page.getByRole('button', { name: /Delete QA Logger Row/i }).boundingBox();
+  if (!customRowBox || !hiddenDeleteBox || hiddenDeleteBox.x < customRowBox.x + customRowBox.width) {
+    throw new Error('Logger exercise delete action is visible before swipe');
+  }
   await swipeRowLeft(page, customRow, 'QA Logger Row');
-  await page.getByRole('button', { name: /Slide delete QA Logger Row/i }).tap({ timeout: 10000 });
+  await page.getByRole('button', { name: /Delete QA Logger Row/i }).tap({ timeout: 10000 });
   await page.getByText(/QA Logger Row/i).waitFor({ state: 'hidden', timeout: 10000 });
   const customStillStored = await page.evaluate(() => {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
@@ -86,6 +91,7 @@ async function swipeRowLeft(page, row, label) {
   await expectVisible(page.getByRole('button', { name: /ADD \d+ SETS/i }), 'Set count modal opened');
   await page.getByRole('button', { name: '2', exact: true }).click();
   await page.getByRole('button', { name: /ADD \d+ SETS/i }).click();
+  await page.getByText(/How many sets\?/i).waitFor({ state: 'hidden', timeout: 10000 });
   await expectVisible(page.getByText(/Bench Press/i).first(), 'Exercise appears in overview');
   await page.waitForFunction(() => {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
