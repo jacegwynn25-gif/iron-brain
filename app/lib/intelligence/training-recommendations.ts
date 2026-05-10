@@ -15,6 +15,17 @@ export type RecommendationAction =
 
 export type RecommendationSeverity = 'info' | 'watch' | 'adjust' | 'deload';
 export type RecommendationConfidence = 'high' | 'medium' | 'low';
+export type RecommendationDataSufficiency = 'baseline' | 'limited' | 'enough' | 'high';
+export type RecommendationEvidenceSource =
+  | 'direct_history'
+  | 'similar_movement'
+  | 'max_e1rm'
+  | 'program_prescription'
+  | 'current_session'
+  | 'readiness'
+  | 'load_pressure'
+  | 'program_trend'
+  | 'baseline';
 
 export interface TrainingRecommendationTarget {
   weight?: number | null;
@@ -49,6 +60,11 @@ export interface TrainingRecommendation {
   setId?: string;
   target?: TrainingRecommendationTarget;
   apply?: TrainingRecommendationApplyPatch;
+  evidenceSource?: RecommendationEvidenceSource;
+  evidenceCount?: number;
+  confidenceReason?: string;
+  dataSufficiency?: RecommendationDataSufficiency;
+  blockedReason?: string;
   source:
     | 'prescription'
     | 'exercise_history'
@@ -348,6 +364,45 @@ function lowerConfidence(
   return rank[next] < rank[current] ? next : current;
 }
 
+function dataSufficiencyFromCount(count: number): RecommendationDataSufficiency {
+  if (count >= 8) return 'high';
+  if (count >= 3) return 'enough';
+  if (count >= 1) return 'limited';
+  return 'baseline';
+}
+
+function describeEvidenceSource(source: RecommendationEvidenceSource): string {
+  if (source === 'direct_history') return 'direct exercise history';
+  if (source === 'similar_movement') return 'similar movement history';
+  if (source === 'max_e1rm') return 'max/e1RM data';
+  if (source === 'program_prescription') return 'program prescription';
+  if (source === 'current_session') return 'current session sets';
+  if (source === 'readiness') return 'readiness input';
+  if (source === 'load_pressure') return 'recent load pressure';
+  if (source === 'program_trend') return 'program trend';
+  return 'baseline';
+}
+
+function buildConfidenceReason(
+  confidence: RecommendationConfidence,
+  evidenceSource: RecommendationEvidenceSource,
+  evidenceCount: number,
+  dataSufficiency: RecommendationDataSufficiency
+): string {
+  if (dataSufficiency === 'baseline') {
+    return 'Low confidence: no usable history yet, so this is a conservative baseline.';
+  }
+
+  const source = describeEvidenceSource(evidenceSource);
+  if (confidence === 'high') {
+    return `High confidence: ${evidenceCount} usable ${source} signals support this target.`;
+  }
+  if (confidence === 'medium') {
+    return `Medium confidence: ${source} supports the target, but the sample is still building.`;
+  }
+  return `Low confidence: using ${source} as a starting point until direct history improves.`;
+}
+
 function modifierCapForConfidence(
   modifier: number,
   confidence: RecommendationConfidence,
@@ -355,7 +410,7 @@ function modifierCapForConfidence(
 ): number {
   if (confidence === 'high') return clamp(modifier, 0.85, 1.08);
   if (confidence === 'medium') return clamp(modifier, 0.88, 1.055);
-  return clamp(modifier, hasExplicitPrescription ? 0.88 : 0.92, 1.025);
+  return clamp(modifier, hasExplicitPrescription ? 0.88 : 0.92, 1);
 }
 
 function isLowerBodyProfile(input: TrainingRecommendationInput): boolean {
@@ -684,6 +739,71 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
     }
   }
   return null;
+}
+
+function completedSessionSetCount(input: TrainingRecommendationInput, exerciseId?: string | null): number {
+  if (!exerciseId) return 0;
+  return (input.sessionSets ?? []).filter((set) => set.exerciseId === exerciseId && set.completed && !set.skipped).length;
+}
+
+function loadPressureEvidenceCount(input: TrainingRecommendationInput, set?: TrainingSetInput | null): number {
+  const nowMs = Date.now();
+  const targetFamily = set ? movementFamilyForSet(set) : null;
+  return (input.historySets ?? []).filter((entry) => {
+    const performedAt = timestampMs(entry.performedAt);
+    if (entry.completed === false || performedAt === 0 || historyLoadScore(entry) == null) return false;
+    if (daysBetween(nowMs, performedAt) > 35) return false;
+    return targetFamily ? movementFamilyForHistory(entry) === targetFamily : true;
+  }).length;
+}
+
+function maxEvidenceCount(input: TrainingRecommendationInput, exerciseId?: string | null): number {
+  if (!exerciseId) return 0;
+  const maxCount = (input.userMaxes ?? []).filter((entry) => entry.exerciseId === exerciseId && positiveNumber(entry.weight) != null).length;
+  const prCount = (input.personalRecords ?? []).filter((entry) =>
+    entry.exerciseId === exerciseId && (positiveNumber(entry.e1rm) != null || positiveNumber(entry.weight) != null)
+  ).length;
+  return maxCount + prCount;
+}
+
+function resolveSetEvidence(
+  input: TrainingRecommendationInput,
+  set: TrainingSetInput,
+  base: BaseLoad,
+  source: TrainingRecommendation['source'],
+  hasExplicitPrescription: boolean,
+): { evidenceSource: RecommendationEvidenceSource; evidenceCount: number; dataSufficiency: RecommendationDataSufficiency } {
+  let evidenceSource: RecommendationEvidenceSource = 'baseline';
+  let evidenceCount = 0;
+
+  if (source === 'session_fatigue') {
+    evidenceSource = 'current_session';
+    evidenceCount = completedSessionSetCount(input, set.exerciseId);
+  } else if (source === 'load_pressure') {
+    evidenceSource = 'load_pressure';
+    evidenceCount = loadPressureEvidenceCount(input, set);
+  } else if (source === 'readiness') {
+    evidenceSource = 'readiness';
+    evidenceCount = finiteNumber(input.readiness?.score) != null ? 1 : 0;
+  } else if (hasExplicitPrescription || base.basis === 'prescription') {
+    evidenceSource = 'program_prescription';
+    evidenceCount = Math.max(1, getDirectHistory(input, set.exerciseId).length);
+  } else if (base.basis === 'direct_history') {
+    evidenceSource = base.source === 'e1rm' ? 'max_e1rm' : 'direct_history';
+    evidenceCount = getDirectHistory(input, set.exerciseId).length;
+  } else if (base.basis === 'similar_history') {
+    evidenceSource = 'similar_movement';
+    evidenceCount = getSimilarHistory(input, set).length;
+  } else if (base.basis === 'e1rm') {
+    evidenceSource = 'max_e1rm';
+    evidenceCount = maxEvidenceCount(input, set.exerciseId);
+  }
+
+  return {
+    evidenceSource,
+    evidenceCount,
+    dataSufficiency: dataSufficiencyFromCount(evidenceCount),
+  };
 }
 
 function latestHistoryLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad {
@@ -1019,11 +1139,16 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
     };
   const signalConfidence = fatigue.confidence ?? base.confidence;
   const confidence = lowerConfidence(signalConfidence, pressure.source ? pressure.confidence : null);
-  const combinedModifier = modifierCapForConfidence(
+  const readinessScore = finiteNumber(input.readiness?.score);
+  const lowReadinessBlocksIncrease = readinessScore != null && readinessScore < 70;
+  let combinedModifier = modifierCapForConfidence(
     readiness * fatigue.modifier * pressure.modifier,
     confidence,
     hasExplicitPrescription
   );
+  if (lowReadinessBlocksIncrease && combinedModifier > 1) {
+    combinedModifier = 1;
+  }
   const baseWeight = base.weight;
   const suggestedWeight = baseWeight != null && canAdjustLoad
     ? roundRecommendationWeight(baseWeight * combinedModifier, unit)
@@ -1079,7 +1204,23 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   if (delta <= -0.08 || (finiteNumber(input.readiness?.score) ?? 100) <= 45 || (pressure.ratio ?? 0) >= 1.75) severity = 'deload';
 
   const source = fatigue.source ?? pressure.source ?? (readiness !== 1 ? 'readiness' : base.source);
-  const readinessScore = finiteNumber(input.readiness?.score);
+  const evidence = resolveSetEvidence(input, set, base, source, hasExplicitPrescription);
+  const confidenceReason = buildConfidenceReason(
+    confidence,
+    evidence.evidenceSource,
+    evidence.evidenceCount,
+    evidence.dataSufficiency
+  );
+  const blockedReason =
+    set.touchedWeight === true && canAdjustLoad && suggestedWeight != null && currentWeight != null && suggestedWeight !== currentWeight
+      ? 'Load was edited manually, so Iron Brain will not overwrite it.'
+      : set.touchedReps === true && shouldPreferRepAdjustment
+        ? 'Reps were edited manually, so Iron Brain will not overwrite them.'
+        : base.basis === 'similar_history' && suggestedWeight != null
+          ? 'Similar-movement load is read-only until direct history exists.'
+          : lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressure.modifier > 1
+            ? 'Low readiness blocks load increases today.'
+            : undefined;
   const reasons: string[] = [];
 
   if (!canAdjustSet) {
@@ -1103,6 +1244,10 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
 
     if (readinessScore != null && readiness !== 1) {
       reasons.push(`Readiness is ${Math.round(readinessScore)}, so load is nudged ${readiness < 1 ? 'down' : 'up'}.`);
+    }
+
+    if (lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressure.modifier > 1) {
+      reasons.push('Readiness is below 70, so load increases are blocked today.');
     }
 
     if (shouldApplyReps && suggestedReps != null && targetReps != null) {
@@ -1163,6 +1308,11 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
       prescribedPercentage: positiveNumber(set.prescribedPercentage),
     },
     apply,
+    evidenceSource: evidence.evidenceSource,
+    evidenceCount: evidence.evidenceCount,
+    dataSufficiency: evidence.dataSufficiency,
+    confidenceReason,
+    blockedReason,
     source,
   };
 }
@@ -1190,6 +1340,14 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
     (readinessScore != null && readinessScore <= 50) ||
     (pressure.source === 'load_pressure' && pressure.confidence !== 'low')
   ) {
+    const source: TrainingRecommendation['source'] =
+      pressure.source ?? (avgRpe != null || avgTargetGap != null ? 'session_fatigue' : 'readiness');
+    const evidenceSource: RecommendationEvidenceSource =
+      source === 'load_pressure' ? 'load_pressure' : source === 'readiness' ? 'readiness' : 'current_session';
+    const evidenceCount = source === 'load_pressure' ? loadPressureEvidenceCount(input) : completed.length;
+    const dataSufficiency = dataSufficiencyFromCount(evidenceCount);
+    const confidence: RecommendationConfidence =
+      pressure.confidence ?? (targetGaps.length >= 3 || avgRpe != null ? 'high' : 'medium');
     const reason = avgTargetGap != null && avgTargetGap >= 0.75
       ? `Session effort averaged ${avgTargetGap.toFixed(1)} RPE above target. Keep the next work conservative.`
       : pressure.source === 'load_pressure' && pressure.reason
@@ -1202,10 +1360,14 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
       scope: 'session',
       action: readinessScore != null && readinessScore <= 45 ? 'deload' : 'trim_volume',
       severity: readinessScore != null && readinessScore <= 45 ? 'deload' : 'adjust',
-      confidence: pressure.confidence ?? (targetGaps.length >= 3 || avgRpe != null ? 'high' : 'medium'),
+      confidence,
       title: readinessScore != null && readinessScore <= 45 ? 'Consider Deload' : 'Trim If Needed',
       reason,
-      source: pressure.source ?? (avgRpe != null || avgTargetGap != null ? 'session_fatigue' : 'readiness'),
+      source,
+      evidenceSource,
+      evidenceCount,
+      dataSufficiency,
+      confidenceReason: buildConfidenceReason(confidence, evidenceSource, evidenceCount, dataSufficiency),
       apply: { setCountDelta: -1 },
     };
   }
@@ -1218,17 +1380,24 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
     readinessModifier(input) >= 0.98 &&
     (pressure.ratio == null || pressure.ratio <= 1.25)
   ) {
+    const evidenceCount = completed.length;
+    const dataSufficiency = dataSufficiencyFromCount(evidenceCount);
+    const confidence: RecommendationConfidence = targetGaps.length >= 3 ? 'high' : 'medium';
     return {
       id: stableId(['session', 'progress', completed.length, Math.round(avgRpe * 10)]),
       scope: 'session',
       action: 'add_volume',
       severity: 'info',
-      confidence: targetGaps.length >= 3 ? 'high' : 'medium',
+      confidence,
       title: 'Progress Next Time',
       reason: avgTargetGap != null
         ? `Session landed ${Math.abs(avgTargetGap).toFixed(1)} RPE under target. A small next-session progression is reasonable.`
         : `Session effort averaged ${avgRpe.toFixed(1)} RPE. A small next-session progression is reasonable.`,
       source: 'session_fatigue',
+      evidenceSource: 'current_session',
+      evidenceCount,
+      dataSufficiency,
+      confidenceReason: buildConfidenceReason(confidence, 'current_session', evidenceCount, dataSufficiency),
       apply: { setCountDelta: 1 },
     };
   }
@@ -1286,16 +1455,31 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
       lowReadiness ? `readiness is ${Math.round(readinessScore ?? 0)}` : null,
     ].filter(Boolean);
     const shouldDeload = (readinessScore != null && readinessScore <= 45) || (spiking && (pressure.ratio ?? 0) >= 1.75);
+    const source: TrainingRecommendation['source'] = spiking ? 'load_pressure' : highEffort || missedEnough ? 'program_load' : 'readiness';
+    const evidenceSource: RecommendationEvidenceSource =
+      source === 'load_pressure' ? 'load_pressure' : source === 'readiness' ? 'readiness' : 'program_trend';
+    const evidenceCount = source === 'readiness'
+      ? 1
+      : source === 'load_pressure'
+        ? loadPressureEvidenceCount(input)
+        : Math.max(rpes.length, targetedSets.length);
+    const dataSufficiency = dataSufficiencyFromCount(evidenceCount);
+    const confidence: RecommendationConfidence =
+      pressure.confidence ?? (rpes.length >= 8 || targetedSets.length >= 8 || readinessScore != null ? 'medium' : 'low');
 
     return {
       id: stableId(['program', programId, 'deload', Math.round(readinessScore ?? 0), Math.round((avgRpe ?? 0) * 10)]),
       scope: 'program',
       action: shouldDeload ? 'deload' : 'trim_volume',
       severity: shouldDeload ? 'deload' : 'adjust',
-      confidence: pressure.confidence ?? (rpes.length >= 8 || targetedSets.length >= 8 || readinessScore != null ? 'medium' : 'low'),
+      confidence,
       title: shouldDeload ? 'Stage Deload Review' : 'Stage Easier Targets',
       reason: `${reasonParts.join('; ')}. Review a lighter next-week setup before saving.`,
-      source: spiking ? 'load_pressure' : highEffort || missedEnough ? 'program_load' : 'readiness',
+      source,
+      evidenceSource,
+      evidenceCount,
+      dataSufficiency,
+      confidenceReason: buildConfidenceReason(confidence, evidenceSource, evidenceCount, dataSufficiency),
       apply: { setCountDelta: -1 },
     };
   }
@@ -1309,6 +1493,8 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
     readinessModifier(input) >= 0.98 &&
     (pressure.ratio == null || pressure.ratio <= 1.25)
   ) {
+    const evidenceCount = Math.max(rpes.length, targetedSets.length);
+    const dataSufficiency = dataSufficiencyFromCount(evidenceCount);
     return {
       id: stableId(['program', programId, 'increase', Math.round(avgRpe * 10)]),
       scope: 'program',
@@ -1318,21 +1504,37 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
       title: 'Stage Small Progression',
       reason: `Recent work is averaging ${avgRpe.toFixed(1)} RPE with reps hit cleanly. Review a small next-week load bump.`,
       source: 'program_load',
+      evidenceSource: 'program_trend',
+      evidenceCount,
+      dataSufficiency,
+      confidenceReason: buildConfidenceReason('medium', 'program_trend', evidenceCount, dataSufficiency),
       apply: {},
     };
   }
 
+  const holdEvidenceCount = recentHistory.length;
+  const holdDataSufficiency = dataSufficiencyFromCount(holdEvidenceCount);
+  const holdConfidence: RecommendationConfidence = recentHistory.length >= 4 ? 'medium' : 'low';
   return {
     id: stableId(['program', programId, 'hold']),
     scope: 'program',
     action: 'hold_program',
     severity: 'info',
-    confidence: recentHistory.length >= 4 ? 'medium' : 'low',
+    confidence: holdConfidence,
     title: 'Hold Program',
     reason: recentHistory.length >= 4
       ? 'Recent work does not justify changing the plan yet.'
       : 'Not enough recent logged work to tune the plan safely.',
     source: 'baseline',
+    evidenceSource: recentHistory.length >= 4 ? 'program_trend' : 'baseline',
+    evidenceCount: holdEvidenceCount,
+    dataSufficiency: holdDataSufficiency,
+    confidenceReason: buildConfidenceReason(
+      holdConfidence,
+      recentHistory.length >= 4 ? 'program_trend' : 'baseline',
+      holdEvidenceCount,
+      holdDataSufficiency
+    ),
   };
 }
 

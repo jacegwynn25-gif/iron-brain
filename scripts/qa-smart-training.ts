@@ -6,6 +6,7 @@ import {
   type TrainingRecommendation,
   type TrainingRecommendationInput,
 } from '../app/lib/intelligence/training-recommendations';
+import { calculateMuscleFatigue } from '../app/lib/fatigueModel';
 import type { ProgramTemplate } from '../app/lib/types';
 
 function nextSetRecommendation(input: TrainingRecommendationInput): TrainingRecommendation {
@@ -46,6 +47,30 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 }
 
 {
+  const fatigue = calculateMuscleFatigue([
+    {
+      exerciseId: 'back_squat',
+      exerciseName: 'Back Squat',
+      setIndex: 1,
+      prescribedReps: '5',
+      prescribedRPE: 8,
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 9.5,
+      completed: true,
+      reachedFailure: true,
+    },
+  ], ['quads']);
+  const contributor = fatigue[0]?.contributingSets[0];
+
+  assert.ok(contributor);
+  assert.equal(contributor.volumeLoad, 1125);
+  assert.equal(contributor.reachedFailure, true);
+  assert.equal(contributor.actualRPE, 9.5);
+}
+
+{
   const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: null, reps: 8, prescribedRPE: 8 },
     historySets: [],
@@ -54,8 +79,11 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   });
 
   assert.equal(recommendation.confidence, 'low');
+  assert.equal(recommendation.dataSufficiency, 'baseline');
+  assert.equal(recommendation.evidenceSource, 'baseline');
   assert.equal(recommendation.target?.weight, null);
   assert.match(recommendation.reason, /No direct load history/i);
+  assert.match(recommendation.confidenceReason ?? '', /no usable history/i);
 }
 
 {
@@ -86,6 +114,7 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.equal(recommendation.target?.weight, 240);
   assert.equal(recommendation.target?.prescribedPercentage, 80);
   assert.equal(recommendation.confidence, 'medium');
+  assert.equal(recommendation.evidenceSource, 'program_prescription');
 }
 
 {
@@ -120,6 +149,8 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
   assert.equal(recommendation.action, 'increase_load');
   assert.equal(recommendation.apply?.weight, 205);
+  assert.equal(recommendation.evidenceSource, 'direct_history');
+  assert.equal(recommendation.dataSufficiency, 'limited');
   assert.match(recommendation.reason, /below target effort/i);
 }
 
@@ -356,7 +387,31 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.equal(recommendation.confidence, 'low');
   assert.equal(recommendation.target?.weight, 120);
   assert.equal(recommendation.apply, undefined);
+  assert.equal(recommendation.evidenceSource, 'similar_movement');
+  assert.match(recommendation.blockedReason ?? '', /Similar-movement/i);
   assert.match(recommendation.reason, /similar movement history/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 6.5,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 62, modifier: 1 },
+  });
+
+  assert.notEqual(recommendation.action, 'increase_load');
+  assert.equal(recommendation.apply?.weight, undefined);
+  assert.match(recommendation.reason, /load increases are blocked/i);
+  assert.match(recommendation.blockedReason ?? '', /Low readiness blocks/i);
 }
 
 {

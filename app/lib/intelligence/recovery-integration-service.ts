@@ -1,4 +1,11 @@
 import { supabase } from '../supabase/client';
+import {
+  confidenceFromDataSufficiency,
+  dataSufficiencyFromSampleCount,
+  type MetricConfidence,
+  type MetricDataSufficiency,
+  type MetricExplanation,
+} from './explanations';
 
 type Quality = 'poor' | 'fair' | 'good' | 'excellent';
 
@@ -13,6 +20,9 @@ export interface TrainingReadiness {
   reason: string;
   source: 'manual' | 'training' | 'baseline';
   hasRecoveryInput: boolean;
+  confidence: MetricConfidence;
+  dataSufficiency: MetricDataSufficiency;
+  explanation: MetricExplanation;
 }
 
 interface UserContext {
@@ -86,6 +96,17 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
     : training.hasWorkout
       ? 'training'
       : 'baseline';
+  const completedWorkoutCount = recentWorkouts.filter((workout) => workout.end_time).length;
+  const manualInputCount = hasManualRecoveryInput ? countMeaningfulContextInputs(context) : 0;
+  const dataSufficiency = dataSufficiencyFromSampleCount(manualInputCount + completedWorkoutCount);
+  const confidence = source === 'baseline' ? 'low' : confidenceFromDataSufficiency(dataSufficiency);
+  const reason = buildReason({
+    source,
+    context,
+    manualScore,
+    training,
+    hasManualRecoveryInput,
+  });
 
   return {
     score,
@@ -95,15 +116,21 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
       upper_body_modifier: Number((modifier * training.upperModifier).toFixed(3)),
       lower_body_modifier: Number((modifier * training.lowerModifier).toFixed(3)),
     },
-    reason: buildReason({
-      source,
-      context,
-      manualScore,
-      training,
-      hasManualRecoveryInput,
-    }),
+    reason,
     source,
     hasRecoveryInput: hasManualRecoveryInput,
+    confidence,
+    dataSufficiency,
+    explanation: {
+      metric: 'readiness',
+      value: score,
+      label: source === 'manual' ? 'Daily Check-In + training load' : source === 'training' ? 'Training load only' : 'Neutral baseline',
+      confidence,
+      dataSufficiency,
+      inputs: buildReadinessInputs(context, training, hasManualRecoveryInput, completedWorkoutCount),
+      reason,
+      nextAction: getReadinessNextAction(score, source, dataSufficiency),
+    },
   };
 }
 
@@ -303,6 +330,61 @@ function buildReason({
 
   const contextText = notes.length > 0 ? notes.slice(0, 3).join(', ') : `manual score ${manualScore ?? 70}`;
   return `Daily Check-In based: ${contextText}. ${training.reason}`;
+}
+
+function countMeaningfulContextInputs(context: UserContext): number {
+  return [
+    context.subjective_readiness,
+    context.sleep_hours,
+    context.sleep_quality,
+    context.calorie_balance,
+    context.hydration_level,
+    context.perceived_stress,
+    context.work_stress,
+    context.life_stress,
+    context.resting_heart_rate,
+    context.heart_rate_variability,
+  ].filter((value) => value != null).length;
+}
+
+function buildReadinessInputs(
+  context: UserContext,
+  training: TrainingLoadSignal,
+  hasManualRecoveryInput: boolean,
+  completedWorkoutCount: number
+): string[] {
+  const inputs: string[] = [];
+
+  if (hasManualRecoveryInput) {
+    if (context.subjective_readiness != null) inputs.push(`self-readiness ${context.subjective_readiness}/10`);
+    if (context.sleep_hours != null) inputs.push(`${context.sleep_hours}h sleep`);
+    if (context.sleep_quality) inputs.push(`${context.sleep_quality} sleep`);
+    if (context.perceived_stress != null) inputs.push(`stress ${context.perceived_stress}/10`);
+    if (context.hydration_level) inputs.push(`${context.hydration_level} hydration`);
+    if (context.calorie_balance) inputs.push(`${context.calorie_balance} calories`);
+    if (context.resting_heart_rate != null) inputs.push(`RHR ${context.resting_heart_rate}`);
+    if (context.heart_rate_variability != null) inputs.push(`HRV ${context.heart_rate_variability}`);
+  }
+
+  if (training.hasWorkout) {
+    inputs.push(`${completedWorkoutCount} recent workouts`);
+  }
+
+  return inputs.length > 0 ? inputs.slice(0, 6) : ['neutral baseline'];
+}
+
+function getReadinessNextAction(
+  score: number,
+  source: TrainingReadiness['source'],
+  dataSufficiency: MetricDataSufficiency
+): string {
+  if (source === 'baseline' || dataSufficiency === 'baseline') {
+    return 'Log a Daily Check-In or complete a workout to improve confidence.';
+  }
+  if (score < 50) return 'Run a lighter session or reduce load before adding volume.';
+  if (score < 70) return 'Train normally but keep load jumps conservative.';
+  if (score >= 88) return 'Progress only if warmups and first work sets move well.';
+  return 'Use normal targets and let set RPE adjust the next recommendation.';
 }
 
 function calculateBodyStress(

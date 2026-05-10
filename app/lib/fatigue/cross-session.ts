@@ -200,19 +200,29 @@ export async function saveFatigueSnapshot(
 ): Promise<void> {
   if (!userId || fatigueScores.length === 0) return;
 
-  const snapshots: SupabaseFatigueHistoryInsert[] = fatigueScores.map(score => ({
-    user_id: userId,
-    workout_session_id: workoutSessionId,
-    muscle_group: score.muscleGroup,
-    fatigue_score: score.fatigueLevel,
-    // Calculate contributing factors
-    rpe_overshoot_avg: score.contributingSets.length > 0
-      ? score.contributingSets.reduce((sum, s) => sum + s.rpeOvershoot, 0) / score.contributingSets.length
-      : null,
-    form_breakdown_count: 0,  // TODO: Track from set data
-    failure_count: 0,          // TODO: Track from set data
-    volume_load: null,         // TODO: Calculate from sets
-  }));
+  const snapshots: SupabaseFatigueHistoryInsert[] = fatigueScores.map(score => {
+    const contributors = score.contributingSets;
+    const volumeLoad = contributors.reduce((sum, set) => sum + (set.volumeLoad ?? 0), 0);
+    const rpeOvershoots = contributors.map((set) => set.rpeOvershoot).filter((value) => Number.isFinite(value));
+    const hardSetCount = contributors.filter((set) =>
+      set.reachedFailure === true ||
+      (set.actualRPE != null && set.actualRPE >= 9.5) ||
+      set.rpeOvershoot >= 1
+    ).length;
+
+    return {
+      user_id: userId,
+      workout_session_id: workoutSessionId,
+      muscle_group: score.muscleGroup,
+      fatigue_score: score.fatigueLevel,
+      rpe_overshoot_avg: rpeOvershoots.length > 0
+        ? rpeOvershoots.reduce((sum, value) => sum + value, 0) / rpeOvershoots.length
+        : null,
+      form_breakdown_count: contributors.filter((set) => set.formBreakdown === true).length,
+      failure_count: hardSetCount,
+      volume_load: volumeLoad > 0 ? Number(volumeLoad.toFixed(2)) : null,
+    };
+  });
 
   const { error } = await supabase
     .from('fatigue_history')

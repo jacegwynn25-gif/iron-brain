@@ -174,6 +174,13 @@ export interface FatigueScore {
     exerciseId: string;
     exerciseName: string;
     setIndex: number;
+    actualWeight?: number | null;
+    actualReps?: number | null;
+    actualRPE?: number | null;
+    weightUnit?: SetLog['weightUnit'];
+    volumeLoad?: number | null;
+    reachedFailure?: boolean;
+    formBreakdown?: boolean;
     rpeOvershoot: number;
     interferenceWeight: number;
     contribution: number;
@@ -394,6 +401,13 @@ export function calculateMuscleFatigue(
             exerciseId: set.exerciseId,
             exerciseName: exercise?.name || set.exerciseName || set.exerciseId,
             setIndex: set.setIndex,
+            actualWeight: set.actualWeight ?? null,
+            actualReps: set.actualReps ?? null,
+            actualRPE: set.actualRPE ?? null,
+            weightUnit: set.weightUnit ?? 'lbs',
+            volumeLoad: weightLbs > 0 && set.actualReps ? weightLbs * set.actualReps : null,
+            reachedFailure: set.reachedFailure === true,
+            formBreakdown: set.formBreakdown === true,
             rpeOvershoot: set.prescribedRPE && set.actualRPE ? set.actualRPE - set.prescribedRPE : 0,
             interferenceWeight: interference,
             contribution,

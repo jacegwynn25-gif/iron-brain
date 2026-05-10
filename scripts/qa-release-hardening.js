@@ -447,8 +447,11 @@ async function checkSmartTrainingTargets(browser) {
   await page.getByText('Resume Custom Press').first().click();
   await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 15000 });
   const smartTargetText = await page.getByTestId('smart-target-card').innerText();
-  if (!/SET SIGNAL|HISTORY|READINESS|LOAD|TREND|PLAN/i.test(smartTargetText)) {
-    throw new Error(`Smart target did not expose its signal source: ${smartTargetText}`);
+  if (!/(current session|direct history|similar movement|readiness|load pressure|program prescription|baseline)/i.test(smartTargetText)) {
+    throw new Error(`Smart target did not expose its evidence source: ${smartTargetText}`);
+  }
+  if (!/(confidence|limited|enough|high|baseline)/i.test(smartTargetText)) {
+    throw new Error(`Smart target did not expose confidence/data sufficiency: ${smartTargetText}`);
   }
   await page.getByTestId('smart-target-apply').tap({ timeout: 10000 });
 

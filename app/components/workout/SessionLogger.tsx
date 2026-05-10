@@ -430,6 +430,15 @@ function formatRecommendationSource(source: TrainingRecommendation['source']): s
   return 'Baseline';
 }
 
+function formatRecommendationEvidence(recommendation: TrainingRecommendation): string {
+  const source = recommendation.evidenceSource
+    ? recommendation.evidenceSource.replace(/_/g, ' ')
+    : formatRecommendationSource(recommendation.source);
+  const count = recommendation.evidenceCount ?? 0;
+  const sufficiency = recommendation.dataSufficiency ?? recommendation.confidence;
+  return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
+}
+
 function SmartTargetReadout({
   recommendation,
   onApply,
@@ -466,13 +475,20 @@ function SmartTargetReadout({
           </p>
         </div>
         <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-          {recommendation.confidence} · {formatRecommendationSource(recommendation.source)}
+          {formatRecommendationEvidence(recommendation)}
         </p>
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="min-w-0 text-xs leading-snug text-zinc-400">
-          {recommendation.reason}
-        </p>
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs leading-snug text-zinc-400">
+            {recommendation.reason}
+          </p>
+          {(recommendation.confidenceReason || recommendation.blockedReason) && (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+              {recommendation.blockedReason ?? recommendation.confidenceReason}
+            </p>
+          )}
+        </div>
         {canApply && (
           <button
             type="button"

@@ -12,6 +12,7 @@ interface ReadinessCardProps {
 
 export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
     const score = readiness?.score ?? 0;
+    const explanation = readiness?.explanation;
 
     // Define color mapping
     const getReadinessColor = (s: number) => {
@@ -61,6 +62,11 @@ export function ReadinessCard({ readiness, loading }: ReadinessCardProps) {
                             <p className="line-clamp-2 max-w-md text-[10px] leading-snug text-zinc-400 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
                                 {readiness?.reason || 'Analyzing recovery data.'}
                             </p>
+                            {explanation && (
+                                <p className="max-w-md text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:text-[10px]">
+                                    {readiness.confidence} confidence / {readiness.dataSufficiency} data / {explanation.nextAction}
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-2 pt-0.5 sm:gap-4 sm:pt-2">

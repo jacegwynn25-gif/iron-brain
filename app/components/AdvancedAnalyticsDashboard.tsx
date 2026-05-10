@@ -33,6 +33,11 @@ import {
 import RecoveryOverview from './RecoveryOverview';
 import type { Database } from '../lib/supabase/database.types';
 import { defaultExercises } from '../lib/programs';
+import {
+  confidenceFromDataSufficiency,
+  dataSufficiencyFromSampleCount,
+  type MetricExplanation,
+} from '../lib/intelligence/explanations';
 
 /**
  * Look up proper exercise name from defaultExercises
@@ -146,6 +151,10 @@ interface AnalyticsData {
     }>;
     overdueCount: number;
     upcomingSession: ProgramScheduleEvent | null;
+  };
+  explanations?: {
+    trainingBalance?: MetricExplanation;
+    loadPressure?: MetricExplanation;
   };
 }
 
@@ -512,6 +521,18 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       totalVolume: Math.round(toDisplay(exercise.totalVolume)),
       avgWeightPerSet: roundWeightDisplay(toDisplay(exercise.avgWeightPerSet)),
     }));
+    const loadSampleCount = workoutsWithLoad.filter((workout) => workout.load > 0).length;
+    const loadDataSufficiency = dataSufficiencyFromSampleCount(loadSampleCount);
+    const loadConfidence = acwrMetrics.baselineConfidence === 'high'
+      ? 'high'
+      : acwrMetrics.baselineConfidence === 'medium'
+        ? 'medium'
+        : confidenceFromDataSufficiency(loadDataSufficiency);
+    const trainingDataSufficiency = dataSufficiencyFromSampleCount(recentWorkouts.length);
+    const trainingConfidence = confidenceFromDataSufficiency(trainingDataSufficiency);
+    const fitnessFatigueDelta = fitnessFatigueModel
+      ? fitnessFatigueModel.currentFitness - fitnessFatigueModel.currentFatigue
+      : null;
 
     return {
       acwr: {
@@ -537,7 +558,62 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       },
       strengthLeaderboard,
       volumeLeaderboard,
-    } satisfies Pick<AnalyticsData, 'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'volumeLeaderboard'>;
+      explanations: {
+        loadPressure: {
+          metric: 'load_pressure',
+          value: Number(acwrMetrics.acwr.toFixed(2)),
+          label: acwrMetrics.baselineConfidence === 'low' ? 'Building baseline' : acwrMetrics.status,
+          confidence: loadConfidence,
+          dataSufficiency: loadDataSufficiency,
+          inputs: [
+            `${loadSampleCount} loaded workouts`,
+            `${Math.round(toDisplay(acwrMetrics.acuteLoad)).toLocaleString()} 7d load`,
+            `${Math.round(toDisplay(acwrMetrics.chronicWeeklyLoad)).toLocaleString()} weekly baseline`,
+          ],
+          reason: acwrMetrics.recommendation,
+          nextAction: acwrMetrics.baselineConfidence === 'low'
+            ? 'Log more sessions before treating this as a risk verdict.'
+            : acwrMetrics.acwr > 1.5
+              ? 'Hold load, add rest, or trim sets until load returns closer to baseline.'
+              : acwrMetrics.acwr < 0.8
+                ? 'Build back gradually if this was not a planned deload.'
+                : 'Stay near the current weekly workload range.',
+        },
+        trainingBalance: {
+          metric: 'training_balance',
+          value: fitnessFatigueDelta == null ? 'baseline' : Math.round(fitnessFatigueDelta),
+          label: fitnessFatigueDelta == null
+            ? 'Building baseline'
+            : fitnessFatigueDelta >= 8
+              ? 'Fitness leads'
+              : fitnessFatigueDelta <= -8
+                ? 'Fatigue leads'
+                : 'Even',
+          confidence: trainingConfidence,
+          dataSufficiency: trainingDataSufficiency,
+          inputs: [
+            `${recentWorkouts.length} recent workouts`,
+            fitnessFatigueModel ? `${Math.round(fitnessFatigueModel.currentFitness)} fitness` : 'no fitness model yet',
+            fitnessFatigueModel ? `${Math.round(fitnessFatigueModel.currentFatigue)} fatigue` : 'no fatigue model yet',
+          ],
+          reason: fitnessFatigueDelta == null
+            ? 'Not enough completed work to separate fitness from fatigue yet.'
+            : fitnessFatigueDelta >= 8
+              ? 'Fitness is currently ahead of fatigue.'
+              : fitnessFatigueDelta <= -8
+                ? 'Fatigue is currently ahead of fitness.'
+                : 'Fitness and fatigue are close together.',
+          nextAction: fitnessFatigueDelta == null
+            ? 'Complete more sessions to build the model.'
+            : fitnessFatigueDelta <= -8
+              ? 'Use conservative targets next session.'
+              : 'Use normal targets and let set RPE guide adjustments.',
+        },
+      },
+    } satisfies Pick<
+      AnalyticsData,
+      'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'volumeLeaderboard' | 'explanations'
+    >;
   }, [kgToLbs, lbsToKg, weightUnit]);
 
   const updateCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
@@ -552,6 +628,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         personalStats: undefined,
         strengthLeaderboard: undefined,
         volumeLeaderboard: undefined,
+        explanations: undefined,
       }));
       return;
     }
@@ -1121,6 +1198,16 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <p className="text-sm text-zinc-400">
                 {trainingBalanceSummary}
               </p>
+              {analytics.explanations?.trainingBalance && (
+                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+                    {analytics.explanations.trainingBalance.confidence} confidence / {analytics.explanations.trainingBalance.dataSufficiency} data
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                    {analytics.explanations.trainingBalance.reason} {analytics.explanations.trainingBalance.nextAction}
+                  </p>
+                </div>
+              )}
               {analytics.fitnessFatigue && (
                 <div className="mt-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -1175,6 +1262,16 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <p className="mt-3 text-xs leading-relaxed text-zinc-400">
                 {analytics.acwr.recommendation}
               </p>
+              {analytics.explanations?.loadPressure && (
+                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+                    {analytics.explanations.loadPressure.confidence} confidence / {analytics.explanations.loadPressure.dataSufficiency} data
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                    {analytics.explanations.loadPressure.reason} {analytics.explanations.loadPressure.nextAction}
+                  </p>
+                </div>
+              )}
               <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
                 Effort-weighted load. Baseline confidence: {analytics.acwr.baselineConfidence}.
               </p>

@@ -89,6 +89,28 @@ export default function Dashboard() {
     !authLoading &&
     !user &&
     !hasPriorLocalUse;
+  const nextSessionAdjustments = useMemo(() => {
+    if (!readiness || !['enough', 'high'].includes(readiness.dataSufficiency)) return [];
+
+    const adjustments: string[] = [];
+    const upper = readiness.focus_adjustments.upper_body_modifier;
+    const lower = readiness.focus_adjustments.lower_body_modifier;
+
+    if (readiness.score < 50) {
+      adjustments.push('Run a lighter session or cut one work set from the main lift.');
+    } else if (readiness.score < 70) {
+      adjustments.push('Keep planned loads, but avoid adding weight until the first work set feels on target.');
+    } else if (readiness.score >= 88) {
+      adjustments.push('Small progressions are allowed if warmups and first work set move cleanly.');
+    } else {
+      adjustments.push('Use normal planned targets and let RPE guide the next set.');
+    }
+
+    if (lower < 0.97) adjustments.push(`Lower-body targets are capped at ${Math.round(lower * 100)}% today.`);
+    if (upper < 0.97) adjustments.push(`Upper-body targets are capped at ${Math.round(upper * 100)}% today.`);
+
+    return adjustments.slice(0, 3);
+  }, [readiness]);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-3 pb-8 pt-3 sm:space-y-8 sm:pt-10">
@@ -159,6 +181,28 @@ export default function Dashboard() {
       {showReadiness && (
         <section className="stagger-item mx-1">
           <ReadinessCard readiness={readiness} loading={loading} />
+        </section>
+      )}
+
+      {nextSessionAdjustments.length > 0 && (
+        <section className="stagger-item mx-1 rounded-[1.1rem] border border-zinc-900 bg-zinc-950/70 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-emerald-300">
+                Next Session Adjustments
+              </p>
+              <div className="mt-2 space-y-1.5">
+                {nextSessionAdjustments.map((adjustment) => (
+                  <p key={adjustment} className="text-xs leading-snug text-zinc-400">
+                    {adjustment}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
+              {readiness?.confidence} / {readiness?.dataSufficiency}
+            </p>
+          </div>
         </section>
       )}
 
