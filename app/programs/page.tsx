@@ -2540,6 +2540,7 @@ export default function ProgramsPage() {
                   const isSelected = selectedProgram?.id === program.id;
                   const detailsOpen = detailsProgramId === program.id;
                   const detailsId = `program-details-${program.id}`;
+                  const selectActionLabel = isSelected ? 'Active' : 'Set Active';
                   const detailTokens = [
                     program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
                     program.experienceLevel
@@ -2572,12 +2573,13 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => handleSelectProgram(program)}
-                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${isSelected
+                            aria-label={isSelected ? `${program.name} is active` : `Set ${program.name} active`}
+                            className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:px-2.5 sm:text-[10px] sm:tracking-[0.18em] ${isSelected
                               ? 'border border-emerald-500/30 text-emerald-300'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                           >
-                            {isSelected ? 'Active' : 'Use'}
+                            {selectActionLabel}
                           </button>
                           <button
                             type="button"

@@ -390,6 +390,7 @@ async function checkProgramsNoFalseReadinessTuneUp(browser) {
       scrollWidth: document.documentElement.scrollWidth,
       hasFalseReadinessZero: /readiness is 0/i.test(text),
       hasTuneUpWithoutEvidence: /PROGRAM TUNE-UP/i.test(text),
+      hasSetActiveAction: /SET ACTIVE/i.test(text),
     };
   });
 
@@ -402,9 +403,12 @@ async function checkProgramsNoFalseReadinessTuneUp(browser) {
   if (report.hasTuneUpWithoutEvidence) {
     throw new Error('Programs page shows Program Tune-Up without workout/readiness evidence');
   }
+  if (!report.hasSetActiveAction) {
+    throw new Error('Programs page program selection action should read Set Active');
+  }
 
   await page.close();
-  console.log('✅ programs page does not show false tune-up guidance without readiness/history');
+  console.log('✅ programs page avoids false tune-ups and uses clear Set Active actions');
 }
 
 async function checkSmartTrainingTargets(browser) {
