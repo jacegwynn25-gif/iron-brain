@@ -410,8 +410,13 @@ async function checkStartPageLaunchpad(browser) {
     throw new Error(`Start page launch controls are undersized: ${JSON.stringify(undersized)}`);
   }
 
+  await page.getByRole('button', { name: /QUICK LOG/i }).tap({ timeout: 10000 });
+  await page.getByTestId('quick-log-confirm').waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByTestId('quick-log-confirm-start').tap({ timeout: 10000 });
+  await page.waitForURL(/\/workout\/new\?type=empty/, { timeout: 10000 });
+
   await page.close();
-  console.log('✅ start page launchpad is compact, aligned, and free of old filler labels');
+  console.log('✅ start page launchpad is compact, aligned, confirms quick log, and free of old filler labels');
 }
 
 async function checkProgramsNoFalseReadinessTuneUp(browser) {

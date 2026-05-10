@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
@@ -22,8 +23,10 @@ import { getWorkoutHistory } from '@/app/lib/storage';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { AuthModal } from './Auth';
+import QuickLogConfirm from './workout/QuickLogConfirm';
 
 export default function Dashboard() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
@@ -31,6 +34,7 @@ export default function Dashboard() {
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [localProfileResolved, setLocalProfileResolved] = useState(false);
   const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
+  const [quickLogConfirmOpen, setQuickLogConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -120,6 +124,14 @@ export default function Dashboard() {
           onSuccess={() => setHasPriorLocalUse(true)}
         />
       )}
+      <QuickLogConfirm
+        isOpen={quickLogConfirmOpen}
+        onClose={() => setQuickLogConfirmOpen(false)}
+        onConfirm={() => {
+          setQuickLogConfirmOpen(false);
+          router.push('/workout/new?type=empty');
+        }}
+      />
 
       {/* Header */}
       <header className="flex items-center justify-between px-1">
@@ -265,8 +277,9 @@ export default function Dashboard() {
             </div>
           </Link>
 
-          <Link
-            href="/workout/new?type=empty"
+          <button
+            type="button"
+            onClick={() => setQuickLogConfirmOpen(true)}
             className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
           >
             <RotateCcw className="h-4.5 w-4.5 text-zinc-100/40 sm:h-5.5 sm:w-5.5" />
@@ -274,7 +287,7 @@ export default function Dashboard() {
               <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">QUICK LOG</h4>
               <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Empty session</p>
             </div>
-          </Link>
+          </button>
         </div>
       </section>
 

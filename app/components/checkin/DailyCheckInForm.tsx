@@ -55,7 +55,7 @@ const CALORIE_OPTIONS: CalorieBalance[] = ['deficit', 'maintenance', 'surplus'];
 const MEAL_TIMING_OPTIONS: MealTiming[] = ['poor', 'fair', 'good'];
 
 const inputClass =
-  'h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 text-sm font-semibold text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/50 focus:bg-zinc-900';
+  'h-12 min-w-0 w-full max-w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 text-sm font-semibold text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/50 focus:bg-zinc-900';
 
 function titleize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);

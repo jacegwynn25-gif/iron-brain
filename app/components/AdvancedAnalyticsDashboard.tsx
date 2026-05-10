@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Battery,
@@ -16,7 +16,7 @@ import { useUnitPreference } from '../lib/hooks/useUnitPreference';
 import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
 import { supabase } from '../lib/supabase/client';
 import { trackUiEvent } from '../lib/analytics/ui-events';
-import type { ProgramScheduleEvent, SetType, WorkoutSession } from '../lib/types';
+import type { CustomExercise, ProgramScheduleEvent, SetType, WorkoutSession } from '../lib/types';
 import { FEATURES } from '../lib/features';
 import { listScheduleEvents } from '../lib/calendar/schedule-api';
 import {
@@ -34,6 +34,12 @@ import RecoveryOverview from './RecoveryOverview';
 import type { Database } from '../lib/supabase/database.types';
 import { defaultExercises } from '../lib/programs';
 import {
+  buildExerciseCatalog,
+  resolveExerciseDisplayName,
+  type ExerciseCatalog,
+} from '../lib/exercises/catalog';
+import { getCustomExercises } from '../lib/exercises/custom-exercises';
+import {
   confidenceFromDataSufficiency,
   dataSufficiencyFromSampleCount,
   type MetricExplanation,
@@ -43,7 +49,13 @@ import {
  * Look up proper exercise name from defaultExercises
  * Falls back to formatting the ID as a readable name if not found
  */
-function getExerciseName(exerciseId: string, providedName?: string): string {
+function getExerciseName(exerciseId: string, providedName?: string, catalog?: ExerciseCatalog): string {
+  const resolved = resolveExerciseDisplayName(exerciseId, {
+    catalog,
+    cachedName: providedName,
+  });
+  if (resolved && resolved !== 'Exercise') return resolved;
+
   // First try exact match on ID
   let exercise = defaultExercises.find(ex => ex.id === exerciseId);
 
@@ -66,6 +78,10 @@ function getExerciseName(exerciseId: string, providedName?: string): string {
   // If provided name looks like a proper name (has spaces or proper capitalization), use it
   if (providedName && providedName.includes(' ')) {
     return providedName;
+  }
+
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(exerciseId)) {
+    return 'Custom Exercise';
   }
 
   // Format the ID as a readable name: "row_chest_supported" → "Row Chest Supported"
@@ -310,6 +326,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
   const [loadingAdherence, setLoadingAdherence] = useState(false);
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const hasMinimumData = completedWorkouts.length >= 3;
   const adherencePlanned90 = analytics.adherence?.windows['90'].plannedSessions ?? 0;
   const canRenderAdherenceWithoutWorkoutMinimum =
@@ -349,6 +366,25 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     if (!initialView) return;
     setSelectedView(resolveInitialView(initialView));
   }, [initialView]);
+
+  useEffect(() => {
+    let active = true;
+    getCustomExercises(user?.id ?? null)
+      .then((exercises) => {
+        if (active) setCustomExercises(exercises);
+      })
+      .catch(() => {
+        if (active) setCustomExercises([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  const exerciseCatalog = useMemo(
+    () => buildExerciseCatalog(defaultExercises, customExercises),
+    [customExercises]
+  );
 
   const normalizeWorkoutId = useCallback(
     (value: string) => (value.startsWith('session_') ? value.substring(8) : value),
@@ -500,7 +536,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           reps: typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0),
           rpe: set.actualRPE ?? null,
           exerciseId: set.exerciseId,
-          exerciseName: getExerciseName(set.exerciseId, set.exerciseName),
+          exerciseName: getExerciseName(set.exerciseId, set.exerciseName, exerciseCatalog),
           date: workout.endTime || workout.startTime || workout.date,
         }))
     );
@@ -614,7 +650,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       AnalyticsData,
       'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'volumeLeaderboard' | 'explanations'
     >;
-  }, [kgToLbs, lbsToKg, weightUnit]);
+  }, [exerciseCatalog, kgToLbs, lbsToKg, weightUnit]);
 
   const updateCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
     setCompletedWorkouts(workouts);
@@ -832,8 +868,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           createdAt: sw.start_time ?? new Date().toISOString(),
           updatedAt: sw.end_time ?? sw.start_time ?? new Date().toISOString(),
           sets: (sw.set_logs || []).map((sl, idx) => {
-            const exerciseId = sl.exercise_id || sl.exercise_slug || '';
-            const exerciseName = sl.exercise_slug || sl.exercise_id || 'Unknown Exercise';
+            const exerciseId = sl.exercise_slug || sl.exercise_id || '';
+            const exerciseName = getExerciseName(exerciseId, sl.exercise_slug || undefined, exerciseCatalog);
             return {
               id: sl.id ?? undefined,
               exerciseId,
@@ -880,7 +916,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       setLoading(false);
       initialLoadRef.current = false;
     }
-  }, [authLoading, namespaceReady, isSyncing, user, buildCompletedWorkouts, updateCoreAnalytics, normalizeWorkoutId]);
+  }, [authLoading, namespaceReady, isSyncing, user, buildCompletedWorkouts, updateCoreAnalytics, normalizeWorkoutId, exerciseCatalog]);
 
   const loadRecoveryProfiles = useCallback(async () => {
     if (!user || loadingRecovery || analytics.recoveryProfiles) return;

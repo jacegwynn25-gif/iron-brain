@@ -402,18 +402,17 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
   const ringStyle = style.isCompound
     ? { backgroundImage: `linear-gradient(135deg, ${style.primaryColor}, ${style.secondaryColor})` }
     : { backgroundColor: style.primaryColor };
-  const glowColor = style.isCompound ? style.secondaryColor : style.primaryColor;
 
   return (
     <span
-      className="inline-flex rounded-full p-[1.5px]"
-      style={{ ...ringStyle, boxShadow: `0 0 14px ${glowColor}30` }}
+      className="inline-flex overflow-hidden rounded-full p-[1.5px]"
+      style={ringStyle}
     >
       <span
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/5"
+        className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/5"
         style={{
           background: 'radial-gradient(circle at 35% 22%, rgba(255,255,255,0.14), rgba(24,24,27,0.72) 42%, rgba(9,9,11,0.98) 100%)',
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1), 0 0 13px ${glowColor}50`,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
           color: style.primaryColor,
         }}
       >
@@ -469,33 +468,35 @@ function SmartTargetReadout({
   const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} REPS` : null;
   const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s REST` : null;
   const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'BASELINE';
-  const canApply = recommendationHasApplyPatch(recommendation);
+  const canApply =
+    recommendationHasApplyPatch(recommendation) &&
+    Boolean(recommendation.apply?.weight !== undefined || recommendation.apply?.reps !== undefined);
 
   return (
     <div
-      className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+      className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
       data-testid={testId}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-emerald-300">
             {label}
           </p>
-          <p className="mt-1 font-mono text-lg font-black uppercase tracking-tight text-white">
+          <p className="mt-0.5 truncate font-mono text-base font-black uppercase tracking-tight text-white">
             {targetText}
           </p>
         </div>
-        <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+        <p className="hidden shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500 min-[390px]:block">
           {formatRecommendationEvidence(recommendation)}
         </p>
       </div>
-      <div className="mt-2 flex items-end justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-xs leading-snug text-zinc-400">
+      <div className="mt-1.5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[11px] leading-snug text-zinc-400">
             {recommendation.reason}
           </p>
           {(recommendation.confidenceReason || recommendation.blockedReason) && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+            <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 min-[390px]:hidden">
               {recommendation.blockedReason ?? recommendation.confidenceReason}
             </p>
           )}
@@ -504,7 +505,7 @@ function SmartTargetReadout({
           <button
             type="button"
             onClick={() => onApply(recommendation)}
-            className="shrink-0 rounded-xl border border-emerald-400/40 bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 shadow-[0_12px_28px_-20px_rgba(52,211,153,0.9)] active:scale-95"
+            className="shrink-0 rounded-lg border border-emerald-400/40 bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-950 shadow-[0_12px_28px_-20px_rgba(52,211,153,0.9)] active:scale-95"
             data-testid={applyTestId}
           >
             Apply
@@ -1269,7 +1270,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [notesDraft, setNotesDraft] = useState('');
   const [, setKeypadValue] = useState('');
   const [keypadArmed, setKeypadArmed] = useState(false);
-  const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
   const [pendingAddName, setPendingAddName] = useState<string | null>(null);
   const [pendingAddExerciseId, setPendingAddExerciseId] = useState<string | null>(null);
@@ -2181,7 +2181,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
         },
       },
     });
-    setSessionWeightUnit(nextUnit);
   };
 
   const applySmartRecommendation = useCallback((recommendation: TrainingRecommendation | null) => {
@@ -2983,100 +2982,78 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
               <div
                 className="space-y-6 px-4"
-                onClick={() => setRevealedId(null)}
               >
                 {exerciseRefs.map((entry) => {
                   const style = getExerciseStyle(entry.exercise, resolveMuscleProfile);
-                  const isRevealed = revealedId === entry.exercise.id;
                   const displayName = getExerciseDisplayName(entry.exercise);
                   const bodyweightExercise = isBodyweight(displayName);
 
                   return (
-                    <div key={entry.exercise.id} className="relative overflow-hidden rounded-2xl">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveExercise(entry.blockId, entry.exercise.id)}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        className="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-rose-600/90 active:brightness-75 transition-all"
-                        aria-label={`Delete ${displayName}`}
-                      >
-                        <Trash2 className="h-5 w-5 text-white" />
-                      </button>
-                      <motion.div
-                        drag="x"
-                        dragConstraints={{ left: -80, right: 0 }}
-                        dragElastic={0.15}
-                        dragSnapToOrigin
-                        dragMomentum={false}
-                        animate={{ x: isRevealed ? -80 : 0 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        onDragEnd={(_, info) => {
-                          const threshold = 36;
-                          if (!isRevealed && info.offset.x < -threshold) {
-                            setRevealedId(entry.exercise.id);
-                          } else if (isRevealed && info.offset.x > threshold) {
-                            setRevealedId(null);
-                          }
-                        }}
-                        className="relative z-10 rounded-2xl bg-zinc-950"
-                        data-swipe-ignore="true"
-                      >
-                        <div
-                          role="button"
-                          tabIndex={0}
+                    <div
+                      key={entry.exercise.id}
+                      className="rounded-2xl border border-zinc-900 bg-zinc-950 p-3 shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <button
+                          type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setRevealedId(null);
                             handleOpenFocus(entry);
                           }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setRevealedId(null);
-                              handleOpenFocus(entry);
-                            }
-                          }}
-                          className="group relative w-full text-left rounded-2xl bg-zinc-950 active:scale-[0.99] transition-transform"
+                          className="min-w-0 flex-1 touch-manipulation text-left active:scale-[0.995]"
                         >
-                          <div className="flex flex-col gap-3 p-1">
-                            <div>
-                              <div className="mb-1 flex items-center gap-2">
-                                <ExerciseBadge style={style} />
-                                <span
-                                  className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
-                                    }`}
-                                  style={{
-                                    color: style.isCompound ? undefined : style.primaryColor,
-                                    backgroundImage: style.isCompound
-                                      ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                                      : undefined,
-                                  }}
-                                >
-                                  {style.label}
-                                </span>
-                                <span
-                                  className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                                  style={{ color: style.secondaryColor }}
-                                >
-                                  {style.isCompound ? 'COMP' : 'ISO'}
-                                </span>
-                              </div>
-                              <p className="text-3xl font-black italic text-white">{displayName}</p>
-                            </div>
-                            <div
-                              className="data-stream flex gap-2 overflow-x-auto pr-8 pb-1"
-                              data-swipe-ignore="true"
+                          <div className="mb-1 flex items-center gap-2">
+                            <ExerciseBadge style={style} />
+                            <span
+                              className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
+                                }`}
                               style={{
-                                WebkitMaskImage:
-                                  'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
-                                maskImage:
-                                  'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%)',
-                                scrollbarWidth: 'none',
-                                msOverflowStyle: 'none',
+                                color: style.isCompound ? undefined : style.primaryColor,
+                                backgroundImage: style.isCompound
+                                  ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
+                                  : undefined,
                               }}
                             >
-                              {entry.exercise.sets.map((set, index) => {
+                              {style.label}
+                            </span>
+                            <span
+                              className="text-[9px] font-mono uppercase tracking-[0.35em]"
+                              style={{ color: style.secondaryColor }}
+                            >
+                              {style.isCompound ? 'COMP' : 'ISO'}
+                            </span>
+                          </div>
+                          <p className="break-words text-3xl font-black italic leading-tight text-white">
+                            {displayName}
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleRemoveExercise(entry.blockId, entry.exercise.id);
+                          }}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-900 bg-zinc-950 text-zinc-600 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-300 active:bg-rose-500/15"
+                          aria-label={`Delete ${displayName}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div
+                        className="data-stream mt-3 flex gap-2 overflow-x-auto pb-1"
+                        data-swipe-ignore="true"
+                        style={{
+                          WebkitMaskImage:
+                            'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%)',
+                          maskImage:
+                            'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%)',
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                        }}
+                      >
+                        {entry.exercise.sets.map((set, index) => {
                                 const repsValue =
                                   set.reps === null || set.reps === undefined
                                     ? 8
@@ -3105,7 +3082,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                     type="button"
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      setRevealedId(null);
                                       handleOpenFocus(entry, set.id);
                                     }}
                                     className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.completed
@@ -3116,11 +3092,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                     {label}
                                   </button>
                                 );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
+                        })}
+                      </div>
                     </div>
                   );
                 })}
@@ -3164,10 +3137,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 w-full flex flex-col overflow-y-auto relative select-none pb-20"
+              className="relative flex-1 w-full select-none overflow-y-auto pb-3"
               ref={cockpitScrollRef}
             >
-              <header className="mb-4 px-4">
+              <header className="mb-2 px-4">
                 <div className="flex min-w-0 items-start gap-3">
                   <button
                     type="button"
@@ -3179,7 +3152,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
                       });
                     }}
-                    className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white active:bg-zinc-900"
+                    className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white active:bg-zinc-900"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     <span className="sr-only">Back</span>
@@ -3190,7 +3163,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     {focusedRef && (() => {
                       const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
                       return (
-                        <div className="mb-1 flex items-center gap-2">
+                        <div className="mb-0.5 flex items-center gap-2">
                           <ExerciseBadge style={style} />
                           <span
                             className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
@@ -3213,7 +3186,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         </div>
                       );
                     })()}
-                    <h2 className="truncate text-3xl font-black italic leading-none tracking-tight text-white sm:text-4xl">
+                    <h2 className="truncate text-2xl font-black italic leading-none tracking-tight text-white sm:text-4xl">
                       {focusedExerciseDisplayName ?? 'Exercise'}
                     </h2>
                   </div>
@@ -3221,8 +3194,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </header>
 
 
-              <div className="px-4 mt-3">
-                <div className="flex flex-col justify-center gap-4">
+              <div className="mt-2 px-4">
+                <div className="flex flex-col justify-center gap-2.5">
                   <div className="flex items-center justify-between">
                     <p className="text-zinc-500 text-xs uppercase">Current Set</p>
                     <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
@@ -3248,7 +3221,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     </div>
                   )}
 
-                  <div className={`grid gap-4 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  <div className={`grid gap-2.5 ${bodyweightExercise ? 'grid-cols-1' : 'grid-cols-2'}`}>
                     {!bodyweightExercise && (
                       <HardyStepper
                         layout="vertical"
@@ -3282,17 +3255,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       <button
                         type="button"
                         onClick={() => openCockpitTool('plates')}
-                        className="group flex min-h-16 items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/75 px-3 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        className="group flex min-h-11 items-center gap-2 rounded-xl border border-zinc-900 bg-zinc-950/75 px-2.5 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
                         aria-label="Open plate calculator"
                       >
-                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-emerald-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-emerald-300">
                           <Calculator className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200">
+                          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-zinc-200">
                             Plates
                           </span>
-                          <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">
+                          <span className="mt-0.5 hidden truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 min-[390px]:block">
                             Per side
                           </span>
                         </span>
@@ -3301,17 +3274,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       <button
                         type="button"
                         onClick={() => openCockpitTool('warmup')}
-                        className="group flex min-h-16 items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/75 px-3 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        className="group flex min-h-11 items-center gap-2 rounded-xl border border-zinc-900 bg-zinc-950/75 px-2.5 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
                         aria-label="Open warm-up calculator"
                       >
-                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-amber-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-amber-300">
                           <Flame className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200">
+                          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-zinc-200">
                             Warm-Up
                           </span>
-                          <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">
+                          <span className="mt-0.5 hidden truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 min-[390px]:block">
                             Build ladder
                           </span>
                         </span>
@@ -3320,7 +3293,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
 
                   {!bodyweightExercise && (
-                    <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-zinc-900 bg-zinc-950/70 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-900 bg-zinc-950/70 px-3 py-1.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Unit</p>
                         <button
@@ -3384,8 +3357,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 </div>
               </div>
 
-              <footer className="w-full px-4 mt-6 pb-4 flex flex-col items-center gap-2">
-                <div className="w-full h-16 bg-zinc-900/80 rounded-[2rem] flex items-center p-1.5 backdrop-blur-md">
+              <footer className="mt-3 flex w-full flex-col items-center gap-2 px-4 pb-2">
+                <div className="flex h-14 w-full items-center rounded-[1.5rem] bg-zinc-900/80 p-1.5 backdrop-blur-md">
                   <button
                     type="button"
                     onClick={() => setIsHistoryOpen(true)}

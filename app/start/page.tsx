@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, ChevronDown, ChevronRight, ChevronUp, Play, Rotat
 import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../lib/programs/progress';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
+import QuickLogConfirm from '../components/workout/QuickLogConfirm';
 
 type RecentProgram = {
   id: string;
@@ -20,6 +21,7 @@ export default function StartWorkoutPage() {
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [programPickerOpen, setProgramPickerOpen] = useState(false);
   const [overrideProgress, setOverrideProgress] = useState<ProgramProgress | null>(null);
+  const [quickLogConfirmOpen, setQuickLogConfirmOpen] = useState(false);
 
   useEffect(() => {
     setOverrideProgress(null);
@@ -99,6 +101,7 @@ export default function StartWorkoutPage() {
   };
 
   const handleQuickStart = () => {
+    setQuickLogConfirmOpen(false);
     router.push('/workout/new?type=empty');
   };
 
@@ -113,6 +116,11 @@ export default function StartWorkoutPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-3 pb-9 pt-3 sm:space-y-6 sm:pt-8">
+      <QuickLogConfirm
+        isOpen={quickLogConfirmOpen}
+        onClose={() => setQuickLogConfirmOpen(false)}
+        onConfirm={handleQuickStart}
+      />
       <header className="stagger-item flex items-center justify-between gap-4 px-1">
         <div className="space-y-0.5 sm:space-y-1">
           <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">START SESSION</h1>
@@ -229,7 +237,7 @@ export default function StartWorkoutPage() {
 
             <button
               type="button"
-              onClick={handleQuickStart}
+              onClick={() => setQuickLogConfirmOpen(true)}
               className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
             >
               <span className="min-w-0">
@@ -319,7 +327,7 @@ export default function StartWorkoutPage() {
                       onClick={() => handleProgramSelect(program.id)}
                       className="group flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-emerald-400/25 hover:bg-emerald-400/10"
                     >
-                      <span className="min-w-0 truncate text-xs font-bold uppercase tracking-[0.12em] text-zinc-200">
+                      <span className="min-w-0 flex-1 break-words text-xs font-bold leading-snug text-zinc-200">
                         {program.name}
                       </span>
                       <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 group-hover:text-emerald-400">

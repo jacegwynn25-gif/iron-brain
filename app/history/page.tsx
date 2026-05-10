@@ -15,7 +15,7 @@ import type {
   SessionMetadata
 } from '../lib/types';
 
-const HISTORY_CLOUD_LIMIT = 180;
+const HISTORY_CLOUD_LIMIT = 90;
 
 type WorkoutSet = WorkoutSession['sets'][number];
 
@@ -120,20 +120,17 @@ export default function HistoryPage() {
         .map((workout) => enrichWorkoutSetNames(workout, localExerciseCatalog));
       const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
 
-      // Render local cache immediately
+      // Render local cache immediately. If there is no cache, keep loading
+      // until the cloud payload arrives so users do not see a false empty state.
       setWorkoutHistory(sortedLocalWorkouts);
-      setHistoryLoading(false);
+      setHistoryLoading(sortedLocalWorkouts.length === 0 && Boolean(resolvedUserId));
 
       if (!resolvedUserId) {
+        setHistoryLoading(false);
         return;
       }
 
       // Background cloud sync
-      const customExercises = await getCustomExercises(resolvedUserId).catch(() => {
-        return [];
-      });
-      const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
-
       const sessionsQuery = supabase
         .from('workout_sessions')
         .select(`
@@ -177,14 +174,15 @@ export default function HistoryPage() {
         .limit(HISTORY_CLOUD_LIMIT);
 
       type SessionsResponse = Awaited<typeof sessionsQuery>;
-      // Increased from 10s to 30s to prevent false-positives under heavy payload
       const timeoutPromise: Promise<never> = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('History cloud fetch timed out')), 30000)
+        setTimeout(() => reject(new Error('History cloud fetch timed out')), 12000)
       );
-      const { data: sessions, error }: SessionsResponse = await Promise.race([
-        sessionsQuery,
-        timeoutPromise,
+      const [customExercises, sessionsResult] = await Promise.all([
+        getCustomExercises(resolvedUserId).catch(() => []),
+        Promise.race([sessionsQuery, timeoutPromise]) as Promise<SessionsResponse>,
       ]);
+      const exerciseCatalog = buildExerciseCatalog(defaultExercises, customExercises);
+      const { data: sessions, error } = sessionsResult;
 
       if (error) {
         
@@ -268,6 +266,7 @@ export default function HistoryPage() {
         (a, b) => getSortTime(b) - getSortTime(a)
       );
 
+      storage.setWorkoutHistory(mergedWorkouts);
       setWorkoutHistory(mergedWorkouts);
     } catch {
       setCloudFetchFailed(true);
