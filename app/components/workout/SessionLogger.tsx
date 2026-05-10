@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
+  Calculator,
+  Dumbbell,
   FileText,
+  Flame,
   History,
   Info,
   Plus,
@@ -51,6 +54,13 @@ import { trackUiEvent } from '@/app/lib/analytics/ui-events';
 import { updateScheduleEvent } from '@/app/lib/calendar/schedule-api';
 import { FEATURES } from '@/app/lib/features';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
+import {
+  buildWarmupPlan,
+  calculatePlateLoad,
+  getDefaultBarWeight,
+  type PlateLoadResult,
+  type WarmupSetTarget,
+} from '@/app/lib/workout-tools';
 import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvider';
 import { useDialog } from '@/app/providers/DialogProvider';
 import {
@@ -65,6 +75,7 @@ import {
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 type InfoPanel = 'set-unit' | 'rpe' | null;
+type CockpitTool = 'plates' | 'warmup' | null;
 
 type ExerciseRef = {
   blockId: string;
@@ -504,6 +515,207 @@ function SmartTargetReadout({
   );
 }
 
+function formatToolWeight(value: number, unit: WeightUnit): string {
+  const rounded = unit === 'kg' ? Number(value.toFixed(2)) : Number(value.toFixed(1));
+  return `${rounded}${unit.toUpperCase()}`;
+}
+
+function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
+  const exact = plateLoad.delta === 0;
+
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3" data-testid="plate-load-result">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+            Per Side
+          </p>
+          <p className="mt-1 font-mono text-2xl font-black uppercase tracking-tight text-white">
+            {formatToolWeight(plateLoad.sideWeight, plateLoad.unit)}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+            {exact ? 'Exact Load' : 'Closest Load'}
+          </p>
+          <p className="mt-1 text-sm font-black uppercase text-zinc-200">
+            {formatToolWeight(plateLoad.actualWeight, plateLoad.unit)}
+            {!exact && (
+              <span className="ml-1 text-zinc-500">
+                {plateLoad.delta > 0 ? '+' : ''}
+                {plateLoad.delta}
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {plateLoad.platesPerSide.length > 0 ? (
+          plateLoad.platesPerSide.map((plate) => (
+            <div key={plate.weight} className="flex items-center justify-between border-t border-zinc-900 pt-2">
+              <span className="font-mono text-sm font-black text-zinc-100">
+                {formatToolWeight(plate.weight, plateLoad.unit)}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                x{plate.count} each side
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="border-t border-zinc-900 pt-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            Bar only
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WarmupPlanPreview({
+  warmups,
+  unit,
+}: {
+  warmups: WarmupSetTarget[];
+  unit: WeightUnit;
+}) {
+  if (warmups.length === 0) {
+    return (
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-4 text-sm leading-6 text-zinc-400">
+        Target load is too close to the bar weight for a useful barbell warm-up ladder.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3" data-testid="warmup-plan-result">
+      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+        Warm-Up Ladder
+      </p>
+      <div className="mt-3 space-y-2">
+        {warmups.map((set, index) => (
+          <div key={`${set.weight}-${set.reps}-${index}`} className="flex items-center justify-between border-t border-zinc-900 pt-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+              {set.label}
+            </span>
+            <span className="font-mono text-sm font-black uppercase text-zinc-100">
+              {formatToolWeight(set.weight, unit)} x {set.reps}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type WorkoutShareCardInput = {
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  weightUnit: WeightUnit;
+  programName: string;
+  pulseMap: Array<{
+    volume: number;
+    primary: MuscleGroup;
+    secondary?: MuscleGroup;
+  }>;
+};
+
+async function createWorkoutShareFile(input: WorkoutShareCardInput): Promise<File | null> {
+  if (typeof document === 'undefined' || typeof File === 'undefined') return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#09090b';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const radial = ctx.createRadialGradient(540, 530, 80, 540, 530, 740);
+  radial.addColorStop(0, 'rgba(16,185,129,0.18)');
+  radial.addColorStop(0.48, 'rgba(39,39,42,0.28)');
+  radial.addColorStop(1, 'rgba(9,9,11,0)');
+  ctx.fillStyle = radial;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#a1a1aa';
+  ctx.font = '700 28px Inter, Arial, sans-serif';
+  ctx.fillText('IRON BRAIN', 86, 120);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'italic 900 94px Inter, Arial, sans-serif';
+  ctx.fillText('SESSION', 84, 234);
+  ctx.fillText('REPORT', 84, 330);
+
+  ctx.fillStyle = '#71717a';
+  ctx.font = '700 26px Inter, Arial, sans-serif';
+  ctx.fillText(input.programName.toUpperCase().slice(0, 34), 88, 392);
+
+  ctx.fillStyle = '#34d399';
+  ctx.font = '900 124px Inter, Arial, sans-serif';
+  ctx.fillText(Math.round(input.totalVolume).toLocaleString(), 82, 570);
+
+  ctx.fillStyle = '#d4d4d8';
+  ctx.font = 'italic 900 40px Inter, Arial, sans-serif';
+  ctx.fillText(input.weightUnit.toUpperCase(), 88, 625);
+
+  const statY = 730;
+  [
+    ['SETS', input.totalSets.toLocaleString()],
+    ['REPS', input.totalReps.toLocaleString()],
+  ].forEach(([label, value], index) => {
+    const x = 86 + index * 340;
+    ctx.strokeStyle = '#27272a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, statY, 260, 150);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'italic 900 60px Inter, Arial, sans-serif';
+    ctx.fillText(value, x + 28, statY + 70);
+    ctx.fillStyle = '#71717a';
+    ctx.font = '800 24px Inter, Arial, sans-serif';
+    ctx.fillText(label, x + 30, statY + 116);
+  });
+
+  const pulses = input.pulseMap.length > 0 ? input.pulseMap : [{ volume: 1, primary: 'other' as MuscleGroup }];
+  const maxVolume = Math.max(1, ...pulses.map((pulse) => pulse.volume));
+  const barAreaX = 84;
+  const barAreaY = 982;
+  const barAreaW = 912;
+  const barAreaH = 210;
+  const gap = 8;
+  const barW = Math.max(10, Math.min(34, (barAreaW - gap * (pulses.length - 1)) / pulses.length));
+
+  pulses.slice(0, 28).forEach((pulse, index) => {
+    const height = Math.max(20, (pulse.volume / maxVolume) * barAreaH);
+    const x = barAreaX + index * (barW + gap);
+    const y = barAreaY + barAreaH - height;
+    const primary = MUSCLE_COLORS[pulse.primary] ?? MUSCLE_COLORS.other;
+    const secondary = pulse.secondary ? MUSCLE_COLORS[pulse.secondary] ?? primary : primary;
+    const gradient = ctx.createLinearGradient(x, y, x, y + height);
+    gradient.addColorStop(0, primary.color);
+    gradient.addColorStop(1, secondary.color);
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = primary.glow;
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, height, Math.min(12, barW / 2));
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  ctx.fillStyle = '#71717a';
+  ctx.font = '700 24px Inter, Arial, sans-serif';
+  ctx.fillText('Logged with ironbrain.dev', 84, 1260);
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((result) => resolve(result), 'image/png', 0.92);
+  });
+
+  return blob ? new File([blob], 'iron-brain-session.png', { type: 'image/png' }) : null;
+}
+
 const getExerciseStyle = (exercise: ExerciseIdentity, resolveMuscleProfile: ResolveMuscleProfile): ExerciseStyle => {
   const { primary, secondary } = resolveMuscleProfile(exercise);
   const primaryKey = MUSCLE_COLORS[primary] ? primary : 'other';
@@ -873,6 +1085,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     toggleComplete,
     skipSet,
     addSet,
+    insertWarmupSets,
     addExercise,
     removeExercise,
     setActiveCell,
@@ -1038,6 +1251,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
+  const [activeTool, setActiveTool] = useState<CockpitTool>(null);
+  const [toolTargetWeight, setToolTargetWeight] = useState<number | null>(null);
+  const [toolBarWeight, setToolBarWeight] = useState<number | null>(null);
   const [activeInput, setActiveInput] = useState<{
     blockId: string;
     setId: string;
@@ -1086,7 +1302,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const saveInFlightRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen || infoPanel !== null;
+  const isAnyModalOpen = isHistoryOpen || isNotesOpen || isAddMovementOpen || isSummaryOpen || infoPanel !== null || activeTool !== null;
   useBodyScrollLock(isAnyModalOpen);
 
   const calculateSessionStats = useCallback((blocks: Block[]) => {
@@ -1706,6 +1922,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setActiveInput(null);
     setKeypadValue('');
     setKeypadArmed(false);
+    setActiveTool(null);
   }, [viewMode]);
 
   useEffect(() => {
@@ -2521,8 +2738,32 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
-        await navigator.share({ title: 'Iron Brain Session', text, url });
-        setShareStatusMessage('Share sheet opened');
+        const shareFile = await createWorkoutShareFile({
+          totalVolume: sessionStats.totalVolume,
+          totalSets: sessionStats.totalSets,
+          totalReps: sessionStats.totalReps,
+          weightUnit: sessionWeightUnit,
+          programName: baseProgram?.name ?? 'Quick Start',
+          pulseMap: sessionStats.pulseMap,
+        });
+        const filePayload: ShareData | null = shareFile ? {
+          title: 'Iron Brain Session',
+          text,
+          url,
+          files: [shareFile],
+        } : null;
+        const canShareFile =
+          filePayload &&
+          typeof navigator.canShare === 'function' &&
+          navigator.canShare(filePayload);
+
+        if (canShareFile && filePayload) {
+          await navigator.share(filePayload);
+          setShareStatusMessage('Share card opened');
+        } else {
+          await navigator.share({ title: 'Iron Brain Session', text, url });
+          setShareStatusMessage('Share sheet opened');
+        }
       } catch {
         setShareStatusMessage('Share canceled');
       }
@@ -2586,6 +2827,57 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const bodyweightExercise = focusedRef ? isBodyweight(getExerciseDisplayName(focusedRef.exercise)) : false;
   const isWeightActive = activeInput?.field === 'weight';
   const isRepsActive = activeInput?.field === 'reps';
+  const defaultToolBarWeight = getDefaultBarWeight(currentSetWeightUnit);
+  const resolvedToolTargetWeight = Math.max(
+    defaultToolBarWeight,
+    toolTargetWeight ?? (weightValue > 0 ? weightValue : defaultToolBarWeight)
+  );
+  const resolvedToolBarWeight = Math.max(1, toolBarWeight ?? defaultToolBarWeight);
+  const plateLoad = useMemo(
+    () => calculatePlateLoad({
+      targetWeight: resolvedToolTargetWeight,
+      unit: currentSetWeightUnit,
+      barWeight: resolvedToolBarWeight,
+    }),
+    [currentSetWeightUnit, resolvedToolBarWeight, resolvedToolTargetWeight]
+  );
+  const warmupPlan = useMemo(
+    () => buildWarmupPlan({
+      targetWeight: resolvedToolTargetWeight,
+      targetReps: repsValue,
+      unit: currentSetWeightUnit,
+      barWeight: resolvedToolBarWeight,
+    }),
+    [currentSetWeightUnit, repsValue, resolvedToolBarWeight, resolvedToolTargetWeight]
+  );
+  const existingWarmupCount = focusContext?.exercise.sets.filter((set) => set.type === 'warmup').length ?? 0;
+
+  const openCockpitTool = (tool: Exclude<CockpitTool, null>) => {
+    const fallbackBarWeight = getDefaultBarWeight(currentSetWeightUnit);
+    setToolBarWeight(fallbackBarWeight);
+    setToolTargetWeight(Math.max(fallbackBarWeight, weightValue > 0 ? weightValue : fallbackBarWeight));
+    setActiveTool(tool);
+  };
+
+  const handleApplyPlateLoad = () => {
+    applySetUpdate('weight', plateLoad.actualWeight);
+    setActiveTool(null);
+  };
+
+  const handleInsertWarmupPlan = () => {
+    if (!focusContext || warmupPlan.length === 0) return;
+    insertWarmupSets(
+      focusContext.blockId,
+      focusContext.exerciseId,
+      focusContext.setId,
+      warmupPlan.map((set) => ({
+        weight: set.weight,
+        reps: set.reps,
+        weightUnit: currentSetWeightUnit,
+      }))
+    );
+    setActiveTool(null);
+  };
 
   const nextSetIndex = nextSetContext
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
@@ -2986,6 +3278,48 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   />
 
                   {!bodyweightExercise && (
+                    <div className="grid grid-cols-2 gap-2" data-testid="workout-tool-buttons">
+                      <button
+                        type="button"
+                        onClick={() => openCockpitTool('plates')}
+                        className="group flex min-h-16 items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/75 px-3 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        aria-label="Open plate calculator"
+                      >
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-emerald-300">
+                          <Calculator className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200">
+                            Plates
+                          </span>
+                          <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">
+                            Per side
+                          </span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openCockpitTool('warmup')}
+                        className="group flex min-h-16 items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/75 px-3 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        aria-label="Open warm-up calculator"
+                      >
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-amber-300">
+                          <Flame className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-200">
+                            Warm-Up
+                          </span>
+                          <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600">
+                            Build ladder
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {!bodyweightExercise && (
                     <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-zinc-900 bg-zinc-950/70 px-3 py-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Unit</p>
@@ -3149,6 +3483,111 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
           )}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {activeTool && focusContext && !bodyweightExercise && (
+          <motion.div
+            key="cockpit-tool"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[145] flex items-end justify-center bg-zinc-950/75 p-4 backdrop-blur-md sm:items-center"
+            data-swipe-ignore="true"
+            onClick={() => setActiveTool(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+              data-testid={activeTool === 'plates' ? 'load-calculator' : 'warmup-calculator'}
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-900 p-5">
+                <div className="min-w-0">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-emerald-300">
+                      {activeTool === 'plates' ? <Dumbbell className="h-4 w-4" /> : <Flame className="h-4 w-4 text-amber-300" />}
+                    </span>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+                      {focusedExerciseDisplayName}
+                    </p>
+                  </div>
+                  <h3 className="text-2xl font-black italic tracking-tight text-zinc-100">
+                    {activeTool === 'plates' ? 'LOAD CALCULATOR' : 'WARM-UP BUILDER'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTool(null)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+                  aria-label="Close tool"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4 p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-zinc-900 bg-zinc-950/70 p-3">
+                    <HardyStepper
+                      layout="vertical"
+                      value={resolvedToolTargetWeight}
+                      onChange={setToolTargetWeight}
+                      step={currentSetWeightUnit === 'kg' ? 2.5 : 5}
+                      label={`TARGET ${currentSetWeightUnit.toUpperCase()}`}
+                      valueClassName="text-zinc-100 text-2xl sm:text-3xl"
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-zinc-900 bg-zinc-950/70 p-3">
+                    <HardyStepper
+                      layout="vertical"
+                      value={resolvedToolBarWeight}
+                      onChange={setToolBarWeight}
+                      step={currentSetWeightUnit === 'kg' ? 2.5 : 5}
+                      label={`BAR ${currentSetWeightUnit.toUpperCase()}`}
+                      valueClassName="text-zinc-100 text-2xl sm:text-3xl"
+                    />
+                  </div>
+                </div>
+
+                {activeTool === 'plates' ? (
+                  <>
+                    <PlateLoadPreview plateLoad={plateLoad} />
+                    <button
+                      type="button"
+                      onClick={handleApplyPlateLoad}
+                      className="w-full rounded-2xl bg-emerald-400 py-4 text-xs font-black uppercase tracking-[0.28em] text-zinc-950 shadow-[0_18px_38px_-28px_rgba(52,211,153,0.9)] active:scale-[0.98]"
+                      data-testid="plate-load-apply"
+                    >
+                      Apply Load
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <WarmupPlanPreview warmups={warmupPlan} unit={currentSetWeightUnit} />
+                    {existingWarmupCount > 0 && (
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+                        {existingWarmupCount} warm-up set{existingWarmupCount === 1 ? '' : 's'} already in this exercise.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleInsertWarmupPlan}
+                      disabled={isEditingSet || warmupPlan.length === 0}
+                      className="w-full rounded-2xl bg-emerald-400 py-4 text-xs font-black uppercase tracking-[0.28em] text-zinc-950 shadow-[0_18px_38px_-28px_rgba(52,211,153,0.9)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
+                      data-testid="warmup-insert"
+                    >
+                      Insert Warm-Ups
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {infoPanel && (

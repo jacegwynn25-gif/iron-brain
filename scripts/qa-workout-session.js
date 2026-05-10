@@ -21,6 +21,10 @@ async function expectVisible(locator, label) {
         window.__ironBrainShared = payload;
       },
     });
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: (payload) => Boolean(payload?.files?.length),
+    });
   });
 
   console.log('▶️  Opening workout logger...');
@@ -64,6 +68,16 @@ async function expectVisible(locator, label) {
   await keypad.getByRole('button', { name: '5', exact: true }).click();
   await keypad.getByRole('button', { name: /Done/i }).click();
 
+  console.log('▶️  Checking competitive logger tools...');
+  await page.getByRole('button', { name: /Open plate calculator/i }).click();
+  await expectVisible(page.getByTestId('load-calculator'), 'Plate calculator opened');
+  await expectVisible(page.getByTestId('plate-load-result').getByText(/45LBS/i).first(), 'Plate calculator shows per-side loading');
+  await page.getByRole('button', { name: /Close tool/i }).click();
+  await page.getByRole('button', { name: /Open warm-up calculator/i }).click();
+  await expectVisible(page.getByTestId('warmup-calculator'), 'Warm-up calculator opened');
+  await expectVisible(page.getByTestId('warmup-plan-result').getByText(/75LBS x 8/i), 'Warm-up ladder renders conservative targets');
+  await page.getByRole('button', { name: /Close tool/i }).click();
+
   console.log('▶️  Logging set...');
   await page.getByRole('button', { name: /LOG SET/i }).click();
   await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer shown');
@@ -101,10 +115,18 @@ async function expectVisible(locator, label) {
     throw new Error('Workout summary totals are not visible within the initial mobile viewport');
   }
   await page.getByRole('button', { name: /^Share$/i }).click();
-  await expectVisible(page.getByTestId('workout-summary-status').getByText(/Share sheet opened/i), 'Share sheet wired');
-  const sharedPayload = await page.evaluate(() => window.__ironBrainShared);
+  await expectVisible(page.getByTestId('workout-summary-status').getByText(/Share (card|sheet) opened/i), 'Share sheet wired');
+  const sharedPayload = await page.evaluate(() => ({
+    text: window.__ironBrainShared?.text,
+    fileCount: window.__ironBrainShared?.files?.length ?? 0,
+    fileName: window.__ironBrainShared?.files?.[0]?.name ?? null,
+    fileType: window.__ironBrainShared?.files?.[0]?.type ?? null,
+  }));
   if (!sharedPayload?.text?.includes('IRON BRAIN SESSION')) {
     throw new Error('Share payload was not populated with the workout summary');
+  }
+  if (sharedPayload.fileCount !== 1 || sharedPayload.fileName !== 'iron-brain-session.png' || sharedPayload.fileType !== 'image/png') {
+    throw new Error('Share card image was not attached to the workout summary');
   }
 
   console.log('▶️  Finishing workout...');

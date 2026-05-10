@@ -7,6 +7,7 @@ import {
   type TrainingRecommendationInput,
 } from '../app/lib/intelligence/training-recommendations';
 import { calculateMuscleFatigue } from '../app/lib/fatigueModel';
+import { buildWarmupPlan, calculatePlateLoad } from '../app/lib/workout-tools';
 import type { ProgramTemplate } from '../app/lib/types';
 
 function nextSetRecommendation(input: TrainingRecommendationInput): TrainingRecommendation {
@@ -44,6 +45,34 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
     performedAt: isoDaysAgo(daysAgo),
     ...overrides,
   };
+}
+
+{
+  const plateLoad = calculatePlateLoad({ targetWeight: 185, unit: 'lbs' });
+  assert.equal(plateLoad.actualWeight, 185);
+  assert.equal(plateLoad.delta, 0);
+  assert.deepEqual(plateLoad.platesPerSide, [
+    { weight: 45, count: 1 },
+    { weight: 25, count: 1 },
+  ]);
+  const oddLoad = calculatePlateLoad({ targetWeight: 188, unit: 'lbs' });
+  assert.equal(oddLoad.actualWeight, 190);
+  assert.equal(oddLoad.delta, 2);
+
+  const kgLoad = calculatePlateLoad({ targetWeight: 102.5, unit: 'kg' });
+  assert.equal(kgLoad.actualWeight, 102.5);
+  assert.deepEqual(kgLoad.platesPerSide, [
+    { weight: 25, count: 1 },
+    { weight: 15, count: 1 },
+    { weight: 1.25, count: 1 },
+  ]);
+
+  const warmups = buildWarmupPlan({ targetWeight: 225, targetReps: 5, unit: 'lbs' });
+  assert.deepEqual(
+    warmups.map((set) => `${set.weight}x${set.reps}`),
+    ['45x10', '90x8', '125x5', '160x3', '185x1']
+  );
+  assert.ok(warmups.every((set) => set.weight < 225));
 }
 
 {

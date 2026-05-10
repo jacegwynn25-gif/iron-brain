@@ -69,6 +69,19 @@ type WorkoutSessionAction =
     };
   }
   | {
+    type: 'INSERT_WARMUP_SETS';
+    payload: {
+      blockId: string;
+      exerciseId: string;
+      beforeSetId: string;
+      warmups: Array<{
+        weight: number;
+        reps: number;
+        weightUnit: WeightUnit;
+      }>;
+    };
+  }
+  | {
     type: 'SKIP_SET';
     payload: {
       blockId: string;
@@ -898,6 +911,52 @@ function workoutSessionReducer(
       };
     }
 
+    case 'INSERT_WARMUP_SETS': {
+      const blocks = cloneBlocks(state.blocks);
+      const exercise = exerciseByIds(blocks, action.payload.blockId, action.payload.exerciseId);
+      if (!exercise || action.payload.warmups.length === 0) return state;
+
+      const insertIndex = exercise.sets.findIndex((set) => set.id === action.payload.beforeSetId);
+      if (insertIndex === -1) return state;
+
+      const warmupSets: SessionSet[] = action.payload.warmups.map((warmup, index) => ({
+        id: createId('set'),
+        type: 'warmup',
+        weight: Math.max(0, warmup.weight),
+        weightUnit: warmup.weightUnit,
+        reps: Math.max(1, Math.round(warmup.reps)),
+        rpe: null,
+        prescribedRPE: 5,
+        prescribedRIR: null,
+        prescribedPercentage: null,
+        prescribedWeight: Math.max(0, warmup.weight),
+        prescribedSeconds: null,
+        touchedWeight: false,
+        touchedReps: false,
+        touchedRpe: false,
+        tempo: null,
+        supersetGroup: null,
+        cluster: null,
+        completed: false,
+        previous: null,
+        previousNote: index === 0 ? exercise.historyNote : null,
+        notes: '',
+      }));
+
+      exercise.sets.splice(insertIndex, 0, ...warmupSets);
+
+      return {
+        ...state,
+        blocks,
+        activeCell: {
+          blockId: action.payload.blockId,
+          exerciseId: action.payload.exerciseId,
+          setId: warmupSets[0].id,
+          field: 'weight',
+        },
+      };
+    }
+
     case 'ADD_EXERCISE': {
       const blocks = cloneBlocks(state.blocks);
       const blockId = createId('block');
@@ -1114,6 +1173,18 @@ export function useWorkoutSession(
     });
   }, []);
 
+  const insertWarmupSets = useCallback((
+    blockId: string,
+    exerciseId: string,
+    beforeSetId: string,
+    warmups: Array<{ weight: number; reps: number; weightUnit: WeightUnit }>
+  ) => {
+    dispatch({
+      type: 'INSERT_WARMUP_SETS',
+      payload: { blockId, exerciseId, beforeSetId, warmups },
+    });
+  }, []);
+
   const removeSet = useCallback((blockId: string, exerciseId: string, setId: string) => {
     dispatch({
       type: 'REMOVE_SET',
@@ -1165,6 +1236,7 @@ export function useWorkoutSession(
     toggleComplete,
     skipSet,
     addSet,
+    insertWarmupSets,
     removeSet,
     updateNote,
     addExercise,
