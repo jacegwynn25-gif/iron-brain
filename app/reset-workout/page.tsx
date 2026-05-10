@@ -5,6 +5,9 @@ export const revalidate = 0;
 
 const resetScript = `
 (function () {
+  var params = new URLSearchParams(window.location.search);
+  var hardReset = params.get('hard') === '1';
+
   function clearActiveWorkoutStorage() {
     try {
       var prefixes = [
@@ -33,10 +36,44 @@ const resetScript = `
     }
   }
 
+  function clearBrowserCaches() {
+    var tasks = [];
+
+    try {
+      if ('caches' in window) {
+        tasks.push(
+          caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+          })
+        );
+      }
+    } catch (error) {
+      // Cache storage may be unavailable in some webviews.
+    }
+
+    try {
+      if ('serviceWorker' in navigator) {
+        tasks.push(
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) {
+              return registration.unregister();
+            }));
+          })
+        );
+      }
+    } catch (error) {
+      // Service worker access may be blocked in standalone mode.
+    }
+
+    return Promise.allSettled(tasks);
+  }
+
   clearActiveWorkoutStorage();
-  window.setTimeout(function () {
-    window.location.replace('/?workout_reset=' + Date.now());
-  }, 50);
+  (hardReset ? clearBrowserCaches() : Promise.resolve()).finally(function () {
+    window.setTimeout(function () {
+      window.location.replace('/?workout_reset=' + Date.now() + (hardReset ? '&hard=1' : ''));
+    }, 80);
+  });
 }());
 `;
 
@@ -54,12 +91,20 @@ export default function ResetWorkoutPage() {
         <p className="text-sm leading-relaxed text-zinc-400">
           If you are not redirected automatically, use the button below.
         </p>
-        <Link
-          href="/"
-          className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-400 px-5 text-xs font-black uppercase tracking-[0.22em] text-zinc-950"
-        >
-          Go Home
-        </Link>
+        <div className="grid gap-2">
+          <Link
+            href="/"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-400 px-5 text-xs font-black uppercase tracking-[0.22em] text-zinc-950"
+          >
+            Go Home
+          </Link>
+          <Link
+            href="/reset-workout?hard=1"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-5 text-xs font-black uppercase tracking-[0.18em] text-zinc-300"
+          >
+            Hard Reset App Cache
+          </Link>
+        </div>
       </div>
     </main>
   );
