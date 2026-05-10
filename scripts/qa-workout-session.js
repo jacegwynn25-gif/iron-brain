@@ -8,6 +8,17 @@ async function expectVisible(locator, label) {
   console.log(`✅ ${label}`);
 }
 
+async function swipeRowLeft(page, row, label) {
+  const box = await row.boundingBox();
+  if (!box) {
+    throw new Error(`Could not find row bounds for ${label}`);
+  }
+  await page.mouse.move(box.x + box.width - 24, box.y + Math.min(52, Math.max(28, box.height / 2)));
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 118, box.y + Math.min(52, Math.max(28, box.height / 2)), { steps: 8 });
+  await page.mouse.up();
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({
@@ -17,6 +28,10 @@ async function expectVisible(locator, label) {
   });
 
   await page.addInitScript(() => {
+    if (!sessionStorage.getItem('iron_brain_workout_qa_bootstrapped')) {
+      localStorage.clear();
+      sessionStorage.setItem('iron_brain_workout_qa_bootstrapped', 'true');
+    }
     localStorage.setItem('iron_brain_onboarding_complete', 'true');
     localStorage.setItem('iron_brain_coach_marks_complete', 'true');
     Object.defineProperty(navigator, 'share', {
@@ -48,7 +63,9 @@ async function expectVisible(locator, label) {
   await page.getByRole('button', { name: '1', exact: true }).click();
   await page.getByRole('button', { name: /ADD \d+ SET/i }).click();
   await expectVisible(page.getByText(/QA Logger Row/i).first(), 'Custom movement added to overview');
-  await page.getByRole('button', { name: /Delete QA Logger Row/i }).tap({ timeout: 10000 });
+  const customRow = page.locator('[data-testid="logger-exercise-row"]').filter({ hasText: /QA Logger Row/i }).first();
+  await swipeRowLeft(page, customRow, 'QA Logger Row');
+  await page.getByRole('button', { name: /Slide delete QA Logger Row/i }).tap({ timeout: 10000 });
   await page.getByText(/QA Logger Row/i).waitFor({ state: 'hidden', timeout: 10000 });
   const customStillStored = await page.evaluate(() => {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
@@ -74,7 +91,7 @@ async function expectVisible(locator, label) {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
     if (!activeKey) return false;
     const raw = localStorage.getItem(activeKey);
-    if (!raw) return false;
+    if (!raw || !raw.includes('Bench Press') || raw.includes('QA Logger Row')) return false;
     try {
       const snapshot = JSON.parse(raw);
       const sets = snapshot.blocks?.[0]?.exercises?.[0]?.sets ?? [];
@@ -83,7 +100,33 @@ async function expectVisible(locator, label) {
       return false;
     }
   }, null, { timeout: 5000 });
+  const originalStartTime = await page.evaluate(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    const raw = activeKey ? localStorage.getItem(activeKey) : null;
+    return raw ? JSON.parse(raw).startTime : null;
+  });
   console.log('✅ Quick Start sets use RPE 8 target while actual RPE stays blank');
+
+  console.log('▶️  Checking leave/resume/back-forward session integrity...');
+  for (let index = 0; index < 3; index += 1) {
+    await page.getByText(/Bench Press/i).first().tap({ timeout: 10000 });
+    await expectVisible(page.getByRole('button', { name: /LOG SET/i }), `Cockpit loop ${index + 1} opened`);
+    await page.getByRole('button', { name: /^Back$/i }).first().tap({ timeout: 10000 });
+    await expectVisible(page.getByText(/Bench Press/i).first(), `Cockpit loop ${index + 1} returned to overview`);
+  }
+  await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+  await expectVisible(page.getByText(/RESUME SESSION/i), 'Dashboard resume CTA survives leaving logger');
+  await page.goto(`${BASE_URL}?type=empty`, { waitUntil: 'networkidle' });
+  await expectVisible(page.getByText(/Bench Press/i).first(), 'Stale quick-start URL resumes existing active workout');
+  const resumedStartTime = await page.evaluate(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    const raw = activeKey ? localStorage.getItem(activeKey) : null;
+    return raw ? JSON.parse(raw).startTime : null;
+  });
+  if (!originalStartTime || resumedStartTime !== originalStartTime) {
+    throw new Error('Active workout timer/start time changed after leave/resume/stale quick-start flow');
+  }
+  console.log('✅ Leaving, resuming, stale quick-start revisit, and cockpit back loops preserve the workout');
 
   console.log('▶️  Opening cockpit...');
   await page.getByText(/Bench Press/i).first().click();

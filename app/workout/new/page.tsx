@@ -25,7 +25,10 @@ export default function NewWorkoutPage() {
 
   // When resuming an active session, use its stored program/day metadata
   // instead of the default selectedProgram + getProgramProgress flow.
-  const resumeMeta = activeSessionReady && isSessionActive && !requestedProgramId && !forceQuickStart
+  const shouldResumeActiveSession = activeSessionReady && isSessionActive && !requestedProgramId;
+  const shouldForceQuickStart = forceQuickStart && !shouldResumeActiveSession;
+
+  const resumeMeta = shouldResumeActiveSession
     ? snapshot?.meta ?? null
     : null;
 
@@ -47,7 +50,7 @@ export default function NewWorkoutPage() {
   }, [queryCycle, queryDay, queryWeek]);
 
   const resolvedProgram = useMemo(() => {
-    if (forceQuickStart) return null;
+    if (shouldForceQuickStart) return null;
     // If resuming an active session, find the program by the stored programId
     if (resumeMeta) {
       // Wait if programs are still loading
@@ -69,11 +72,11 @@ export default function NewWorkoutPage() {
       return null;
     }
     return selectedProgram ?? null;
-  }, [allPrograms, forceQuickStart, requestedProgramId, resumeMeta, selectedProgram, loading]);
+  }, [allPrograms, shouldForceQuickStart, requestedProgramId, resumeMeta, selectedProgram, loading]);
 
 
   const resolvedProgress = useMemo<ProgramProgress | null>(() => {
-    if (forceQuickStart || !resolvedProgram) return null;
+    if (shouldForceQuickStart || !resolvedProgram) return null;
     if (queryProgress) return queryProgress;
     // If resuming, use the stored week/day indices from the active session
     if (resumeMeta && resumeMeta.weekIndex != null && resumeMeta.dayIndex != null) {
@@ -84,13 +87,13 @@ export default function NewWorkoutPage() {
       };
     }
     return getProgramProgress(resolvedProgram, namespaceId);
-  }, [forceQuickStart, namespaceId, queryProgress, resolvedProgram, resumeMeta]);
+  }, [shouldForceQuickStart, namespaceId, queryProgress, resolvedProgram, resumeMeta]);
 
   useEffect(() => {
-    if (forceQuickStart || !requestedProgramId || !resolvedProgram) return;
+    if (shouldForceQuickStart || !requestedProgramId || !resolvedProgram) return;
     if (selectedProgram?.id === resolvedProgram.id) return;
     selectProgram(resolvedProgram);
-  }, [forceQuickStart, requestedProgramId, resolvedProgram, selectProgram, selectedProgram?.id]);
+  }, [shouldForceQuickStart, requestedProgramId, resolvedProgram, selectProgram, selectedProgram?.id]);
 
   useEffect(() => {
     if (!forceDiscard || !activeSessionReady) return;
@@ -108,7 +111,7 @@ export default function NewWorkoutPage() {
     );
   }
 
-  if (!activeSessionReady && !requestedProgramId && !forceQuickStart) {
+  if (!activeSessionReady && !requestedProgramId) {
     return (
       <div className="mx-auto w-full max-w-3xl py-6">
         <div className="px-4 py-12 text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
@@ -118,7 +121,7 @@ export default function NewWorkoutPage() {
     );
   }
 
-  if (!forceQuickStart && requestedProgramId && loading && !resolvedProgram) {
+  if (!shouldForceQuickStart && requestedProgramId && loading && !resolvedProgram) {
     return (
       <div className="mx-auto w-full max-w-3xl py-6">
         <div className="px-4 py-12 text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
@@ -144,7 +147,7 @@ export default function NewWorkoutPage() {
       <SessionLogger
         initialData={resolvedProgram ?? undefined}
         initialProgress={resolvedProgress}
-        ignoreActiveSnapshot={forceQuickStart || Boolean(requestedProgramId)}
+        ignoreActiveSnapshot={shouldForceQuickStart || Boolean(requestedProgramId)}
       />
     </div>
   );

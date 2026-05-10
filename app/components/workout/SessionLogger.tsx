@@ -1098,6 +1098,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       startTime: session.startTime.toISOString(),
       blocks: session.blocks,
       activeCell: session.activeCell,
+      structureDirty: session.structureDirty ?? false,
       meta: {
         programId: baseProgram.id,
         programName: baseProgram.name ?? 'Quick Start',
@@ -1124,6 +1125,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     session.blocks,
     session.startTime,
     session.status,
+    session.structureDirty,
     sessionWeightUnit,
   ]);
 
@@ -1140,6 +1142,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       ),
     [session.blocks]
   );
+  const hasSessionEdits = hasCompletedSets || hasTouchedSets || Boolean(session.structureDirty);
   const prevWeightUnitRef = useRef<WeightUnit>(sessionWeightUnit);
   const prevSessionProgramRef = useRef(sessionProgram);
   const readinessModifierKey = `${sessionReadinessModifiers.overall}:${sessionReadinessModifiers.upperBody}:${sessionReadinessModifiers.lowerBody}`;
@@ -1149,7 +1152,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     if (!resumeSnapshot || resumeSnapshot.status !== 'active') return;
     const snapshotKey = `${resumeSnapshot.startTime}:${resumeSnapshot.meta.programId}`;
     if (hydratedSnapshotKeyRef.current === snapshotKey) return;
-    if (hasCompletedSets || hasTouchedSets) return;
+    if (hasSessionEdits) return;
 
     hydratedSnapshotKeyRef.current = snapshotKey;
     setSessionWeightUnit(getSnapshotDefaultWeightUnit(resumeSnapshot, sessionWeightUnit));
@@ -1160,7 +1163,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
         startTime: new Date(resumeSnapshot.startTime),
       },
     });
-  }, [dispatch, hasCompletedSets, hasTouchedSets, resumeSnapshot, sessionWeightUnit]);
+  }, [dispatch, hasSessionEdits, resumeSnapshot, sessionWeightUnit]);
 
 
   useEffect(() => {
@@ -1168,7 +1171,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     prevSessionProgramRef.current = sessionProgram;
 
     // If we have progress in the current session, don't reset.
-    if (hasCompletedSets || hasTouchedSets) return;
+    if (hasSessionEdits) return;
 
     // If we are resuming an active session from a snapshot, don't reset
     // just because the program reference changed (which happens on mount).
@@ -1180,17 +1183,16 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     }
 
     reinitializeSession();
-	  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
+	  }, [hasSessionEdits, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
 
   useEffect(() => {
     if (readinessLoading) return;
     if (prevReadinessModifierKeyRef.current === readinessModifierKey) return;
     prevReadinessModifierKeyRef.current = readinessModifierKey;
-    if (resumeSnapshot || hasCompletedSets || hasTouchedSets) return;
+    if (resumeSnapshot || hasSessionEdits) return;
     reinitializeSession();
   }, [
-    hasCompletedSets,
-    hasTouchedSets,
+    hasSessionEdits,
     readinessLoading,
     readinessModifierKey,
     reinitializeSession,
@@ -1198,18 +1200,18 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   ]);
 
   useEffect(() => {
-    if (hasCompletedSets || hasTouchedSets) return;
+    if (hasSessionEdits) return;
     if (preferredWeightUnit !== sessionWeightUnit) {
       setSessionWeightUnit(preferredWeightUnit);
     }
-  }, [hasCompletedSets, hasTouchedSets, preferredWeightUnit, sessionWeightUnit]);
+  }, [hasSessionEdits, preferredWeightUnit, sessionWeightUnit]);
 
   useEffect(() => {
     if (prevWeightUnitRef.current === sessionWeightUnit) return;
     prevWeightUnitRef.current = sessionWeightUnit;
-    if (hasCompletedSets || hasTouchedSets) return;
+    if (hasSessionEdits) return;
     reinitializeSession();
-  }, [hasCompletedSets, hasTouchedSets, reinitializeSession, sessionWeightUnit]);
+  }, [hasSessionEdits, reinitializeSession, sessionWeightUnit]);
 
   // NOTE: The resolveExerciseName effect was removed. The callback is now
   // stabilized via useRef so its identity never changes, preventing
@@ -1217,6 +1219,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
+  const [revealedExerciseId, setRevealedExerciseId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [infoPanel, setInfoPanel] = useState<InfoPanel>(null);
@@ -2081,6 +2084,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   };
 
   const handleOpenFocus = (entry: ExerciseRef, targetSetId?: string) => {
+    setRevealedExerciseId(null);
     const targetSet =
       (targetSetId
         ? entry.exercise.sets.find((set) => set.id === targetSetId)
@@ -2775,6 +2779,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   };
 
   const handleRemoveExercise = (blockId: string, exerciseId: string) => {
+    setRevealedExerciseId((current) => (current === exerciseId ? null : current));
     removeExercise(blockId, exerciseId);
   };
 
@@ -2967,11 +2972,38 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   const displayName = getExerciseDisplayName(entry.exercise);
                   const bodyweightExercise = isBodyweight(displayName);
 
+                  const isRevealed = revealedExerciseId === entry.exercise.id;
+
                   return (
                     <div
                       key={entry.exercise.id}
-                      className="rounded-2xl border border-zinc-900 bg-zinc-950 p-3 shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
+                      className="relative overflow-hidden rounded-2xl bg-rose-500/10 shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
+                      data-testid="logger-exercise-row"
                     >
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRemoveExercise(entry.blockId, entry.exercise.id);
+                        }}
+                        className="absolute inset-y-0 right-0 flex w-[4.75rem] items-center justify-center border-l border-rose-400/20 bg-rose-500/18 text-rose-200"
+                        aria-label={`Slide delete ${displayName}`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                      <motion.div
+                        drag="x"
+                        dragDirectionLock
+                        dragConstraints={{ left: -76, right: 0 }}
+                        dragElastic={0.04}
+                        animate={{ x: isRevealed ? -68 : 0 }}
+                        transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+                        onDragEnd={(_, info) => {
+                          const shouldReveal = info.offset.x < -42 || info.velocity.x < -420;
+                          setRevealedExerciseId(shouldReveal ? entry.exercise.id : null);
+                        }}
+                        className="rounded-2xl border border-zinc-900 bg-zinc-950 p-3"
+                      >
                       <div className="flex items-start gap-3">
                         <button
                           type="button"
@@ -3011,6 +3043,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
+                            setRevealedExerciseId(null);
                             handleRemoveExercise(entry.blockId, entry.exercise.id);
                           }}
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-900 bg-zinc-950 text-zinc-600 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-300 active:bg-rose-500/15"
@@ -3073,6 +3106,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                 );
                         })}
                       </div>
+                      </motion.div>
                     </div>
                   );
                 })}

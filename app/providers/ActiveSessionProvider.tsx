@@ -34,6 +34,7 @@ export interface ActiveSessionSnapshot {
     startTime: string; // ISO string for serialization
     blocks: Block[];
     activeCell: ActiveCell | null;
+    structureDirty?: boolean;
     meta: ActiveSessionMeta;
     savedAt?: string;
     storageVersion?: number;

@@ -514,6 +514,10 @@ function hasCompletedOrTouchedSets(blocks: Block[]): boolean {
   );
 }
 
+function hasUserSessionEdits(state: SessionState): boolean {
+  return Boolean(state.structureDirty) || hasCompletedOrTouchedSets(state.blocks);
+}
+
 function findFirstIncompleteSetRef(blocks: Block[]): SetRef | null {
   const order = buildTraversalOrder(blocks);
   for (const ref of order) {
@@ -688,12 +692,14 @@ function createInitialSessionState(
     startTime: new Date(),
     blocks,
     activeCell: firstSetRef ? toActiveCell(firstSetRef, 'weight') : null,
+    structureDirty: false,
   };
 }
 
 function normalizeSessionState(state: SessionState, fallbackWeightUnit: WeightUnit): SessionState {
   return {
     ...state,
+    structureDirty: Boolean(state.structureDirty),
     blocks: state.blocks.map((block) => ({
       ...block,
       exercises: block.exercises.map((exercise) => ({
@@ -749,8 +755,8 @@ function workoutSessionReducer(
 
     case 'INITIALIZE_SESSION': {
       // Guard against accidental data loss when inputs (program/readiness) change mid-session.
-      // If we have completed/touched sets, NEVER reinitialize.
-      if (hasCompletedOrTouchedSets(state.blocks)) {
+      // If the user has changed data or structure, NEVER reinitialize.
+      if (hasUserSessionEdits(state)) {
         return state;
       }
 
@@ -902,6 +908,7 @@ function workoutSessionReducer(
       return {
         ...state,
         blocks,
+        structureDirty: true,
         activeCell: {
           blockId: action.payload.blockId,
           exerciseId: action.payload.exerciseId,
@@ -948,6 +955,7 @@ function workoutSessionReducer(
       return {
         ...state,
         blocks,
+        structureDirty: true,
         activeCell: {
           blockId: action.payload.blockId,
           exerciseId: action.payload.exerciseId,
@@ -1003,6 +1011,7 @@ function workoutSessionReducer(
       return {
         ...state,
         blocks,
+        structureDirty: true,
       };
     }
 
@@ -1032,6 +1041,7 @@ function workoutSessionReducer(
       return {
         ...state,
         blocks,
+        structureDirty: true,
         activeCell,
       };
     }
@@ -1051,6 +1061,7 @@ function workoutSessionReducer(
         return {
           ...state,
           blocks,
+          structureDirty: true,
         };
       }
 
@@ -1066,6 +1077,7 @@ function workoutSessionReducer(
       return {
         ...state,
         blocks,
+        structureDirty: true,
         activeCell: fallbackRef ? toActiveCell(fallbackRef, 'weight') : null,
       };
     }

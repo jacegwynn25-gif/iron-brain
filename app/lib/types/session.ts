@@ -61,4 +61,5 @@ export interface SessionState {
   startTime: Date;
   blocks: Block[];
   activeCell: ActiveCell | null;
+  structureDirty?: boolean;
 }
