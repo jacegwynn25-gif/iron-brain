@@ -22,7 +22,7 @@ import type { ActiveCell, Block, Exercise, Set as SessionSet } from '@/app/lib/t
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import { useWorkoutSession, type ReadinessLoadModifiers } from '@/app/lib/hooks/useWorkoutSession';
 import { useUnitPreference } from '@/app/lib/hooks/useUnitPreference';
-import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
+import { clearAllActiveSessionStorageKeys, useActiveSession } from '@/app/providers/ActiveSessionProvider';
 
 import { getCustomExercises } from '@/app/lib/exercises/custom-exercises';
 import {
@@ -88,13 +88,6 @@ const ISOLATION_REST_SECONDS = 90;
 const SMALL_ISO_REST_SECONDS = 75;
 const CORE_REST_SECONDS = 60;
 const METRONOME_BEAT_MS = 600;
-const ACTIVE_WORKOUT_STORAGE_PREFIXES = [
-  'iron_brain_active_session',
-  'iron_brain_active_session_v1',
-  'iron_brain_session_timestamp',
-  'iron_brain_session_version',
-];
-
 type CommonExercise = {
   id: string;
   name: string;
@@ -133,29 +126,6 @@ const COMMON_EXERCISES: CommonExercise[] = [
 ];
 
 const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
-
-function clearActiveWorkoutStorageKeys() {
-  if (typeof window === 'undefined') return;
-
-  try {
-    const keysToRemove: string[] = [];
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index);
-      if (!key) continue;
-      if (
-        ACTIVE_WORKOUT_STORAGE_PREFIXES.some(
-          (prefix) => key === prefix || key.startsWith(`${prefix}__`)
-        )
-      ) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-    sessionStorage.removeItem('iron_brain_active_session_pending');
-  } catch {
-    // Continue with navigation even if browser storage is unavailable.
-  }
-}
 
 const MUSCLE_COLORS: Record<MuscleGroup, { color: string; glow: string }> = {
   chest: { color: '#fb7185', glow: 'rgba(251,113,133,0.55)' },
@@ -2638,7 +2608,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       // Clear persistent session before navigating away
       isExitingWorkoutRef.current = true;
       clearSession();
-      clearActiveWorkoutStorageKeys();
+      clearAllActiveSessionStorageKeys();
       // Save succeeded — navigate out
       setIsSummaryOpen(false);
       router.replace('/');
@@ -2708,7 +2678,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     setIsNotesOpen(false);
     setIsAddMovementOpen(false);
     clearSession();
-    clearActiveWorkoutStorageKeys();
+    clearAllActiveSessionStorageKeys();
     router.replace('/');
     window.setTimeout(() => {
       if (window.location.pathname.startsWith('/workout')) {

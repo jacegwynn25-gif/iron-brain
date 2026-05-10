@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Timer, ChevronUp } from 'lucide-react';
+import { Timer, ChevronUp, X } from 'lucide-react';
 import { useActiveSessionOptional } from '@/app/providers/ActiveSessionProvider';
 
 function formatElapsed(startTimeIso: string): string {
@@ -66,35 +66,46 @@ export default function WorkoutMiniBar() {
     const weekLabel = snapshot.meta.weekNumber ? `W${snapshot.meta.weekNumber}` : null;
 
     return (
-        <button
-            type="button"
-            onClick={() => router.push('/workout/new')}
-            className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.95rem)] z-[69] mx-auto flex max-w-2xl items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-zinc-950/95 px-4 py-2.5 shadow-[0_18px_50px_-30px_rgba(52,211,153,0.95)] backdrop-blur-xl transition-colors hover:bg-zinc-900/95 active:bg-zinc-900"
-        >
-            <div className="flex items-center gap-2.5 overflow-hidden">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-                    <Timer className="h-3.5 w-3.5 text-emerald-400" />
-                </span>
-                <div className="flex flex-col items-start overflow-hidden">
-                    <span className="truncate text-xs font-bold text-emerald-200">
-                        {displayName}
-                        {weekLabel && (
-                            <span className="ml-1.5 text-[10px] font-semibold text-emerald-400/70">
-                                {weekLabel}
-                            </span>
-                        )}
+        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.95rem)] z-[69] mx-auto flex max-w-2xl items-center gap-2 rounded-2xl border border-emerald-500/20 bg-zinc-950/95 p-1.5 shadow-[0_18px_50px_-30px_rgba(52,211,153,0.95)] backdrop-blur-xl">
+            <button
+                type="button"
+                onClick={() => router.push('/workout/new')}
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-zinc-900/95 active:bg-zinc-900"
+            >
+                <div className="flex min-w-0 items-center gap-2.5 overflow-hidden">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+                        <Timer className="h-3.5 w-3.5 text-emerald-400" />
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                        {completed}/{total} sets
-                    </span>
+                    <div className="flex min-w-0 flex-col items-start overflow-hidden">
+                        <span className="truncate text-xs font-bold text-emerald-200">
+                            {displayName}
+                            {weekLabel && (
+                                <span className="ml-1.5 text-[10px] font-semibold text-emerald-400/70">
+                                    {weekLabel}
+                                </span>
+                            )}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
+                            {completed}/{total} sets
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-bold tabular-nums text-emerald-300">
-                    {elapsed}
-                </span>
-                <ChevronUp className="h-4 w-4 text-emerald-400/60" />
-            </div>
-        </button>
+                <div className="flex shrink-0 items-center gap-2">
+                    <span className="font-mono text-sm font-bold tabular-nums text-emerald-300">
+                        {elapsed}
+                    </span>
+                    <ChevronUp className="h-4 w-4 text-emerald-400/60" />
+                </div>
+            </button>
+            <button
+                type="button"
+                onClick={() => session?.clearSession()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-500 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-300 active:bg-rose-500/15"
+                aria-label="Clear stuck workout"
+                title="Clear stuck workout"
+            >
+                <X className="h-4 w-4" />
+            </button>
+        </div>
     );
 }

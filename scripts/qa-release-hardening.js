@@ -3,6 +3,7 @@ const { chromium } = require('playwright');
 
 const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:3000';
 const ACTIVE_SESSION_KEY = 'iron_brain_active_session_v1__default';
+const ACTIVE_SESSION_CLEAR_MARKER_KEY = 'iron_brain_active_session_cleared_at';
 
 function activeSessionSnapshot(overrides = {}) {
   return {
@@ -218,8 +219,50 @@ async function checkMiniBarLayout(browser) {
   if (boxes.gap < 6) throw new Error(`Active workout mini bar crowds bottom nav: ${boxes.gap}px gap`);
   if (boxes.gap > 14) throw new Error(`Active workout mini bar floats too far above bottom nav: ${boxes.gap}px gap`);
 
+  await page.getByRole('button', { name: /Clear stuck workout/i }).tap({ timeout: 10000 });
+  await page.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 5000 });
+  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 10000 });
+
   await page.close();
-  console.log(`✅ active workout mini bar sits above bottom nav (${Math.round(boxes.gap)}px gap)`);
+  console.log(`✅ active workout mini bar sits above bottom nav and can clear stuck sessions (${Math.round(boxes.gap)}px gap)`);
+}
+
+async function checkActiveSessionTombstone(browser) {
+  const oldSnapshot = activeSessionSnapshot({
+    startTime: new Date(Date.now() - 60_000).toISOString(),
+    savedAt: new Date(Date.now() - 30_000).toISOString(),
+  });
+  const staleSnapshot = activeSessionSnapshot({
+    startTime: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+    savedAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+  });
+
+  const tombstonePage = await newPage(
+    browser,
+    `localStorage.setItem('${ACTIVE_SESSION_CLEAR_MARKER_KEY}', String(Date.now()));
+     localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(oldSnapshot))});`
+  );
+  await tombstonePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await tombstonePage.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  const resurrected = await tombstonePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
+  if (resurrected !== null) {
+    throw new Error('Discard tombstone did not block an old active workout from resurrecting');
+  }
+  await tombstonePage.close();
+
+  const stalePage = await newPage(
+    browser,
+    `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(staleSnapshot))});`
+  );
+  await stalePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await stalePage.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  const staleRaw = await stalePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
+  if (staleRaw !== null) {
+    throw new Error('Stale active workout was not auto-cleared');
+  }
+  await stalePage.close();
+
+  console.log('✅ active-session tombstone blocks resurrection and stale sessions auto-clear');
 }
 
 async function checkAppResilienceStatus(browser) {
@@ -591,6 +634,7 @@ async function checkBottomNavTapTargets(browser) {
     await checkForceDiscardRoute(browser);
     await checkStandaloneResetWorkoutRoute(browser);
     await checkMiniBarLayout(browser);
+    await checkActiveSessionTombstone(browser);
     await checkAppResilienceStatus(browser);
     await checkWorkoutRouteChrome(browser);
     await checkStartPageLaunchpad(browser);

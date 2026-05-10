@@ -10,6 +10,7 @@ const resetScript = `
 
   function clearActiveWorkoutStorage() {
     try {
+      var clearMarkerKey = 'iron_brain_active_session_cleared_at';
       var prefixes = [
         'iron_brain_active_session',
         'iron_brain_active_session_v1',
@@ -30,6 +31,7 @@ const resetScript = `
       for (var removeIndex = 0; removeIndex < keys.length; removeIndex += 1) {
         localStorage.removeItem(keys[removeIndex]);
       }
+      localStorage.setItem(clearMarkerKey, String(Date.now()));
       sessionStorage.removeItem('iron_brain_active_session_pending');
     } catch (error) {
       // Continue to dashboard even when browser storage is unavailable.
