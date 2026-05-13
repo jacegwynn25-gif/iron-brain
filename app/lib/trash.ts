@@ -65,7 +65,11 @@ type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions'
  */
 export function getTrash(): DeletedWorkout[] {
   try {
-    const data = localStorage.getItem(TRASH_KEY);
+    if (typeof window === 'undefined' || typeof window.localStorage?.getItem !== 'function') {
+      return [];
+    }
+
+    const data = window.localStorage.getItem(TRASH_KEY);
     if (!data) return [];
 
     const trash: DeletedWorkout[] = JSON.parse(data);
@@ -82,7 +86,7 @@ export function getTrash(): DeletedWorkout[] {
 
     // Save filtered list if anything was purged
     if (filtered.length !== trash.length) {
-      localStorage.setItem(TRASH_KEY, JSON.stringify(filtered));
+      window.localStorage.setItem(TRASH_KEY, JSON.stringify(filtered));
     }
 
     return filtered;
