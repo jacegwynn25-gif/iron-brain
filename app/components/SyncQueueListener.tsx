@@ -19,7 +19,7 @@ export default function SyncQueueListener() {
           if (processed > 0 || failed > 0) {
             logger.debug('📤 Offline queue processed', { processed, failed });
           }
-          if (failed > 0) {
+          if (processed > 0) {
             window.dispatchEvent(
               new CustomEvent('iron-brain:sync-queue', {
                 detail: { processed, failed },

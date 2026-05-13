@@ -79,7 +79,7 @@ function activeSessionSnapshot(overrides = {}) {
 }
 
 async function waitForDashboardStartSession(page, timeout = 15000) {
-  await page.getByRole('link', { name: /^START SESSION$/i }).first().waitFor({ state: 'visible', timeout });
+  await page.getByRole('link', { name: /^START TRAINING/i }).first().waitFor({ state: 'visible', timeout });
 }
 
 async function newPage(browser, initScript) {
@@ -306,7 +306,31 @@ async function checkAppResilienceStatus(browser) {
   await offlinePage.context().setOffline(false);
   await offlinePage.close();
 
-  console.log('✅ app resilience status covers stale builds and offline mode');
+  const syncPage = await newPage(browser);
+  await syncPage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await syncPage.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('iron-brain:sync-queue', {
+      detail: { processed: 0, failed: 1 },
+    }));
+  });
+  await syncPage.waitForTimeout(600);
+  const failedOnlyNoticeCount = await syncPage.getByTestId('app-resilience-sync').count();
+  if (failedOnlyNoticeCount !== 0) {
+    throw new Error('Failed-only background sync retry should not interrupt the dashboard');
+  }
+  await syncPage.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('iron-brain:sync-queue', {
+      detail: { processed: 1, failed: 0 },
+    }));
+  });
+  await syncPage.getByTestId('app-resilience-sync').waitFor({ state: 'visible', timeout: 10000 });
+  const syncText = await syncPage.getByTestId('app-resilience-sync').innerText();
+  if (!/SYNCED/i.test(syncText) || !/saved to cloud/i.test(syncText)) {
+    throw new Error(`Sync status copy is unclear: ${syncText}`);
+  }
+  await syncPage.close();
+
+  console.log('✅ app resilience status covers stale builds, offline mode, and quiet retry failures');
 }
 
 async function checkWorkoutExitKeepsResume(browser) {
@@ -351,7 +375,7 @@ async function checkResumedWorkoutDiscard(browser) {
   }
 
   await page.close();
-  console.log('✅ resumed workout discard clears storage and returns to Start Session CTA');
+  console.log('✅ resumed workout discard clears storage and returns to dashboard training CTA');
 }
 
 async function checkForceDiscardRoute(browser) {
