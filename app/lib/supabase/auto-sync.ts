@@ -5,6 +5,7 @@ import { storage } from '../storage';
 import { logger } from '../logger';
 import type { WorkoutSession } from '../types';
 import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from './set-log-schema';
+import { calculateSetE1RMLbs, calculateSetVolumeLbs } from '../stats/set-metrics';
 
 /**
  * Automatic Cloud Sync System
@@ -78,12 +79,17 @@ function getSyncedWorkoutIds(): Set<string> {
   return new Set();
 }
 
+function normalizeWorkoutId(workoutId: string): string {
+  return workoutId.startsWith('session_') ? workoutId.substring(8) : workoutId;
+}
+
 /**
  * Mark workout as synced
  */
 function markWorkoutAsSynced(workoutId: string) {
   const syncedIds = getSyncedWorkoutIds();
   syncedIds.add(workoutId);
+  syncedIds.add(normalizeWorkoutId(workoutId));
   localStorage.setItem(SYNCED_WORKOUT_IDS_KEY, JSON.stringify([...syncedIds]));
 }
 
@@ -177,8 +183,11 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
         tempo: set.tempo,
         completed: set.completed !== false,
         skipped: set.completed === false,
-        e1rm: set.e1rm,
-        volume_load: set.volumeLoad != null ? Math.round(Number(set.volumeLoad)) : null,
+        e1rm: calculateSetE1RMLbs(set),
+        volume_load: (() => {
+          const volume = calculateSetVolumeLbs(set);
+          return volume == null ? null : Math.round(volume);
+        })(),
         rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
         actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
         notes: set.notes,
@@ -221,7 +230,7 @@ export async function syncPendingWorkouts(userId: string): Promise<void> {
   const localWorkouts = storage.getWorkoutHistory();
   const syncedIds = getSyncedWorkoutIds();
 
-  const pendingWorkouts = localWorkouts.filter(w => !syncedIds.has(w.id));
+  const pendingWorkouts = localWorkouts.filter(w => !syncedIds.has(w.id) && !syncedIds.has(normalizeWorkoutId(w.id)));
 
   if (pendingWorkouts.length === 0) {
     logger.debug('No pending workouts to sync');

@@ -154,8 +154,8 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
       return {
         key: 'sync',
         icon: CheckCircle2,
-        label: failed > 0 ? 'Sync Check' : 'Synced',
-        title: failed > 0 ? 'Some changes are still queued' : 'Cloud backup updated',
+        label: failed > 0 ? 'Backup Pending' : 'Synced',
+        title: failed > 0 ? 'Some changes will retry' : 'Cloud backup updated',
         body:
           failed > 0
             ? `${failed} change${failed === 1 ? '' : 's'} will retry automatically.`
