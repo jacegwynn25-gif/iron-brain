@@ -8,6 +8,7 @@ import { isValidUuid } from '../uuid';
 import { resolveExerciseIds, upsertPersonalRecordsForSetLogs } from '../supabase/workouts';
 import { convertWeight } from '../units';
 import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from '../supabase/set-log-schema';
+import { calculateSetE1RMLbs, calculateSetVolumeLbs } from '../stats/set-metrics';
 
 const QUEUE_KEY = 'iron_brain_sync_queue';
 const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
@@ -53,6 +54,7 @@ export function queueOperation(
   try {
     if (typeof window === 'undefined') return;
     const queue = getQueue(namespace);
+    const resourceKey = getQueueResourceKey(table, data);
     const item: QueueItem = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
       operation,
@@ -61,11 +63,47 @@ export function queueOperation(
       timestamp: new Date().toISOString(),
       retries: 0,
     };
-    queue.push(item);
-    setQueue(queue, namespace);
+    const nextQueue = resourceKey
+      ? queue.filter((queuedItem) => {
+        if (queuedItem.table !== table) return true;
+        return getQueueResourceKey(queuedItem.table, queuedItem.data) !== resourceKey;
+      })
+      : queue;
+    nextQueue.push(item);
+    setQueue(nextQueue, namespace);
   } catch (err) {
     logger.error('Failed to queue operation:', err);
   }
+}
+
+function normalizeWorkoutId(workoutId: string): string {
+  return workoutId.startsWith('session_') ? workoutId.substring(8) : workoutId;
+}
+
+function payloadRecord(data: unknown): Record<string, unknown> {
+  return data && typeof data === 'object' ? data as Record<string, unknown> : {};
+}
+
+function getQueueResourceKey(table: QueueTable, data: unknown): string | null {
+  const payload = payloadRecord(data);
+
+  if (table === 'workout_sessions') {
+    const session = payloadRecord(payload.session ?? payload);
+    const workoutId = typeof session.id === 'string' ? session.id : null;
+    return workoutId ? normalizeWorkoutId(workoutId) : null;
+  }
+
+  if (table === 'custom_programs') {
+    const program = payloadRecord(payload.program ?? payload);
+    const programId = typeof payload.programId === 'string'
+      ? payload.programId
+      : typeof program.id === 'string'
+        ? program.id
+        : null;
+    return programId;
+  }
+
+  return null;
 }
 
 function getQueue(namespace?: string | null): QueueItem[] {
@@ -112,9 +150,12 @@ const markWorkoutAsSynced = (workoutId: string) => {
   try {
     const stored = localStorage.getItem(SYNCED_WORKOUT_IDS_KEY);
     const ids: string[] = stored ? JSON.parse(stored) : [];
-    if (!ids.includes(workoutId)) {
-      ids.push(workoutId);
-      localStorage.setItem(SYNCED_WORKOUT_IDS_KEY, JSON.stringify(ids));
+    const normalizedWorkoutId = normalizeWorkoutId(workoutId);
+    const nextIds = new Set(ids);
+    nextIds.add(workoutId);
+    nextIds.add(normalizedWorkoutId);
+    if (nextIds.size !== ids.length) {
+      localStorage.setItem(SYNCED_WORKOUT_IDS_KEY, JSON.stringify([...nextIds]));
     }
   } catch (err) {
     logger.debug('Failed to mark workout as synced:', err);
@@ -209,13 +250,10 @@ const syncWorkoutToCloud = async (
       actual_reps: set.actualReps,
       actual_rpe: set.actualRPE,
       actual_rir: set.actualRIR,
-      e1rm: set.e1rm,
+      e1rm: calculateSetE1RMLbs(set),
       volume_load: (() => {
-        const reps = set.actualReps || 0;
-        const weight = set.actualWeight || 0;
-        if (!reps || !weight) return null;
-        const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
-        return weightLbs * reps;
+        const volume = calculateSetVolumeLbs(set);
+        return volume == null ? null : volume;
       })(),
       set_type: set.setType || 'straight',
       tempo: set.tempo,

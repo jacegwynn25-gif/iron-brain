@@ -64,7 +64,7 @@ export interface HierarchicalFatigueModel {
  * 3. More data = less shrinkage (more personalized)
  */
 export function buildHierarchicalFatigueModel(
-  userId: string,
+  _userId: string,
   allWorkouts: Array<{
     date: Date;
     exercises: Array<{

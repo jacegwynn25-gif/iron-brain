@@ -1,0 +1,43 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  "exclude": [
+    "exports",
+    "types",
+    "nsExports",
+    "nsTypes",
+    "enumMembers",
+    "namespaceMembers",
+    "duplicates"
+  ],
+  "ignoreFiles": [
+    "scripts/apply-migration-010.ts",
+    "scripts/apply-migration-016.sql.js",
+    "scripts/apply-rls-fix.js",
+    "scripts/apply-rls-policies.ts",
+    "scripts/auto-setup.js",
+    "scripts/check-set-logs-schema.js",
+    "scripts/check-subscription-tables.js",
+    "scripts/debug-sync.ts",
+    "scripts/diagnose-supabase.js",
+    "scripts/fetch-complete-schema.js",
+    "scripts/fix-decimal-columns.js",
+    "scripts/fix-rls-policies.js",
+    "scripts/fix-workout-rls.js",
+    "scripts/generate-program-seed.ts",
+    "scripts/generate-pwa-icons.mjs",
+    "scripts/generate-types.js",
+    "scripts/migrate-localStorage-to-supabase.ts",
+    "scripts/migrate-to-new-recovery-system.js",
+    "scripts/normalize-custom-programs.ts",
+    "scripts/parse-openapi-to-types.js",
+    "scripts/run-migration-016.js",
+    "scripts/run-migration.js",
+    "scripts/run-migration.ts",
+    "scripts/run-program-seed.ts",
+    "scripts/seed-test-data.js",
+    "scripts/setup-program-templates.ts",
+    "scripts/setup-stripe-products.js",
+    "scripts/simulate-crash.ts",
+    "scripts/verify-recovery-integration.js"
+  ]
+}

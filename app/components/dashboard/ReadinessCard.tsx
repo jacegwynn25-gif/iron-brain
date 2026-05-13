@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { Activity, ClipboardCheck } from 'lucide-react';
 import type { TrainingReadiness } from '@/app/lib/intelligence/recovery-integration-service';

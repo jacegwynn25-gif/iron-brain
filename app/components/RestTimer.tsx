@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { WorkoutSession } from '../lib/types';
 import {
   recommendationHasApplyPatch,
@@ -132,6 +132,14 @@ export default function RestTimer({
     }
   };
 
+  const handleApplyRecommendation = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (smartRecommendation) {
+      onApplyRecommendation?.(smartRecommendation);
+    }
+  };
+
   if (!isActive) return null;
 
   const minutes = Math.floor(timeRemaining / 60);
@@ -183,7 +191,7 @@ export default function RestTimer({
               {recommendationHasApplyPatch(smartRecommendation) && (
                 <button
                   type="button"
-                  onClick={() => onApplyRecommendation?.(smartRecommendation)}
+                  onClick={handleApplyRecommendation}
                   className="shrink-0 rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
                   data-testid="smart-rest-apply"
                 >

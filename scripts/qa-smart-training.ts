@@ -132,6 +132,22 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
 {
   const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'working_set', weight: 225, reps: 5, prescribedWeight: 225, prescribedRPE: 8 },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'warmup_set', type: 'warmup', weight: 95, reps: 8, rpe: 5, completed: true },
+      { ...baseSet, setId: 'working_set', weight: 225, reps: 5, prescribedWeight: 225, prescribedRPE: 8, completed: false },
+    ],
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 225);
+  assert.equal(recommendation.evidenceSource, 'program_prescription');
+  assert.doesNotMatch(recommendation.reason, /set you just logged/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: null, reps: 5, prescribedPercentage: 80, prescribedRPE: 8 },
     personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
     historySets: [],
@@ -208,7 +224,8 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
     readiness: { score: 48, modifier: 0.93, source: 'oura' },
   });
 
-  assert.equal(recommendation.action, 'reduce_load');
+  assert.equal(recommendation.action, 'maintain_load');
+  assert.equal(recommendation.apply, undefined);
   assert.doesNotMatch(recommendation.reason, /oura/i);
 }
 
@@ -224,6 +241,58 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   });
 
   assert.equal(recommendation.apply?.setId, 'selected_set');
+}
+
+{
+  const tricepsSet = {
+    blockId: 'block_triceps',
+    exerciseId: 'triceps_extension',
+    exerciseName: 'Triceps Extension',
+    setId: 'triceps_next',
+    setIndex: 2,
+    weight: 45,
+    weightUnit: 'lbs' as const,
+    reps: 10,
+    prescribedWeight: 45,
+    prescribedRPE: 8,
+    completed: false,
+    skipped: false,
+    touchedWeight: false,
+    touchedReps: false,
+  };
+  const recommendation = nextSetRecommendation({
+    currentSet: tricepsSet,
+    historySets: [{
+      exerciseId: 'triceps_extension',
+      exerciseName: 'Triceps Extension',
+      actualWeight: 45,
+      weightUnit: 'lbs',
+      actualReps: 10,
+      actualRPE: 8,
+      completed: true,
+      performedAt: isoDaysAgo(2),
+    }],
+    sessionSets: [
+      {
+        ...tricepsSet,
+        setId: 'triceps_prev',
+        weight: 30,
+        reps: 11,
+        rpe: 8,
+        prescribedWeight: null,
+        completed: true,
+      },
+      tricepsSet,
+    ],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'reduce_load');
+  assert.equal(recommendation.target?.weight, 30);
+  assert.equal(recommendation.apply?.weight, 30);
+  assert.equal(recommendation.evidenceSource, 'current_session');
+  assert.equal(recommendation.source, 'session_fatigue');
+  assert.match(recommendation.reason, /set you just logged/i);
 }
 
 {
@@ -265,6 +334,27 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
   assert.equal(recommendation.target?.weight, 205);
   assert.equal(recommendation.apply, undefined);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 30, reps: 10, prescribedWeight: 45, prescribedRPE: 8, touchedWeight: true },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 45,
+      weightUnit: 'lbs',
+      actualReps: 10,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 30);
+  assert.equal(recommendation.apply, undefined);
+  assert.match(recommendation.reason, /edited load/i);
 }
 
 {
@@ -434,13 +524,34 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
       performedAt: '2026-05-06T12:00:00.000Z',
     }],
     sessionSets: [],
-    readiness: { score: 62, modifier: 1 },
+    readiness: { score: 62, modifier: 1, source: 'manual' },
   });
 
   assert.notEqual(recommendation.action, 'increase_load');
   assert.equal(recommendation.apply?.weight, undefined);
   assert.match(recommendation.reason, /load increases are blocked/i);
   assert.match(recommendation.blockedReason ?? '', /Low readiness blocks/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
+    historySets: [{
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 6.5,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 62, modifier: 0.95, source: 'training' },
+  });
+
+  assert.equal(recommendation.action, 'increase_load');
+  assert.equal(recommendation.apply?.weight, 205);
+  assert.doesNotMatch(recommendation.reason, /load increases are blocked/i);
 }
 
 {

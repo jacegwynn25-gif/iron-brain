@@ -6,7 +6,7 @@ import { saveFatigueSnapshot, getRecoveryProfiles } from './fatigue/cross-sessio
 import { calculateWorkoutSFR, saveSFRAnalysis } from './fatigue/sfr';
 import { defaultExercises } from './programs';
 import { createUuid, isValidUuid } from './uuid';
-import { queueOperation, isOnline } from './sync/offline-queue';
+import { queueOperation, isOnline, processQueue } from './sync/offline-queue';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { convertWeight } from './units';
 import type { TablesInsert } from './supabase/database.types';
@@ -17,6 +17,7 @@ import {
   type PersonalRecordHit,
 } from './supabase/workouts';
 import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from './supabase/set-log-schema';
+import { calculateSetE1RMLbs, calculateSetVolumeLbs } from './stats/set-metrics';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -27,6 +28,7 @@ const STORAGE_KEYS = {
   SESSION_VERSION: 'iron_brain_session_version',
 } as const;
 const CUSTOM_EXERCISES_STORAGE_KEY = 'iron_brain_custom_exercises';
+const SYNCED_WORKOUT_IDS_KEY = 'iron-brain:synced-workout-ids';
 
 let activeUserNamespace = 'default';
 let isNamespaceInitialized = false;
@@ -48,6 +50,23 @@ type WorkoutMetadata = {
 const normalizeNamespace = (value?: string | null) => {
   if (!value || value === 'default' || value === 'guest') return 'default';
   return value;
+};
+
+const normalizeWorkoutId = (workoutId: string) =>
+  workoutId.startsWith('session_') ? workoutId.substring(8) : workoutId;
+
+const markWorkoutAsSynced = (workoutId: string) => {
+  try {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(SYNCED_WORKOUT_IDS_KEY);
+    const ids: string[] = stored ? JSON.parse(stored) : [];
+    const nextIds = new Set(ids);
+    nextIds.add(workoutId);
+    nextIds.add(normalizeWorkoutId(workoutId));
+    localStorage.setItem(SYNCED_WORKOUT_IDS_KEY, JSON.stringify([...nextIds]));
+  } catch (err) {
+    logger.debug('Failed to mark workout as synced:', err);
+  }
 };
 
 const migrateWorkoutsBetweenNamespaces = (fromNamespace: string, toNamespace: string) => {
@@ -389,6 +408,25 @@ export async function saveWorkout(
       queueReason = queueReason ?? reason;
     };
 
+    if (options?.criticalPathOnly) {
+      const queueNamespace = normalizeNamespace(providedUserId ?? activeUserNamespace);
+      if (queueNamespace !== 'default') {
+        queueWorkout('background_cloud_backup');
+        if (providedUserId && isOnline()) {
+          void processQueue(supabase, providedUserId).then(({ processed, failed }) => {
+            logger.debug('workout_background_cloud_backup', {
+              workoutId: result.workoutId,
+              processed,
+              failed,
+            });
+          }).catch((syncError) => {
+            logger.debug('Failed to start background workout cloud backup:', syncError);
+          });
+        }
+      }
+      return finalizeResult(queueNamespace === 'default' ? 'saved_local_guest_fast' : 'queued_background_fast');
+    }
+
     if (!isOnline()) {
       logger.debug('📥 Offline - queued workout for sync');
       queueWorkout('offline');
@@ -554,13 +592,10 @@ export async function saveWorkout(
             actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
             actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
             // Performance metrics
-            e1rm: set.e1rm,
+            e1rm: calculateSetE1RMLbs(set),
             volume_load: (() => {
-              const reps = Number(set.actualReps) || 0;
-              const weight = Number(set.actualWeight) || 0;
-              if (reps <= 0 || weight <= 0) return null;
-              const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
-              return Math.round(weightLbs * reps);
+              const volume = calculateSetVolumeLbs(set);
+              return volume == null ? null : Math.round(volume);
             })(),
             // Set metadata
             set_type: set.setType || 'straight',
@@ -620,6 +655,9 @@ export async function saveWorkout(
       }
 
       result.syncedToCloud = setLogsSynced;
+      if (setLogsSynced) {
+        markWorkoutAsSynced(sessionToSave.id);
+      }
       finishCloudAttempt();
       logger.debug('✅ Workout synced to Supabase!');
     } else {
@@ -1072,13 +1110,10 @@ export async function updateWorkoutSessionContent(
               actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
               actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
               actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
-              e1rm: set.e1rm != null ? Number(set.e1rm) : null,
+              e1rm: calculateSetE1RMLbs(set),
               volume_load: (() => {
-                const reps = Number(set.actualReps) || 0;
-                const weight = Number(set.actualWeight) || 0;
-                if (reps <= 0 || weight <= 0) return null;
-                const weightLbs = convertWeight(weight, set.weightUnit ?? 'lbs', 'lbs');
-                return Math.round(weightLbs * reps);
+                const volume = calculateSetVolumeLbs(set);
+                return volume == null ? null : Math.round(volume);
               })(),
               set_type: set.setType || 'straight',
               tempo: set.tempo ?? null,
@@ -1973,7 +2008,7 @@ export async function getPriorityAlert(
  */
 async function saveFatigueEventsToNewSystem(
   userId: string,
-  sessionId: string,
+  _sessionId: string,
   completedSets: SetLog[]
 ): Promise<void> {
   if (completedSets.length === 0) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, {
+import {
     createContext,
     useContext,
     useState,
@@ -9,8 +9,8 @@ import React, {
     useLayoutEffect,
     useRef,
     useMemo,
-    type ReactNode,
 } from 'react';
+import type { ReactNode } from 'react';
 import type { Block, ActiveCell } from '../lib/types/session';
 import { useAuth } from '../lib/supabase/auth-context';
 
