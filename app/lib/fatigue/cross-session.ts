@@ -112,7 +112,7 @@ export function calculateRecoveryPercentage(
  * 3. Training frequency penalty (30% weight)
  */
 export function calculateReadinessScore(
-  muscleGroup: string,
+  _muscleGroup: string,
   recoveryPercentage: number,         // 0-100
   recentFatigueHistory: number[],     // Last 3-5 sessions for this muscle
   hoursSinceLastTraining?: number     // Optional - for frequency penalty

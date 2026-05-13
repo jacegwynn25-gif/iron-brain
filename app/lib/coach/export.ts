@@ -416,7 +416,7 @@ function formatLiftLogSnapshot(input: CoachExportInput, workingWeights: WorkingW
   ].join('\n');
 }
 
-function formatPromptStack(input: CoachExportInput, bundle: Pick<CoachExportBundle, 'athleteName' | 'goalLabel' | 'scheduleLabel'>): string {
+function formatPromptStack(_input: CoachExportInput, bundle: Pick<CoachExportBundle, 'athleteName' | 'goalLabel' | 'scheduleLabel'>): string {
   const scheduleHint = bundle.scheduleLabel.startsWith('Unknown') ? '4' : bundle.scheduleLabel.match(/\d+/)?.[0] ?? '4';
 
   return [

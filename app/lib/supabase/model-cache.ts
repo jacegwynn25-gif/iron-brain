@@ -337,7 +337,7 @@ export async function getOrComputeTrainingState(
  * Compute training state from scratch
  */
 async function computeTrainingState(
-  userId: string,
+  _userId: string,
   workoutHistory: WorkoutSession[]
 ): Promise<CachedTrainingState> {
   const completedWorkouts = workoutHistory.filter(w => w.endTime);

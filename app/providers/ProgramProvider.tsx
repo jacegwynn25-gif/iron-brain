@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { usePrograms, UseProgramsReturn } from '../lib/hooks/usePrograms';
 

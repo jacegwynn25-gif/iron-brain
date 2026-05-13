@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 
 interface WeeklyConsistencyProps {
