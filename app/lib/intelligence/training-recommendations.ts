@@ -169,7 +169,7 @@ type BaseLoad = {
   unit: WeightUnit;
   source: TrainingRecommendation['source'];
   confidence: RecommendationConfidence;
-  basis: 'prescription' | 'direct_history' | 'similar_history' | 'e1rm' | 'current' | 'none';
+  basis: 'prescription' | 'direct_history' | 'similar_history' | 'e1rm' | 'current_session' | 'current' | 'none';
 };
 
 type PerformanceSignal = {
@@ -321,6 +321,27 @@ function representativeHistoryWeight(
   return roundRecommendationWeight(converted, unit);
 }
 
+function representativeSessionWeight(
+  entry: TrainingSetInput,
+  targetReps: number | null,
+  unit: WeightUnit
+): number | null {
+  const rawWeight = positiveNumber(entry.weight);
+  if (rawWeight == null) return null;
+
+  const sourceUnit = normalizeUnit(entry.weightUnit, unit);
+  const actualReps = positiveNumber(entry.reps);
+  const e1rm = e1rmFromLoad(rawWeight, actualReps);
+  const shouldEstimateFromE1rm =
+    e1rm != null &&
+    targetReps != null &&
+    actualReps != null &&
+    Math.abs(targetReps - actualReps) >= 2;
+  const rawTargetWeight = shouldEstimateFromE1rm ? e1rm / (1 + targetReps / 30) : rawWeight;
+  const converted = sourceUnit === unit ? rawTargetWeight : convertWeight(rawTargetWeight, sourceUnit, unit);
+  return roundRecommendationWeight(converted, unit);
+}
+
 function isLoadAdjustableSet(set: TrainingSetInput): boolean {
   const type = (set.type ?? '').toLowerCase();
   return type !== 'warmup';
@@ -443,6 +464,12 @@ function readinessModifier(input: TrainingRecommendationInput): number {
   const score = finiteNumber(input.readiness?.score);
   const rawModifier = finiteNumber(input.readiness?.modifier);
   const focus = input.readiness?.focusAdjustments;
+  const source = input.readiness?.source?.toLowerCase() ?? null;
+
+  if (source && source !== 'manual') {
+    return 1;
+  }
+
   let modifier = rawModifier != null ? clamp(rawModifier, 0.82, 1.08) : 1;
 
   if (score != null && rawModifier == null) {
@@ -734,7 +761,7 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
   const sets = input.sessionSets ?? [];
   for (let index = sets.length - 1; index >= 0; index -= 1) {
     const set = sets[index];
-    if (set.exerciseId === exerciseId && set.completed && !set.skipped) {
+    if (set.exerciseId === exerciseId && set.completed && !set.skipped && isLoadAdjustableSet(set)) {
       return set;
     }
   }
@@ -743,7 +770,9 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
 
 function completedSessionSetCount(input: TrainingRecommendationInput, exerciseId?: string | null): number {
   if (!exerciseId) return 0;
-  return (input.sessionSets ?? []).filter((set) => set.exerciseId === exerciseId && set.completed && !set.skipped).length;
+  return (input.sessionSets ?? []).filter((set) =>
+    set.exerciseId === exerciseId && set.completed && !set.skipped && isLoadAdjustableSet(set)
+  ).length;
 }
 
 function loadPressureEvidenceCount(input: TrainingRecommendationInput, set?: TrainingSetInput | null): number {
@@ -797,6 +826,9 @@ function resolveSetEvidence(
   } else if (base.basis === 'e1rm') {
     evidenceSource = 'max_e1rm';
     evidenceCount = maxEvidenceCount(input, set.exerciseId);
+  } else if (base.basis === 'current_session') {
+    evidenceSource = 'current_session';
+    evidenceCount = completedSessionSetCount(input, set.exerciseId);
   }
 
   return {
@@ -911,10 +943,22 @@ function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetIn
   return null;
 }
 
-function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad {
-  const prescribed = prescriptionLoad(input, set, unit);
-  if (prescribed) return prescribed;
+function currentSessionLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad | null {
+  const latestSessionSet = findRecentSessionSet(input, set.exerciseId);
+  const targetReps = targetRepsForSet(set);
+  const weight = latestSessionSet ? representativeSessionWeight(latestSessionSet, targetReps, unit) : null;
+  if (weight == null) return null;
 
+  return {
+    weight,
+    unit,
+    source: 'session_fatigue',
+    confidence: 'high',
+    basis: 'current_session',
+  };
+}
+
+function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad {
   const existing = positiveNumber(set.weight);
   if (!isLoadAdjustableSet(set)) {
     return {
@@ -925,6 +969,24 @@ function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInp
       basis: existing != null ? 'current' : 'none',
     };
   }
+
+  if (set.touchedWeight === true && existing != null) {
+    return {
+      weight: roundRecommendationWeight(existing, unit),
+      unit,
+      source: 'baseline',
+      confidence: 'high',
+      basis: 'current',
+    };
+  }
+
+  if (set.touchedWeight !== true) {
+    const currentSession = currentSessionLoad(input, set, unit);
+    if (currentSession) return currentSession;
+  }
+
+  const prescribed = prescriptionLoad(input, set, unit);
+  if (prescribed) return prescribed;
 
   const history = latestHistoryLoad(input, set, unit);
   if (history.weight != null && history.basis !== 'similar_history' && set.touchedWeight !== true) {
@@ -1140,7 +1202,8 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   const signalConfidence = fatigue.confidence ?? base.confidence;
   const confidence = lowerConfidence(signalConfidence, pressure.source ? pressure.confidence : null);
   const readinessScore = finiteNumber(input.readiness?.score);
-  const lowReadinessBlocksIncrease = readinessScore != null && readinessScore < 70;
+  const hasManualReadiness = input.readiness?.source?.toLowerCase() === 'manual';
+  const lowReadinessBlocksIncrease = hasManualReadiness && readinessScore != null && readinessScore < 70;
   let combinedModifier = modifierCapForConfidence(
     readiness * fatigue.modifier * pressure.modifier,
     confidence,
@@ -1155,6 +1218,8 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
     : canAdjustSet ? null : baseWeight;
   const currentWeight = positiveNumber(set.weight);
   const delta = baseWeight && suggestedWeight ? (suggestedWeight - baseWeight) / baseWeight : 0;
+  const currentDelta = currentWeight && suggestedWeight ? (suggestedWeight - currentWeight) / currentWeight : delta;
+  const actionDelta = Math.abs(delta) >= 0.018 ? delta : currentDelta;
   const repDelta = fatigue.repDelta ?? null;
   const shouldPreferRepAdjustment =
     repDelta != null &&
@@ -1191,8 +1256,8 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
       : undefined;
 
   let action: RecommendationAction = 'maintain_load';
-  if (delta >= 0.018) action = 'increase_load';
-  if (delta <= -0.018) action = 'reduce_load';
+  if (actionDelta >= 0.018) action = 'increase_load';
+  if (actionDelta <= -0.018) action = 'reduce_load';
   if (shouldApplyReps && Math.abs(delta) < 0.018) action = 'adjust_reps';
   if (baseWeight == null && targetReps != null) action = 'maintain_load';
   if (shouldApplyReps && (baseWeight == null || !canAdjustLoad)) action = 'adjust_reps';
@@ -1201,9 +1266,9 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   let severity: RecommendationSeverity = 'info';
   if (action === 'add_rest') severity = 'watch';
   if (action === 'increase_load' || action === 'reduce_load' || action === 'adjust_reps') severity = 'adjust';
-  if (delta <= -0.08 || (finiteNumber(input.readiness?.score) ?? 100) <= 45 || (pressure.ratio ?? 0) >= 1.75) severity = 'deload';
+  if (delta <= -0.08 || (hasManualReadiness && (finiteNumber(input.readiness?.score) ?? 100) <= 45) || (pressure.ratio ?? 0) >= 1.75) severity = 'deload';
 
-  const source = fatigue.source ?? pressure.source ?? (readiness !== 1 ? 'readiness' : base.source);
+  const source = fatigue.source ?? pressure.source ?? (readiness !== 1 && hasManualReadiness ? 'readiness' : base.source);
   const evidence = resolveSetEvidence(input, set, base, source, hasExplicitPrescription);
   const confidenceReason = buildConfidenceReason(
     confidence,
@@ -1263,6 +1328,8 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
         reasons.push('Estimated from max strength data and target reps.');
       } else if (base.source === 'prescription') {
         reasons.push('Using the program prescription as the base target.');
+      } else if (base.basis === 'current_session') {
+        reasons.push('Anchored to the set you just logged for this exercise.');
       } else if (base.source === 'baseline' && set.touchedWeight === true) {
         reasons.push('Using your edited load as the base target.');
       } else {
@@ -1332,12 +1399,13 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
     .filter((value): value is number => value != null);
   const avgTargetGap = average(targetGaps);
   const readinessScore = finiteNumber(input.readiness?.score);
+  const hasManualReadiness = input.readiness?.source?.toLowerCase() === 'manual';
   const pressure = globalLoadPressure(input.historySets ?? []);
 
   if (
     (avgRpe != null && avgRpe >= 9) ||
     (avgTargetGap != null && avgTargetGap >= 0.75) ||
-    (readinessScore != null && readinessScore <= 50) ||
+    (hasManualReadiness && readinessScore != null && readinessScore <= 50) ||
     (pressure.source === 'load_pressure' && pressure.confidence !== 'low')
   ) {
     const source: TrainingRecommendation['source'] =
@@ -1358,10 +1426,10 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
     return {
       id: stableId(['session', 'trim', completed.length, Math.round(avgRpe ?? 0), Math.round(readinessScore ?? 0)]),
       scope: 'session',
-      action: readinessScore != null && readinessScore <= 45 ? 'deload' : 'trim_volume',
-      severity: readinessScore != null && readinessScore <= 45 ? 'deload' : 'adjust',
+      action: hasManualReadiness && readinessScore != null && readinessScore <= 45 ? 'deload' : 'trim_volume',
+      severity: hasManualReadiness && readinessScore != null && readinessScore <= 45 ? 'deload' : 'adjust',
       confidence,
-      title: readinessScore != null && readinessScore <= 45 ? 'Consider Deload' : 'Trim If Needed',
+      title: hasManualReadiness && readinessScore != null && readinessScore <= 45 ? 'Consider Deload' : 'Trim If Needed',
       reason,
       source,
       evidenceSource,
@@ -1440,9 +1508,10 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
     ).length / targetedSets.length
     : 0;
   const readinessScore = finiteNumber(input.readiness?.score);
+  const hasManualReadiness = input.readiness?.source?.toLowerCase() === 'manual';
   const pressure = globalLoadPressure(history);
   const programId = input.program.id;
-  const lowReadiness = readinessScore != null && readinessScore <= 52;
+  const lowReadiness = hasManualReadiness && readinessScore != null && readinessScore <= 52;
   const highEffort = rpes.length >= 4 && avgRpe != null && avgRpe >= 8.8;
   const missedEnough = targetedSets.length >= 6 && missedRate >= 0.25;
   const spiking = pressure.source === 'load_pressure' && pressure.confidence !== 'low';
@@ -1454,7 +1523,7 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
       spiking ? pressure.reason : null,
       lowReadiness ? `readiness is ${Math.round(readinessScore ?? 0)}` : null,
     ].filter(Boolean);
-    const shouldDeload = (readinessScore != null && readinessScore <= 45) || (spiking && (pressure.ratio ?? 0) >= 1.75);
+    const shouldDeload = (hasManualReadiness && readinessScore != null && readinessScore <= 45) || (spiking && (pressure.ratio ?? 0) >= 1.75);
     const source: TrainingRecommendation['source'] = spiking ? 'load_pressure' : highEffort || missedEnough ? 'program_load' : 'readiness';
     const evidenceSource: RecommendationEvidenceSource =
       source === 'load_pressure' ? 'load_pressure' : source === 'readiness' ? 'readiness' : 'program_trend';

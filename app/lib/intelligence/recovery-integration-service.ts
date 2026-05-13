@@ -63,7 +63,7 @@ type RecentWorkoutStats = {
 };
 
 const QUERY_TIMEOUT_MS = 7000;
-const MANUAL_CONTEXT_FRESH_DAYS = 2;
+const MANUAL_CONTEXT_FRESH_DAYS = 1;
 
 export async function calculateTrainingReadiness(userId: string): Promise<TrainingReadiness> {
   const [contexts, recentWorkouts] = await Promise.all([
@@ -80,15 +80,9 @@ export async function calculateTrainingReadiness(userId: string): Promise<Traini
     ? calculateManualRecoveryScore(context, contexts.slice(1))
     : null;
 
-  const score = clamp(
-    Math.round(
-      manualScore == null
-        ? training.score
-        : manualScore * 0.78 + training.score * 0.22
-    ),
-    35,
-    98
-  );
+  const score = manualScore == null
+    ? moderateTrainingOnlyScore(training.score)
+    : clamp(Math.round(manualScore * 0.78 + training.score * 0.22), 35, 98);
 
   const modifier = getReadinessModifier(score);
   const source: TrainingReadiness['source'] = hasManualRecoveryInput
@@ -300,6 +294,10 @@ function calculateTrainingLoadSignal(recentWorkouts: RecentWorkoutStats[]): Trai
     }),
     hasWorkout: true,
   };
+}
+
+function moderateTrainingOnlyScore(score: number): number {
+  return clamp(Math.round(72 + (score - 72) * 0.35), 70, 88);
 }
 
 function buildReason({

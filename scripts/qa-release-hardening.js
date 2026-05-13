@@ -555,8 +555,17 @@ async function checkSmartTrainingTargets(browser) {
 
   await page.getByRole('button', { name: /LOG SET/i }).tap({ timeout: 10000 });
   await page.getByTestId('smart-rest-target').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByTestId('smart-rest-apply').tap({ timeout: 10000 });
+  await page.waitForTimeout(500);
+  if (!(await page.getByTestId('smart-rest-target').isVisible())) {
+    throw new Error('Applying a smart target during rest should keep the rest timer open');
+  }
+  const logSetVisible = await page.getByRole('button', { name: /LOG SET/i }).isVisible().catch(() => false);
+  if (logSetVisible) {
+    throw new Error('Applying a smart target during rest advanced back to the set logger');
+  }
   await page.close();
-  console.log('✅ smart target appears, applies to selected set, and rest timer renders next target');
+  console.log('✅ smart target appears, applies to selected set, and rest apply keeps the timer open');
 }
 
 async function checkSettingsPolish(browser) {
