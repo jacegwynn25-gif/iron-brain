@@ -1,18 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
-  BookOpen,
-  History as HistoryIcon,
-  RotateCcw,
   Settings,
   Sparkles,
   X,
   Plus,
-  BarChart3,
   User,
 } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
@@ -23,10 +18,8 @@ import { getWorkoutHistory } from '@/app/lib/storage';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { AuthModal } from './Auth';
-import QuickLogConfirm from './workout/QuickLogConfirm';
 
 export default function Dashboard() {
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
@@ -34,7 +27,6 @@ export default function Dashboard() {
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [localProfileResolved, setLocalProfileResolved] = useState(false);
   const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
-  const [quickLogConfirmOpen, setQuickLogConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -93,50 +85,20 @@ export default function Dashboard() {
     !authLoading &&
     !user &&
     !hasPriorLocalUse;
-  const nextSessionAdjustments = useMemo(() => {
-    if (!readiness || !['enough', 'high'].includes(readiness.dataSufficiency)) return [];
-
-    const adjustments: string[] = [];
-    const upper = readiness.focus_adjustments.upper_body_modifier;
-    const lower = readiness.focus_adjustments.lower_body_modifier;
-
-    if (readiness.score < 50) {
-      adjustments.push('Run a lighter session or cut one work set from the main lift.');
-    } else if (readiness.score < 70) {
-      adjustments.push('Keep planned loads, but avoid adding weight until the first work set feels on target.');
-    } else if (readiness.score >= 88) {
-      adjustments.push('Small progressions are allowed if warmups and first work set move cleanly.');
-    } else {
-      adjustments.push('Use normal planned targets and let RPE guide the next set.');
-    }
-
-    if (lower < 0.97) adjustments.push(`Lower-body targets are capped at ${Math.round(lower * 100)}% today.`);
-    if (upper < 0.97) adjustments.push(`Upper-body targets are capped at ${Math.round(upper * 100)}% today.`);
-
-    return adjustments.slice(0, 3);
-  }, [readiness]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3 pb-8 pt-3 sm:space-y-8 sm:pt-10">
+    <div className="mx-auto w-full max-w-5xl space-y-3 pb-4 pt-2 sm:space-y-7 sm:pt-8">
       {showFreshUserAuthPrompt && (
         <AuthModal
           hideClose
           onSuccess={() => setHasPriorLocalUse(true)}
         />
       )}
-      <QuickLogConfirm
-        isOpen={quickLogConfirmOpen}
-        onClose={() => setQuickLogConfirmOpen(false)}
-        onConfirm={() => {
-          setQuickLogConfirmOpen(false);
-          router.push('/workout/new?type=empty');
-        }}
-      />
 
       {/* Header */}
       <header className="flex items-center justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
+          <h1 className="text-2xl font-black italic tracking-normal text-zinc-100 sm:text-4xl">
             IRON BRAIN
           </h1>
         </div>
@@ -196,34 +158,11 @@ export default function Dashboard() {
         </section>
       )}
 
-      {nextSessionAdjustments.length > 0 && (
-        <section className="stagger-item mx-1 rounded-[1.1rem] border border-zinc-900 bg-zinc-950/70 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-emerald-300">
-                Next Session Adjustments
-              </p>
-              <div className="mt-2 space-y-1.5">
-                {nextSessionAdjustments.map((adjustment) => (
-                  <p key={adjustment} className="text-xs leading-snug text-zinc-400">
-                    {adjustment}
-                  </p>
-                ))}
-              </div>
-            </div>
-            <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
-              {readiness?.confidence} / {readiness?.dataSufficiency}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* Main Actions */}
-      <section className="grid gap-2 px-1 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        {/* Primary CTA */}
+      {/* Main Action */}
+      <section className="px-1">
         <Link
           href={activeSessionReady && isSessionActive ? "/workout/new" : "/start"}
-          className={`stagger-item group relative flex items-center justify-between overflow-hidden rounded-[1.1rem] px-4 py-3 transition-all hover:scale-[1.02] active:scale-[0.98] sm:rounded-[1.5rem] sm:px-6 sm:py-5 ${activeSessionReady && isSessionActive
+          className={`stagger-item group relative flex min-h-14 items-center justify-between overflow-hidden rounded-[1rem] px-4 py-3 transition-all hover:scale-[1.01] active:scale-[0.99] sm:min-h-20 sm:rounded-[1.25rem] sm:px-6 sm:py-5 ${activeSessionReady && isSessionActive
             ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
             : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
             }`}
@@ -232,80 +171,19 @@ export default function Dashboard() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md sm:h-9 sm:w-9 sm:rounded-xl">
               <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
             </div>
-            <h3 className="text-sm font-black italic tracking-tight text-white sm:text-lg">
-              {activeSessionReady && isSessionActive ? "RESUME SESSION" : "START SESSION"}
-            </h3>
+            <div>
+              <h3 className="text-sm font-black italic tracking-normal text-white sm:text-lg">
+                {activeSessionReady && isSessionActive ? "RESUME SESSION" : "START TRAINING"}
+              </h3>
+              <p className="mt-0.5 text-[10px] font-semibold text-white/70 sm:text-xs">
+                {activeSessionReady && isSessionActive ? "Continue the workout in progress" : "Planned session or empty log"}
+              </p>
+            </div>
           </div>
           <ArrowRight className="relative z-10 h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
 
           {/* Decorative background circle */}
           <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-white/10 blur-2xl sm:h-24 sm:w-24" />
-        </Link>
-
-        {/* Secondary Actions Grid */}
-        <div className="grid grid-cols-2 gap-2 sm:col-span-1 sm:gap-4 lg:col-span-2">
-          <Link
-            href="/programs"
-            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
-          >
-            <BookOpen className="h-4.5 w-4.5 text-emerald-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 sm:pt-6">
-              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">PROGRAMS</h4>
-              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Training plans</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/history"
-            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
-          >
-            <HistoryIcon className="h-4.5 w-4.5 text-amber-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 sm:pt-6">
-              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">HISTORY</h4>
-              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Session logs</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/analytics"
-            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
-          >
-            <BarChart3 className="h-4.5 w-4.5 text-blue-400 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 sm:pt-6">
-              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">ANALYTICS</h4>
-              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Progress trends</p>
-            </div>
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => setQuickLogConfirmOpen(true)}
-            className="surface-card stagger-item group flex min-h-12 items-center justify-between px-3 py-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 sm:min-h-28 sm:flex-col sm:items-start sm:justify-between sm:p-5"
-          >
-            <RotateCcw className="h-4.5 w-4.5 text-zinc-100/40 sm:h-5.5 sm:w-5.5" />
-            <div className="space-y-0.5 sm:pt-6">
-              <h4 className="text-xs font-black italic text-zinc-100 sm:text-base">QUICK LOG</h4>
-              <p className="hidden text-[9px] text-zinc-500 sm:block sm:text-[10px]">Empty session</p>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      {/* Optional Support CTA */}
-      <section className="stagger-item mx-1">
-        <Link
-          href="/upgrade"
-          className="group flex min-h-12 items-center justify-between gap-3 rounded-[1.1rem] border border-amber-300/70 bg-amber-400 px-3.5 py-2.5 text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500 sm:px-4"
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
-              <Sparkles className="h-4 w-4 text-zinc-950" />
-            </div>
-            <h3 className="min-w-0 text-sm font-black italic leading-tight tracking-normal [word-spacing:0.1em] sm:text-base">
-              SUPPORT IRON BRAIN
-            </h3>
-          </div>
-          <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </section>
 

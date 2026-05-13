@@ -76,7 +76,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     const handleSyncQueue = (event: Event) => {
       const detail = (event as CustomEvent<SyncQueueDetail>).detail ?? {};
       setQueuedOperations(readQueuedOperationCount());
-      if ((detail.processed ?? 0) > 0 || (detail.failed ?? 0) > 0) {
+      if ((detail.processed ?? 0) > 0) {
         setSyncNotice(detail);
         if (syncNoticeTimerRef.current) clearTimeout(syncNoticeTimerRef.current);
         syncNoticeTimerRef.current = setTimeout(() => setSyncNotice(null), 5200);
@@ -154,11 +154,11 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
       return {
         key: 'sync',
         icon: CheckCircle2,
-        label: failed > 0 ? 'Backup Pending' : 'Synced',
-        title: failed > 0 ? 'Some changes will retry' : 'Cloud backup updated',
+        label: failed > 0 ? 'Partly Synced' : 'Synced',
+        title: failed > 0 ? 'Cloud backup partly updated' : 'Cloud backup updated',
         body:
           failed > 0
-            ? `${failed} change${failed === 1 ? '' : 's'} will retry automatically.`
+            ? `${processed} saved. ${failed} still retrying in the background.`
             : `${processed} queued change${processed === 1 ? '' : 's'} saved to cloud.`,
         tone: failed > 0 ? 'border-amber-400/35 bg-zinc-950/95 text-amber-200' : 'border-emerald-400/25 bg-zinc-950/95 text-emerald-200',
         action: null,

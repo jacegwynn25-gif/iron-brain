@@ -133,16 +133,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
-      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-28'}`}>
+      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-24'}`}>
         {children}
       </main>
 
       {!hideBottomNav && <WorkoutMiniBar />}
 
       {!hideBottomNav && (
-        <nav className="app-bottom-nav pointer-events-auto fixed inset-x-0 bottom-0 z-[90] border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-2xl touch-manipulation">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative mx-auto flex w-full max-w-2xl items-stretch justify-between px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-1.5">
+        <nav className="app-bottom-nav pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.45rem] border border-white/10 bg-zinc-950/88 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.95)] backdrop-blur-2xl touch-manipulation sm:inset-x-6">
+          <div className="relative flex min-h-16 w-full items-stretch justify-between gap-1 p-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -161,17 +160,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   onPointerCancel={() => {
                     navPointerRef.current = null;
                   }}
-                  className={`group relative flex min-h-[3.85rem] min-w-0 flex-1 select-none flex-col items-center justify-center gap-1 rounded-xl px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 ${active
-                    ? 'text-emerald-300'
-                    : 'text-zinc-500'
+                  className={`group relative flex min-h-14 min-w-0 flex-1 select-none items-center justify-center rounded-[1.05rem] px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 sm:flex-col sm:gap-1 ${active
+                    ? 'bg-white/[0.07] text-emerald-300 ring-1 ring-white/10'
+                    : 'text-zinc-500 hover:text-zinc-300'
                     }`}
                 >
-                  <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2.1]'}`} />
-                  <span className={`text-[10px] font-bold leading-none ${active ? 'tracking-[0.02em]' : ''}`}>
+                  <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+                  <span className="sr-only text-[10px] font-bold leading-none tracking-normal sm:not-sr-only">
                     {item.label}
                   </span>
                   {active && (
-                    <span className="pointer-events-none absolute top-0 h-0.5 w-7 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
+                    <span className="pointer-events-none absolute -top-0.5 h-1 w-1 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.85)] sm:hidden" />
                   )}
                 </Link>
               );
