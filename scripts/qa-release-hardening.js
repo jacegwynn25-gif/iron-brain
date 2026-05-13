@@ -78,6 +78,10 @@ function activeSessionSnapshot(overrides = {}) {
   };
 }
 
+async function waitForDashboardStartSession(page, timeout = 15000) {
+  await page.getByRole('link', { name: /^START SESSION$/i }).first().waitFor({ state: 'visible', timeout });
+}
+
 async function newPage(browser, initScript) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -150,7 +154,7 @@ async function checkCorruptedActiveSession(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', '{not valid json');`
   );
   await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(page);
   await page.close();
   console.log('✅ corrupted active-session storage does not crash dashboard');
 }
@@ -221,7 +225,7 @@ async function checkMiniBarLayout(browser) {
 
   await page.getByRole('button', { name: /Clear stuck workout/i }).tap({ timeout: 10000 });
   await page.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 5000 });
-  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 10000 });
+  await waitForDashboardStartSession(page, 10000);
 
   await page.close();
   console.log(`✅ active workout mini bar sits above bottom nav and can clear stuck sessions (${Math.round(boxes.gap)}px gap)`);
@@ -243,7 +247,7 @@ async function checkActiveSessionTombstone(browser) {
      localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(oldSnapshot))});`
   );
   await tombstonePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await tombstonePage.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(tombstonePage);
   const resurrected = await tombstonePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (resurrected !== null) {
     throw new Error('Discard tombstone did not block an old active workout from resurrecting');
@@ -255,7 +259,7 @@ async function checkActiveSessionTombstone(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(staleSnapshot))});`
   );
   await stalePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await stalePage.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(stalePage);
   const staleRaw = await stalePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (staleRaw !== null) {
     throw new Error('Stale active workout was not auto-cleared');
@@ -339,7 +343,7 @@ async function checkResumedWorkoutDiscard(browser) {
   await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 10000 });
   await page.getByRole('button', { name: /^Discard$/i }).tap({ timeout: 10000 });
   await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
-  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(page);
 
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
@@ -357,7 +361,7 @@ async function checkForceDiscardRoute(browser) {
   );
   await page.goto(`${BASE_URL}/workout/new?discard=1`, { waitUntil: 'networkidle' });
   await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
-  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(page);
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
     throw new Error('Force-discard route did not clear active-session storage');
@@ -376,7 +380,7 @@ async function checkStandaloneResetWorkoutRoute(browser) {
   );
   await page.goto(`${BASE_URL}/reset-workout`, { waitUntil: 'domcontentloaded' });
   await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
-  await page.getByText(/START SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await waitForDashboardStartSession(page);
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
     throw new Error('Standalone reset-workout route did not clear active-session storage');
