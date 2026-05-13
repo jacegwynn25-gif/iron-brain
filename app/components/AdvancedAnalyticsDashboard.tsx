@@ -98,7 +98,7 @@ function getExerciseName(exerciseId: string, providedName?: string, catalog?: Ex
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'exercise_slug' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
+  'id' | 'exercise_id' | 'exercise_slug' | 'set_index' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
 >;
 
 const normalizeSetType = (value?: string | null): SetType => {
@@ -857,6 +857,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 id,
                 exercise_id,
                 exercise_slug,
+                set_index,
                 actual_weight,
                 weight_unit,
                 actual_reps,
@@ -900,7 +901,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               id: sl.id ?? undefined,
               exerciseId,
               exerciseName,
-              setIndex: idx + 1,
+              setIndex: sl.set_index ?? idx + 1,
               prescribedReps: '0',
               actualWeight: sl.actual_weight ?? undefined,
               weightUnit: sl.weight_unit === 'kg' ? 'kg' : 'lbs',
@@ -922,7 +923,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             });
 
             const cloudIds = new Set(converted.map((workout) => normalizeWorkoutId(workout.id)));
-            const mergedCloud = converted.map((workout) => localById.get(normalizeWorkoutId(workout.id)) ?? workout);
+            const mergedCloud = converted.map((workout) => {
+              const localWorkout = localById.get(normalizeWorkoutId(workout.id));
+              if (!localWorkout) return workout;
+              if ((workout.sets?.length ?? 0) === 0 && (localWorkout.sets?.length ?? 0) > 0) {
+                return localWorkout;
+              }
+              return workout;
+            });
             const uniqueLocal = localWorkouts.filter((workout) => !cloudIds.has(normalizeWorkoutId(workout.id)));
 
             return [...mergedCloud, ...uniqueLocal];

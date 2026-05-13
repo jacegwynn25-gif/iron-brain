@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  HeartHandshake,
   Settings,
   Sparkles,
   X,
@@ -14,19 +15,38 @@ import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
 import { ReadinessCard } from './dashboard/ReadinessCard';
 import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
-import { getWorkoutHistory } from '@/app/lib/storage';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
+import { useWorkoutDataContext } from '@/app/providers/WorkoutDataProvider';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { AuthModal } from './Auth';
+
+function toLocalDateKey(value?: string | null): string | null {
+  if (!value) return null;
+  const parsed = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { readiness, loading, error, lastUpdated } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
+  const { workouts, loading: workoutsLoading } = useWorkoutDataContext();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
-  const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [localProfileResolved, setLocalProfileResolved] = useState(false);
   const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
+
+  const workoutDates = useMemo(() => {
+    const dates = new Set<string>();
+    workouts.forEach((workout) => {
+      const dateKey = toLocalDateKey(workout.date) ?? toLocalDateKey(workout.startTime) ?? toLocalDateKey(workout.endTime);
+      if (dateKey) dates.add(dateKey);
+    });
+    return Array.from(dates);
+  }, [workouts]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -34,24 +54,24 @@ export default function Dashboard() {
       const localOnboardingComplete = localStorage.getItem('iron_brain_onboarding_complete') === 'true';
       const localCoachMarksComplete = localStorage.getItem('iron_brain_coach_marks_complete') === 'true';
 
-      // Load recent PR hits
-      const raw = localStorage.getItem('iron_brain_last_pr_hits');
-      if (raw) {
-        const parsed = JSON.parse(raw) as
-          | PersonalRecordHit[]
-          | { hits?: PersonalRecordHit[]; createdAt?: string };
-        const hits = Array.isArray(parsed) ? parsed : parsed.hits ?? [];
-        if (hits.length > 0) setRecentPrHits(hits);
-      }
-
-      // Load workout history for consistency chart
-      const history = getWorkoutHistory();
-      const dates = history.map(w => w.date).filter(Boolean);
-      setWorkoutDates(dates);
-      setHasPriorLocalUse(localOnboardingComplete || localCoachMarksComplete || history.length > 0);
+      setHasPriorLocalUse(localOnboardingComplete || localCoachMarksComplete || workouts.length > 0);
     } catch {
     } finally {
       setLocalProfileResolved(true);
+    }
+  }, [workouts.length]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('iron_brain_last_pr_hits');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as
+        | PersonalRecordHit[]
+        | { hits?: PersonalRecordHit[]; createdAt?: string };
+      const hits = Array.isArray(parsed) ? parsed : parsed.hits ?? [];
+      if (hits.length > 0) setRecentPrHits(hits);
+    } catch {
     }
   }, []);
 
@@ -83,6 +103,7 @@ export default function Dashboard() {
   const showFreshUserAuthPrompt =
     localProfileResolved &&
     !authLoading &&
+    !workoutsLoading &&
     !user &&
     !hasPriorLocalUse;
 
@@ -101,6 +122,13 @@ export default function Dashboard() {
           <h1 className="text-2xl font-black italic tracking-normal text-zinc-100 sm:text-4xl">
             IRON BRAIN
           </h1>
+          <Link
+            href="/upgrade"
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300/85 transition-colors hover:text-amber-200"
+          >
+            <HeartHandshake className="h-3.5 w-3.5" />
+            Support Iron Brain
+          </Link>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
@@ -189,7 +217,7 @@ export default function Dashboard() {
 
       {/* Consistency Chart */}
       <section className="stagger-item mx-1">
-        <WeeklyConsistency workoutDates={workoutDates} />
+        <WeeklyConsistency workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 
       {/* Status Footer */}

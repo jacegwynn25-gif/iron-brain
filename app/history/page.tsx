@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import WorkoutHistory from '../components/WorkoutHistory';
 import { storage, setUserNamespace } from '../lib/storage';
 import { getTrash } from '../lib/trash';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../lib/supabase/auth-context';
+import { useWorkoutDataContext } from '../providers/WorkoutDataProvider';
 import { defaultExercises } from '../lib/programs';
 import { getCustomExercises, getLocalCustomExercises } from '../lib/exercises/custom-exercises';
 import { buildExerciseCatalog, resolveExerciseDisplayName, type ExerciseCatalog } from '../lib/exercises/catalog';
@@ -20,6 +21,8 @@ const HISTORY_CLOUD_LIMIT = 90;
 type WorkoutSet = WorkoutSession['sets'][number];
 
 const normalizeWorkoutId = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
+const getWorkoutSortTime = (session: WorkoutSession) =>
+  new Date(session.endTime || session.startTime || session.date).getTime();
 
 const normalizeSetKey = (set: WorkoutSet): string => {
   if (set.id) return `id:${set.id}`;
@@ -70,26 +73,40 @@ function mergeCloudWorkoutNames(
 export default function HistoryPage() {
   const router = useRouter();
   const { user, loading: authLoading, namespaceReady } = useAuth();
+  const { workouts: sharedWorkouts } = useWorkoutDataContext();
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [cloudFetchFailed, setCloudFetchFailed] = useState(false);
   const namespaceId = user?.id ?? null;
   const loadingRef = useRef(false);
+  const sharedVisibleWorkouts = useMemo(() => {
+    const trashedWorkoutIds = new Set(
+      getTrash().map((item) => normalizeWorkoutId(item.workout.id))
+    );
+    return sharedWorkouts
+      .filter((workout) => !trashedWorkoutIds.has(normalizeWorkoutId(workout.id)))
+      .sort((a, b) => getWorkoutSortTime(b) - getWorkoutSortTime(a));
+  }, [sharedWorkouts]);
 
   useEffect(() => {
     if (!namespaceReady) return;
     setUserNamespace(namespaceId);
   }, [namespaceId, namespaceReady]);
 
+  useEffect(() => {
+    if (!namespaceReady || authLoading || sharedVisibleWorkouts.length === 0) return;
+    setWorkoutHistory(sharedVisibleWorkouts);
+    setHistoryLoading(false);
+    setCloudFetchFailed(false);
+  }, [authLoading, namespaceReady, sharedVisibleWorkouts]);
+
   const loadWorkoutsFromBothSources = useCallback(async () => {
     if (!namespaceReady || authLoading) return;
     if (loadingRef.current) return;
     loadingRef.current = true;
     const loadStartedAt = performance.now();
-    setHistoryLoading(true);
-
-    const getSortTime = (session: WorkoutSession) =>
-      new Date(session.endTime || session.startTime || session.date).getTime();
+    const hasWarmSharedHistory = sharedVisibleWorkouts.length > 0;
+    setHistoryLoading(!hasWarmSharedHistory);
 
     const resolveUserId = async () => {
       // If we have a user from context, use it
@@ -118,12 +135,14 @@ export default function HistoryPage() {
         .getWorkoutHistoryForNamespace(resolvedUserId ?? namespaceId)
         .filter((workout) => !trashedWorkoutIds.has(normalizeWorkoutId(workout.id)))
         .map((workout) => enrichWorkoutSetNames(workout, localExerciseCatalog));
-      const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
+      const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getWorkoutSortTime(b) - getWorkoutSortTime(a));
 
       // Render local cache immediately. If there is no cache, keep loading
       // until the cloud payload arrives so users do not see a false empty state.
-      setWorkoutHistory(sortedLocalWorkouts);
-      setHistoryLoading(sortedLocalWorkouts.length === 0 && Boolean(resolvedUserId));
+      if (sortedLocalWorkouts.length > 0 || !hasWarmSharedHistory) {
+        setWorkoutHistory(sortedLocalWorkouts);
+      }
+      setHistoryLoading(sortedLocalWorkouts.length === 0 && Boolean(resolvedUserId) && !hasWarmSharedHistory);
 
       if (!resolvedUserId) {
         setHistoryLoading(false);
@@ -263,7 +282,7 @@ export default function HistoryPage() {
       });
 
       const mergedWorkouts = Array.from(mergedById.values()).sort(
-        (a, b) => getSortTime(b) - getSortTime(a)
+        (a, b) => getWorkoutSortTime(b) - getWorkoutSortTime(a)
       );
 
       storage.setWorkoutHistory(mergedWorkouts);
@@ -278,7 +297,7 @@ export default function HistoryPage() {
         durationMs: Math.round(performance.now() - loadStartedAt),
       });
     }
-  }, [authLoading, namespaceId, namespaceReady, user]);
+  }, [authLoading, namespaceId, namespaceReady, sharedVisibleWorkouts.length, user]);
 
   useEffect(() => {
     if (!namespaceReady || authLoading) return;
