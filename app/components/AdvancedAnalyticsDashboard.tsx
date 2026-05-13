@@ -30,6 +30,12 @@ import {
   calculateVolumeLeaderboard,
   type Exercise1RM
 } from '../lib/stats/one-rep-max';
+import {
+  buildCanonicalAnalyticsSets,
+  isVerifiedStrengthSet,
+  isVerifiedVolumeSet,
+  summarizeCanonicalAnalyticsSets,
+} from '../lib/stats/canonical-sets';
 import RecoveryOverview from './RecoveryOverview';
 import type { Database } from '../lib/supabase/database.types';
 import { defaultExercises } from '../lib/programs';
@@ -135,6 +141,11 @@ interface AnalyticsData {
   };
   recoveryProfiles?: RecoveryProfile[];
   strengthLeaderboard?: Exercise1RM[];
+  dataQuality?: {
+    strengthExcludedSetCount: number;
+    anomalySetCount: number;
+    anomalySummary: string | null;
+  };
   volumeLeaderboard?: Array<{
     exerciseId: string;
     exerciseName: string;
@@ -527,22 +538,27 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       return sum + eligibleSets.length;
     }, 0);
 
-    // Build strength data from all sets
-    const allSets = workouts.flatMap((workout) =>
-      workout.sets
-        .filter((set) => set.completed !== false && set.setType !== 'warmup')
-        .map((set) => ({
-          weight: resolveSetWeight(set),
-          reps: typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0),
-          rpe: set.actualRPE ?? null,
-          exerciseId: set.exerciseId,
-          exerciseName: getExerciseName(set.exerciseId, set.exerciseName, exerciseCatalog),
-          date: workout.endTime || workout.startTime || workout.date,
-        }))
-    );
+    const canonicalSets = buildCanonicalAnalyticsSets(workouts, { catalog: exerciseCatalog });
+    const canonicalSummary = summarizeCanonicalAnalyticsSets(canonicalSets);
+    const strengthSets = canonicalSets.filter(isVerifiedStrengthSet).map((set) => ({
+      weight: set.weightLbs,
+      reps: set.reps,
+      rpe: set.rpe,
+      exerciseId: set.exerciseKey,
+      exerciseName: set.exerciseName,
+      date: set.date,
+    }));
+    const volumeSets = canonicalSets.filter(isVerifiedVolumeSet).map((set) => ({
+      weight: set.weightLbs,
+      reps: set.reps,
+      rpe: set.rpe,
+      exerciseId: set.exerciseKey,
+      exerciseName: set.exerciseName,
+      date: set.date,
+    }));
 
-    const strengthLeaderboardLbs = calculate1RMLeaderboard(allSets, { minSets: 2 });
-    const volumeLeaderboardLbs = calculateVolumeLeaderboard(allSets, { minSets: 2 });
+    const strengthLeaderboardLbs = calculate1RMLeaderboard(strengthSets, { minSets: 1 });
+    const volumeLeaderboardLbs = calculateVolumeLeaderboard(volumeSets, { minSets: 2 });
     const strengthLeaderboard = strengthLeaderboardLbs.map((lift) => ({
       ...lift,
       estimated1RM: Math.round(toDisplay(lift.estimated1RM)),
@@ -557,6 +573,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       totalVolume: Math.round(toDisplay(exercise.totalVolume)),
       avgWeightPerSet: roundWeightDisplay(toDisplay(exercise.avgWeightPerSet)),
     }));
+    const strengthExcludedSetCount = canonicalSummary.totalSets - canonicalSummary.verifiedStrengthSets;
+    const anomalySummary = canonicalSummary.anomalousSets > 0
+      ? `${canonicalSummary.anomalousSets} questionable set${canonicalSummary.anomalousSets === 1 ? '' : 's'} excluded`
+      : null;
     const loadSampleCount = workoutsWithLoad.filter((workout) => workout.load > 0).length;
     const loadDataSufficiency = dataSufficiencyFromSampleCount(loadSampleCount);
     const loadConfidence = acwrMetrics.baselineConfidence === 'high'
@@ -593,6 +613,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         totalSets,
       },
       strengthLeaderboard,
+      dataQuality: {
+        strengthExcludedSetCount,
+        anomalySetCount: canonicalSummary.anomalousSets,
+        anomalySummary,
+      },
       volumeLeaderboard,
       explanations: {
         loadPressure: {
@@ -648,7 +673,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       },
     } satisfies Pick<
       AnalyticsData,
-      'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'volumeLeaderboard' | 'explanations'
+      'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'dataQuality' | 'volumeLeaderboard' | 'explanations'
     >;
   }, [exerciseCatalog, kgToLbs, lbsToKg, weightUnit]);
 
@@ -663,6 +688,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         fitnessFatigue: undefined,
         personalStats: undefined,
         strengthLeaderboard: undefined,
+        dataQuality: undefined,
         volumeLeaderboard: undefined,
         explanations: undefined,
       }));
@@ -1072,6 +1098,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         ? 'Moderate intensity recommended'
         : 'Consider a lighter session or rest';
   const adherence = analytics.adherence;
+  const strengthDataQualityNote = analytics.dataQuality?.anomalySummary ?? null;
   const getRateToneClass = (rate: number) => {
     if (rate >= 80) return 'text-emerald-300';
     if (rate >= 60) return 'text-amber-300';
@@ -1473,6 +1500,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <p className="text-xs text-zinc-400 mb-4">
               Adjusted for RPE - accounts for reps in reserve
             </p>
+            {strengthDataQualityNote && (
+              <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                {strengthDataQualityNote}
+              </div>
+            )}
             {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 ? (
               <div className="space-y-2">
                 {analytics.strengthLeaderboard.slice(0, 10).map((lift, i) => (
@@ -1500,7 +1532,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-zinc-400">Complete more workouts to see your estimated 1RMs.</p>
+              <p className="text-sm text-zinc-400">
+                {analytics.dataQuality?.anomalySetCount
+                  ? 'Need verified sets. Questionable rows were excluded from max estimates.'
+                  : 'Complete verified working sets to see your estimated 1RMs.'}
+              </p>
             )}
           </div>
 
