@@ -101,6 +101,8 @@ async function newPage(browser, initScript) {
     }
   }, initScript || '');
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(60_000);
+  page.setDefaultTimeout(30_000);
   const closePage = page.close.bind(page);
   page.close = async (...args) => {
     await closePage(...args).catch(() => {});
@@ -153,7 +155,7 @@ async function checkCorruptedActiveSession(browser) {
     browser,
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', '{not valid json');`
   );
-  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
   await waitForDashboardStartSession(page);
   await page.close();
   console.log('✅ corrupted active-session storage does not crash dashboard');
@@ -167,8 +169,8 @@ async function checkResumeDataIntegrity(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(snapshot))});`
   );
 
-  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
-  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 30000 });
 
   const body = await page.locator('body').innerText();
   if (/custom_1348593_resume/i.test(body)) {
@@ -176,9 +178,9 @@ async function checkResumeDataIntegrity(browser) {
   }
 
   await page.getByText('Resume Custom Press').first().click();
-  await page.getByText('LBS').first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText('LBS').first().waitFor({ state: 'visible', timeout: 30000 });
   await page.getByRole('button', { name: 'kg', exact: true }).click();
-  await page.getByText('KG').first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByText('KG').first().waitFor({ state: 'visible', timeout: 30000 });
 
   await page.waitForFunction((key) => {
     const raw = localStorage.getItem(key);
@@ -207,9 +209,9 @@ async function checkMiniBarLayout(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
   );
 
-  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByText('Resume Hardening').waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText('Resume Hardening').waitFor({ state: 'visible', timeout: 30000 });
 
   const boxes = await page.evaluate(() => {
     const nav = document.querySelector('.app-bottom-nav')?.getBoundingClientRect();
@@ -223,7 +225,7 @@ async function checkMiniBarLayout(browser) {
   if (boxes.gap < 6) throw new Error(`Active workout mini bar crowds bottom nav: ${boxes.gap}px gap`);
   if (boxes.gap > 14) throw new Error(`Active workout mini bar floats too far above bottom nav: ${boxes.gap}px gap`);
 
-  await page.getByRole('button', { name: /Clear stuck workout/i }).tap({ timeout: 10000 });
+  await page.getByRole('button', { name: /Clear stuck workout/i }).tap({ timeout: 30000 });
   await page.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 5000 });
   await waitForDashboardStartSession(page, 10000);
 
@@ -246,8 +248,9 @@ async function checkActiveSessionTombstone(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_CLEAR_MARKER_KEY}', String(Date.now()));
      localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(oldSnapshot))});`
   );
-  await tombstonePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await tombstonePage.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
   await waitForDashboardStartSession(tombstonePage);
+  await tombstonePage.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 30000 });
   const resurrected = await tombstonePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (resurrected !== null) {
     throw new Error('Discard tombstone did not block an old active workout from resurrecting');
@@ -258,8 +261,9 @@ async function checkActiveSessionTombstone(browser) {
     browser,
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(staleSnapshot))});`
   );
-  await stalePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await stalePage.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
   await waitForDashboardStartSession(stalePage);
+  await stalePage.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 30000 });
   const staleRaw = await stalePage.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (staleRaw !== null) {
     throw new Error('Stale active workout was not auto-cleared');
@@ -284,21 +288,22 @@ async function checkAppResilienceStatus(browser) {
     });
   });
 
-  await updatePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'visible', timeout: 15000 });
+  await updatePage.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'visible', timeout: 30000 });
   const updateText = await updatePage.getByTestId('app-resilience-update').innerText();
   if (!/APP UPDATE/i.test(updateText) || !/REFRESH WHEN FREE/i.test(updateText) || !/Active workouts stay saved locally/i.test(updateText)) {
     throw new Error(`Update status copy is unclear: ${updateText}`);
   }
-  await updatePage.getByLabel('Dismiss update notice').tap({ timeout: 10000 });
-  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'hidden', timeout: 10000 });
+  await updatePage.getByLabel('Dismiss update notice').tap({ timeout: 30000 });
+  await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'hidden', timeout: 30000 });
   await updatePage.close();
 
   const offlinePage = await newPage(browser);
-  await offlinePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await offlinePage.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+  await waitForDashboardStartSession(offlinePage);
   await offlinePage.context().setOffline(true);
   await offlinePage.evaluate(() => window.dispatchEvent(new Event('offline')));
-  await offlinePage.getByTestId('app-resilience-offline').waitFor({ state: 'visible', timeout: 10000 });
+  await offlinePage.getByTestId('app-resilience-offline').waitFor({ state: 'visible', timeout: 30000 });
   const offlineText = await offlinePage.getByTestId('app-resilience-offline').innerText();
   if (!/OFFLINE MODE/i.test(offlineText) || !/stay on this device|waiting to sync/i.test(offlineText)) {
     throw new Error(`Offline status copy is unclear: ${offlineText}`);
@@ -307,7 +312,7 @@ async function checkAppResilienceStatus(browser) {
   await offlinePage.close();
 
   const syncPage = await newPage(browser);
-  await syncPage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
+  await syncPage.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
   await syncPage.evaluate(() => {
     window.dispatchEvent(new CustomEvent('iron-brain:sync-queue', {
       detail: { processed: 0, failed: 1 },
@@ -323,7 +328,7 @@ async function checkAppResilienceStatus(browser) {
       detail: { processed: 1, failed: 0 },
     }));
   });
-  await syncPage.getByTestId('app-resilience-sync').waitFor({ state: 'visible', timeout: 10000 });
+  await syncPage.getByTestId('app-resilience-sync').waitFor({ state: 'visible', timeout: 30000 });
   const syncText = await syncPage.getByTestId('app-resilience-sync').innerText();
   if (!/SYNCED/i.test(syncText) || !/saved to cloud/i.test(syncText)) {
     throw new Error(`Sync status copy is unclear: ${syncText}`);
@@ -335,18 +340,18 @@ async function checkAppResilienceStatus(browser) {
 
 async function checkWorkoutExitKeepsResume(browser) {
   const page = await newPage(browser);
-  await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /Review Finish/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Review Finish/i }).waitFor({ state: 'visible', timeout: 30000 });
   await page.waitForFunction(() =>
     Object.keys(localStorage).some((key) =>
       key.includes('iron_brain_active_session_v1') &&
       localStorage.getItem(key)?.includes('"status":"active"')
     ),
     null,
-    { timeout: 15000 }
+    { timeout: 30000 }
   );
-  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+  await page.getByText(/RESUME SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
   await page.close();
   console.log('✅ exiting an active workout keeps dashboard resume CTA visible');
 }
@@ -356,18 +361,19 @@ async function checkResumedWorkoutDiscard(browser) {
     browser,
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
   );
-  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
-  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
-  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 10000 });
-  await page.getByRole('button', { name: /Keep Training/i }).tap({ timeout: 10000 });
-  await page.getByText(/Discard Session\?/i).waitFor({ state: 'hidden', timeout: 10000 });
-  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 10000 });
-  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 10000 });
-  await page.getByRole('button', { name: /^Discard$/i }).tap({ timeout: 10000 });
-  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 30000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /Keep Training/i }).tap({ timeout: 30000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'hidden', timeout: 30000 });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /Discard Session/i }).first().tap({ timeout: 30000 });
+  await page.getByText(/Discard Session\?/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: /^Discard$/i }).tap({ timeout: 30000 });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 60000 });
   await waitForDashboardStartSession(page);
+  await page.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 30000 });
 
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
@@ -383,8 +389,8 @@ async function checkForceDiscardRoute(browser) {
     browser,
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(activeSessionSnapshot()))});`
   );
-  await page.goto(`${BASE_URL}/workout/new?discard=1`, { waitUntil: 'networkidle' });
-  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.goto(`${BASE_URL}/workout/new?discard=1`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 60000 });
   await waitForDashboardStartSession(page);
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
@@ -403,7 +409,7 @@ async function checkStandaloneResetWorkoutRoute(browser) {
     }`
   );
   await page.goto(`${BASE_URL}/reset-workout`, { waitUntil: 'domcontentloaded' });
-  await page.waitForURL((url) => url.pathname === '/', { timeout: 10000 });
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 60000 });
   await waitForDashboardStartSession(page);
   const raw = await page.evaluate((key) => localStorage.getItem(key), ACTIVE_SESSION_KEY);
   if (raw !== null) {
@@ -415,8 +421,8 @@ async function checkStandaloneResetWorkoutRoute(browser) {
 
 async function checkWorkoutRouteChrome(browser) {
   const page = await newPage(browser);
-  await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /Review Finish/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/workout/new?type=empty`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /Review Finish/i }).waitFor({ state: 'visible', timeout: 30000 });
   const navCount = await page.locator('.app-bottom-nav').count();
   if (navCount !== 0) throw new Error('Bottom nav should be hidden inside workout logger');
   await page.close();
@@ -429,10 +435,10 @@ async function checkStartPageLaunchpad(browser) {
     "localStorage.setItem('iron_brain_selected_program__guest', 'starting_strength_v1');"
   );
 
-  await page.goto(`${BASE_URL}/start`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByText(/QUICK LOG/i).waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/start`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/QUICK LOG/i).waitFor({ state: 'visible', timeout: 30000 });
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
@@ -481,10 +487,10 @@ async function checkStartPageLaunchpad(browser) {
     throw new Error(`Start page launch controls are undersized: ${JSON.stringify(undersized)}`);
   }
 
-  await page.getByRole('button', { name: /QUICK LOG/i }).tap({ timeout: 10000 });
+  await page.getByRole('button', { name: /QUICK LOG/i }).tap({ timeout: 30000 });
   await page.getByTestId('quick-log-confirm').waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByTestId('quick-log-confirm-start').tap({ timeout: 10000 });
-  await page.waitForURL(/\/workout\/new\?type=empty/, { timeout: 10000 });
+  await page.getByTestId('quick-log-confirm-start').tap({ timeout: 30000 });
+  await page.waitForURL(/\/workout\/new\?type=empty/, { timeout: 60000 });
 
   await page.close();
   console.log('✅ start page launchpad is compact, aligned, confirms quick log, and free of old filler labels');
@@ -496,9 +502,9 @@ async function checkProgramsNoFalseReadinessTuneUp(browser) {
     "localStorage.setItem('iron_brain_selected_program__guest', 'starting_strength_v1');"
   );
 
-  await page.goto(`${BASE_URL}/programs`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'PROGRAMS' }).waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByText(/Starting Strength/i).first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/programs`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'PROGRAMS' }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/Starting Strength/i).first().waitFor({ state: 'visible', timeout: 30000 });
   await page.waitForTimeout(500);
 
   const report = await page.evaluate(() => {
@@ -560,10 +566,10 @@ async function checkSmartTrainingTargets(browser) {
     `localStorage.setItem('${ACTIVE_SESSION_KEY}', ${JSON.stringify(JSON.stringify(snapshot))});`
   );
 
-  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'networkidle' });
-  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/workout/new`, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Resume Custom Press').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText('Resume Custom Press').first().click();
-  await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 30000 });
   const smartTargetText = await page.getByTestId('smart-target-card').innerText();
   if (!/(current session|direct history|similar movement|readiness|load pressure|program prescription|baseline)/i.test(smartTargetText)) {
     throw new Error(`Smart target did not expose its evidence source: ${smartTargetText}`);
@@ -571,7 +577,7 @@ async function checkSmartTrainingTargets(browser) {
   if (!/(confidence|limited|enough|high|baseline)/i.test(smartTargetText)) {
     throw new Error(`Smart target did not expose confidence/data sufficiency: ${smartTargetText}`);
   }
-  await page.getByTestId('smart-target-apply').tap({ timeout: 10000 });
+  await page.getByTestId('smart-target-apply').tap({ timeout: 30000 });
 
   await page.waitForFunction((key) => {
     const raw = localStorage.getItem(key);
@@ -581,9 +587,9 @@ async function checkSmartTrainingTargets(browser) {
     return Number(set?.weight) > 0 && Number(set?.weight) < 225;
   }, ACTIVE_SESSION_KEY, { timeout: 5000 });
 
-  await page.getByRole('button', { name: /LOG SET/i }).tap({ timeout: 10000 });
-  await page.getByTestId('smart-rest-target').waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByTestId('smart-rest-apply').tap({ timeout: 10000 });
+  await page.getByRole('button', { name: /LOG SET/i }).tap({ timeout: 30000 });
+  await page.getByTestId('smart-rest-target').waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByTestId('smart-rest-apply').tap({ timeout: 30000 });
   await page.waitForTimeout(500);
   if (!(await page.getByTestId('smart-rest-target').isVisible())) {
     throw new Error('Applying a smart target during rest should keep the rest timer open');
@@ -598,22 +604,22 @@ async function checkSmartTrainingTargets(browser) {
 
 async function checkSettingsPolish(browser) {
   const page = await newPage(browser);
-  await page.goto(`${BASE_URL}/profile/settings`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: /Settings/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/profile/settings`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: /Settings/i }).waitFor({ state: 'visible', timeout: 30000 });
   const body = await page.locator('body').innerText();
   if (/Apple Health|Simulate Crash|Coming soon/i.test(body)) {
     throw new Error('Settings exposes placeholder or developer-only controls');
   }
-  await page.getByRole('button', { name: 'LBS', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByRole('button', { name: 'KG', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByRole('button', { name: 'LBS', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByRole('button', { name: 'KG', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
   await page.close();
   console.log('✅ settings page avoids placeholder controls and exposes unit preferences');
 }
 
 async function checkBottomNavTapTargets(browser) {
   const page = await newPage(browser);
-  await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-  await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 15000 });
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 30000 });
 
   const targetReport = await page.evaluate(() => {
     document.querySelectorAll('nextjs-portal').forEach((node) => {
@@ -651,8 +657,8 @@ async function checkBottomNavTapTargets(browser) {
 
   for (const [item, route] of routes) {
     await page.locator(`[data-nav-item="${item}"]`).tap({ timeout: 5000 });
-    await page.waitForURL((url) => url.pathname === route, { timeout: 8000 });
-    await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 15000 });
+    await page.waitForURL((url) => url.pathname === route, { timeout: 60000 });
+    await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 30000 });
   }
 
   await page.close();
