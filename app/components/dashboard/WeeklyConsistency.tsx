@@ -4,21 +4,29 @@ import { useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 
 interface WeeklyConsistencyProps {
-    workoutDates: string[]; // ISO date strings
+    workoutDates: string[]; // Local YYYY-MM-DD date keys
     loading?: boolean;
+}
+
+function formatLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 export function WeeklyConsistency({ workoutDates, loading }: WeeklyConsistencyProps) {
     const days = useMemo(() => {
         const today = new Date();
+        const workoutDateSet = new Set(workoutDates);
         const result = [];
         for (let i = 13; i >= 0; i--) {
             const date = new Date();
             date.setDate(today.getDate() - i);
-            const iso = date.toISOString().split('T')[0];
+            const iso = formatLocalDateKey(date);
             const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
             const isToday = i === 0;
-            const hasWorkout = workoutDates.some(d => d.startsWith(iso));
+            const hasWorkout = workoutDateSet.has(iso);
 
             result.push({
                 iso,

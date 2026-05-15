@@ -18,6 +18,7 @@ interface SyncQueueDetail {
 
 const QUEUE_KEY_PREFIX = 'iron_brain_sync_queue';
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const DISMISSED_VERSION_KEY = 'iron_brain_dismissed_app_version';
 
 function readQueuedOperationCount(): number {
   if (typeof window === 'undefined') return 0;
@@ -91,6 +92,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     };
 
     syncBrowserState();
+    setDismissedVersion(localStorage.getItem(DISMISSED_VERSION_KEY));
     void checkVersion();
 
     window.addEventListener('online', handleOnline);
@@ -139,9 +141,9 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
       return {
         key: 'update',
         icon: RefreshCw,
-        label: 'Update Ready',
-        title: 'New build available',
-        body: 'Refresh to load the latest app. Active workouts stay saved locally.',
+        label: 'App Update',
+        title: 'Refresh when free',
+        body: 'A newer version is ready. Active workouts stay saved locally.',
         tone: 'border-emerald-400/30 bg-zinc-950/95 text-emerald-200',
         action: 'refresh' as const,
         dismissible: true,
@@ -208,7 +210,10 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
             </button>
             <button
               type="button"
-              onClick={() => setDismissedVersion(remoteVersion)}
+              onClick={() => {
+                setDismissedVersion(remoteVersion);
+                if (remoteVersion) localStorage.setItem(DISMISSED_VERSION_KEY, remoteVersion);
+              }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
               aria-label="Dismiss update notice"
             >

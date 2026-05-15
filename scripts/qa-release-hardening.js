@@ -287,7 +287,7 @@ async function checkAppResilienceStatus(browser) {
   await updatePage.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
   await updatePage.getByTestId('app-resilience-update').waitFor({ state: 'visible', timeout: 15000 });
   const updateText = await updatePage.getByTestId('app-resilience-update').innerText();
-  if (!/UPDATE READY/i.test(updateText) || !/Active workouts stay saved locally/i.test(updateText)) {
+  if (!/APP UPDATE/i.test(updateText) || !/REFRESH WHEN FREE/i.test(updateText) || !/Active workouts stay saved locally/i.test(updateText)) {
     throw new Error(`Update status copy is unclear: ${updateText}`);
   }
   await updatePage.getByLabel('Dismiss update notice').tap({ timeout: 10000 });

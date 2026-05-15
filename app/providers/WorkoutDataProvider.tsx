@@ -36,6 +36,19 @@ const getSortTime = (session: WorkoutSession) =>
 const CLOUD_SYNC_LIMIT = 120;
 const CLOUD_SYNC_STALE_MS = 120_000;
 const PASSIVE_RELOAD_DEBOUNCE_MS = 500;
+type WorkoutSet = WorkoutSession['sets'][number];
+
+const VALID_SET_TYPES = new Set<NonNullable<WorkoutSet['setType']>>([
+  'straight',
+  'superset',
+  'giant',
+  'drop',
+  'rest-pause',
+  'cluster',
+  'warmup',
+  'amrap',
+  'backoff',
+]);
 
 type ReloadReason =
   | 'initial'
@@ -50,7 +63,11 @@ type LoadWorkoutsOptions = {
   skipCloudIfFresh?: boolean;
 };
 
-type WorkoutSet = WorkoutSession['sets'][number];
+function normalizeSetType(value: string | null | undefined): WorkoutSet['setType'] | undefined {
+  return VALID_SET_TYPES.has(value as NonNullable<WorkoutSet['setType']>)
+    ? value as NonNullable<WorkoutSet['setType']>
+    : undefined;
+}
 
 const normalizeSetKey = (set: WorkoutSet): string => {
   if (set.id) return `id:${set.id}`;
@@ -182,10 +199,23 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
               exercise_id,
               set_index,
               prescribed_reps,
+              prescribed_rpe,
+              prescribed_rir,
+              prescribed_percentage,
+              prescribed_weight,
               actual_weight,
               weight_unit,
               actual_reps,
               actual_rpe,
+              actual_rir,
+              e1rm,
+              volume_load,
+              set_type,
+              tempo,
+              rest_seconds,
+              actual_seconds,
+              notes,
+              performed_at,
               completed
             )
           `)
@@ -300,10 +330,12 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
 
     window.addEventListener('syncStatusChanged', handleSyncChange);
     window.addEventListener('workoutSaved', handleSyncChange);
+    window.addEventListener('iron-brain:workout-history-updated', handleSyncChange);
 
     return () => {
       window.removeEventListener('syncStatusChanged', handleSyncChange);
       window.removeEventListener('workoutSaved', handleSyncChange);
+      window.removeEventListener('iron-brain:workout-history-updated', handleSyncChange);
     };
   }, [schedulePassiveReload]);
 
@@ -315,12 +347,14 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
     };
   }, []);
 
+  const reload = useCallback(() => loadWorkouts({ reason: 'manual' }), [loadWorkouts]);
+
   const value: WorkoutDataContextValue = {
     workouts,
     loading: loading || isInitializing,
     error,
     isSyncing,
-    reload: () => loadWorkouts({ reason: 'manual' }),
+    reload,
     isReady,
     isInitializing,
   };
@@ -384,6 +418,19 @@ function transformCloudWorkouts(sessions: Array<{
     actual_reps: number | null;
     actual_rpe: number | null;
     completed: boolean | null;
+    prescribed_rpe: number | null;
+    prescribed_rir: number | null;
+    prescribed_percentage: number | null;
+    prescribed_weight: number | null;
+    actual_rir: number | null;
+    e1rm: number | null;
+    volume_load: number | null;
+    set_type: string | null;
+    tempo: string | null;
+    rest_seconds: number | null;
+    actual_seconds: number | null;
+    notes: string | null;
+    performed_at: string | null;
   }>;
 }>, catalog: ExerciseCatalog): WorkoutSession[] {
   return sessions.map((s) => {
@@ -406,21 +453,37 @@ function transformCloudWorkouts(sessions: Array<{
       dayName: metadata.dayName || '',
       createdAt: s.created_at || new Date().toISOString(),
       updatedAt: s.updated_at || new Date().toISOString(),
-      sets: (s.set_logs || []).map((set) => {
-        const exerciseId = set.exercise_slug || set.exercise_id || '';
-        return {
-          id: set.id ?? undefined,
-          exerciseId,
-          exerciseName: resolveExerciseDisplayName(exerciseId, { catalog }),
-          setIndex: set.set_index ?? 0,
-          prescribedReps: set.prescribed_reps ?? '0',
-          actualWeight: set.actual_weight ?? undefined,
-          weightUnit: (set.weight_unit === 'kg' ? 'kg' : 'lbs') as 'lbs' | 'kg',
-          actualReps: set.actual_reps ?? undefined,
-          actualRPE: set.actual_rpe ?? undefined,
-          completed: set.completed !== false,
-        };
-      }),
+      sets: (s.set_logs || [])
+        .slice()
+        .sort((a, b) => (a.set_index ?? 0) - (b.set_index ?? 0))
+        .map((set) => {
+          const exerciseId = set.exercise_slug || set.exercise_id || '';
+          return {
+            id: set.id ?? undefined,
+            exerciseId,
+            exerciseName: resolveExerciseDisplayName(exerciseId, { catalog }),
+            setIndex: set.set_index ?? 0,
+            prescribedReps: set.prescribed_reps ?? '0',
+            prescribedRPE: set.prescribed_rpe ?? undefined,
+            prescribedRIR: set.prescribed_rir ?? undefined,
+            prescribedPercentage: set.prescribed_percentage ?? undefined,
+            prescribedWeight: set.prescribed_weight ?? undefined,
+            actualWeight: set.actual_weight ?? undefined,
+            weightUnit: (set.weight_unit === 'kg' ? 'kg' : 'lbs') as 'lbs' | 'kg',
+            actualReps: set.actual_reps ?? undefined,
+            actualRPE: set.actual_rpe ?? undefined,
+            actualRIR: set.actual_rir ?? undefined,
+            e1rm: set.e1rm ?? undefined,
+            volumeLoad: set.volume_load ?? undefined,
+            setType: normalizeSetType(set.set_type),
+            tempo: set.tempo ?? undefined,
+            restTakenSeconds: set.rest_seconds ?? undefined,
+            setDurationSeconds: set.actual_seconds ?? undefined,
+            notes: set.notes ?? undefined,
+            timestamp: set.performed_at ?? undefined,
+            completed: set.completed !== false,
+          };
+        }),
     };
   });
 }

@@ -55,6 +55,11 @@ const normalizeNamespace = (value?: string | null) => {
 const normalizeWorkoutId = (workoutId: string) =>
   workoutId.startsWith('session_') ? workoutId.substring(8) : workoutId;
 
+const notifyWorkoutHistoryUpdated = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('iron-brain:workout-history-updated'));
+};
+
 const markWorkoutAsSynced = (workoutId: string) => {
   try {
     if (typeof window === 'undefined') return;
@@ -391,6 +396,7 @@ export async function saveWorkout(
     const history = getWorkoutHistory();
     history.push(sessionToSave);
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(history));
+    notifyWorkoutHistoryUpdated();
     localSaveDurationMs = Date.now() - localSaveStartedAt;
     logger.debug('✅ Saved to localStorage');
 
@@ -872,6 +878,7 @@ export function setWorkoutHistory(sessions: WorkoutSession[]): void {
       return;
     }
     localStorage.setItem(getKey(STORAGE_KEYS.WORKOUT_HISTORY), JSON.stringify(sessions));
+    notifyWorkoutHistoryUpdated();
   } catch (error) {
     console.error('Failed to set workout history:', error);
   }
