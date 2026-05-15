@@ -1,18 +1,28 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildExerciseCatalog } from '../app/lib/exercises/catalog';
 import { defaultExercises } from '../app/lib/programs';
 import type { WorkoutSession } from '../app/lib/types';
 import {
+  buildCanonicalAnalyticsAudit,
   buildCanonicalAnalyticsSets,
+  isVerifiedVolumeSet,
   isVerifiedStrengthSet,
   summarizeCanonicalAnalyticsSets,
 } from '../app/lib/stats/canonical-sets';
-import { calculate1RMLeaderboard } from '../app/lib/stats/one-rep-max';
+import { calculate1RMLeaderboard, calculateVolumeLeaderboard } from '../app/lib/stats/one-rep-max';
 import { convertWeight } from '../app/lib/units';
 
 const catalog = buildExerciseCatalog(defaultExercises, []);
 
-function workout(id: string, exerciseId: string, weight: number, reps: number, rpe: number, unit: 'lbs' | 'kg' = 'lbs'): WorkoutSession {
+function workout(
+  id: string,
+  exerciseId: string,
+  weight: number,
+  reps: number,
+  rpe: number | null,
+  unit: 'lbs' | 'kg' = 'lbs'
+): WorkoutSession {
   return {
     id,
     programId: 'qa-insights',
@@ -34,7 +44,7 @@ function workout(id: string, exerciseId: string, weight: number, reps: number, r
         actualWeight: weight,
         weightUnit: unit,
         actualReps: reps,
-        actualRPE: rpe,
+        actualRPE: rpe ?? undefined,
         completed: true,
         setType: 'straight',
       },
@@ -97,6 +107,54 @@ function workout(id: string, exerciseId: string, weight: number, reps: number, r
   ], { catalog });
   const displayKg = convertWeight(sets[0].weightLbs, 'lbs', 'kg');
   assert.ok(Math.abs(displayKg - 125) < 0.01, 'kg display should convert exactly once from canonical lbs');
+}
+
+{
+  const sets = buildCanonicalAnalyticsSets([
+    workout('missing_rpe_fixture', 'squat', 225, 5, null),
+    workout('rpe_fixture', 'squat', 225, 5, 8),
+  ], { catalog });
+  const leaderboard = calculate1RMLeaderboard(sets.filter(isVerifiedStrengthSet).map((set) => ({
+    weight: set.weightLbs,
+    reps: set.reps,
+    rpe: set.rpe,
+    exerciseId: `${set.exerciseKey}_${set.sourceWorkoutId}`,
+    exerciseName: set.exerciseName,
+    date: set.date,
+  })), { minSets: 1 });
+
+  const noRpeEstimate = leaderboard.find((entry) => entry.exerciseId.endsWith('missing_rpe_fixture'))?.estimated1RM;
+  const rpeEstimate = leaderboard.find((entry) => entry.exerciseId.endsWith('rpe_fixture'))?.estimated1RM;
+
+  assert.equal(noRpeEstimate, 263, '225x5 without RPE should use normal Epley, not assumed-RPE inflation');
+  assert.equal(rpeEstimate, 278, '225x5 @ RPE 8 should use RPE-adjusted Epley');
+}
+
+{
+  const sets = buildCanonicalAnalyticsSets([
+    workout('single_volume_fixture', 'bench_press', 185, 8, null),
+  ], { catalog });
+  const volumeLeaderboard = calculateVolumeLeaderboard(sets.filter(isVerifiedVolumeSet).map((set) => ({
+    weight: set.weightLbs,
+    reps: set.reps,
+    rpe: set.rpe,
+    exerciseId: set.exerciseKey,
+    exerciseName: set.exerciseName,
+    date: set.date,
+  })), { minSets: 1 });
+  const audit = buildCanonicalAnalyticsAudit(sets);
+
+  assert.equal(volumeLeaderboard[0]?.setCount, 1, 'single-set volume leaders should be visible');
+  assert.equal(volumeLeaderboard[0]?.totalVolume, 1480, 'volume should be weight x reps in canonical units');
+  assert.equal(audit.includedSets, 1, 'audit should count the single completed working set');
+  assert.equal(audit.excludedSets, 0, 'audit should not exclude a valid single working set');
+}
+
+{
+  const insightsSource = readFileSync('app/components/AdvancedAnalyticsDashboard.tsx', 'utf8');
+  assert.ok(insightsSource.includes('useWorkoutDataContext'), 'Insights must consume shared workout provider data');
+  assert.ok(insightsSource.includes('useRecoveryState'), 'Insights must use shared readiness source');
+  assert.ok(!insightsSource.includes('getUnifiedReadiness'), 'Insights must not carry a separate blended readiness score');
 }
 
 console.log('✅ Insights analytics QA passed');

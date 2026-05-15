@@ -44,6 +44,10 @@ function brzycki1RM(weight: number, reps: number): number {
   return weight * (36 / (37 - reps));
 }
 
+export function hasValidRpe(rpe: number | null | undefined): rpe is number {
+  return typeof rpe === 'number' && Number.isFinite(rpe) && rpe >= 5 && rpe <= 10;
+}
+
 /**
  * RPE-Adjusted 1RM Calculation
  *
@@ -82,6 +86,30 @@ export function rpeAdjusted1RM(
     return brzycki1RM(weight, repsToFailure);
   }
   return epley1RM(weight, repsToFailure);
+}
+
+/**
+ * Estimate 1RM from raw set data.
+ *
+ * Missing RPE means "unknown effort", not RPE 8. In that case we use the
+ * standard formula against performed reps. RPE adjustment only applies when a
+ * valid actual RPE was logged.
+ */
+export function estimate1RM(
+  weight: number,
+  reps: number,
+  rpe: number | null | undefined,
+  formula: 'epley' | 'brzycki' = 'epley'
+): number {
+  if (weight <= 0 || reps <= 0) return 0;
+  if (hasValidRpe(rpe)) {
+    return rpeAdjusted1RM(weight, reps, rpe, formula);
+  }
+
+  if (formula === 'brzycki') {
+    return brzycki1RM(weight, reps);
+  }
+  return epley1RM(weight, reps);
 }
 
 /**
@@ -155,7 +183,7 @@ export function calculate1RMLeaderboard(
     let totalVolume = 0;
 
     for (const set of data.sets) {
-      const estimated = rpeAdjusted1RM(set.weight, set.reps, set.rpe, formula);
+      const estimated = estimate1RM(set.weight, set.reps, set.rpe, formula);
       totalVolume += set.weight * set.reps;
 
       if (estimated > best1RM) {

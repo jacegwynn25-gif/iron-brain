@@ -38,7 +38,11 @@ function workout(id, date, exerciseId, weight, reps, rpe) {
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
 
   await page.addInitScript(({ historyKey, workouts }) => {
     localStorage.clear();
@@ -54,8 +58,44 @@ function workout(id, date, exerciseId, weight, reps, rpe) {
     ],
   });
 
-  await page.goto(`${BASE_URL}/analytics?view=strength`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /Strength/i }).click();
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('link', { name: /Insights/i }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.getByRole('link', { name: /Insights/i }).tap({ timeout: 15000 });
+  await page.waitForFunction(() => window.location.pathname === '/analytics', null, { timeout: 30000 });
+  await page.getByRole('heading', { name: /INSIGHTS/i }).waitFor({ state: 'visible', timeout: 15000 });
+
+  const routeScrollY = await page.evaluate(() => window.scrollY);
+  if (routeScrollY > 8) {
+    throw new Error(`Insights route did not open at top on mobile. scrollY=${routeScrollY}`);
+  }
+
+  const visibleTabLabels = ['Overview', 'Recovery', 'Lifts', 'Profile'];
+  if (await page.getByRole('button', { name: /Plan/i }).count() > 0) {
+    visibleTabLabels.splice(1, 0, 'Plan');
+  }
+
+  for (const label of visibleTabLabels) {
+    const tab = page.getByRole('button', { name: new RegExp(label, 'i') });
+    await tab.waitFor({ state: 'visible', timeout: 5000 });
+    const box = await tab.boundingBox();
+    if (!box || box.x < 0 || box.x + box.width > 390) {
+      throw new Error(`Insights tab "${label}" is not fully visible on mobile`);
+    }
+  }
+
+  await page.getByText(/DATA AUDIT/i).waitFor({ state: 'visible', timeout: 15000 });
+  const auditText = await page.locator('body').innerText();
+  if (!/Included/i.test(auditText) || !/Excluded/i.test(auditText) || !/Top raw set contributors/i.test(auditText)) {
+    throw new Error('Insights audit did not show included/excluded counts and raw contributors');
+  }
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.getByRole('button', { name: /Lifts/i }).click();
+  const tabScrollY = await page.evaluate(() => window.scrollY);
+  if (tabScrollY > 8) {
+    throw new Error(`Insights tab change did not reset scroll. scrollY=${tabScrollY}`);
+  }
   await page.getByText(/ESTIMATED 1RMS/i).waitFor({ state: 'visible', timeout: 15000 });
 
   const body = await page.locator('body').innerText();

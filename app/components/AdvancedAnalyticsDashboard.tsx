@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useUnitPreference } from '../lib/hooks/useUnitPreference';
-import { getWorkoutHistory, setUserNamespace } from '../lib/storage';
-import { supabase } from '../lib/supabase/client';
+import { useRecoveryState } from '../lib/hooks/useRecoveryState';
+import { useWorkoutDataContext } from '../providers/WorkoutDataProvider';
 import { trackUiEvent } from '../lib/analytics/ui-events';
-import type { CustomExercise, ProgramScheduleEvent, SetType, WorkoutSession } from '../lib/types';
+import type { CustomExercise, ProgramScheduleEvent, WorkoutSession } from '../lib/types';
 import { FEATURES } from '../lib/features';
 import { listScheduleEvents } from '../lib/calendar/schedule-api';
 import {
@@ -31,18 +31,16 @@ import {
   type Exercise1RM
 } from '../lib/stats/one-rep-max';
 import {
+  buildCanonicalAnalyticsAudit,
   buildCanonicalAnalyticsSets,
   isVerifiedStrengthSet,
   isVerifiedVolumeSet,
-  summarizeCanonicalAnalyticsSets,
+  type CanonicalAnalyticsAuditContributor,
 } from '../lib/stats/canonical-sets';
 import RecoveryOverview from './RecoveryOverview';
-import type { Database } from '../lib/supabase/database.types';
 import { defaultExercises } from '../lib/programs';
 import {
   buildExerciseCatalog,
-  resolveExerciseDisplayName,
-  type ExerciseCatalog,
 } from '../lib/exercises/catalog';
 import { getCustomExercises } from '../lib/exercises/custom-exercises';
 import {
@@ -51,73 +49,8 @@ import {
   type MetricExplanation,
 } from '../lib/intelligence/explanations';
 
-/**
- * Look up proper exercise name from defaultExercises
- * Falls back to formatting the ID as a readable name if not found
- */
-function getExerciseName(exerciseId: string, providedName?: string, catalog?: ExerciseCatalog): string {
-  const resolved = resolveExerciseDisplayName(exerciseId, {
-    catalog,
-    cachedName: providedName,
-  });
-  if (resolved && resolved !== 'Exercise') return resolved;
-
-  // First try exact match on ID
-  let exercise = defaultExercises.find(ex => ex.id === exerciseId);
-
-  // Try matching by slug (exerciseId might be a slug like "row_chest_supported")
-  if (!exercise) {
-    const slug = exerciseId.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const underscoreSlug = exerciseId.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-    exercise = defaultExercises.find(ex =>
-      ex.id.toLowerCase() === slug ||
-      ex.id.toLowerCase() === underscoreSlug ||
-      ex.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug ||
-      ex.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') === underscoreSlug
-    );
-  }
-
-  if (exercise) {
-    return exercise.name;
-  }
-
-  // If provided name looks like a proper name (has spaces or proper capitalization), use it
-  if (providedName && providedName.includes(' ')) {
-    return providedName;
-  }
-
-  if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(exerciseId)) {
-    return 'Custom Exercise';
-  }
-
-  // Format the ID as a readable name: "row_chest_supported" → "Row Chest Supported"
-  return exerciseId
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
-}
-
-type SupabaseSetLogRow = Pick<
-  Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'exercise_slug' | 'set_index' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'completed' | 'set_type'
->;
-
-const normalizeSetType = (value?: string | null): SetType => {
-  const allowed: SetType[] = [
-    'straight', 'superset', 'giant', 'drop', 'rest-pause',
-    'cluster', 'warmup', 'amrap', 'backoff'
-  ];
-  return allowed.includes(value as SetType) ? (value as SetType) : 'straight';
-};
-
 const clampValue = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
-
-type SupabaseWorkoutRow = Pick<
-  Database['public']['Tables']['workout_sessions']['Row'],
-  'id' | 'start_time' | 'end_time' | 'total_volume_load' | 'notes' | 'date' | 'duration_minutes'
-> & {
-  set_logs?: SupabaseSetLogRow[] | null;
-};
 
 interface AnalyticsData {
   acwr?: {
@@ -145,6 +78,27 @@ interface AnalyticsData {
     strengthExcludedSetCount: number;
     anomalySetCount: number;
     anomalySummary: string | null;
+  };
+  dataAudit?: {
+    totalSets: number;
+    includedSets: number;
+    excludedSets: number;
+    includedStrengthSets: number;
+    includedVolumeSets: number;
+    excludedWarmupSets: number;
+    excludedIncompleteSets: number;
+    excludedInvalidSets: number;
+    topVolumeContributors: Array<{
+      exerciseKey: string;
+      exerciseName: string;
+      date?: string;
+      rawWeight: number;
+      rawWeightUnit: 'lbs' | 'kg';
+      reps: number;
+      rpe: number | null;
+      volumeLoad: number;
+      estimated1RM: number;
+    }>;
   };
   volumeLeaderboard?: Array<{
     exerciseId: string;
@@ -326,19 +280,25 @@ function withAnalyticsTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, lab
 }
 
 export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnalyticsDashboardProps) {
-  const { user, loading: authLoading, namespaceReady, isSyncing } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    workouts: sharedWorkouts,
+    loading: workoutsLoading,
+    error: workoutDataError,
+    isReady: workoutDataReady,
+    isSyncing: workoutSyncing,
+  } = useWorkoutDataContext();
+  const { readiness, loading: readinessLoading } = useRecoveryState();
   const { unitSystem, setUnitSystem, weightUnit, lbsToKg, kgToLbs } = useUnitPreference();
   const [analytics, setAnalytics] = useState<AnalyticsData>({});
   const [loading, setLoading] = useState(true);
-  const initialLoadRef = useRef(true);
-  const loadingInProgressRef = useRef(false);
   const [selectedView, setSelectedView] = useState<ViewType>(() => resolveInitialView(initialView));
   const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutSession[]>([]);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
   const [loadingAdherence, setLoadingAdherence] = useState(false);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
-  const hasMinimumData = completedWorkouts.length >= 3;
+  const hasMinimumData = completedWorkouts.length >= 1;
   const adherencePlanned90 = analytics.adherence?.windows['90'].plannedSessions ?? 0;
   const canRenderAdherenceWithoutWorkoutMinimum =
     FEATURES.adherenceAnalytics && (adherencePlanned90 > 0 || loadingAdherence || selectedView === 'adherence');
@@ -369,14 +329,29 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       setCompletedWorkouts([]);
       setCloudSyncing(false);
       setLoading(true);
-      initialLoadRef.current = true;
     }
   }, [user?.id]);
 
   useEffect(() => {
     if (!initialView) return;
-    setSelectedView(resolveInitialView(initialView));
+    const nextView = resolveInitialView(initialView);
+    setSelectedView(nextView);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
   }, [initialView]);
+
+  const selectInsightsView = useCallback((id: ViewType) => {
+    if (selectedView === id) return;
+    void trackUiEvent(
+      { name: 'insights_view_change', source: 'insights', properties: { from: selectedView, to: id } },
+      user?.id
+    );
+    setSelectedView(id);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+  }, [selectedView, user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -431,7 +406,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   }, [normalizeWorkoutId]);
 
   const buildCoreAnalytics = useCallback((workouts: WorkoutSession[]) => {
-    if (workouts.length < 3) return null;
+    if (workouts.length < 1) return null;
 
     const toLbs = (value: number, fromUnit: 'lbs' | 'kg') =>
       fromUnit === 'lbs' ? value : kgToLbs(value);
@@ -539,7 +514,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }, 0);
 
     const canonicalSets = buildCanonicalAnalyticsSets(workouts, { catalog: exerciseCatalog });
-    const canonicalSummary = summarizeCanonicalAnalyticsSets(canonicalSets);
+    const canonicalAudit = buildCanonicalAnalyticsAudit(canonicalSets);
     const strengthSets = canonicalSets.filter(isVerifiedStrengthSet).map((set) => ({
       weight: set.weightLbs,
       reps: set.reps,
@@ -558,7 +533,18 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }));
 
     const strengthLeaderboardLbs = calculate1RMLeaderboard(strengthSets, { minSets: 1 });
-    const volumeLeaderboardLbs = calculateVolumeLeaderboard(volumeSets, { minSets: 2 });
+    const volumeLeaderboardLbs = calculateVolumeLeaderboard(volumeSets, { minSets: 1 });
+    const formatAuditContributor = (contributor: CanonicalAnalyticsAuditContributor) => ({
+      exerciseKey: contributor.exerciseKey,
+      exerciseName: contributor.exerciseName,
+      date: contributor.date,
+      rawWeight: roundWeightDisplay(contributor.rawWeight),
+      rawWeightUnit: contributor.rawWeightUnit,
+      reps: contributor.reps,
+      rpe: contributor.rpe,
+      volumeLoad: Math.round(toDisplay(contributor.volumeLoadLbs)),
+      estimated1RM: Math.round(toDisplay(contributor.estimated1RMLbs)),
+    });
     const strengthLeaderboard = strengthLeaderboardLbs.map((lift) => ({
       ...lift,
       estimated1RM: Math.round(toDisplay(lift.estimated1RM)),
@@ -573,9 +559,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       totalVolume: Math.round(toDisplay(exercise.totalVolume)),
       avgWeightPerSet: roundWeightDisplay(toDisplay(exercise.avgWeightPerSet)),
     }));
-    const strengthExcludedSetCount = canonicalSummary.totalSets - canonicalSummary.verifiedStrengthSets;
-    const anomalySummary = canonicalSummary.anomalousSets > 0
-      ? `${canonicalSummary.anomalousSets} questionable set${canonicalSummary.anomalousSets === 1 ? '' : 's'} excluded`
+    const strengthExcludedSetCount = canonicalAudit.totalSets - canonicalAudit.verifiedStrengthSets;
+    const anomalySummary = canonicalAudit.anomalousSets > 0
+      ? `${canonicalAudit.anomalousSets} questionable set${canonicalAudit.anomalousSets === 1 ? '' : 's'} excluded`
       : null;
     const loadSampleCount = workoutsWithLoad.filter((workout) => workout.load > 0).length;
     const loadDataSufficiency = dataSufficiencyFromSampleCount(loadSampleCount);
@@ -615,8 +601,19 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       strengthLeaderboard,
       dataQuality: {
         strengthExcludedSetCount,
-        anomalySetCount: canonicalSummary.anomalousSets,
+        anomalySetCount: canonicalAudit.anomalousSets,
         anomalySummary,
+      },
+      dataAudit: {
+        totalSets: canonicalAudit.totalSets,
+        includedSets: canonicalAudit.includedSets,
+        excludedSets: canonicalAudit.excludedSets,
+        includedStrengthSets: canonicalAudit.includedStrengthSets,
+        includedVolumeSets: canonicalAudit.includedVolumeSets,
+        excludedWarmupSets: canonicalAudit.excludedWarmupSets,
+        excludedIncompleteSets: canonicalAudit.excludedIncompleteSets,
+        excludedInvalidSets: canonicalAudit.excludedInvalidSets,
+        topVolumeContributors: canonicalAudit.topVolumeContributors.map(formatAuditContributor),
       },
       volumeLeaderboard,
       explanations: {
@@ -673,7 +670,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       },
     } satisfies Pick<
       AnalyticsData,
-      'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'dataQuality' | 'volumeLeaderboard' | 'explanations'
+      'acwr' | 'fitnessFatigue' | 'personalStats' | 'strengthLeaderboard' | 'dataQuality' | 'dataAudit' | 'volumeLeaderboard' | 'explanations'
     >;
   }, [exerciseCatalog, kgToLbs, lbsToKg, weightUnit]);
 
@@ -689,6 +686,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         personalStats: undefined,
         strengthLeaderboard: undefined,
         dataQuality: undefined,
+        dataAudit: undefined,
         volumeLeaderboard: undefined,
         explanations: undefined,
       }));
@@ -811,146 +809,26 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }
   }, [buildAdherenceAnalytics, user]);
 
-  const loadAnalytics = useCallback(async () => {
-    // Check preconditions BEFORE acquiring lock - this allows proper retry when conditions change
-    // If we acquire the lock first and then return early, subsequent calls get blocked unnecessarily
-    if (authLoading || !namespaceReady) {
+  useEffect(() => {
+    if (authLoading || !workoutDataReady) {
+      setLoading(true);
       return;
     }
 
-    // Now acquire lock - only for actual loading operations
-    if (loadingInProgressRef.current) {
-      return;
-    }
-    loadingInProgressRef.current = true;
-
-    try {
-      setLoading(initialLoadRef.current);
-      setCloudSyncing(Boolean(user) && isSyncing);
-      setUserNamespace(user?.id || null);
-
-      const localWorkouts = getWorkoutHistory();
-      const localCompleted = buildCompletedWorkouts(localWorkouts);
-      updateCoreAnalytics(localCompleted);
-      setLoading(false);
-      initialLoadRef.current = false;
-
-      // If not logged in, show local data only
-      if (!user) {
-        return;
-      }
-
-      setCloudSyncing(true);
-      try {
-        const { data: supabaseWorkouts, error } = await withAnalyticsTimeout(
-          supabase
-            .from('workout_sessions')
-            .select(`
-              id,
-              date,
-              start_time,
-              end_time,
-              duration_minutes,
-              total_volume_load,
-              notes,
-              set_logs (
-                id,
-                exercise_id,
-                exercise_slug,
-                set_index,
-                actual_weight,
-                weight_unit,
-                actual_reps,
-                actual_rpe,
-                completed,
-                set_type
-              )
-            `)
-            .eq('user_id', user.id)
-            .is('deleted_at', null)
-            .order('start_time', { ascending: false })
-            .limit(250),
-          9000,
-          'insights workout history'
-        );
-
-        if (error) {
-          throw error;
-        }
-
-        const supabaseRows: SupabaseWorkoutRow[] = supabaseWorkouts ?? [];
-        const converted: WorkoutSession[] = supabaseRows.map((sw) => ({
-          id: sw.id,
-          startTime: sw.start_time ?? undefined,
-          endTime: sw.end_time ?? undefined,
-          totalVolumeLoad: sw.total_volume_load ?? undefined,
-          notes: sw.notes ?? undefined,
-          programId: '',
-          programName: '',
-          cycleNumber: 0,
-          weekNumber: 0,
-          dayName: '',
-          dayOfWeek: '',
-          date: sw.date ?? (sw.start_time ? sw.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-          createdAt: sw.start_time ?? new Date().toISOString(),
-          updatedAt: sw.end_time ?? sw.start_time ?? new Date().toISOString(),
-          sets: (sw.set_logs || []).map((sl, idx) => {
-            const exerciseId = sl.exercise_slug || sl.exercise_id || '';
-            const exerciseName = getExerciseName(exerciseId, sl.exercise_slug || undefined, exerciseCatalog);
-            return {
-              id: sl.id ?? undefined,
-              exerciseId,
-              exerciseName,
-              setIndex: sl.set_index ?? idx + 1,
-              prescribedReps: '0',
-              actualWeight: sl.actual_weight ?? undefined,
-              weightUnit: sl.weight_unit === 'kg' ? 'kg' : 'lbs',
-              actualReps: sl.actual_reps ?? undefined,
-              actualRPE: sl.actual_rpe ?? undefined,
-              completed: sl.completed !== false,
-              setType: normalizeSetType(sl.set_type),
-              timestamp: sw.start_time ?? undefined,
-            };
-          }),
-        }));
-
-        const mergedWorkouts = converted.length === 0
-          ? localWorkouts
-          : (() => {
-            const localById = new Map<string, WorkoutSession>();
-            localWorkouts.forEach((workout) => {
-              localById.set(normalizeWorkoutId(workout.id), workout);
-            });
-
-            const cloudIds = new Set(converted.map((workout) => normalizeWorkoutId(workout.id)));
-            const mergedCloud = converted.map((workout) => {
-              const localWorkout = localById.get(normalizeWorkoutId(workout.id));
-              if (!localWorkout) return workout;
-              if ((workout.sets?.length ?? 0) === 0 && (localWorkout.sets?.length ?? 0) > 0) {
-                return localWorkout;
-              }
-              return workout;
-            });
-            const uniqueLocal = localWorkouts.filter((workout) => !cloudIds.has(normalizeWorkoutId(workout.id)));
-
-            return [...mergedCloud, ...uniqueLocal];
-          })();
-
-        const mergedCompleted = buildCompletedWorkouts(mergedWorkouts);
-        updateCoreAnalytics(mergedCompleted);
-      } catch {
-      } finally {
-        setCloudSyncing(false);
-        setLoading(false);
-      }
-    } catch {
-    } finally {
-      // Always release lock and reset loading states to prevent stuck UI
-      loadingInProgressRef.current = false;
-      setLoading(false);
-      initialLoadRef.current = false;
-    }
-  }, [authLoading, namespaceReady, isSyncing, user, buildCompletedWorkouts, updateCoreAnalytics, normalizeWorkoutId, exerciseCatalog]);
+    const completed = buildCompletedWorkouts(sharedWorkouts);
+    updateCoreAnalytics(completed);
+    setCloudSyncing(Boolean(user) && workoutSyncing);
+    setLoading(workoutsLoading && completed.length === 0);
+  }, [
+    authLoading,
+    workoutDataReady,
+    sharedWorkouts,
+    buildCompletedWorkouts,
+    updateCoreAnalytics,
+    user,
+    workoutSyncing,
+    workoutsLoading,
+  ]);
 
   const loadRecoveryProfiles = useCallback(async () => {
     if (!user || loadingRecovery || analytics.recoveryProfiles) return;
@@ -971,32 +849,9 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }
   }, [user, loadingRecovery, analytics.recoveryProfiles]);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [loadAnalytics]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadAnalytics();
-      }
-    };
-    const handleFocus = () => {
-      loadAnalytics();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [loadAnalytics]);
-
   // Recalculate analytics when weight unit changes so displayed values update
   useEffect(() => {
-    if (completedWorkouts.length >= 3) {
+    if (completedWorkouts.length >= 1) {
       updateCoreAnalytics(completedWorkouts);
     }
     // Only run when weightUnit changes, not when completedWorkouts or updateCoreAnalytics change
@@ -1034,37 +889,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
   const loadPressure = getLoadPressureStatus();
 
-  // Compute unified readiness score combining fitness-fatigue model with actual muscle recovery
-  // Muscle recovery is weighted more heavily since it directly indicates training readiness
-  const getUnifiedReadiness = () => {
-    const hasRecoveryData = analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0;
-    const hasFitnessFatigue = analytics.fitnessFatigue;
-
-    // If we have muscle recovery data, use it as the primary signal
-    if (hasRecoveryData) {
-      const profiles = analytics.recoveryProfiles!;
-      // Calculate average readiness score (1-10 scale) and convert to 0-100
-      const avgMuscleReadiness = profiles.reduce((sum, p) => sum + p.readinessScore, 0) / profiles.length;
-      const muscleReadinessScore = avgMuscleReadiness * 10; // Convert 1-10 to 0-100
-
-      if (hasFitnessFatigue) {
-        // Blend muscle recovery (70% weight) with fitness-fatigue (30% weight)
-        // Muscle recovery is more important - it's what actually determines if you can train
-        const fitnessFatigueScore = analytics.fitnessFatigue!.performance;
-        const blendedScore = (muscleReadinessScore * 0.7) + (fitnessFatigueScore * 0.3);
-        return Math.round(blendedScore);
-      }
-      return Math.round(muscleReadinessScore);
-    }
-
-    // Fall back to fitness-fatigue only if no muscle recovery data
-    if (hasFitnessFatigue) {
-      return Math.round(analytics.fitnessFatigue!.performance);
-    }
-
-    return 50; // Default neutral if no data
-  };
-
   const getReadinessStatus = (score: number): 'excellent' | 'good' | 'moderate' | 'poor' => {
     if (score >= 75) return 'excellent';
     if (score >= 60) return 'good';
@@ -1072,39 +896,46 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return 'poor';
   };
 
-  const unifiedReadiness = getUnifiedReadiness();
-  const readinessStatus = getReadinessStatus(unifiedReadiness);
+  const hasMuscleRecoveryData = Boolean(analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0);
+  const primaryReadinessScore = readiness?.score ?? Math.round(analytics.fitnessFatigue?.performance ?? 50);
+  const readinessStatus = getReadinessStatus(primaryReadinessScore);
   const readinessTone: Tone =
     readinessStatus === 'excellent' || readinessStatus === 'good'
       ? 'emerald'
       : readinessStatus === 'moderate'
         ? 'amber'
         : 'rose';
-  const hasMuscleRecoveryData = Boolean(analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0);
-  const readinessTitle = hasMuscleRecoveryData ? 'READINESS' : 'TRAINING BALANCE';
+  const readinessTitle = 'TRAINING ESTIMATE';
   const fitnessFatigueDelta = analytics.fitnessFatigue
     ? analytics.fitnessFatigue.currentFitness - analytics.fitnessFatigue.currentFatigue
     : null;
-  const trainingBalanceLabel = hasMuscleRecoveryData
-    ? readinessStatus
-    : fitnessFatigueDelta == null
-      ? readinessStatus
-      : fitnessFatigueDelta >= 8
-        ? 'fitness leads'
+  const readinessSourceLabel = readiness?.source === 'manual'
+    ? 'check-in + training'
+    : readiness?.source === 'training'
+      ? 'training only'
+      : readiness?.source === 'baseline'
+        ? 'baseline'
+        : 'model fallback';
+  const trainingBalanceLabel = readinessLoading && !readiness ? 'syncing' : readinessStatus;
+  const trainingBalanceSummary = readiness?.reason
+    ?? (analytics.fitnessFatigue && fitnessFatigueDelta != null
+      ? fitnessFatigueDelta >= 8
+        ? `Training balance: fitness is ${Math.round(fitnessFatigueDelta)} points ahead of fatigue.`
         : fitnessFatigueDelta <= -8
-          ? 'fatigue leads'
-          : 'even';
-  const trainingBalanceSummary = analytics.fitnessFatigue && fitnessFatigueDelta != null
-    ? fitnessFatigueDelta >= 8
-      ? `Fitness is ${Math.round(fitnessFatigueDelta)} points ahead of fatigue. Good day to train normally.`
-      : fitnessFatigueDelta <= -8
-        ? `Fatigue is ${Math.round(Math.abs(fitnessFatigueDelta))} points ahead. Keep the next session conservative.`
-        : `Fitness and fatigue are nearly even (${Math.round(fitnessFatigueDelta)}). A score near 50 means balanced, not broken.`
-    : readinessStatus === 'excellent' || readinessStatus === 'good'
-      ? 'Great day for a hard workout'
-      : readinessStatus === 'moderate'
-        ? 'Moderate intensity recommended'
-        : 'Consider a lighter session or rest';
+          ? `Training balance: fatigue is ${Math.round(Math.abs(fitnessFatigueDelta))} points ahead.`
+          : `Training balance is near neutral (${Math.round(fitnessFatigueDelta)}).`
+      : readinessStatus === 'excellent' || readinessStatus === 'good'
+        ? 'Training estimate supports a normal session.'
+        : readinessStatus === 'moderate'
+          ? 'Training estimate supports conservative load jumps.'
+          : 'Training estimate supports a lighter session.');
+  const dataAuditSourceLabel = workoutDataError
+    ? 'Shared workout data fallback'
+    : workoutSyncing
+      ? 'Shared workout data syncing'
+      : user
+        ? 'Shared local + cloud workouts'
+        : 'Shared local workouts';
   const adherence = analytics.adherence;
   const strengthDataQualityNote = analytics.dataQuality?.anomalySummary ?? null;
   const getRateToneClass = (rate: number) => {
@@ -1169,8 +1000,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             {awaitingSync
               ? 'Pulling your workout history from the cloud.'
               : FEATURES.adherenceAnalytics
-                ? 'Complete at least 3 workouts or schedule sessions in Programs to unlock full Insights.'
-                : 'Complete at least 3 workouts to unlock Insights.'}
+                ? 'Complete a workout or schedule sessions in Programs to unlock full Insights.'
+                : 'Complete a workout to unlock Insights.'}
           </p>
           {cloudSyncing && (
             <div className="mb-4 rounded-lg border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
@@ -1220,35 +1051,27 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       {/* Navigation Tabs */}
       <div
-        className="stagger-item -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-1"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className={`stagger-item mb-6 grid gap-1 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-1 ${FEATURES.adherenceAnalytics ? 'grid-cols-5' : 'grid-cols-4'}`}
       >
         {([
           { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
           ...(FEATURES.adherenceAnalytics
-            ? [{ id: 'adherence' as ViewType, label: 'Adherence', Icon: CalendarDays }]
+            ? [{ id: 'adherence' as ViewType, label: 'Plan', Icon: CalendarDays }]
             : []),
           { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
-          { id: 'strength' as ViewType, label: 'Strength', Icon: Dumbbell },
+          { id: 'strength' as ViewType, label: 'Lifts', Icon: Dumbbell },
           { id: 'profile' as ViewType, label: 'Profile', Icon: User }
         ]).map(({ id, label, Icon }) => (
           <button
             key={id}
-            onClick={() => {
-              if (selectedView === id) return;
-              void trackUiEvent(
-                { name: 'insights_view_change', source: 'insights', properties: { from: selectedView, to: id } },
-                user?.id
-              );
-              setSelectedView(id);
-            }}
-            className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-[11px] font-black uppercase tracking-[0.14em] transition-colors ${selectedView === id
+            onClick={() => selectInsightsView(id)}
+            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-black uppercase tracking-[0.08em] transition-colors sm:min-h-11 sm:flex-row sm:gap-2 sm:text-[11px] sm:tracking-[0.14em] ${selectedView === id
               ? 'bg-zinc-800 text-zinc-100'
               : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
               }`}
           >
-            <Icon className="h-4 w-4" />
-            <span>{label}</span>
+            <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="min-w-0 truncate">{label}</span>
           </button>
         ))}
       </div>
@@ -1257,25 +1080,28 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       {selectedView === 'overview' && (
         <div className="space-y-6">
           {/* Readiness Score - Hero Card */}
-          {(analytics.fitnessFatigue || hasMuscleRecoveryData) && (
+          {(readiness || readinessLoading || analytics.fitnessFatigue || hasMuscleRecoveryData) && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>{readinessTitle}</h2>
                 <StatusReadout label="Signal" value={trainingBalanceLabel} tone={readinessTone} />
               </div>
               <div className="mb-2 text-6xl font-black italic tracking-tight text-white">
-                {unifiedReadiness}
+                {primaryReadinessScore}
               </div>
               <p className="text-sm text-zinc-400">
                 {trainingBalanceSummary}
               </p>
-              {analytics.explanations?.trainingBalance && (
+              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                Source: {readinessSourceLabel}. Daily Check-In stays optional.
+              </p>
+              {(readiness?.explanation || analytics.explanations?.trainingBalance) && (
                 <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
-                    {analytics.explanations.trainingBalance.confidence} confidence / {analytics.explanations.trainingBalance.dataSufficiency} data
+                    {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.confidence} confidence / {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.dataSufficiency} data
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                    {analytics.explanations.trainingBalance.reason} {analytics.explanations.trainingBalance.nextAction}
+                    {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.reason} {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.nextAction}
                   </p>
                 </div>
               )}
@@ -1349,13 +1175,74 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             </div>
           )}
 
+          {analytics.dataAudit && (
+            <div className={SECTION_CLASS}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className={SECTION_TITLE_CLASS}>DATA AUDIT</h2>
+                <StatusReadout label="Source" value={workoutSyncing ? 'Syncing' : 'Current'} tone={workoutDataError ? 'amber' : 'zinc'} />
+              </div>
+              <p className="mb-3 text-xs leading-relaxed text-zinc-400">
+                {dataAuditSourceLabel}. Metrics use completed, non-warmup raw set rows only.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className={SUBSECTION_CARD_CLASS}>
+                  <p className={METRIC_LABEL_CLASS}>Raw Sets</p>
+                  <p className="mt-1 text-2xl font-black italic text-white">{analytics.dataAudit.totalSets}</p>
+                </div>
+                <div className={SUBSECTION_CARD_CLASS}>
+                  <p className={METRIC_LABEL_CLASS}>Included</p>
+                  <p className="mt-1 text-2xl font-black italic text-emerald-300">{analytics.dataAudit.includedSets}</p>
+                </div>
+                <div className={SUBSECTION_CARD_CLASS}>
+                  <p className={METRIC_LABEL_CLASS}>Excluded</p>
+                  <p className="mt-1 text-2xl font-black italic text-amber-300">{analytics.dataAudit.excludedSets}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                  Warmups: {analytics.dataAudit.excludedWarmupSets}
+                </p>
+                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                  Incomplete: {analytics.dataAudit.excludedIncompleteSets}
+                </p>
+                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                  Invalid: {analytics.dataAudit.excludedInvalidSets}
+                </p>
+              </div>
+              {analytics.dataAudit.topVolumeContributors.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className={METRIC_LABEL_CLASS}>Top raw set contributors</p>
+                  {analytics.dataAudit.topVolumeContributors.slice(0, 3).map((set, index) => (
+                    <div
+                      key={`${set.exerciseKey}-${set.date ?? 'unknown'}-${index}`}
+                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-3`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-zinc-100">{set.exerciseName}</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">
+                          {set.rawWeight}{set.rawWeightUnit} x {set.reps}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs font-black text-emerald-300">
+                          {set.volumeLoad.toLocaleString()} {weightUnit}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-zinc-500">e1RM {set.estimated1RM}{weightUnit}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick Recovery Status */}
           {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>MUSCLE RECOVERY</h2>
                 <button
-                  onClick={() => setSelectedView('recovery')}
+                  onClick={() => selectInsightsView('recovery')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
                 >
                   View all →
@@ -1381,7 +1268,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>TOP LIFTS</h2>
                 <button
-                  onClick={() => setSelectedView('strength')}
+                  onClick={() => selectInsightsView('strength')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
                 >
                   View all →
@@ -1506,7 +1393,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <h2 className={SECTION_TITLE_CLASS}>ESTIMATED 1RMS</h2>
             </div>
             <p className="text-xs text-zinc-400 mb-4">
-              Adjusted for RPE - accounts for reps in reserve
+              Uses normal Epley when RPE is missing; adjusts for reps in reserve when actual RPE is logged.
             </p>
             {strengthDataQualityNote && (
               <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">

@@ -10,7 +10,7 @@ import {
   LineChart,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition, type MouseEvent, type PointerEvent } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
 
@@ -34,6 +34,15 @@ const navItems: NavItem[] = [
   { id: 'analytics', label: 'Insights', href: '/analytics', icon: LineChart },
 ];
 
+const PREFETCH_ROUTES = [
+  '/start',
+  '/programs',
+  '/history',
+  '/analytics',
+  '/profile',
+  '/profile/settings',
+] as const;
+
 function isActivePath(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -49,6 +58,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/reset-auth');
   const [hideBottomNavByOverlay, setHideBottomNavByOverlay] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isRoutePending, startRouteTransition] = useTransition();
   const routeHistoryRef = useRef<string[]>([pathname]);
   const isBackNavRef = useRef(false);
   const navPointerRef = useRef<{
@@ -57,6 +68,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
     x: number;
     y: number;
   } | null>(null);
+  const touchHandledHrefRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    PREFETCH_ROUTES.forEach((href) => {
+      try {
+        router.prefetch(href);
+      } catch {
+        // Prefetch is opportunistic; navigation still works if the browser drops it.
+      }
+    });
+  }, [router]);
 
   useEffect(() => {
     const syncOverlayNavState = () => {
@@ -71,9 +93,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   useEffect(() => {
     restoreLeakedBodyScrollLock();
+    setPendingHref(null);
+
+    if (!pathname.startsWith('/workout')) {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    }
   }, [pathname]);
 
   const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
+
+  const navigateTo = useCallback((href: string) => {
+    if (href === pathname) return;
+    setPendingHref(href);
+    startRouteTransition(() => {
+      router.push(href);
+    });
+  }, [pathname, router]);
 
   const handleNavPointerDown = (event: PointerEvent<HTMLAnchorElement>, href: string) => {
     if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
@@ -95,7 +132,29 @@ export default function AppLayout({ children }: AppLayoutProps) {
     if (moved > 14) return;
 
     event.preventDefault();
-    router.push(href);
+    touchHandledHrefRef.current = href;
+    navigateTo(href);
+  };
+
+  const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (touchHandledHrefRef.current === href) {
+      touchHandledHrefRef.current = null;
+      return;
+    }
+
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateTo(href);
   };
 
   useEffect(() => {
@@ -133,6 +192,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
         }}
       />
 
+      {(pendingHref || isRoutePending) && (
+        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-emerald-400/20">
+          <div className="h-full w-2/3 animate-pulse bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.8)]" />
+        </div>
+      )}
+
       <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-24'}`}>
         {children}
       </main>
@@ -145,32 +210,41 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
+              const pending = pendingHref === item.href;
 
               return (
                 <Link
                   key={item.id}
                   href={item.href}
-                  prefetch={false}
                   aria-label={item.label}
                   aria-current={active ? 'page' : undefined}
                   data-coach={item.coach}
                   data-nav-item={item.id}
+                  data-pending={pending ? 'true' : undefined}
                   onPointerDown={(event) => handleNavPointerDown(event, item.href)}
                   onPointerUp={(event) => handleNavPointerUp(event, item.href)}
+                  onClick={(event) => handleNavClick(event, item.href)}
                   onPointerCancel={() => {
                     navPointerRef.current = null;
                   }}
-                  className={`group relative flex min-h-14 min-w-0 flex-1 select-none items-center justify-center rounded-[1.05rem] px-1 transition-colors [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:bg-zinc-900/80 sm:flex-col sm:gap-1 ${active
+                  className={`group relative flex min-h-14 min-w-0 flex-1 select-none items-center justify-center rounded-[1.05rem] px-1 transition-all [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:scale-[0.97] active:bg-zinc-900/80 sm:flex-col sm:gap-1 ${active
                     ? 'bg-white/[0.07] text-emerald-300 ring-1 ring-white/10'
+                    : pending
+                      ? 'bg-white/[0.05] text-emerald-200 ring-1 ring-emerald-300/20'
                     : 'text-zinc-500 hover:text-zinc-300'
                     }`}
                 >
-                  <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
+                  <Icon className={`h-5 w-5 ${active || pending ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
                   <span className="sr-only text-[10px] font-bold leading-none tracking-normal sm:not-sr-only">
                     {item.label}
                   </span>
-                  {active && (
+                  {(active || pending) && (
                     <span className="pointer-events-none absolute -top-0.5 h-1 w-1 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.85)] sm:hidden" />
+                  )}
+                  {pending && (
+                    <span className="pointer-events-none absolute inset-x-3 bottom-1 h-px overflow-hidden rounded-full bg-emerald-300/20">
+                      <span className="block h-full w-1/2 animate-pulse bg-emerald-300" />
+                    </span>
                   )}
                 </Link>
               );
