@@ -257,6 +257,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [formData, setFormData] = useState<CheckInData>({
     date: new Date().toISOString().split('T')[0],
     sleepHours: null,
@@ -374,94 +375,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
         </div>
       )}
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <CheckInSection eyebrow="Sleep" title="SLEEP" icon={<Moon className="h-4 w-4" />}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <NumberField
-              label="Hours"
-              min={0}
-              max={24}
-              step={0.5}
-              value={formData.sleepHours}
-              placeholder="8.0"
-              suffix="hrs"
-              onChange={(sleepHours) => setFormData({ ...formData, sleepHours })}
-            />
-            <NumberField
-              label="Wake-ups"
-              min={0}
-              max={20}
-              value={formData.sleepInterruptions}
-              placeholder="0"
-              onChange={(sleepInterruptions) => setFormData({ ...formData, sleepInterruptions: sleepInterruptions ?? 0 })}
-            />
-          </div>
-          <OptionGroup
-            label="Sleep quality"
-            options={QUALITY_OPTIONS}
-            value={formData.sleepQuality}
-            onChange={(sleepQuality) => setFormData({ ...formData, sleepQuality })}
-          />
-        </CheckInSection>
-
-        <CheckInSection
-          eyebrow="Fuel"
-          title="NUTRITION"
-          icon={<Utensils className="h-4 w-4" />}
-          aside={<FuelSummary score={fuelScore} />}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <NumberField
-              label="Protein / BW"
-              min={0}
-              max={proteinMax}
-              step={0.1}
-              value={toNutritionDisplay(formData.proteinIntake, weightUnit)}
-              placeholder={weightUnit === 'lbs' ? '0.8' : '1.8'}
-              suffix={nutritionUnit}
-              onChange={(proteinIntake) => setFormData({
-                ...formData,
-                proteinIntake: fromNutritionDisplay(proteinIntake, weightUnit),
-              })}
-            />
-            <NumberField
-              label="Carbs / BW"
-              min={0}
-              max={carbMax}
-              step={0.1}
-              value={toNutritionDisplay(formData.carbIntake, weightUnit)}
-              placeholder={weightUnit === 'lbs' ? '1.6' : '3.5'}
-              suffix={nutritionUnit}
-              onChange={(carbIntake) => setFormData({
-                ...formData,
-                carbIntake: fromNutritionDisplay(carbIntake, weightUnit),
-              })}
-            />
-          </div>
-          <OptionGroup
-            label="Calories"
-            options={CALORIE_OPTIONS}
-            value={formData.calorieBalance}
-            onChange={(calorieBalance) => setFormData({ ...formData, calorieBalance })}
-          />
-          <div className="grid gap-4 xl:grid-cols-2">
-            <OptionGroup
-              label="Hydration"
-              options={QUALITY_OPTIONS}
-              value={formData.hydrationLevel}
-              onChange={(hydrationLevel) => setFormData({ ...formData, hydrationLevel })}
-            />
-            <OptionGroup
-              label="Meal timing"
-              options={MEAL_TIMING_OPTIONS}
-              value={formData.mealTiming}
-              onChange={(mealTiming) => setFormData({ ...formData, mealTiming })}
-            />
-          </div>
-        </CheckInSection>
-      </div>
-
-      <CheckInSection eyebrow="Stress" title="READINESS" icon={<Brain className="h-4 w-4" />}>
+      <CheckInSection eyebrow="Quick" title="TODAY'S READINESS" icon={<Brain className="h-4 w-4" />}>
         <div className="grid gap-3 lg:grid-cols-2">
           <RangeField
             label="Overall readiness"
@@ -478,48 +392,152 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
             right="high"
             onChange={(perceivedStress) => setFormData({ ...formData, perceivedStress })}
           />
-          <RangeField
-            label="Work stress"
-            value={formData.workStress}
-            left="low"
-            right="high"
-            onChange={(workStress) => setFormData({ ...formData, workStress })}
-          />
-          <RangeField
-            label="Life stress"
-            value={formData.lifeStress}
-            left="low"
-            right="high"
-            onChange={(lifeStress) => setFormData({ ...formData, lifeStress })}
-          />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
-            <Activity className="h-4 w-4 shrink-0 text-rose-300" />
-            <NumberField
-              label="Resting heart rate"
-              min={20}
-              max={220}
-              value={formData.restingHeartRate}
-              placeholder="58"
-              suffix="bpm"
-              onChange={(restingHeartRate) => setFormData({ ...formData, restingHeartRate })}
-            />
-          </div>
-          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
-            <Clock3 className="h-4 w-4 shrink-0 text-sky-300" />
-            <NumberField
-              label="HRV"
-              min={0}
-              max={300}
-              value={formData.heartRateVariability}
-              placeholder="72"
-              suffix="ms"
-              onChange={(heartRateVariability) => setFormData({ ...formData, heartRateVariability })}
-            />
-          </div>
-        </div>
+        <NumberField
+          label="Sleep"
+          min={0}
+          max={24}
+          step={0.5}
+          value={formData.sleepHours}
+          placeholder="8.0"
+          suffix="hrs"
+          onChange={(sleepHours) => setFormData({ ...formData, sleepHours })}
+        />
       </CheckInSection>
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced((value) => !value)}
+        className="flex min-h-11 w-full items-center justify-between rounded-[1rem] border border-zinc-900 bg-zinc-950/65 px-4 text-left text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:border-zinc-800 hover:bg-zinc-900/55"
+        aria-expanded={showAdvanced}
+      >
+        <span>Advanced details</span>
+        <span className="text-emerald-300">{showAdvanced ? 'Hide' : 'Show'}</span>
+      </button>
+
+      {showAdvanced && (
+        <div className="space-y-4">
+          <CheckInSection eyebrow="Sleep" title="SLEEP DETAILS" icon={<Moon className="h-4 w-4" />}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NumberField
+                label="Wake-ups"
+                min={0}
+                max={20}
+                value={formData.sleepInterruptions}
+                placeholder="0"
+                onChange={(sleepInterruptions) => setFormData({ ...formData, sleepInterruptions: sleepInterruptions ?? 0 })}
+              />
+              <OptionGroup
+                label="Sleep quality"
+                options={QUALITY_OPTIONS}
+                value={formData.sleepQuality}
+                onChange={(sleepQuality) => setFormData({ ...formData, sleepQuality })}
+              />
+            </div>
+          </CheckInSection>
+
+          <CheckInSection
+            eyebrow="Fuel"
+            title="NUTRITION"
+            icon={<Utensils className="h-4 w-4" />}
+            aside={<FuelSummary score={fuelScore} />}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NumberField
+                label="Protein / BW"
+                min={0}
+                max={proteinMax}
+                step={0.1}
+                value={toNutritionDisplay(formData.proteinIntake, weightUnit)}
+                placeholder={weightUnit === 'lbs' ? '0.8' : '1.8'}
+                suffix={nutritionUnit}
+                onChange={(proteinIntake) => setFormData({
+                  ...formData,
+                  proteinIntake: fromNutritionDisplay(proteinIntake, weightUnit),
+                })}
+              />
+              <NumberField
+                label="Carbs / BW"
+                min={0}
+                max={carbMax}
+                step={0.1}
+                value={toNutritionDisplay(formData.carbIntake, weightUnit)}
+                placeholder={weightUnit === 'lbs' ? '1.6' : '3.5'}
+                suffix={nutritionUnit}
+                onChange={(carbIntake) => setFormData({
+                  ...formData,
+                  carbIntake: fromNutritionDisplay(carbIntake, weightUnit),
+                })}
+              />
+            </div>
+            <OptionGroup
+              label="Calories"
+              options={CALORIE_OPTIONS}
+              value={formData.calorieBalance}
+              onChange={(calorieBalance) => setFormData({ ...formData, calorieBalance })}
+            />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <OptionGroup
+                label="Hydration"
+                options={QUALITY_OPTIONS}
+                value={formData.hydrationLevel}
+                onChange={(hydrationLevel) => setFormData({ ...formData, hydrationLevel })}
+              />
+              <OptionGroup
+                label="Meal timing"
+                options={MEAL_TIMING_OPTIONS}
+                value={formData.mealTiming}
+                onChange={(mealTiming) => setFormData({ ...formData, mealTiming })}
+              />
+            </div>
+          </CheckInSection>
+
+          <CheckInSection eyebrow="Advanced" title="STRESS + VITALS" icon={<Activity className="h-4 w-4" />}>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <RangeField
+                label="Work stress"
+                value={formData.workStress}
+                left="low"
+                right="high"
+                onChange={(workStress) => setFormData({ ...formData, workStress })}
+              />
+              <RangeField
+                label="Life stress"
+                value={formData.lifeStress}
+                left="low"
+                right="high"
+                onChange={(lifeStress) => setFormData({ ...formData, lifeStress })}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+                <Activity className="h-4 w-4 shrink-0 text-rose-300" />
+                <NumberField
+                  label="Resting heart rate"
+                  min={20}
+                  max={220}
+                  value={formData.restingHeartRate}
+                  placeholder="58"
+                  suffix="bpm"
+                  onChange={(restingHeartRate) => setFormData({ ...formData, restingHeartRate })}
+                />
+              </div>
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+                <Clock3 className="h-4 w-4 shrink-0 text-sky-300" />
+                <NumberField
+                  label="HRV"
+                  min={0}
+                  max={300}
+                  value={formData.heartRateVariability}
+                  placeholder="72"
+                  suffix="ms"
+                  onChange={(heartRateVariability) => setFormData({ ...formData, heartRateVariability })}
+                />
+              </div>
+            </div>
+          </CheckInSection>
+        </div>
+      )}
 
       <button
         type="submit"

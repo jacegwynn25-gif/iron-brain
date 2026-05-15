@@ -1,7 +1,7 @@
 import type { SetLog, WeightUnit, WorkoutSession } from '../types';
 import { resolveExerciseDisplayName, type ExerciseCatalog } from '../exercises/catalog';
 import { convertWeight } from '../units';
-import { rpeAdjusted1RM } from './one-rep-max';
+import { estimate1RM } from './one-rep-max';
 
 export type CanonicalAnalyticsAnomalyReason =
   | 'invalid_weight'
@@ -33,6 +33,32 @@ export interface CanonicalAnalyticsSummary {
   verifiedVolumeSets: number;
   anomalousSets: number;
   anomalyCounts: Record<CanonicalAnalyticsAnomalyReason, number>;
+}
+
+export interface CanonicalAnalyticsAuditContributor {
+  sourceWorkoutId: string;
+  sourceSetId?: string;
+  exerciseKey: string;
+  exerciseName: string;
+  date?: string;
+  rawWeight: number;
+  rawWeightUnit: WeightUnit;
+  reps: number;
+  rpe: number | null;
+  volumeLoadLbs: number;
+  estimated1RMLbs: number;
+}
+
+export interface CanonicalAnalyticsAuditSummary extends CanonicalAnalyticsSummary {
+  includedSets: number;
+  excludedSets: number;
+  includedStrengthSets: number;
+  includedVolumeSets: number;
+  excludedWarmupSets: number;
+  excludedIncompleteSets: number;
+  excludedInvalidSets: number;
+  topVolumeContributors: CanonicalAnalyticsAuditContributor[];
+  topStrengthContributors: CanonicalAnalyticsAuditContributor[];
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -174,9 +200,17 @@ export function buildCanonicalAnalyticsSets(
       const weightLbs = rawWeight > 0 ? convertWeight(rawWeight, rawWeightUnit, 'lbs') : 0;
       const completed = set.completed !== false;
       const isWarmup = set.setType === 'warmup';
-      const anomalyReason = completed && !isWarmup
-        ? detectAnomaly({ exerciseKey, exerciseName, weightLbs, reps })
-        : undefined;
+      const rpe = typeof set.actualRPE === 'number' && Number.isFinite(set.actualRPE) ? set.actualRPE : null;
+      let anomalyReason: CanonicalAnalyticsAnomalyReason | undefined;
+      if (completed && !isWarmup) {
+        if (rawWeight <= 0) {
+          anomalyReason = 'invalid_weight';
+        } else if (reps <= 0) {
+          anomalyReason = 'invalid_reps';
+        } else {
+          anomalyReason = detectAnomaly({ exerciseKey, exerciseName, weightLbs, reps });
+        }
+      }
 
       sets.push({
         sourceWorkoutId: workout.id,
@@ -188,13 +222,13 @@ export function buildCanonicalAnalyticsSets(
         rawWeightUnit,
         weightLbs,
         reps,
-        rpe: typeof set.actualRPE === 'number' && Number.isFinite(set.actualRPE) ? set.actualRPE : null,
+        rpe,
         completed,
         isWarmup,
         isAnomaly: Boolean(anomalyReason),
         anomalyReason,
         volumeLoadLbs: weightLbs > 0 && reps > 0 ? weightLbs * reps : 0,
-        estimated1RMLbs: weightLbs > 0 && reps > 0 ? rpeAdjusted1RM(weightLbs, reps, set.actualRPE) : 0,
+        estimated1RMLbs: weightLbs > 0 && reps > 0 ? estimate1RM(weightLbs, reps, rpe) : 0,
       });
     }
   }
@@ -236,5 +270,49 @@ export function summarizeCanonicalAnalyticsSets(sets: CanonicalAnalyticsSet[]): 
     verifiedVolumeSets: sets.filter(isVerifiedVolumeSet).length,
     anomalousSets: sets.filter((set) => set.isAnomaly).length,
     anomalyCounts,
+  };
+}
+
+function toAuditContributor(set: CanonicalAnalyticsSet): CanonicalAnalyticsAuditContributor {
+  return {
+    sourceWorkoutId: set.sourceWorkoutId,
+    sourceSetId: set.sourceSetId,
+    exerciseKey: set.exerciseKey,
+    exerciseName: set.exerciseName,
+    date: set.date,
+    rawWeight: set.rawWeight,
+    rawWeightUnit: set.rawWeightUnit,
+    reps: set.reps,
+    rpe: set.rpe,
+    volumeLoadLbs: set.volumeLoadLbs,
+    estimated1RMLbs: set.estimated1RMLbs,
+  };
+}
+
+export function buildCanonicalAnalyticsAudit(sets: CanonicalAnalyticsSet[]): CanonicalAnalyticsAuditSummary {
+  const summary = summarizeCanonicalAnalyticsSets(sets);
+  const volumeSets = sets.filter(isVerifiedVolumeSet);
+  const strengthSets = sets.filter(isVerifiedStrengthSet);
+  const excludedInvalidSets = sets.filter((set) =>
+    set.anomalyReason === 'invalid_weight' || set.anomalyReason === 'invalid_reps'
+  ).length;
+
+  return {
+    ...summary,
+    includedSets: volumeSets.length,
+    excludedSets: sets.length - volumeSets.length,
+    includedStrengthSets: strengthSets.length,
+    includedVolumeSets: volumeSets.length,
+    excludedWarmupSets: sets.filter((set) => set.isWarmup).length,
+    excludedIncompleteSets: sets.filter((set) => !set.completed).length,
+    excludedInvalidSets,
+    topVolumeContributors: [...volumeSets]
+      .sort((a, b) => b.volumeLoadLbs - a.volumeLoadLbs)
+      .slice(0, 5)
+      .map(toAuditContributor),
+    topStrengthContributors: [...strengthSets]
+      .sort((a, b) => b.estimated1RMLbs - a.estimated1RMLbs)
+      .slice(0, 5)
+      .map(toAuditContributor),
   };
 }
