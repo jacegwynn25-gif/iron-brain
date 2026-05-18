@@ -216,8 +216,7 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
               actual_seconds,
               notes,
               performed_at,
-              completed,
-              skipped
+              completed
             )
           `)
           .eq('user_id', userId)
@@ -432,7 +431,6 @@ function transformCloudWorkouts(sessions: Array<{
     actual_seconds: number | null;
     notes: string | null;
     performed_at: string | null;
-    skipped: boolean | null;
   }>;
 }>, catalog: ExerciseCatalog): WorkoutSession[] {
   return sessions.map((s) => {
@@ -483,8 +481,7 @@ function transformCloudWorkouts(sessions: Array<{
             setDurationSeconds: set.actual_seconds ?? undefined,
             notes: set.notes ?? undefined,
             timestamp: set.performed_at ?? undefined,
-            completed: set.completed !== false && set.skipped !== true,
-            skipped: set.skipped === true,
+            completed: set.completed !== false,
           };
         }),
     };

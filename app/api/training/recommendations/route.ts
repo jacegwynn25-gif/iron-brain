@@ -26,7 +26,6 @@ type CloudSetRow = {
   prescribed_weight: number | null;
   e1rm: number | null;
   completed: boolean | null;
-  skipped: boolean | null;
   performed_at: string | null;
 };
 
@@ -76,8 +75,7 @@ function mapCloudHistory(sessions: CloudSessionRow[]): TrainingHistorySet[] {
       prescribedPercentage: set.prescribed_percentage,
       prescribedWeight: set.prescribed_weight,
       e1rm: set.e1rm,
-      completed: set.completed !== false && set.skipped !== true,
-      skipped: set.skipped,
+      completed: set.completed,
       performedAt: set.performed_at ?? session.end_time ?? session.start_time ?? session.date,
     }))
   );
@@ -154,7 +152,6 @@ async function fetchCloudInputs(userId: string) {
           prescribed_weight,
           e1rm,
           completed,
-          skipped,
           performed_at
         )
       `)

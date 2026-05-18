@@ -42,9 +42,6 @@ type WorkoutMetadata = {
   dayName?: string;
 };
 
-const isPerformedSetLog = (set: Pick<SetLog, 'completed' | 'skipped'>) =>
-  set.completed !== false && set.skipped !== true;
-
 /**
  * Set user namespace and migrate any orphaned workouts
  * This fixes the issue where workouts stored under 'default' aren't visible
@@ -186,11 +183,11 @@ export function saveActiveSession(
       fullPayload.savedAt
     );
 
-	    logger.debug('💾 Active session saved:', {
-	      sets: fullPayload.session.sets.length,
-	      completed: fullPayload.session.sets.filter((set) => set.completed && !set.skipped).length,
-	      savedAt: fullPayload.savedAt,
-	    });
+    logger.debug('💾 Active session saved:', {
+      sets: fullPayload.session.sets.length,
+      completed: fullPayload.session.sets.filter(s => s.completed).length,
+      savedAt: fullPayload.savedAt,
+    });
 
     return true;
   } catch (error) {
@@ -349,7 +346,7 @@ export async function saveWorkout(
   let localSaveDurationMs: number | null = null;
   let cloudAttemptDurationMs: number | null = null;
   let cloudAttemptStartedAt: number | null = null;
-	  let completedSetsSent = session.sets?.filter(isPerformedSetLog).length ?? 0;
+  let completedSetsSent = session.sets?.filter((set) => set.completed !== false).length ?? 0;
 
   const finishCloudAttempt = () => {
     if (cloudAttemptStartedAt != null && cloudAttemptDurationMs == null) {
@@ -392,7 +389,7 @@ export async function saveWorkout(
     }
     result.workoutId = sessionToSave.id;
     sessionToQueue = sessionToSave;
-	    completedSetsSent = sessionToSave.sets?.filter(isPerformedSetLog).length ?? 0;
+    completedSetsSent = sessionToSave.sets?.filter((set) => set.completed !== false).length ?? 0;
 
     // Always save to localStorage first (for offline support)
     const localSaveStartedAt = Date.now();
@@ -500,7 +497,7 @@ export async function saveWorkout(
       let sessionError: PostgrestError | null = null;
 
       try {
-        const completedSets = sessionToSave.sets?.filter(isPerformedSetLog) ?? [];
+        const completedSets = sessionToSave.sets?.filter((set) => set.completed !== false) ?? [];
         const { totalReps, totalVolume, rpeSum } = completedSets.reduce(
           (acc, set) => {
             const reps = Number(set.actualReps) || 0;
@@ -581,8 +578,6 @@ export async function saveWorkout(
         const exerciseIdByRef = await resolveExerciseIds(supabase, exerciseRefs);
 
         const setPayloads = sessionToSave.sets.map((set, index): TablesInsert<'set_logs'> => {
-          const performed = isPerformedSetLog(set);
-          const skipped = set.skipped === true;
           const payload: TablesInsert<'set_logs'> = {
             workout_session_id: workoutUuid,
             exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
@@ -597,15 +592,14 @@ export async function saveWorkout(
             prescribed_percentage: set.prescribedPercentage,
             prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
             // Actual values (what was actually done)
-            actual_weight: performed ? set.actualWeight : null,
+            actual_weight: set.actualWeight,
             weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
-            actual_reps: performed && set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
-            actual_rpe: performed && set.actualRPE != null ? Number(set.actualRPE) : null,
-            actual_rir: performed && set.actualRIR != null ? Number(set.actualRIR) : null,
+            actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
+            actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
+            actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
             // Performance metrics
-            e1rm: performed ? calculateSetE1RMLbs(set) : null,
+            e1rm: calculateSetE1RMLbs(set),
             volume_load: (() => {
-              if (!performed) return null;
               const volume = calculateSetVolumeLbs(set);
               return volume == null ? null : Math.round(volume);
             })(),
@@ -616,8 +610,8 @@ export async function saveWorkout(
             actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
             notes: set.notes,
             performed_at: set.timestamp ?? sessionToSave.endTime ?? new Date().toISOString(),
-            completed: performed,
-            skipped,
+            completed: set.completed !== false,
+            skipped: set.completed === false,
           };
 
           if (set.id && isValidUuid(set.id)) {
@@ -630,13 +624,13 @@ export async function saveWorkout(
         let { data: insertedSetRows, error: setError } = await supabase
           .from('set_logs')
           .insert(setPayloads)
-          .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
+          .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
 
         if (isMissingPrescribedWeightColumn(setError)) {
           const retry = await supabase
             .from('set_logs')
             .insert(stripPrescribedWeight(setPayloads))
-            .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
+            .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
           insertedSetRows = retry.data;
           setError = retry.error;
         }
@@ -701,7 +695,7 @@ async function runPostSaveAnalytics(
   if (!userId || sets.length === 0) return;
 
   try {
-	    const completedSets = sets.filter((set) => isPerformedSetLog(set) && set.setType !== 'warmup');
+    const completedSets = sets.filter((s) => s.completed && s.setType !== 'warmup');
     if (completedSets.length === 0) return;
 
     const muscleGroupsToTrack = ['chest', 'back', 'shoulders', 'quads', 'hamstrings', 'triceps', 'biceps', 'abs', 'calves'];
@@ -978,7 +972,7 @@ function calculateWorkoutSummaryFromSets(sets: SetLog[]): {
   totalSets: number;
   totalReps: number;
 } {
-  const completedSets = sets.filter(isPerformedSetLog);
+  const completedSets = sets.filter((set) => set.completed !== false);
   const totalReps = completedSets.reduce((sum, set) => sum + (Number(set.actualReps) || 0), 0);
   const totalVolumeLoad = completedSets.reduce((sum, set) => {
     const reps = Number(set.actualReps) || 0;
@@ -1106,8 +1100,6 @@ export async function updateWorkoutSessionContent(
           const exerciseIdByRef = await resolveExerciseIds(supabase, exerciseRefs);
 
           const setPayloads = cleanSets.map((set, index): TablesInsert<'set_logs'> => {
-            const performed = isPerformedSetLog(set);
-            const skipped = set.skipped === true;
             const payload: TablesInsert<'set_logs'> = {
               workout_session_id: normalizedId,
               exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
@@ -1120,14 +1112,13 @@ export async function updateWorkoutSessionContent(
               prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
               prescribed_percentage: set.prescribedPercentage ?? null,
               prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
-              actual_weight: performed && set.actualWeight != null ? Number(set.actualWeight) : null,
+              actual_weight: set.actualWeight != null ? Number(set.actualWeight) : null,
               weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
-              actual_reps: performed && set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
-              actual_rpe: performed && set.actualRPE != null ? Number(set.actualRPE) : null,
-              actual_rir: performed && set.actualRIR != null ? Number(set.actualRIR) : null,
-              e1rm: performed ? calculateSetE1RMLbs(set) : null,
+              actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
+              actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
+              actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
+              e1rm: calculateSetE1RMLbs(set),
               volume_load: (() => {
-                if (!performed) return null;
                 const volume = calculateSetVolumeLbs(set);
                 return volume == null ? null : Math.round(volume);
               })(),
@@ -1137,8 +1128,8 @@ export async function updateWorkoutSessionContent(
               actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
               notes: set.notes ?? null,
               performed_at: set.timestamp ?? updatedSession.endTime ?? new Date().toISOString(),
-              completed: performed,
-              skipped,
+              completed: set.completed !== false,
+              skipped: set.completed === false,
             };
 
             if (set.id && isValidUuid(set.id)) {
@@ -1192,7 +1183,7 @@ export function getLastWorkoutForExercise(exerciseId: string): {
   if (exerciseHistory.length === 0) return null;
 
   const lastSession = exerciseHistory[0];
-  const exerciseSets = lastSession.sets.filter((set) => set.exerciseId === exerciseId && isPerformedSetLog(set));
+  const exerciseSets = lastSession.sets.filter(s => s.exerciseId === exerciseId && s.completed);
 
   if (exerciseSets.length === 0) return null;
 
@@ -1219,7 +1210,7 @@ export function getLastWorkoutForExercise(exerciseId: string): {
 export function getPersonalRecords(exerciseId: string) {
   const history = getExerciseHistory(exerciseId);
   const allSets = history.flatMap(session =>
-    session.sets.filter((set) => set.exerciseId === exerciseId && isPerformedSetLog(set))
+    session.sets.filter(s => s.exerciseId === exerciseId && s.completed)
   );
 
   if (allSets.length === 0) return null;
@@ -1370,7 +1361,7 @@ export async function suggestWeight(
   }
 
   // PRIORITY 1: Check for acute session fatigue (works WITHOUT previous history)
-  const completedSets = currentSessionSets?.filter(isPerformedSetLog) || [];
+  const completedSets = currentSessionSets?.filter(s => s.completed) || [];
   // logger.debug('   Completed sets in session:', completedSets.length);
 
   if (completedSets.length > 0) {
@@ -1574,7 +1565,7 @@ export function analyzeProgressionReadiness(
   // Analyze last 2-3 sessions for this exercise
   const recentSessions = history.slice(0, 3);
   const allRecentSets = recentSessions.flatMap(session =>
-    session.sets.filter((set) => set.exerciseId === exerciseId && isPerformedSetLog(set))
+    session.sets.filter(s => s.exerciseId === exerciseId && s.completed)
   );
 
   if (allRecentSets.length === 0) {
@@ -1594,7 +1585,7 @@ export function analyzeProgressionReadiness(
   let sessionsOvershot = 0;
 
   for (const session of recentSessions) {
-    const sessionSets = session.sets.filter((set) => set.exerciseId === exerciseId && isPerformedSetLog(set));
+    const sessionSets = session.sets.filter(s => s.exerciseId === exerciseId && s.completed);
     if (sessionSets.length === 0) continue;
 
     // Check if ALL sets in this session hit target
@@ -1641,7 +1632,7 @@ export function analyzeProgressionReadiness(
 
   // Check for recent fatigue issues
   const lastSession = recentSessions[0];
-  const lastSessionSets = lastSession.sets.filter(isPerformedSetLog);
+  const lastSessionSets = lastSession.sets.filter(s => s.completed);
   if (lastSessionSets.length > 0) {
     const fatigueAlert = shouldTriggerAutoReduction(lastSessionSets, exerciseId);
     if (fatigueAlert.shouldAlert && fatigueAlert.severity === 'critical') {
@@ -1776,7 +1767,7 @@ export async function getPriorityAlert(
   const { detectTrueFatigue, detectTrueFatigueEnhanced, analyzeRPECalibration } = await import('./fatigueModel');
   const { getRecoveryProfile } = await import('./fatigue/cross-session');
 
-  const completedSets = currentSessionSets?.filter(isPerformedSetLog) || [];
+  const completedSets = currentSessionSets?.filter(s => s.completed) || [];
 
   // ============================================
   // PRIORITY 1: TRUE FATIGUE (CRITICAL - RED)

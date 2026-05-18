@@ -117,7 +117,6 @@ export interface TrainingHistorySet {
   prescribedWeight?: number | null;
   e1rm?: number | null;
   completed?: boolean | null;
-  skipped?: boolean | null;
   performedAt?: string | null;
 }
 
@@ -496,14 +495,10 @@ function readinessModifier(input: TrainingRecommendationInput): number {
   return clamp(modifier, 0.82, 1.08);
 }
 
-function isCompletedHistorySet(entry: TrainingHistorySet): boolean {
-  return entry.completed !== false && entry.skipped !== true;
-}
-
 function getDirectHistory(input: TrainingRecommendationInput, exerciseId?: string | null): TrainingHistorySet[] {
   if (!exerciseId) return [];
   return (input.historySets ?? [])
-    .filter((set) => isCompletedHistorySet(set) && set.exerciseId === exerciseId)
+    .filter((set) => set.completed !== false && set.exerciseId === exerciseId)
     .sort((a, b) => {
       return timestampMs(b.performedAt) - timestampMs(a.performedAt);
     });
@@ -548,7 +543,7 @@ function getSimilarHistory(input: TrainingRecommendationInput, set: TrainingSetI
 
   return (input.historySets ?? [])
     .filter((entry) => {
-      if (!isCompletedHistorySet(entry) || entry.exerciseId === set.exerciseId) return false;
+      if (entry.completed === false || entry.exerciseId === set.exerciseId) return false;
       if (positiveNumber(entry.actualWeight) == null) return false;
 
       return movementFamilyForHistory(entry) === targetFamily;
@@ -604,7 +599,7 @@ function localLoadPressure(input: TrainingRecommendationInput, set: TrainingSetI
       return { entry, performedAt, load };
     })
     .filter(({ entry, performedAt, load }) => {
-      if (!isCompletedHistorySet(entry) || performedAt === 0 || load == null || load <= 0) return false;
+      if (entry.completed === false || performedAt === 0 || load == null || load <= 0) return false;
       const ageDays = daysBetween(nowMs, performedAt);
       return ageDays <= 35 && movementFamilyForHistory(entry) === targetFamily;
     });
@@ -700,7 +695,6 @@ function localLoadPressure(input: TrainingRecommendationInput, set: TrainingSetI
 function globalLoadPressure(history: TrainingHistorySet[]): LocalLoadPressureSignal {
   const nowMs = Date.now();
   const loadEntries = history
-    .filter(isCompletedHistorySet)
     .map((entry) => ({
       performedAt: timestampMs(entry.performedAt),
       load: historyLoadScore(entry),
@@ -786,7 +780,7 @@ function loadPressureEvidenceCount(input: TrainingRecommendationInput, set?: Tra
   const targetFamily = set ? movementFamilyForSet(set) : null;
   return (input.historySets ?? []).filter((entry) => {
     const performedAt = timestampMs(entry.performedAt);
-    if (!isCompletedHistorySet(entry) || performedAt === 0 || historyLoadScore(entry) == null) return false;
+    if (entry.completed === false || performedAt === 0 || historyLoadScore(entry) == null) return false;
     if (daysBetween(nowMs, performedAt) > 35) return false;
     return targetFamily ? movementFamilyForHistory(entry) === targetFamily : true;
   }).length;
@@ -1484,7 +1478,7 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
 
   const nowMs = Date.now();
   const history = (input.historySets ?? [])
-    .filter(isCompletedHistorySet)
+    .filter((set) => set.completed !== false)
     .sort((a, b) => timestampMs(b.performedAt) - timestampMs(a.performedAt));
   const recentHistory = history.filter((set) => {
     const performedAt = timestampMs(set.performedAt);

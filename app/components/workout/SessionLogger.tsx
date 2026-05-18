@@ -409,14 +409,13 @@ function formatRecommendationSource(source: TrainingRecommendation['source']): s
   return 'Baseline';
 }
 
-function formatEvidenceSourceLabel(recommendation: TrainingRecommendation): string {
-  return recommendation.evidenceSource
+function formatRecommendationEvidence(recommendation: TrainingRecommendation): string {
+  const source = recommendation.evidenceSource
     ? recommendation.evidenceSource.replace(/_/g, ' ')
     : formatRecommendationSource(recommendation.source);
-}
-
-function isPerformedSessionSet(set: Pick<SessionSet, 'completed' | 'skipped'>): boolean {
-  return set.completed === true && set.skipped !== true;
+  const count = recommendation.evidenceCount ?? 0;
+  const sufficiency = recommendation.dataSufficiency ?? recommendation.confidence;
+  return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
 }
 
 function SmartTargetReadout({
@@ -437,15 +436,10 @@ function SmartTargetReadout({
   const targetWeight = formatSmartWeight(recommendation.target?.weight, recommendation.target?.weightUnit);
   const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} REPS` : null;
   const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s REST` : null;
-  const liftTargetText = [targetWeight, targetReps].filter(Boolean).join(' x ');
-  const targetText = liftTargetText ? [liftTargetText, restText].filter(Boolean).join(' / ') : restText || 'BASELINE';
-  const canApply = recommendationHasApplyPatch(recommendation);
-  const statusText = recommendation.blockedReason ?? recommendation.confidenceReason;
-  const evidenceSource = formatEvidenceSourceLabel(recommendation);
-  const evidenceCount = recommendation.evidenceCount ?? 0;
-  const confidenceLabel = recommendation.dataSufficiency
-    ? `${recommendation.confidence} / ${recommendation.dataSufficiency}`
-    : recommendation.confidence;
+  const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'BASELINE';
+  const canApply =
+    recommendationHasApplyPatch(recommendation) &&
+    Boolean(recommendation.apply?.weight !== undefined || recommendation.apply?.reps !== undefined);
 
   return (
     <div
@@ -461,32 +455,18 @@ function SmartTargetReadout({
             {targetText}
           </p>
         </div>
-        <p className="shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-          {recommendation.action.replace(/_/g, ' ')}
+        <p className="hidden shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500 min-[390px]:block">
+          {formatRecommendationEvidence(recommendation)}
         </p>
-      </div>
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
-        <div className="min-w-0 rounded-lg border border-zinc-900 bg-zinc-900/40 px-2 py-1.5">
-          <p className="text-[7px] font-black uppercase tracking-[0.18em] text-zinc-600">Source</p>
-          <p className="mt-0.5 truncate text-[10px] font-bold capitalize text-zinc-300">{evidenceSource}</p>
-        </div>
-        <div className="min-w-0 rounded-lg border border-zinc-900 bg-zinc-900/40 px-2 py-1.5">
-          <p className="text-[7px] font-black uppercase tracking-[0.18em] text-zinc-600">Confidence</p>
-          <p className="mt-0.5 truncate text-[10px] font-bold capitalize text-zinc-300">{confidenceLabel}</p>
-        </div>
-        <div className="min-w-0 rounded-lg border border-zinc-900 bg-zinc-900/40 px-2 py-1.5">
-          <p className="text-[7px] font-black uppercase tracking-[0.18em] text-zinc-600">Evidence</p>
-          <p className="mt-0.5 truncate text-[10px] font-bold text-zinc-300">{evidenceCount} sets</p>
-        </div>
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="overflow-hidden text-[11px] leading-snug text-zinc-400 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+          <p className="truncate text-[11px] leading-snug text-zinc-400">
             {recommendation.reason}
           </p>
-          {statusText && (
-            <p className="mt-1 overflow-hidden text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-              {statusText}
+          {(recommendation.confidenceReason || recommendation.blockedReason) && (
+            <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 min-[390px]:hidden">
+              {recommendation.blockedReason ?? recommendation.confidenceReason}
             </p>
           )}
         </div>
@@ -836,8 +816,7 @@ function toTrainingHistorySets(sessions: WorkoutSession[]): TrainingHistorySet[]
       prescribedPercentage: set.prescribedPercentage,
       prescribedWeight: set.prescribedWeight,
       e1rm: set.e1rm,
-      completed: set.completed && set.skipped !== true,
-      skipped: set.skipped === true,
+      completed: set.completed,
       performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
     }))
   );
@@ -1327,7 +1306,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
         exercise.sets.forEach((set) => {
-	          if (!isPerformedSessionSet(set)) return;
+          if (!set.completed) return;
           const weight = Number(set.weight) || 0;
           const displayWeight = weight > 0
             ? convertWeight(weight, set.weightUnit ?? sessionWeightUnit, sessionWeightUnit)
@@ -1350,7 +1329,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
         });
         const bodyweightExercise = isBodyweight(resolvedExerciseName);
         exercise.sets.forEach((set) => {
-	          if (!isPerformedSessionSet(set)) return;
+          if (!set.completed) return;
           const weight = Number(set.weight) || 0;
           const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
           const displayWeight = weight > 0
@@ -1511,10 +1490,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       { maxWeight: number; maxReps: number; maxE1RM: number; maxVolume: number }
     >();
 
-	    const history = storage.getWorkoutHistory();
-	    history.forEach((historySession) => {
-	      historySession.sets.forEach((set) => {
-	        if (!set.completed || set.skipped) return;
+    const history = storage.getWorkoutHistory();
+    history.forEach((historySession) => {
+      historySession.sets.forEach((set) => {
+        if (!set.completed) return;
         const exerciseId = set.exerciseId;
         if (!exerciseId) return;
         const reps = Number(set.actualReps) || 0;
@@ -1564,10 +1543,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       }
     >();
 
-	    session.blocks.forEach((block) => {
-	      block.exercises.forEach((exercise) => {
-	        exercise.sets.forEach((set) => {
-	          if (!isPerformedSessionSet(set)) return;
+    session.blocks.forEach((block) => {
+      block.exercises.forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          if (!set.completed) return;
           const reps = set.reps == null ? 8 : Number(set.reps);
           if (!Number.isFinite(reps) || reps <= 0) return;
           const weight = Number(set.weight) || 0;
@@ -1852,8 +1831,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   }, [isSummaryOpen, localHistorySets, readinessTrainingInput, sessionTrainingSets, sessionWeightUnit]);
   const smartRequestKey = useMemo(() => {
     if (!focusTrainingSet?.setId) return null;
-	    const completedKey = sessionTrainingSets
-	      .filter((set) => set.completed && !set.skipped)
+    const completedKey = sessionTrainingSets
+      .filter((set) => set.completed)
       .map((set) => `${set.setId}:${set.weight}:${set.reps}:${set.rpe}`)
       .join(',');
     return [
@@ -2427,13 +2406,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
           const weight = Number(set.weight) || 0;
           const setWeightUnit = set.weightUnit ?? sessionWeightUnit;
           const weightLbs = weight > 0 ? convertWeight(weight, setWeightUnit, 'lbs') : 0;
+          const volumeLoad = weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
+          const e1rm =
+            weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
           const touched = set.touchedWeight || set.touchedReps || set.touchedRpe;
           const hasMeaningfulInput = (rawReps != null && rawReps > 0) || weight > 0 || set.rpe != null;
           const autoCompleted = !set.skipped && set.completed !== true && touched && hasMeaningfulInput;
-          const performed = !set.skipped && (set.completed === true || autoCompleted);
-          const volumeLoad = performed && weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
-          const e1rm =
-            performed && weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
           if (autoCompleted) {
             autoCompletedSets += 1;
           }
@@ -2451,14 +2429,13 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             prescribedRIR: set.prescribedRIR ?? null,
             prescribedPercentage: set.prescribedPercentage ?? null,
             prescribedWeight: set.prescribedWeight ?? null,
-            actualWeight: performed ? weight || null : null,
+            actualWeight: weight || null,
             weightUnit: setWeightUnit,
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
-            actualReps: performed ? reps : null,
-            actualRPE: performed ? set.rpe ?? null : null,
+            actualReps: reps,
+            actualRPE: set.rpe ?? null,
             notes: set.notes?.trim() || undefined,
-            completed: performed,
-            skipped: set.skipped === true,
+            completed: !set.skipped && (set.completed === true || autoCompleted),
             e1rm: e1rm ? Math.round(e1rm) : null,
             volumeLoad,
             setType: set.cluster ? 'cluster' : mapSetType(set.type),
@@ -3076,9 +3053,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                   ? `${repsValue}`
                                   : repsValue.toFixed(1);
                                 let label = `Set ${index + 1}`;
-                                if (set.skipped) {
-                                  label = 'Skipped';
-                                } else if (set.completed) {
+                                if (set.completed) {
                                   if (bodyweightExercise && weightValue === 0) {
                                     label = repsValue > 0 ? `BW × ${displayReps}` : 'BW';
                                   } else if (weightValue > 0) {
@@ -3096,12 +3071,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                       event.stopPropagation();
                                       handleOpenFocus(entry, set.id);
                                     }}
-	                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.skipped
-	                                      ? 'border-amber-500/35 bg-amber-500/10 font-bold uppercase tracking-[0.12em] text-amber-300'
-	                                      : set.completed
-	                                        ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-	                                        : 'border-zinc-800 bg-zinc-900 text-zinc-600'
-	                                      }`}
+                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.completed
+                                      ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                      : 'border-zinc-800 bg-zinc-900 text-zinc-600'
+                                      }`}
                                   >
                                     {label}
                                   </button>
@@ -3705,7 +3678,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 }
 
                 return logs.map((session) => {
-	                  const daySets = session.sets.filter((set) => set.exerciseId === focusedRef.exercise.id && set.completed && !set.skipped);
+                  const daySets = session.sets.filter(s => s.exerciseId === focusedRef.exercise.id && s.completed);
                   if (daySets.length === 0) return null;
 
                   return (
