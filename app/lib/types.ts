@@ -233,7 +233,8 @@ export interface SetLog {
   tempo?: string;
 
   // Set outcome
-  completed: boolean;               // true if logged, false if skipped
+  completed: boolean;               // true if logged/performed
+  skipped?: boolean;                // true when intentionally skipped, not performed
   reachedFailure?: boolean;
   formBreakdown?: boolean;
 
@@ -393,7 +394,8 @@ type SupabaseSetLogRow = Pick<
   | 'actual_seconds'
   | 'notes'
   | 'completed'
->;
+  | 'skipped'
+  >;
 
 export type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
   set_logs?: SupabaseSetLogRow[] | null;

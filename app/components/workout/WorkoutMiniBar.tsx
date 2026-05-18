@@ -15,7 +15,7 @@ function formatElapsed(startTimeIso: string): string {
     return `${minutes}:${pad(seconds)}`;
 }
 
-function countCompletedSets(blocks: Array<{ exercises: Array<{ sets: Array<{ completed: boolean }> }> }>): {
+function countCompletedSets(blocks: Array<{ exercises: Array<{ sets: Array<{ completed: boolean; skipped?: boolean }> }> }>): {
     completed: number;
     total: number;
 } {
@@ -25,7 +25,7 @@ function countCompletedSets(blocks: Array<{ exercises: Array<{ sets: Array<{ com
         for (const exercise of block.exercises) {
             for (const set of exercise.sets) {
                 total += 1;
-                if (set.completed) completed += 1;
+                if (set.completed && !set.skipped) completed += 1;
             }
         }
     }

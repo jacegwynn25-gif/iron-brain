@@ -388,7 +388,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       if (!hasTimestamp) return false;
 
       const hasValidSets = workout.sets.some((set) => {
-        if (set.completed === false) return false;
+	        if (set.completed === false || set.skipped) return false;
         const weight = set.actualWeight || 0;
         const reps = set.actualReps || 0;
         const isWarmup = set.setType === 'warmup';
@@ -434,7 +434,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
     const resolveWorkoutEffortLoad = (workout: WorkoutSession) => {
       const calculatedLoad = workout.sets.reduce((sum, set) => {
-        if (set.completed === false || set.setType === 'warmup') return sum;
+	        if (set.completed === false || set.skipped || set.setType === 'warmup') return sum;
         const weight = resolveSetWeight(set);
         const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
         const rpe = Number(set.actualRPE ?? set.prescribedRPE ?? workout.averageRPE ?? workout.sessionRPE ?? 7);
@@ -469,7 +469,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         : 0;
 
       const effortLoad = workout.sets.reduce((sum, set) => {
-        if (set.completed === false || set.setType === 'warmup') return sum;
+	        if (set.completed === false || set.skipped || set.setType === 'warmup') return sum;
         const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
         if (!Number.isFinite(reps) || reps <= 0) return sum;
         const weight = resolveSetWeight(set);
@@ -509,7 +509,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     }
 
     const totalSets = workouts.reduce((sum, workout) => {
-      const eligibleSets = workout.sets.filter((set) => set.completed !== false && set.setType !== 'warmup');
+	      const eligibleSets = workout.sets.filter((set) => set.completed !== false && !set.skipped && set.setType !== 'warmup');
       return sum + eligibleSets.length;
     }, 0);
 

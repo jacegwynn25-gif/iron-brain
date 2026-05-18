@@ -220,7 +220,7 @@ function collectWorkingWeights(input: CoachExportInput): WorkingWeightEntry[] {
 
   for (const workout of sorted) {
     for (const set of workout.sets) {
-      if (!set.completed || set.actualWeight == null || set.actualWeight <= 0) continue;
+      if (!set.completed || set.skipped || set.actualWeight == null || set.actualWeight <= 0) continue;
       if (!set.exerciseId || byExercise.has(set.exerciseId)) continue;
 
       const sourceUnit = set.weightUnit ?? input.preferredWeightUnit;
@@ -355,7 +355,7 @@ function formatRecentMaxes(maxes: UserMax[], preferredWeightUnit: WeightUnit): s
 
 function formatSessionLines(workout: WorkoutSession, preferredWeightUnit: WeightUnit): string[] {
   const lines = workout.sets
-    .filter((set) => set.completed)
+    .filter((set) => set.completed && !set.skipped)
     .slice(0, 20)
     .map((set) => {
       const sourceUnit = set.weightUnit ?? preferredWeightUnit;

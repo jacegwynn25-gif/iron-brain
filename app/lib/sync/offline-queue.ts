@@ -193,15 +193,15 @@ const syncWorkoutToCloud = async (
       notes: session.notes,
       metadata,
       status: 'completed',
-      total_sets: session.sets?.filter((set) => set.completed !== false).length || 0,
+      total_sets: session.sets?.filter((set) => set.completed !== false && set.skipped !== true).length || 0,
       total_reps:
         session.sets?.reduce(
-          (sum, s) => sum + (s.completed === false ? 0 : (s.actualReps || 0)),
+          (sum, s) => sum + (s.completed === false || s.skipped ? 0 : (s.actualReps || 0)),
           0
         ) || 0,
       total_volume_load:
         session.sets?.reduce((sum, s) => {
-          if (s.completed === false) return sum;
+          if (s.completed === false || s.skipped) return sum;
           const reps = s.actualReps || 0;
           const weight = s.actualWeight || 0;
           if (!reps || !weight) return sum;
@@ -209,7 +209,7 @@ const syncWorkoutToCloud = async (
           return sum + (weightLbs * reps);
         }, 0) || 0,
       average_rpe: (() => {
-        const completed = session.sets?.filter((set) => set.completed !== false) ?? [];
+        const completed = session.sets?.filter((set) => set.completed !== false && set.skipped !== true) ?? [];
         if (completed.length === 0) return null;
         return (
           completed.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / completed.length
@@ -232,49 +232,54 @@ const syncWorkoutToCloud = async (
     );
     const exerciseIdByRef = await resolveExerciseIds(client, exerciseRefs);
 
-    const setLogs = session.sets.map((set, index) => ({
-      id: set.id && isValidUuid(set.id) ? set.id : undefined,
-      workout_session_id: workoutUuid,
-      exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
-      exercise_slug: set.exerciseId,
-      program_set_id: null,
-      order_index: index,
-      set_index: set.setIndex || index + 1,
-      prescribed_reps: set.prescribedReps,
-      prescribed_rpe: set.prescribedRPE,
-      prescribed_rir: set.prescribedRIR,
-      prescribed_percentage: set.prescribedPercentage,
-      prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
-      actual_weight: set.actualWeight,
-      weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
-      actual_reps: set.actualReps,
-      actual_rpe: set.actualRPE,
-      actual_rir: set.actualRIR,
-      e1rm: calculateSetE1RMLbs(set),
-      volume_load: (() => {
-        const volume = calculateSetVolumeLbs(set);
-        return volume == null ? null : volume;
-      })(),
-      set_type: set.setType || 'straight',
-      tempo: set.tempo,
-      rest_seconds: set.restTakenSeconds,
-      actual_seconds: set.setDurationSeconds,
-      notes: set.notes,
-      performed_at: set.timestamp ?? session.endTime ?? new Date().toISOString(),
-      completed: set.completed !== false,
-      skipped: set.completed === false,
-    }));
+    const setLogs = session.sets.map((set, index) => {
+      const performed = set.completed !== false && set.skipped !== true;
+      const skipped = set.skipped === true;
+      return {
+        id: set.id && isValidUuid(set.id) ? set.id : undefined,
+        workout_session_id: workoutUuid,
+        exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
+        exercise_slug: set.exerciseId,
+        program_set_id: null,
+        order_index: index,
+        set_index: set.setIndex || index + 1,
+        prescribed_reps: set.prescribedReps,
+        prescribed_rpe: set.prescribedRPE,
+        prescribed_rir: set.prescribedRIR,
+        prescribed_percentage: set.prescribedPercentage,
+        prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
+        actual_weight: performed ? set.actualWeight : null,
+        weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
+        actual_reps: performed ? set.actualReps : null,
+        actual_rpe: performed ? set.actualRPE : null,
+        actual_rir: performed ? set.actualRIR : null,
+        e1rm: performed ? calculateSetE1RMLbs(set) : null,
+        volume_load: (() => {
+          if (!performed) return null;
+          const volume = calculateSetVolumeLbs(set);
+          return volume == null ? null : volume;
+        })(),
+        set_type: set.setType || 'straight',
+        tempo: set.tempo,
+        rest_seconds: set.restTakenSeconds,
+        actual_seconds: set.setDurationSeconds,
+        notes: set.notes,
+        performed_at: set.timestamp ?? session.endTime ?? new Date().toISOString(),
+        completed: performed,
+        skipped,
+      };
+    });
 
     let { data: insertedSetRows, error: setsError } = await client
       .from('set_logs')
       .insert(setLogs)
-      .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+      .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
 
     if (isMissingPrescribedWeightColumn(setsError)) {
       const retry = await client
         .from('set_logs')
         .insert(stripPrescribedWeight(setLogs))
-        .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+        .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
       insertedSetRows = retry.data;
       setsError = retry.error;
     }

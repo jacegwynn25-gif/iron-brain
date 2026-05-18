@@ -40,6 +40,7 @@ type EditableWorkoutSet = {
   actualReps: string;
   actualRPE: string;
   completed: boolean;
+  skipped: boolean;
   notes: string;
   setType?: SetLog['setType'];
   timestamp?: string;
@@ -137,6 +138,7 @@ export default function WorkoutHistory({
     actualReps: '',
     actualRPE: '',
     completed: false,
+    skipped: false,
     notes: '',
     setType: 'straight',
     timestamp: new Date().toISOString(),
@@ -170,7 +172,8 @@ export default function WorkoutHistory({
         actualWeight: set.actualWeight != null ? String(set.actualWeight) : '',
         actualReps: set.actualReps != null ? String(set.actualReps) : '',
         actualRPE: set.actualRPE != null ? String(set.actualRPE) : '',
-        completed: set.completed === true,
+        completed: set.completed === true && set.skipped !== true,
+        skipped: set.skipped === true,
         notes: set.notes ?? '',
         setType: set.setType ?? 'straight',
         timestamp: set.timestamp,
@@ -206,7 +209,7 @@ export default function WorkoutHistory({
     workoutHistory.forEach((session) => {
       const sessionDate = session.date || '';
       session.sets.forEach((set) => {
-        if (!set.completed) return;
+        if (!set.completed || set.skipped) return;
         const exerciseId = set.exerciseId;
         const reps = Number(set.actualReps ?? 0);
         const weightLbs = toLbs(set.actualWeight, set.weightUnit);
@@ -331,7 +334,7 @@ export default function WorkoutHistory({
     }).format(value);
 
   const calculateSessionStats = (session: WorkoutSession) => {
-    const completedSets = session.sets.filter(s => s.completed);
+    const completedSets = session.sets.filter((set) => set.completed && !set.skipped);
     const totalVolume = completedSets.reduce((sum, set) => {
       const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
       const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
@@ -518,7 +521,7 @@ export default function WorkoutHistory({
           sets: exercise.sets.map((set) => {
             if (set.localId !== setLocalId) return set;
             if (field === 'completed') {
-              return { ...set, completed: Boolean(value) };
+              return { ...set, completed: Boolean(value), skipped: false };
             }
             if (field === 'weightUnit') {
               return { ...set, weightUnit: value === 'kg' ? 'kg' : 'lbs' };
@@ -581,9 +584,10 @@ export default function WorkoutHistory({
               (normalizedReps != null && normalizedReps > 0) ||
               normalizedRpe != null ||
               set.notes.trim().length > 0;
-            const completed = set.completed || meaningfulInput;
+            const skipped = set.skipped && !meaningfulInput;
+            const completed = !skipped && (set.completed || meaningfulInput);
 
-            if (!meaningfulInput && !set.completed) {
+            if (!meaningfulInput && !set.completed && !set.skipped) {
               return null;
             }
 
@@ -595,6 +599,7 @@ export default function WorkoutHistory({
               actualRPE: normalizedRpe,
               notes: set.notes.trim(),
               completed,
+              skipped,
               setType: set.setType,
               timestamp: set.timestamp ?? nowIso,
             };
@@ -614,6 +619,7 @@ export default function WorkoutHistory({
             actualReps: set.actualReps,
             actualRPE: set.actualRPE,
             completed: set.completed,
+            skipped: set.skipped,
             notes: set.notes || undefined,
             setType: set.setType ?? 'straight',
             timestamp: set.timestamp,
@@ -728,9 +734,9 @@ export default function WorkoutHistory({
             const stats = calculateSessionStats(session);
             const groupedSets = groupSetsByExercise(session.sets);
             const exerciseIds = Object.keys(groupedSets);
-            const completedSetCount = session.sets.filter(s => s.completed).length;
+            const completedSetCount = session.sets.filter((set) => set.completed && !set.skipped).length;
             const completedExerciseCount = exerciseIds.filter((exerciseId) =>
-              groupedSets[exerciseId].some((set) => set.completed)
+              groupedSets[exerciseId].some((set) => set.completed && !set.skipped)
             ).length;
             const sourceLabel = getSessionSourceLabel(session);
 
@@ -831,10 +837,11 @@ export default function WorkoutHistory({
                     className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5"
                   >
                     <div className="space-y-6">
-                      {exerciseIds.map((exerciseId, exIdx) => {
-                        const exerciseSets = groupedSets[exerciseId];
-                        const completedSets = exerciseSets.filter(s => s.completed);
-                        if (completedSets.length === 0) return null;
+	                      {exerciseIds.map((exerciseId, exIdx) => {
+	                        const exerciseSets = groupedSets[exerciseId];
+	                        const completedSets = exerciseSets.filter((set) => set.completed && !set.skipped);
+	                        const displaySets = exerciseSets.filter((set) => (set.completed && !set.skipped) || set.skipped);
+	                        if (displaySets.length === 0) return null;
 
                         const exerciseName = getExerciseName(exerciseId, exerciseSets[0]?.exerciseName);
                         const exerciseVolume = completedSets.reduce(
@@ -871,10 +878,10 @@ export default function WorkoutHistory({
                             </div>
 
                             <div className="space-y-2">
-                              {completedSets.map((set, idx) => {
-                                const pr = checkIfPR(set, exerciseId, session.date);
-                                const fromUnit = set.weightUnit ?? 'lbs';
-                                const displayWeight = set.actualWeight != null
+	                              {displaySets.map((set, idx) => {
+	                                const pr = set.skipped ? null : checkIfPR(set, exerciseId, session.date);
+	                                const fromUnit = set.weightUnit ?? 'lbs';
+	                                const displayWeight = set.actualWeight != null
                                   ? Number(set.actualWeight)
                                   : null;
                                 const displayE1RM = set.e1rm != null
@@ -891,16 +898,24 @@ export default function WorkoutHistory({
                                         {set.setIndex}
                                       </span>
                                       <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
-                                        <span className="font-semibold text-white">
-                                          {displayWeight != null && Number.isFinite(displayWeight)
-                                            ? `${formatWeightValue(displayWeight, fromUnit)} ${fromUnit}`
-                                            : `— ${fromUnit}`}
-                                        </span>
-                                        <span className="text-zinc-500">×</span>
-                                        <span className="font-semibold text-white">
-                                          {set.actualReps} reps
-                                        </span>
-                                        {set.actualRPE && (
+	                                        {set.skipped ? (
+	                                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+	                                            Skipped
+	                                          </span>
+	                                        ) : (
+	                                          <>
+	                                            <span className="font-semibold text-white">
+	                                              {displayWeight != null && Number.isFinite(displayWeight)
+	                                                ? `${formatWeightValue(displayWeight, fromUnit)} ${fromUnit}`
+	                                                : `— ${fromUnit}`}
+	                                            </span>
+	                                            <span className="text-zinc-500">×</span>
+	                                            <span className="font-semibold text-white">
+	                                              {set.actualReps} reps
+	                                            </span>
+	                                          </>
+	                                        )}
+	                                        {!set.skipped && set.actualRPE && (
                                           <>
                                             <span className="text-zinc-500">@</span>
                                             <span className="text-xs font-semibold text-amber-300">
@@ -912,7 +927,7 @@ export default function WorkoutHistory({
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
-                                      {set.e1rm && (
+	                                      {!set.skipped && set.e1rm && (
                                         <span className="text-xs font-semibold text-sky-300">
                                           {displayE1RM != null && Number.isFinite(displayE1RM)
                                             ? `${Math.round(displayE1RM)} e1RM`

@@ -162,37 +162,42 @@ async function uploadWorkout(workout: WorkoutSession, userId: string): Promise<b
 
     // Insert set logs
     if (workout.sets && workout.sets.length > 0) {
-      const setLogs = workout.sets.map((set, index) => ({
-        workout_session_id: workoutUuid,
-        exercise_id: exerciseIdByRef.get(set.exerciseId) || null, // correctly assign resolved UUID
-        exercise_slug: set.exerciseId,
-        order_index: index, // Position in workout (required NOT NULL field)
-        set_index: set.setIndex ? Math.round(Number(set.setIndex)) : index + 1,
-        // Prescribed values - reps is string in DB, RPE/RIR are decimals
-        prescribed_reps: set.prescribedReps != null ? Math.round(Number(set.prescribedReps)).toString() : null,
-        prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
-        prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
-        prescribed_percentage: set.prescribedPercentage,
-        prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
-        // Actual values - reps is integer, RPE/RIR are decimals
-        actual_weight: set.actualWeight,
-        weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
-        actual_reps: set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
-        actual_rpe: set.actualRPE != null ? Number(set.actualRPE) : null,
-        actual_rir: set.actualRIR != null ? Number(set.actualRIR) : null,
-        tempo: set.tempo,
-        completed: set.completed !== false,
-        skipped: set.completed === false,
-        e1rm: calculateSetE1RMLbs(set),
-        volume_load: (() => {
-          const volume = calculateSetVolumeLbs(set);
-          return volume == null ? null : Math.round(volume);
-        })(),
-        rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
-        actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
-        notes: set.notes,
-        set_type: set.setType || 'straight',
-      }));
+      const setLogs = workout.sets.map((set, index) => {
+        const performed = set.completed !== false && set.skipped !== true;
+        const skipped = set.skipped === true;
+        return {
+          workout_session_id: workoutUuid,
+          exercise_id: exerciseIdByRef.get(set.exerciseId) || null, // correctly assign resolved UUID
+          exercise_slug: set.exerciseId,
+          order_index: index, // Position in workout (required NOT NULL field)
+          set_index: set.setIndex ? Math.round(Number(set.setIndex)) : index + 1,
+          // Prescribed values - reps is string in DB, RPE/RIR are decimals
+          prescribed_reps: set.prescribedReps != null ? Math.round(Number(set.prescribedReps)).toString() : null,
+          prescribed_rpe: set.prescribedRPE != null ? Number(set.prescribedRPE) : null,
+          prescribed_rir: set.prescribedRIR != null ? Number(set.prescribedRIR) : null,
+          prescribed_percentage: set.prescribedPercentage,
+          prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
+          // Actual values - reps is integer, RPE/RIR are decimals
+          actual_weight: performed ? set.actualWeight : null,
+          weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
+          actual_reps: performed && set.actualReps != null ? Math.round(Number(set.actualReps)) : null,
+          actual_rpe: performed && set.actualRPE != null ? Number(set.actualRPE) : null,
+          actual_rir: performed && set.actualRIR != null ? Number(set.actualRIR) : null,
+          tempo: set.tempo,
+          completed: performed,
+          skipped,
+          e1rm: performed ? calculateSetE1RMLbs(set) : null,
+          volume_load: (() => {
+            if (!performed) return null;
+            const volume = calculateSetVolumeLbs(set);
+            return volume == null ? null : Math.round(volume);
+          })(),
+          rest_seconds: set.restTakenSeconds != null ? Math.round(Number(set.restTakenSeconds)) : null,
+          actual_seconds: set.setDurationSeconds != null ? Math.round(Number(set.setDurationSeconds)) : null,
+          notes: set.notes,
+          set_type: set.setType || 'straight',
+        };
+      });
 
       let { error: setsError } = await supabase
         .from('set_logs')

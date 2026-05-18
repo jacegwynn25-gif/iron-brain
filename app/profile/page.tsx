@@ -133,7 +133,8 @@ export default function ProfilePage() {
             restTakenSeconds: set.rest_seconds,
             setDurationSeconds: set.actual_seconds,
             notes: set.notes ?? undefined,
-            completed: set.completed !== false,
+            completed: set.completed !== false && set.skipped !== true,
+            skipped: set.skipped === true,
           })),
         };
       });
