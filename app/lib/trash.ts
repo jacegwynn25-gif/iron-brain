@@ -54,6 +54,7 @@ type SupabaseSetLogRow = Pick<
   | 'actual_seconds'
   | 'notes'
   | 'completed'
+  | 'skipped'
 >;
 
 type SupabaseWorkoutSessionRow = Database['public']['Tables']['workout_sessions']['Row'] & {
@@ -156,7 +157,8 @@ const transformSupabaseWorkout = (session: SupabaseWorkoutSessionRow): WorkoutSe
       restTakenSeconds: set.rest_seconds,
       setDurationSeconds: set.actual_seconds,
       notes: set.notes ?? undefined,
-      completed: set.completed !== false,
+      completed: set.completed !== false && set.skipped !== true,
+      skipped: set.skipped === true,
     })),
   };
 };

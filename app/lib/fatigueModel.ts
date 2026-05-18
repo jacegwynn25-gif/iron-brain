@@ -328,7 +328,7 @@ export function calculateMuscleFatigue(
 
     for (const set of completedSets) {
       // Only skip if not completed - we DO want to count sets without RPE data
-      if (!set.completed) continue;
+      if (!set.completed || set.skipped) continue;
 
       const sourceMuscles = getExerciseMuscleGroups(set.exerciseId, set.exerciseName);
 
@@ -470,7 +470,7 @@ export function shouldTriggerAutoReduction(
 
   // Calculate average RPE overshoot
   const overshootSets = completedSets.filter(
-    s => s.completed && s.prescribedRPE && s.actualRPE && s.actualRPE > s.prescribedRPE
+	    s => s.completed && !s.skipped && s.prescribedRPE && s.actualRPE && s.actualRPE > s.prescribedRPE
   );
   const avgOvershoot = overshootSets.length > 0
     ? overshootSets.reduce((sum, s) => sum + (s.actualRPE! - s.prescribedRPE!), 0) / overshootSets.length
@@ -683,8 +683,8 @@ export function detectTrueFatigue(
 ): TrueFatigueIndicators {
   // Filter to exercise if specified, otherwise use all
   let relevantSets = exerciseId
-    ? sets.filter(s => s.exerciseId === exerciseId && s.completed)
-    : sets.filter(s => s.completed);
+    ? sets.filter(s => s.exerciseId === exerciseId && s.completed && !s.skipped)
+    : sets.filter(s => s.completed && !s.skipped);
 
   if (relevantSets.length === 0) {
     return {
@@ -861,7 +861,7 @@ export function detectTrueFatigue(
 
   // Data quality reporting
   const dataQuality = dataQualityReport ? {
-    originalSets: sets.filter(s => s.completed).length,
+	    originalSets: sets.filter(s => s.completed && !s.skipped).length,
     cleanedSets: relevantSets.length,
     outliersRemoved: dataQualityReport.removedCount,
     quality: dataQualityReport.quality,
@@ -966,7 +966,7 @@ export function detectTrueFatigueEnhanced(
 
     // Get enhanced assessment
     const relevantSets = sets.filter(
-      s => s.exerciseId === exerciseId && s.completed
+	      s => s.exerciseId === exerciseId && s.completed && !s.skipped
     );
 
     const enhanced = getEnhancedFatigueAssessment(
@@ -1056,7 +1056,7 @@ export interface RPECalibration {
 export function analyzeRPECalibration(sets: SetLog[], exerciseId?: string): RPECalibration {
   // Filter to completed sets with both actual and prescribed RPE
   const relevantSets = (exerciseId ? sets.filter(s => s.exerciseId === exerciseId) : sets)
-    .filter(s => s.completed && s.actualRPE !== null && s.prescribedRPE !== null);
+	    .filter(s => s.completed && !s.skipped && s.actualRPE !== null && s.prescribedRPE !== null);
 
   if (relevantSets.length < 2) {
     return {

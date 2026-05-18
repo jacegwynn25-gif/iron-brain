@@ -185,7 +185,7 @@ function calculateFatigueResistance(sets: SetLog[]): number {
   let currentGroup: SetLog[] = [];
   let lastExercise = '';
 
-  for (const set of sets.filter(s => s.completed)) {
+  for (const set of sets.filter(s => s.completed && !s.skipped)) {
     if (set.exerciseId !== lastExercise) {
       if (currentGroup.length > 0) {
         setGroups.push(currentGroup);
@@ -271,8 +271,8 @@ function estimateRecoveryRate(
       if (daysBetween < 1 || daysBetween > 14) continue; // Skip if too close or too far
 
       // Compare first set performance
-      const prevFirstSet = prevExercise.sets.find(s => s.completed);
-      const currFirstSet = currExercise.sets.find(s => s.completed);
+      const prevFirstSet = prevExercise.sets.find(s => s.completed && !s.skipped);
+      const currFirstSet = currExercise.sets.find(s => s.completed && !s.skipped);
 
       if (!prevFirstSet || !currFirstSet) continue;
       if (!prevFirstSet.actualReps || !currFirstSet.actualReps) continue;

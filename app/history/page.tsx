@@ -184,7 +184,8 @@ export default function HistoryPage() {
             rest_seconds,
             actual_seconds,
             notes,
-            completed
+            completed,
+            skipped
           )
         `)
         .eq('user_id', resolvedUserId)
@@ -253,7 +254,8 @@ export default function HistoryPage() {
             restTakenSeconds: set.rest_seconds,
             setDurationSeconds: set.actual_seconds,
             notes: set.notes ?? undefined,
-            completed: set.completed !== false,
+            completed: set.completed !== false && set.skipped !== true,
+            skipped: set.skipped === true,
           })),
         }, exerciseCatalog);
       });
