@@ -47,6 +47,21 @@ function formatRecommendationSource(source: TrainingRecommendation['source']): s
   return 'Baseline';
 }
 
+function formatRecommendationEvidence(recommendation: TrainingRecommendation): string {
+  const source = recommendation.evidenceSource
+    ? recommendation.evidenceSource.replace(/_/g, ' ')
+    : formatRecommendationSource(recommendation.source);
+  const count = recommendation.evidenceCount ?? 0;
+  const sufficiency = recommendation.dataSufficiency ?? recommendation.confidence;
+  return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
+}
+
+function formatRecommendationGuardrail(recommendation: TrainingRecommendation): string {
+  if (recommendation.blockedReason) return recommendation.blockedReason;
+  if (recommendation.confidence === 'low') return 'Read-only until stronger direct data exists.';
+  return recommendation.confidenceReason ?? 'Review before applying.';
+}
+
 export default function RestTimer({
   isActive,
   duration,
@@ -188,7 +203,7 @@ export default function RestTimer({
                   {smartTargetText ?? smartRecommendation.title}
                 </p>
               </div>
-              {recommendationHasApplyPatch(smartRecommendation) && (
+              {recommendationHasApplyPatch(smartRecommendation) && smartRecommendation.confidence !== 'low' && (
                 <button
                   type="button"
                   onClick={handleApplyRecommendation}
@@ -203,7 +218,10 @@ export default function RestTimer({
               {smartRecommendation.reason}
             </p>
             <p className="mt-2 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
-              {smartRecommendation.confidence} · {formatRecommendationSource(smartRecommendation.source)}
+              {formatRecommendationSource(smartRecommendation.source)} · {formatRecommendationEvidence(smartRecommendation)}
+            </p>
+            <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
+              {formatRecommendationGuardrail(smartRecommendation)}
             </p>
           </div>
         )}

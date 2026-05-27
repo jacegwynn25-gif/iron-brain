@@ -14,6 +14,7 @@ type CloudSetRow = {
   workout_session_id: string | null;
   exercise_id: string | null;
   exercise_slug: string | null;
+  set_index: number | null;
   actual_weight: number | null;
   weight_unit: string | null;
   actual_reps: number | null;
@@ -26,6 +27,8 @@ type CloudSetRow = {
   prescribed_weight: number | null;
   e1rm: number | null;
   completed: boolean | null;
+  skipped: boolean | null;
+  set_type: string | null;
   performed_at: string | null;
 };
 
@@ -64,18 +67,21 @@ function mapCloudHistory(sessions: CloudSessionRow[]): TrainingHistorySet[] {
       id: set.id,
       workoutSessionId: set.workout_session_id ?? session.id,
       exerciseId: set.exercise_slug ?? set.exercise_id,
-      actualWeight: set.actual_weight,
+      setIndex: set.set_index,
+      actualWeight: set.skipped === true ? null : set.actual_weight,
       weightUnit: set.weight_unit,
-      actualReps: set.actual_reps,
-      actualRPE: set.actual_rpe,
-      actualRIR: set.actual_rir,
+      actualReps: set.skipped === true ? null : set.actual_reps,
+      actualRPE: set.skipped === true ? null : set.actual_rpe,
+      actualRIR: set.skipped === true ? null : set.actual_rir,
       prescribedReps: set.prescribed_reps,
       prescribedRPE: set.prescribed_rpe,
       prescribedRIR: set.prescribed_rir,
       prescribedPercentage: set.prescribed_percentage,
       prescribedWeight: set.prescribed_weight,
-      e1rm: set.e1rm,
-      completed: set.completed,
+      e1rm: set.skipped === true ? null : set.e1rm,
+      completed: set.completed === true && set.skipped !== true,
+      skipped: set.skipped,
+      setType: set.set_type,
       performedAt: set.performed_at ?? session.end_time ?? session.start_time ?? session.date,
     }))
   );
@@ -140,6 +146,7 @@ async function fetchCloudInputs(userId: string) {
           workout_session_id,
           exercise_id,
           exercise_slug,
+          set_index,
           actual_weight,
           weight_unit,
           actual_reps,
@@ -152,6 +159,8 @@ async function fetchCloudInputs(userId: string) {
           prescribed_weight,
           e1rm,
           completed,
+          skipped,
+          set_type,
           performed_at
         )
       `)
@@ -204,18 +213,9 @@ export async function POST(request: NextRequest) {
     const cloud = await fetchCloudInputs(user.id);
     const input: TrainingRecommendationInput = {
       ...body,
-      historySets: [
-        ...(body.historySets ?? []),
-        ...cloud.historySets,
-      ],
-      personalRecords: [
-        ...(body.personalRecords ?? []),
-        ...cloud.personalRecords,
-      ],
-      userMaxes: [
-        ...(body.userMaxes ?? []),
-        ...cloud.userMaxes,
-      ],
+      historySets: cloud.historySets.length > 0 ? cloud.historySets : (body.historySets ?? []),
+      personalRecords: cloud.personalRecords.length > 0 ? cloud.personalRecords : (body.personalRecords ?? []),
+      userMaxes: cloud.userMaxes.length > 0 ? cloud.userMaxes : (body.userMaxes ?? []),
       readiness: mergeReadiness(body.readiness, cloud.manualContext),
     };
 

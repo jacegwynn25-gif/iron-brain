@@ -418,6 +418,12 @@ function formatRecommendationEvidence(recommendation: TrainingRecommendation): s
   return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
 }
 
+function formatRecommendationGuardrail(recommendation: TrainingRecommendation): string {
+  if (recommendation.blockedReason) return recommendation.blockedReason;
+  if (recommendation.confidence === 'low') return 'Read-only until stronger direct data exists.';
+  return recommendation.confidenceReason ?? 'Review before applying.';
+}
+
 function SmartTargetReadout({
   recommendation,
   onApply,
@@ -439,7 +445,12 @@ function SmartTargetReadout({
   const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'BASELINE';
   const canApply =
     recommendationHasApplyPatch(recommendation) &&
-    Boolean(recommendation.apply?.weight !== undefined || recommendation.apply?.reps !== undefined);
+    recommendation.confidence !== 'low' &&
+    Boolean(
+      recommendation.apply?.weight !== undefined ||
+      recommendation.apply?.reps !== undefined ||
+      recommendation.apply?.restSeconds !== undefined
+    );
 
   return (
     <div
@@ -456,7 +467,7 @@ function SmartTargetReadout({
           </p>
         </div>
         <p className="hidden shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500 min-[390px]:block">
-          {formatRecommendationEvidence(recommendation)}
+          {formatRecommendationSource(recommendation.source)} · {formatRecommendationEvidence(recommendation)}
         </p>
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-3">
@@ -464,11 +475,9 @@ function SmartTargetReadout({
           <p className="truncate text-[11px] leading-snug text-zinc-400">
             {recommendation.reason}
           </p>
-          {(recommendation.confidenceReason || recommendation.blockedReason) && (
-            <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600 min-[390px]:hidden">
-              {recommendation.blockedReason ?? recommendation.confidenceReason}
-            </p>
-          )}
+          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+            {formatRecommendationGuardrail(recommendation)}
+          </p>
         </div>
         {canApply && (
           <button
@@ -817,6 +826,8 @@ function toTrainingHistorySets(sessions: WorkoutSession[]): TrainingHistorySet[]
       prescribedWeight: set.prescribedWeight,
       e1rm: set.e1rm,
       completed: set.completed,
+      skipped: set.skipped,
+      setType: set.setType,
       performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
     }))
   );
@@ -1306,7 +1317,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
         exercise.sets.forEach((set) => {
-          if (!set.completed) return;
+          if (!set.completed || set.skipped) return;
           const weight = Number(set.weight) || 0;
           const displayWeight = weight > 0
             ? convertWeight(weight, set.weightUnit ?? sessionWeightUnit, sessionWeightUnit)
@@ -1329,7 +1340,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
         });
         const bodyweightExercise = isBodyweight(resolvedExerciseName);
         exercise.sets.forEach((set) => {
-          if (!set.completed) return;
+          if (!set.completed || set.skipped) return;
           const weight = Number(set.weight) || 0;
           const reps = set.reps === null || set.reps === undefined ? 8 : Number(set.reps);
           const displayWeight = weight > 0
@@ -1493,7 +1504,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     const history = storage.getWorkoutHistory();
     history.forEach((historySession) => {
       historySession.sets.forEach((set) => {
-        if (!set.completed) return;
+        if (!set.completed || set.skipped) return;
         const exerciseId = set.exerciseId;
         if (!exerciseId) return;
         const reps = Number(set.actualReps) || 0;
@@ -1546,7 +1557,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     session.blocks.forEach((block) => {
       block.exercises.forEach((exercise) => {
         exercise.sets.forEach((set) => {
-          if (!set.completed) return;
+          if (!set.completed || set.skipped) return;
           const reps = set.reps == null ? 8 : Number(set.reps);
           if (!Number.isFinite(reps) || reps <= 0) return;
           const weight = Number(set.weight) || 0;
@@ -1832,8 +1843,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const smartRequestKey = useMemo(() => {
     if (!focusTrainingSet?.setId) return null;
     const completedKey = sessionTrainingSets
-      .filter((set) => set.completed)
-      .map((set) => `${set.setId}:${set.weight}:${set.reps}:${set.rpe}`)
+      .filter((set) => set.completed && !set.skipped)
+      .map((set) => `${set.setId}:${set.weight}:${set.reps}:${set.rpe}:${set.skipped ? 'skip' : 'done'}`)
       .join(',');
     return [
       focusTrainingSet.setId,
@@ -2401,20 +2412,22 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
         });
         const bodyweightExercise = isBodyweight(resolvedExerciseName);
         exercise.sets.forEach((set, index) => {
+          const explicitSkipped = set.skipped === true;
           const rawReps = set.reps === null || set.reps === undefined ? null : Number(set.reps);
           const reps = rawReps == null ? 8 : rawReps;
           const weight = Number(set.weight) || 0;
           const setWeightUnit = set.weightUnit ?? sessionWeightUnit;
           const weightLbs = weight > 0 ? convertWeight(weight, setWeightUnit, 'lbs') : 0;
-          const volumeLoad = weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
-          const e1rm =
-            weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
           const touched = set.touchedWeight || set.touchedReps || set.touchedRpe;
           const hasMeaningfulInput = (rawReps != null && rawReps > 0) || weight > 0 || set.rpe != null;
-          const autoCompleted = !set.skipped && set.completed !== true && touched && hasMeaningfulInput;
+          const autoCompleted = !explicitSkipped && set.completed !== true && touched && hasMeaningfulInput;
           if (autoCompleted) {
             autoCompletedSets += 1;
           }
+          const completed = !explicitSkipped && (set.completed === true || autoCompleted);
+          const skipped = explicitSkipped || !completed;
+          const actualVolumeLoad = completed && weightLbs > 0 && reps > 0 ? weightLbs * reps : null;
+          const actualE1rm = completed && weight > 0 && reps > 0 ? rpeAdjusted1RM(weight, reps, set.rpe ?? null) : null;
 
           sets.push({
             id: set.id,
@@ -2429,15 +2442,16 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             prescribedRIR: set.prescribedRIR ?? null,
             prescribedPercentage: set.prescribedPercentage ?? null,
             prescribedWeight: set.prescribedWeight ?? null,
-            actualWeight: weight || null,
+            actualWeight: skipped ? null : weight || null,
             weightUnit: setWeightUnit,
             loadType: bodyweightExercise && weight === 0 ? 'bodyweight' : 'absolute',
-            actualReps: reps,
-            actualRPE: set.rpe ?? null,
+            actualReps: skipped ? null : reps,
+            actualRPE: skipped ? null : set.rpe ?? null,
             notes: set.notes?.trim() || undefined,
-            completed: !set.skipped && (set.completed === true || autoCompleted),
-            e1rm: e1rm ? Math.round(e1rm) : null,
-            volumeLoad,
+            completed,
+            skipped,
+            e1rm: actualE1rm ? Math.round(actualE1rm) : null,
+            volumeLoad: actualVolumeLoad,
             setType: set.cluster ? 'cluster' : mapSetType(set.type),
             tempo: set.tempo ?? undefined,
             supersetGroup: set.supersetGroup ?? (block.type === 'superset' ? block.id : undefined),
@@ -2453,7 +2467,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       });
     });
 
-    const completedSets = sets.filter((set) => set.completed);
+    const completedSets = sets.filter((set) => set.completed && !set.skipped);
     const totalVolumeLoad = completedSets.reduce((sum, set) => sum + (set.volumeLoad ?? 0), 0);
     const completedRpeValues = completedSets
       .map((set) => set.actualRPE)
@@ -2539,7 +2553,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       const buildResult = buildWorkoutSession();
       builtSession = buildResult.payload;
       autoCompletedSets = buildResult.autoCompletedSets;
-      completedSetsSent = builtSession.sets.filter((set) => set.completed).length;
+      completedSetsSent = builtSession.sets.filter((set) => set.completed && !set.skipped).length;
 
       const criticalPathStartedAt = Date.now();
       const saveResult = await withTimeout(
@@ -3053,7 +3067,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                   ? `${repsValue}`
                                   : repsValue.toFixed(1);
                                 let label = `Set ${index + 1}`;
-                                if (set.completed) {
+                                if (set.skipped) {
+                                  label = 'Skipped';
+                                } else if (set.completed) {
                                   if (bodyweightExercise && weightValue === 0) {
                                     label = repsValue > 0 ? `BW × ${displayReps}` : 'BW';
                                   } else if (weightValue > 0) {
@@ -3071,8 +3087,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                       event.stopPropagation();
                                       handleOpenFocus(entry, set.id);
                                     }}
-                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.completed
-                                      ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.skipped
+                                      ? 'border-amber-500/50 bg-amber-500/10 font-bold uppercase text-amber-300'
+                                      : set.completed
+                                        ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
                                       : 'border-zinc-800 bg-zinc-900 text-zinc-600'
                                       }`}
                                   >
@@ -3678,7 +3696,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 }
 
                 return logs.map((session) => {
-                  const daySets = session.sets.filter(s => s.exerciseId === focusedRef.exercise.id && s.completed);
+                  const daySets = session.sets.filter(s => s.exerciseId === focusedRef.exercise.id && s.completed && !s.skipped);
                   if (daySets.length === 0) return null;
 
                   return (

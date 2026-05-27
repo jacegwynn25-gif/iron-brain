@@ -193,7 +193,7 @@ function calculateExerciseFatigueCost(sets: SetLog[]): number {
 
   sets.forEach(set => {
     // Skip incomplete sets
-    if (!set.completed || !set.actualWeight || !set.actualReps) return;
+    if (!set.completed || set.skipped || !set.actualWeight || !set.actualReps) return;
 
     // Base fatigue from volume and intensity
     const weightLbs = convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs');

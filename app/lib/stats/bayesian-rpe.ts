@@ -79,7 +79,7 @@ export function analyzeBayesianRPE(
   historicalProfile: RPECalibrationProfile | null
 ): BayesianRPEAnalysis {
   const validSets = currentSets.filter(
-    s => s.prescribedRPE != null && s.actualRPE != null && s.completed
+    s => s.prescribedRPE != null && s.actualRPE != null && s.completed && !s.skipped
   );
 
   if (validSets.length === 0) {

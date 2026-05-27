@@ -106,7 +106,7 @@ function assessFatigueWithHierarchicalModel(
   completedSets: SetLog[],
   hierarchicalModel: HierarchicalFatigueModel
 ): EnhancedFatigueAssessment {
-  const setsCompleted = completedSets.filter(s => s.completed).length;
+  const setsCompleted = completedSets.filter(s => s.completed && !s.skipped).length;
 
   // 1. Get personalized prediction for next set
   const nextSetPrediction = predictFatigueNextSet(

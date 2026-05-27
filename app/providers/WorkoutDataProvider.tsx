@@ -216,7 +216,8 @@ export function WorkoutDataProvider({ children }: WorkoutDataProviderProps) {
               actual_seconds,
               notes,
               performed_at,
-              completed
+              completed,
+              skipped
             )
           `)
           .eq('user_id', userId)
@@ -431,6 +432,7 @@ function transformCloudWorkouts(sessions: Array<{
     actual_seconds: number | null;
     notes: string | null;
     performed_at: string | null;
+    skipped: boolean | null;
   }>;
 }>, catalog: ExerciseCatalog): WorkoutSession[] {
   return sessions.map((s) => {
@@ -468,20 +470,21 @@ function transformCloudWorkouts(sessions: Array<{
             prescribedRIR: set.prescribed_rir ?? undefined,
             prescribedPercentage: set.prescribed_percentage ?? undefined,
             prescribedWeight: set.prescribed_weight ?? undefined,
-            actualWeight: set.actual_weight ?? undefined,
+            actualWeight: set.skipped === true ? undefined : set.actual_weight ?? undefined,
             weightUnit: (set.weight_unit === 'kg' ? 'kg' : 'lbs') as 'lbs' | 'kg',
-            actualReps: set.actual_reps ?? undefined,
-            actualRPE: set.actual_rpe ?? undefined,
-            actualRIR: set.actual_rir ?? undefined,
-            e1rm: set.e1rm ?? undefined,
-            volumeLoad: set.volume_load ?? undefined,
+            actualReps: set.skipped === true ? undefined : set.actual_reps ?? undefined,
+            actualRPE: set.skipped === true ? undefined : set.actual_rpe ?? undefined,
+            actualRIR: set.skipped === true ? undefined : set.actual_rir ?? undefined,
+            e1rm: set.skipped === true ? undefined : set.e1rm ?? undefined,
+            volumeLoad: set.skipped === true ? undefined : set.volume_load ?? undefined,
             setType: normalizeSetType(set.set_type),
             tempo: set.tempo ?? undefined,
             restTakenSeconds: set.rest_seconds ?? undefined,
             setDurationSeconds: set.actual_seconds ?? undefined,
             notes: set.notes ?? undefined,
             timestamp: set.performed_at ?? undefined,
-            completed: set.completed !== false,
+            completed: set.completed === true && set.skipped !== true,
+            skipped: set.skipped === true,
           };
         }),
     };

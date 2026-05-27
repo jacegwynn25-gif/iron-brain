@@ -105,6 +105,7 @@ export interface TrainingHistorySet {
   workoutSessionId?: string | null;
   exerciseId?: string | null;
   exerciseName?: string | null;
+  setIndex?: number | null;
   actualWeight?: number | null;
   weightUnit?: WeightUnit | string | null;
   actualReps?: number | null;
@@ -117,6 +118,8 @@ export interface TrainingHistorySet {
   prescribedWeight?: number | null;
   e1rm?: number | null;
   completed?: boolean | null;
+  skipped?: boolean | null;
+  setType?: string | null;
   performedAt?: string | null;
 }
 
@@ -190,7 +193,9 @@ type LocalLoadPressureSignal = {
 };
 
 const LBS_INCREMENT = 5;
-const KG_INCREMENT = 0.25;
+const KG_INCREMENT = 2.5;
+const SMALL_LBS_INCREMENT = 2.5;
+const SMALL_KG_INCREMENT = 1;
 const DEFAULT_WEIGHT_UNIT: WeightUnit = 'lbs';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LOAD_SPIKE_WATCH_RATIO = 1.35;
@@ -236,10 +241,40 @@ function normalizeUnit(unit: WeightUnit | string | null | undefined, fallback: W
   return unit === 'kg' || unit === 'lbs' ? unit : fallback;
 }
 
+function inferEquipmentKind(value: string | null | undefined): 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'unknown' {
+  const lower = (value ?? '').toLowerCase();
+  if (/\b(bodyweight|pull[-\s]?up|chin[-\s]?up|push[-\s]?up|dip|plank|crunch|sit[-\s]?up)\b/.test(lower)) return 'bodyweight';
+  if (/\b(db|dumbbell|dumbbells)\b/.test(lower)) return 'dumbbell';
+  if (/\b(cable|pulldown|pushdown|pressdown)\b/.test(lower)) return 'cable';
+  if (/\b(machine|smith|hack squat|leg press|pec deck)\b/.test(lower)) return 'machine';
+  if (/\b(bb|barbell|ez bar|trap bar|t bar|landmine|squat|deadlift|bench|row|press)\b/.test(lower)) return 'barbell';
+  return 'unknown';
+}
+
+function recommendationWeightIncrement(unit: WeightUnit, set?: Pick<TrainingSetInput, 'exerciseId' | 'exerciseName'> | null): number {
+  const equipment = inferEquipmentKind(set?.exerciseName) !== 'unknown'
+    ? inferEquipmentKind(set?.exerciseName)
+    : inferEquipmentKind(set?.exerciseId);
+  if (unit === 'kg') {
+    return equipment === 'dumbbell' || equipment === 'machine' || equipment === 'cable'
+      ? SMALL_KG_INCREMENT
+      : KG_INCREMENT;
+  }
+  return equipment === 'dumbbell' || equipment === 'machine' || equipment === 'cable'
+    ? SMALL_LBS_INCREMENT
+    : LBS_INCREMENT;
+}
+
 export function roundRecommendationWeight(value: number, unit: WeightUnit): number {
   const increment = unit === 'kg' ? KG_INCREMENT : LBS_INCREMENT;
   const rounded = Math.round(value / increment) * increment;
   return unit === 'kg' ? Number(rounded.toFixed(2)) : Math.round(rounded);
+}
+
+function roundSetWeight(value: number, unit: WeightUnit, set?: Pick<TrainingSetInput, 'exerciseId' | 'exerciseName'> | null): number {
+  const increment = recommendationWeightIncrement(unit, set);
+  const rounded = Math.round(value / increment) * increment;
+  return unit === 'kg' || !Number.isInteger(increment) ? Number(rounded.toFixed(2)) : Math.round(rounded);
 }
 
 function formatWeight(value: number | null | undefined, unit: WeightUnit | string | null | undefined): string {
@@ -321,30 +356,38 @@ function representativeHistoryWeight(
   return roundRecommendationWeight(converted, unit);
 }
 
-function representativeSessionWeight(
-  entry: TrainingSetInput,
-  targetReps: number | null,
-  unit: WeightUnit
-): number | null {
-  const rawWeight = positiveNumber(entry.weight);
-  if (rawWeight == null) return null;
-
-  const sourceUnit = normalizeUnit(entry.weightUnit, unit);
-  const actualReps = positiveNumber(entry.reps);
-  const e1rm = e1rmFromLoad(rawWeight, actualReps);
-  const shouldEstimateFromE1rm =
-    e1rm != null &&
-    targetReps != null &&
-    actualReps != null &&
-    Math.abs(targetReps - actualReps) >= 2;
-  const rawTargetWeight = shouldEstimateFromE1rm ? e1rm / (1 + targetReps / 30) : rawWeight;
-  const converted = sourceUnit === unit ? rawTargetWeight : convertWeight(rawTargetWeight, sourceUnit, unit);
-  return roundRecommendationWeight(converted, unit);
-}
-
 function isLoadAdjustableSet(set: TrainingSetInput): boolean {
   const type = (set.type ?? '').toLowerCase();
   return type !== 'warmup';
+}
+
+function isLoadAdjustableHistorySet(set: TrainingHistorySet): boolean {
+  const type = (set.setType ?? '').toLowerCase();
+  return type !== 'warmup';
+}
+
+function isPerformedTrainingSet(
+  set: TrainingSetInput | null | undefined,
+  options: { requireLoad?: boolean; allowWarmup?: boolean } = {}
+): set is TrainingSetInput {
+  if (!set || set.completed !== true || set.skipped === true) return false;
+  if (!options.allowWarmup && !isLoadAdjustableSet(set)) return false;
+  const reps = positiveNumber(set.reps);
+  if (reps == null) return false;
+  if (options.requireLoad && positiveNumber(set.weight) == null) return false;
+  return true;
+}
+
+function isPerformedHistorySet(
+  set: TrainingHistorySet | null | undefined,
+  options: { requireLoad?: boolean; allowWarmup?: boolean } = {}
+): set is TrainingHistorySet {
+  if (!set || set.completed !== true || set.skipped === true) return false;
+  if (!options.allowWarmup && !isLoadAdjustableHistorySet(set)) return false;
+  const reps = positiveNumber(set.actualReps);
+  if (reps == null) return false;
+  if (options.requireLoad && positiveNumber(set.actualWeight) == null) return false;
+  return true;
 }
 
 function isBodyweightOnlySet(set: TrainingSetInput): boolean {
@@ -369,6 +412,30 @@ function timestampMs(value: string | null | undefined): number {
 function daysBetween(nowMs: number, thenMs: number): number {
   if (!thenMs) return Number.POSITIVE_INFINITY;
   return Math.max(0, (nowMs - thenMs) / MS_PER_DAY);
+}
+
+function historyDedupKey(set: TrainingHistorySet): string {
+  if (set.id) return `id:${set.id}`;
+  return [
+    set.workoutSessionId ?? 'session',
+    set.exerciseId ?? 'exercise',
+    set.setIndex ?? 'set',
+    set.performedAt ?? 'time',
+    set.actualWeight ?? 'weight',
+    set.actualReps ?? 'reps',
+  ].join('|');
+}
+
+function getHistorySets(input: TrainingRecommendationInput): TrainingHistorySet[] {
+  const seen = new Set<string>();
+  const history: TrainingHistorySet[] = [];
+  for (const set of input.historySets ?? []) {
+    const key = historyDedupKey(set);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    history.push(set);
+  }
+  return history;
 }
 
 function average(values: number[]): number | null {
@@ -497,15 +564,15 @@ function readinessModifier(input: TrainingRecommendationInput): number {
 
 function getDirectHistory(input: TrainingRecommendationInput, exerciseId?: string | null): TrainingHistorySet[] {
   if (!exerciseId) return [];
-  return (input.historySets ?? [])
-    .filter((set) => set.completed !== false && set.exerciseId === exerciseId)
+  return getHistorySets(input)
+    .filter((set) => isPerformedHistorySet(set) && set.exerciseId === exerciseId)
     .sort((a, b) => {
       return timestampMs(b.performedAt) - timestampMs(a.performedAt);
     });
 }
 
 function historyWithLoad(history: TrainingHistorySet[]): TrainingHistorySet[] {
-  return history.filter((entry) => positiveNumber(entry.actualWeight) != null);
+  return history.filter((entry) => isPerformedHistorySet(entry, { requireLoad: true }));
 }
 
 function inferMovementFamily(value: string | null | undefined): string | null {
@@ -541,10 +608,9 @@ function getSimilarHistory(input: TrainingRecommendationInput, set: TrainingSetI
   const targetFamily = movementFamilyForSet(set);
   if (!targetFamily) return [];
 
-  return (input.historySets ?? [])
+  return getHistorySets(input)
     .filter((entry) => {
-      if (entry.completed === false || entry.exerciseId === set.exerciseId) return false;
-      if (positiveNumber(entry.actualWeight) == null) return false;
+      if (!isPerformedHistorySet(entry, { requireLoad: true }) || entry.exerciseId === set.exerciseId) return false;
 
       return movementFamilyForHistory(entry) === targetFamily;
     })
@@ -554,6 +620,7 @@ function getSimilarHistory(input: TrainingRecommendationInput, set: TrainingSetI
 }
 
 function historyLoadScore(entry: TrainingHistorySet): number | null {
+  if (!isPerformedHistorySet(entry, { requireLoad: true })) return null;
   const reps = historyReps(entry);
   if (reps == null) return null;
 
@@ -569,6 +636,7 @@ function historyLoadScore(entry: TrainingHistorySet): number | null {
 }
 
 function historyE1rmLbs(entry: TrainingHistorySet): number | null {
+  if (!isPerformedHistorySet(entry, { requireLoad: true })) return null;
   const explicit = positiveNumber(entry.e1rm);
   if (explicit != null) return explicit;
   const reps = historyReps(entry);
@@ -592,14 +660,14 @@ function localLoadPressure(input: TrainingRecommendationInput, set: TrainingSetI
   }
 
   const nowMs = Date.now();
-  const familyHistory = (input.historySets ?? [])
+  const familyHistory = getHistorySets(input)
     .map((entry) => {
       const performedAt = timestampMs(entry.performedAt);
       const load = historyLoadScore(entry);
       return { entry, performedAt, load };
     })
     .filter(({ entry, performedAt, load }) => {
-      if (entry.completed === false || performedAt === 0 || load == null || load <= 0) return false;
+      if (!isPerformedHistorySet(entry, { requireLoad: true }) || performedAt === 0 || load == null || load <= 0) return false;
       const ageDays = daysBetween(nowMs, performedAt);
       return ageDays <= 35 && movementFamilyForHistory(entry) === targetFamily;
     });
@@ -761,7 +829,7 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
   const sets = input.sessionSets ?? [];
   for (let index = sets.length - 1; index >= 0; index -= 1) {
     const set = sets[index];
-    if (set.exerciseId === exerciseId && set.completed && !set.skipped && isLoadAdjustableSet(set)) {
+    if (set.exerciseId === exerciseId && isPerformedTrainingSet(set, { requireLoad: true })) {
       return set;
     }
   }
@@ -771,16 +839,16 @@ function findRecentSessionSet(input: TrainingRecommendationInput, exerciseId?: s
 function completedSessionSetCount(input: TrainingRecommendationInput, exerciseId?: string | null): number {
   if (!exerciseId) return 0;
   return (input.sessionSets ?? []).filter((set) =>
-    set.exerciseId === exerciseId && set.completed && !set.skipped && isLoadAdjustableSet(set)
+    set.exerciseId === exerciseId && isPerformedTrainingSet(set)
   ).length;
 }
 
 function loadPressureEvidenceCount(input: TrainingRecommendationInput, set?: TrainingSetInput | null): number {
   const nowMs = Date.now();
   const targetFamily = set ? movementFamilyForSet(set) : null;
-  return (input.historySets ?? []).filter((entry) => {
+  return getHistorySets(input).filter((entry) => {
     const performedAt = timestampMs(entry.performedAt);
-    if (entry.completed === false || performedAt === 0 || historyLoadScore(entry) == null) return false;
+    if (!isPerformedHistorySet(entry, { requireLoad: true }) || performedAt === 0 || historyLoadScore(entry) == null) return false;
     if (daysBetween(nowMs, performedAt) > 35) return false;
     return targetFamily ? movementFamilyForHistory(entry) === targetFamily : true;
   }).length;
@@ -945,12 +1013,13 @@ function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetIn
 
 function currentSessionLoad(input: TrainingRecommendationInput, set: TrainingSetInput, unit: WeightUnit): BaseLoad | null {
   const latestSessionSet = findRecentSessionSet(input, set.exerciseId);
-  const targetReps = targetRepsForSet(set);
-  const weight = latestSessionSet ? representativeSessionWeight(latestSessionSet, targetReps, unit) : null;
-  if (weight == null) return null;
+  const rawWeight = positiveNumber(latestSessionSet?.weight);
+  if (!latestSessionSet || rawWeight == null) return null;
+  const sourceUnit = normalizeUnit(latestSessionSet.weightUnit, unit);
+  const converted = sourceUnit === unit ? rawWeight : convertWeight(rawWeight, sourceUnit, unit);
 
   return {
-    weight,
+    weight: roundSetWeight(converted, unit, set),
     unit,
     source: 'session_fatigue',
     confidence: 'high',
@@ -1039,7 +1108,7 @@ function fatigueModifier(input: TrainingRecommendationInput, set: TrainingSetInp
   const targetReps = targetRepsForSet(set);
   const latestSessionSet = findRecentSessionSet(input, set.exerciseId);
   const completedSessionSets = (input.sessionSets ?? [])
-    .filter((entry) => entry.exerciseId === set.exerciseId && entry.completed && !entry.skipped)
+    .filter((entry) => entry.exerciseId === set.exerciseId && isPerformedTrainingSet(entry))
     .slice(-4);
 
   if (latestSessionSet) {
@@ -1172,13 +1241,15 @@ function fatigueModifier(input: TrainingRecommendationInput, set: TrainingSetInp
 function buildSetRecommendation(input: TrainingRecommendationInput, set: TrainingSetInput): TrainingRecommendation {
   const unit = normalizeUnit(set.weightUnit, input.weightUnit);
   const base = resolveBaseLoad(input, set, unit);
+  const anchoredToCurrentSession = base.basis === 'current_session';
   const canAdjustSet = isLoadAdjustableSet(set);
   const canAdjustLoad = canAdjustSet && !isBodyweightOnlySet(set);
   const targetRpe = targetRpeForSet(set);
+  const rawReadiness = readinessModifier(input);
   const readiness = canAdjustLoad
-    ? isProgressionTarget(targetRpe)
-      ? readinessModifier(input)
-      : Math.min(1, readinessModifier(input))
+    ? anchoredToCurrentSession || !isProgressionTarget(targetRpe)
+      ? Math.min(1, rawReadiness)
+      : rawReadiness
     : 1;
   const fatigue = canAdjustSet ? fatigueModifier(input, set) : {
     modifier: 1,
@@ -1204,8 +1275,9 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   const readinessScore = finiteNumber(input.readiness?.score);
   const hasManualReadiness = input.readiness?.source?.toLowerCase() === 'manual';
   const lowReadinessBlocksIncrease = hasManualReadiness && readinessScore != null && readinessScore < 70;
+  const pressureModifier = anchoredToCurrentSession ? Math.min(1, pressure.modifier) : pressure.modifier;
   let combinedModifier = modifierCapForConfidence(
-    readiness * fatigue.modifier * pressure.modifier,
+    readiness * fatigue.modifier * pressureModifier,
     confidence,
     hasExplicitPrescription
   );
@@ -1214,7 +1286,7 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
   }
   const baseWeight = base.weight;
   const suggestedWeight = baseWeight != null && canAdjustLoad
-    ? roundRecommendationWeight(baseWeight * combinedModifier, unit)
+    ? roundSetWeight(baseWeight * combinedModifier, unit, set)
     : canAdjustSet ? null : baseWeight;
   const currentWeight = positiveNumber(set.weight);
   const delta = baseWeight && suggestedWeight ? (suggestedWeight - baseWeight) / baseWeight : 0;
@@ -1231,10 +1303,11 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
       : targetReps;
   const shouldApplyWeight =
     canAdjustLoad &&
+    confidence !== 'low' &&
     set.touchedWeight !== true &&
     base.basis !== 'similar_history' &&
     suggestedWeight != null &&
-    (currentWeight == null || Math.abs(suggestedWeight - currentWeight) >= (unit === 'kg' ? KG_INCREMENT : LBS_INCREMENT));
+    (currentWeight == null || Math.abs(suggestedWeight - currentWeight) >= recommendationWeightIncrement(unit, set));
   const shouldApplyReps =
     set.touchedReps !== true &&
     suggestedReps != null &&
@@ -1283,7 +1356,7 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
         ? 'Reps were edited manually, so Iron Brain will not overwrite them.'
         : base.basis === 'similar_history' && suggestedWeight != null
           ? 'Similar-movement load is read-only until direct history exists.'
-          : lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressure.modifier > 1
+          : lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressureModifier > 1
             ? 'Low readiness blocks load increases today.'
             : undefined;
   const reasons: string[] = [];
@@ -1311,7 +1384,7 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
       reasons.push(`Readiness is ${Math.round(readinessScore)}, so load is nudged ${readiness < 1 ? 'down' : 'up'}.`);
     }
 
-    if (lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressure.modifier > 1) {
+    if (lowReadinessBlocksIncrease && readiness * fatigue.modifier * pressureModifier > 1) {
       reasons.push('Readiness is below 70, so load increases are blocked today.');
     }
 
@@ -1385,7 +1458,7 @@ function buildSetRecommendation(input: TrainingRecommendationInput, set: Trainin
 }
 
 function buildSessionRecommendation(input: TrainingRecommendationInput): TrainingRecommendation | null {
-  const completed = (input.sessionSets ?? []).filter((set) => set.completed && !set.skipped && isLoadAdjustableSet(set));
+  const completed = (input.sessionSets ?? []).filter((set) => isPerformedTrainingSet(set));
   if (completed.length < 3) return null;
 
   const rpes = completed.map((set) => finiteNumber(set.rpe)).filter((value): value is number => value != null);
@@ -1400,7 +1473,7 @@ function buildSessionRecommendation(input: TrainingRecommendationInput): Trainin
   const avgTargetGap = average(targetGaps);
   const readinessScore = finiteNumber(input.readiness?.score);
   const hasManualReadiness = input.readiness?.source?.toLowerCase() === 'manual';
-  const pressure = globalLoadPressure(input.historySets ?? []);
+  const pressure = globalLoadPressure(getHistorySets(input).filter((set) => isPerformedHistorySet(set)));
 
   if (
     (avgRpe != null && avgRpe >= 9) ||
@@ -1477,8 +1550,8 @@ export function buildProgramTuneUpRecommendation(input: TrainingRecommendationIn
   if (!input.program) return null;
 
   const nowMs = Date.now();
-  const history = (input.historySets ?? [])
-    .filter((set) => set.completed !== false)
+  const history = getHistorySets(input)
+    .filter((set) => isPerformedHistorySet(set))
     .sort((a, b) => timestampMs(b.performedAt) - timestampMs(a.performedAt));
   const recentHistory = history.filter((set) => {
     const performedAt = timestampMs(set.performedAt);
