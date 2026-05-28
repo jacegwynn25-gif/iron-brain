@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  Activity,
+  CalendarDays,
+  ClipboardCheck,
+  Dumbbell,
   HeartHandshake,
   Settings,
   Sparkles,
@@ -18,7 +22,11 @@ import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 import { useWorkoutDataContext } from '@/app/providers/WorkoutDataProvider';
 import { useAuth } from '@/app/lib/supabase/auth-context';
+import { useProgramContext } from '@/app/providers/ProgramProvider';
+import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '@/app/lib/programs/progress';
+import { calculateSetVolumeLbs, isPerformedSetLog } from '@/app/lib/stats/set-metrics';
 import { AuthModal } from './Auth';
+import type { DayTemplate, ProgramTemplate, WorkoutSession } from '@/app/lib/types';
 
 function toLocalDateKey(value?: string | null): string | null {
   if (!value) return null;
@@ -30,14 +38,70 @@ function toLocalDateKey(value?: string | null): string | null {
   return `${year}-${month}-${day}`;
 }
 
+function getWorkoutTime(workout: WorkoutSession): number {
+  const raw = workout.endTime || workout.startTime || workout.date;
+  const parsed = raw ? Date.parse(raw.includes('T') ? raw : `${raw}T12:00:00`) : NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatRelativeDate(value?: string | null): string {
+  const dateKey = toLocalDateKey(value);
+  if (!dateKey) return 'No date';
+  const date = new Date(`${dateKey}T12:00:00`);
+  const today = new Date();
+  const todayKey = toLocalDateKey(today.toISOString());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayKey = toLocalDateKey(yesterday.toISOString());
+
+  if (dateKey === todayKey) return 'Today';
+  if (dateKey === yesterdayKey) return 'Yesterday';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatCompactNumber(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
+  if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
+  if (value >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return Math.round(value).toLocaleString();
+}
+
+function countDayWork(day: DayTemplate | null): { movementCount: number; setCount: number } {
+  if (!day) return { movementCount: 0, setCount: 0 };
+
+  const blockMovementCount = day.blocks?.reduce((sum, block) => sum + block.exercises.length, 0) ?? 0;
+  const blockSetCount =
+    day.blocks?.reduce(
+      (sum, block) => sum + block.exercises.reduce((exerciseSum, exercise) => exerciseSum + exercise.sets.length, 0),
+      0
+    ) ?? 0;
+
+  if (blockSetCount > 0 || blockMovementCount > 0) {
+    return { movementCount: blockMovementCount, setCount: blockSetCount };
+  }
+
+  const legacySets = day.sets ?? [];
+  const movementIds = new Set(legacySets.map((set) => set.exerciseId).filter(Boolean));
+  return {
+    movementCount: movementIds.size || (legacySets.length > 0 ? 1 : 0),
+    setCount: legacySets.length,
+  };
+}
+
+function buildPlannedSessionHref(program: ProgramTemplate, progress: ProgramProgress): string {
+  return `/workout/new?program_id=${encodeURIComponent(program.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`;
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { readiness, loading, error, lastUpdated } = useRecoveryState();
+  const { readiness, loading: readinessLoading, error, lastUpdated } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
   const { workouts, loading: workoutsLoading } = useWorkoutDataContext();
+  const { selectedProgram, loading: programsLoading } = useProgramContext();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
   const [localProfileResolved, setLocalProfileResolved] = useState(false);
   const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
+  const namespaceId = user?.id ?? 'guest';
 
   const workoutDates = useMemo(() => {
     const dates = new Set<string>();
@@ -91,6 +155,111 @@ export default function Dashboard() {
     return Array.from(grouped.entries()).map(([label, count]) => ({ label, count }));
   }, [recentPrHits]);
 
+  const selectedProgramProgress = useMemo(() => {
+    if (!selectedProgram) return null;
+    return getProgramProgress(selectedProgram, namespaceId);
+  }, [namespaceId, selectedProgram]);
+
+  const nextProgramSession = useMemo(() => {
+    if (!selectedProgram || !selectedProgramProgress) return null;
+    const resolved = resolveProgramDay(selectedProgram, selectedProgramProgress);
+    const work = countDayWork(resolved.day);
+
+    return {
+      program: selectedProgram,
+      progress: selectedProgramProgress,
+      resolved,
+      work,
+      href: buildPlannedSessionHref(selectedProgram, selectedProgramProgress),
+    };
+  }, [selectedProgram, selectedProgramProgress]);
+
+  const latestWorkout = useMemo(
+    () => [...workouts].sort((a, b) => getWorkoutTime(b) - getWorkoutTime(a))[0] ?? null,
+    [workouts]
+  );
+
+  const trainingPulse = useMemo(() => {
+    const now = Date.now();
+    const windowMs = 14 * 24 * 60 * 60 * 1000;
+    const recent = workouts.filter((workout) => {
+      const time = getWorkoutTime(workout);
+      return time > 0 && now - time <= windowMs;
+    });
+    const completedSets = recent.flatMap((workout) =>
+      workout.sets.filter((set) => isPerformedSetLog(set, { allowWarmup: true }))
+    );
+    const volume = completedSets.reduce((sum, set) => sum + (calculateSetVolumeLbs(set) ?? 0), 0);
+    const lastCompletedSets =
+      latestWorkout?.sets.filter((set) => isPerformedSetLog(set, { allowWarmup: true })).length ?? 0;
+
+    return {
+      sessions: recent.length,
+      completedSets: completedSets.length,
+      volume,
+      lastWorkoutName: latestWorkout?.dayName || latestWorkout?.programName || 'No workout yet',
+      lastWorkoutDate: formatRelativeDate(latestWorkout?.endTime || latestWorkout?.date),
+      lastCompletedSets,
+      prCount: recentPrHits.length,
+    };
+  }, [latestWorkout, recentPrHits.length, workouts]);
+
+  const smartAction = useMemo(() => {
+    if (activeSessionReady && isSessionActive) {
+      return {
+        eyebrow: 'Active Session',
+        title: 'Resume the workout in progress',
+        detail: 'Keep the current log alive instead of starting a duplicate session.',
+        href: '/workout/new',
+        label: 'RESUME SESSION',
+        tone: 'amber' as const,
+      };
+    }
+
+    if (readiness?.hasRecoveryInput && readiness.score <= 45) {
+      return {
+        eyebrow: 'Recovery Guardrail',
+        title: 'Review readiness before loading up',
+        detail: readiness.recommendation || 'Today looks constrained. Check in before pushing volume.',
+        href: '/checkin',
+        label: 'CHECK IN',
+        tone: 'rose' as const,
+      };
+    }
+
+    if (nextProgramSession) {
+      const dayName = nextProgramSession.resolved.day?.name ?? 'planned session';
+      return {
+        eyebrow: 'Planned Training',
+        title: `Start ${dayName}`,
+        detail: `${nextProgramSession.program.name} / Week ${nextProgramSession.resolved.weekNumber}, Day ${nextProgramSession.resolved.dayIndex + 1}`,
+        href: nextProgramSession.href,
+        label: 'START PLANNED',
+        tone: 'emerald' as const,
+      };
+    }
+
+    if (!readinessLoading && !readiness?.hasRecoveryInput) {
+      return {
+        eyebrow: 'Missing Readiness',
+        title: 'Check in before the next hard session',
+        detail: 'A quick readiness entry gives the target engine better guardrails.',
+        href: '/checkin',
+        label: 'CHECK IN',
+        tone: 'zinc' as const,
+      };
+    }
+
+    return {
+      eyebrow: 'Open Session',
+      title: 'Start training',
+      detail: 'Pick a program day or begin an empty log.',
+      href: '/start',
+      label: 'START',
+      tone: 'emerald' as const,
+    };
+  }, [activeSessionReady, isSessionActive, nextProgramSession, readiness, readinessLoading]);
+
   const dismissPrSummary = () => {
     setRecentPrHits([]);
     if (typeof window !== 'undefined') {
@@ -98,8 +267,8 @@ export default function Dashboard() {
     }
   };
 
-  const showReadiness = loading || Boolean(readiness);
-  const showSystemFooter = lastUpdated && !loading && Boolean(readiness?.hasRecoveryInput);
+  const showReadiness = readinessLoading || Boolean(readiness);
+  const showSystemFooter = lastUpdated && !readinessLoading && Boolean(readiness?.hasRecoveryInput);
   const showFreshUserAuthPrompt =
     localProfileResolved &&
     !authLoading &&
@@ -108,7 +277,7 @@ export default function Dashboard() {
     !hasPriorLocalUse;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3 pb-4 pt-2 sm:space-y-7 sm:pt-8">
+    <div className="mx-auto w-full max-w-5xl space-y-3 pb-24 pt-2 sm:space-y-5 sm:pt-8">
       {showFreshUserAuthPrompt && (
         <AuthModal
           hideClose
@@ -179,44 +348,197 @@ export default function Dashboard() {
         </section>
       )}
 
+      <section data-testid="dashboard-command-center" className="surface-card stagger-item mx-1 overflow-hidden">
+        <div className="border-b border-zinc-900/80 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-400/80">Training Command</p>
+              <h2 className="mt-1 text-2xl font-black italic leading-none text-zinc-100 sm:text-3xl">
+                {activeSessionReady && isSessionActive ? 'Live Session' : 'Today'}
+              </h2>
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-emerald-300">
+              <Activity className="h-5 w-5" />
+            </div>
+          </div>
+        </div>
+
+        <div data-testid="dashboard-smart-action" className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${
+                smartAction.tone === 'rose'
+                  ? 'text-rose-300'
+                  : smartAction.tone === 'amber'
+                    ? 'text-amber-300'
+                    : smartAction.tone === 'zinc'
+                      ? 'text-zinc-400'
+                      : 'text-emerald-300'
+              }`}>
+                Smart Action / {smartAction.eyebrow}
+              </p>
+              <h3 className="mt-1 text-lg font-black italic leading-tight text-zinc-100 sm:text-xl">
+                {smartAction.title}
+              </h3>
+              <p className="mt-1 max-w-2xl text-xs font-medium leading-5 text-zinc-500 sm:text-sm">
+                {smartAction.detail}
+              </p>
+            </div>
+            <Link
+              href={smartAction.href}
+              className={`group inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black italic tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                smartAction.tone === 'rose'
+                  ? 'bg-rose-500 shadow-lg shadow-rose-500/15'
+                  : smartAction.tone === 'amber'
+                    ? 'bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/15'
+                    : smartAction.tone === 'zinc'
+                      ? 'border border-zinc-700 bg-zinc-900 text-zinc-100'
+                      : 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/15'
+              }`}
+            >
+              {smartAction.label}
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Link
+              href={nextProgramSession?.href ?? '/start'}
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+            >
+              <CalendarDays className="h-4 w-4 text-emerald-300" />
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Planned</p>
+              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">
+                {nextProgramSession ? 'START' : programsLoading ? 'LOADING' : 'PICK PLAN'}
+              </p>
+            </Link>
+            <Link
+              href="/workout/new?type=empty"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+            >
+              <Plus className="h-4 w-4 text-zinc-300" />
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Quick Log</p>
+              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">EMPTY</p>
+            </Link>
+            <Link
+              href="/checkin"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+            >
+              <ClipboardCheck className="h-4 w-4 text-cyan-300" />
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Readiness</p>
+              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">
+                {readiness?.hasRecoveryInput ? `${Math.round(readiness.score)}` : 'CHECK IN'}
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section data-testid="dashboard-next-session" className="surface-card stagger-item mx-1 overflow-hidden">
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-900/80 p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">Next Session</p>
+            <h2 className="mt-1 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
+              {nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading Program' : 'No Program Selected')}
+            </h2>
+            <p className="mt-1 truncate text-xs font-semibold text-zinc-500">
+              {nextProgramSession
+                ? `${nextProgramSession.program.name} / Cycle ${nextProgramSession.resolved.cycleNumber}, Week ${nextProgramSession.resolved.weekNumber}`
+                : 'Choose a program or start an empty session.'}
+            </p>
+          </div>
+          <Link
+            href="/programs"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+            aria-label="Open programs"
+          >
+            <Dumbbell className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-3 divide-x divide-zinc-900 p-0">
+          <div className="px-4 py-3">
+            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Day</p>
+            <p className="mt-1 truncate text-sm font-black italic text-zinc-100">
+              {nextProgramSession?.resolved.day?.dayOfWeek ?? '--'}
+            </p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Movements</p>
+            <p className="mt-1 text-sm font-black italic text-zinc-100">
+              {nextProgramSession ? nextProgramSession.work.movementCount : '--'}
+            </p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Sets</p>
+            <p className="mt-1 text-sm font-black italic text-zinc-100">
+              {nextProgramSession ? nextProgramSession.work.setCount : '--'}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section data-testid="dashboard-training-pulse" className="surface-card stagger-item mx-1 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-zinc-900/80 p-3 sm:p-5">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">Training Pulse</p>
+            <h2 className="mt-1 text-base font-black italic text-zinc-100 sm:text-lg">Last 14 Days</h2>
+          </div>
+          <Link
+            href="/history"
+            className="inline-flex h-8 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 sm:h-9"
+          >
+            History
+          </Link>
+        </div>
+        <div className="grid grid-cols-4 divide-x divide-zinc-900">
+          <div className="min-w-0 p-3 sm:p-4">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
+              <span className="sm:hidden">Sess</span>
+              <span className="hidden sm:inline">Sessions</span>
+            </p>
+            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.sessions}</p>
+          </div>
+          <div className="min-w-0 p-3 sm:p-4">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
+              <span className="sm:hidden">Sets</span>
+              <span className="hidden sm:inline">Completed Sets</span>
+            </p>
+            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.completedSets}</p>
+          </div>
+          <div className="min-w-0 p-3 sm:p-4">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
+              <span className="sm:hidden">Vol</span>
+              <span className="hidden sm:inline">Volume</span>
+            </p>
+            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{formatCompactNumber(trainingPulse.volume)}</p>
+          </div>
+          <div className="min-w-0 p-3 sm:p-4">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
+              <span className="sm:hidden">PR</span>
+              <span className="hidden sm:inline">Recent PR</span>
+            </p>
+            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.prCount}</p>
+          </div>
+        </div>
+        <div className="truncate border-t border-zinc-900/80 px-3 py-2 text-[11px] font-semibold text-zinc-500 sm:px-4 sm:py-3 sm:text-xs">
+          Last workout: <span className="text-zinc-300">{trainingPulse.lastWorkoutName}</span>
+          <span className="text-zinc-700"> / </span>
+          {trainingPulse.lastWorkoutDate}
+          <span className="text-zinc-700"> / </span>
+          {trainingPulse.lastCompletedSets} sets
+        </div>
+      </section>
+
       {/* Readiness Section */}
       {showReadiness && (
         <section className="stagger-item mx-1">
-          <ReadinessCard readiness={readiness} loading={loading} />
+          <ReadinessCard readiness={readiness} loading={readinessLoading} />
         </section>
       )}
 
-      {/* Main Action */}
-      <section className="px-1">
-        <Link
-          href={activeSessionReady && isSessionActive ? "/workout/new" : "/start"}
-          className={`stagger-item group relative flex min-h-14 items-center justify-between overflow-hidden rounded-[1rem] px-4 py-3 transition-all hover:scale-[1.01] active:scale-[0.99] sm:min-h-20 sm:rounded-[1.25rem] sm:px-6 sm:py-5 ${activeSessionReady && isSessionActive
-            ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20'
-            : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20'
-            }`}
-        >
-          <div className="relative z-10 flex items-center gap-3 sm:gap-4">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 backdrop-blur-md sm:h-9 sm:w-9 sm:rounded-xl">
-              <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black italic tracking-normal text-white sm:text-lg">
-                {activeSessionReady && isSessionActive ? "RESUME SESSION" : "START TRAINING"}
-              </h3>
-              <p className="mt-0.5 text-[10px] font-semibold text-white/70 sm:text-xs">
-                {activeSessionReady && isSessionActive ? "Continue the workout in progress" : "Planned session or empty log"}
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="relative z-10 h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
-
-          {/* Decorative background circle */}
-          <div className="absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-white/10 blur-2xl sm:h-24 sm:w-24" />
-        </Link>
-      </section>
-
       {/* Consistency Chart */}
-      <section className="stagger-item mx-1">
+      <section className="stagger-item mx-1 mt-24 sm:mt-0">
         <WeeklyConsistency workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 
