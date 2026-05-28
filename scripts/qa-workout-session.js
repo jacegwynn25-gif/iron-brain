@@ -18,14 +18,7 @@ async function swipeRowLeft(page, row, label) {
   });
 }
 
-(async () => {
-  const browser = await chromium.launch({ channel: 'chrome' });
-  const page = await browser.newPage({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  });
-
+async function installWorkoutQaBootstrap(page) {
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('iron_brain_workout_qa_bootstrapped')) {
       localStorage.clear();
@@ -44,6 +37,116 @@ async function swipeRowLeft(page, row, label) {
       value: (payload) => Boolean(payload?.files?.length),
     });
   });
+}
+
+(async () => {
+  const browser = await chromium.launch({ channel: 'chrome' });
+  let page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  await installWorkoutQaBootstrap(page);
+
+  console.log('▶️  Checking smart workout-start prefill...');
+  await page.goto('http://localhost:3000', { waitUntil: 'load' });
+  await page.evaluate(() => {
+    const now = new Date().toISOString();
+    const program = {
+      id: 'qa_smart_start_program',
+      name: 'QA Smart Start Program',
+      description: 'QA program for smart startup targets',
+      goal: 'strength',
+      experienceLevel: 'intermediate',
+      daysPerWeek: 1,
+      weekCount: 1,
+      intensityMethod: 'rpe',
+      isCustom: true,
+      weeks: [
+        {
+          weekNumber: 1,
+          days: [
+            {
+              dayOfWeek: 'Mon',
+              name: 'Smart Start Day',
+              sets: [
+                {
+                  exerciseId: 'bench_tng',
+                  setIndex: 1,
+                  prescribedReps: '6',
+                  prescriptionMethod: 'rpe',
+                  targetRPE: 8,
+                  fixedWeight: 185,
+                  restSeconds: 120,
+                  setType: 'straight',
+                },
+              ],
+              blocks: [],
+            },
+          ],
+        },
+      ],
+    };
+    const history = [
+      {
+        id: 'qa_smart_start_history',
+        programId: 'qa_history',
+        programName: 'QA History',
+        cycleNumber: 1,
+        weekNumber: 1,
+        dayOfWeek: 'Mon',
+        dayName: 'History Day',
+        date: now.split('T')[0],
+        startTime: now,
+        endTime: now,
+        durationMinutes: 45,
+        sets: [
+          {
+            id: 'qa_bench_history_set',
+            exerciseId: 'bench_tng',
+            exerciseName: 'Bench Press (Touch & Go)',
+            setIndex: 1,
+            prescribedReps: '6',
+            prescribedRPE: 8,
+            actualWeight: 200,
+            weightUnit: 'lbs',
+            actualReps: 6,
+            actualRPE: 8,
+            completed: true,
+            skipped: false,
+            e1rm: 240,
+            volumeLoad: 1200,
+            timestamp: now,
+          },
+        ],
+        totalVolumeLoad: 1200,
+        averageRPE: 8,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+
+    localStorage.clear();
+    sessionStorage.setItem('iron_brain_workout_qa_bootstrapped', 'true');
+    localStorage.setItem('iron_brain_onboarding_complete', 'true');
+    localStorage.setItem('iron_brain_coach_marks_complete', 'true');
+    localStorage.setItem('iron_brain_user_programs__guest', JSON.stringify([program]));
+    localStorage.setItem('iron_brain_selected_program__guest', program.id);
+    localStorage.setItem('iron_brain_workout_history__default', JSON.stringify(history));
+  });
+  await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'networkidle' });
+  await page.getByText(/Bench Press \(Touch & Go\)/i).tap({ timeout: 10000 });
+  await expectVisible(page.getByText(/SMART TARGET/i), 'Smart target card shown for program-start set');
+  await expectVisible(page.getByText(/200 LBS X 6 REPS/i), 'Workout start prefill prefers recent history over stale fixed program weight');
+  await page.getByRole('button', { name: /Back/i }).click();
+  await page.close();
+  page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  await installWorkoutQaBootstrap(page);
 
   console.log('▶️  Opening workout logger...');
   await page.goto(BASE_URL, { waitUntil: 'networkidle' });
