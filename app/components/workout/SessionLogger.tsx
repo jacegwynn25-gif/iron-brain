@@ -65,12 +65,14 @@ import { type ActiveSessionSnapshot } from '@/app/providers/ActiveSessionProvide
 import {
   buildTrainingRecommendations,
   recommendationHasApplyPatch,
-  type TrainingHistorySet,
-  type TrainingPersonalRecord,
   type TrainingRecommendation,
   type TrainingRecommendationInput,
   type TrainingSetInput,
 } from '@/app/lib/intelligence/training-recommendations';
+import {
+  mapLocalPersonalRecordsToTrainingRecords,
+  mapWorkoutHistoryToTrainingHistory,
+} from '@/app/lib/intelligence/training-inputs';
 
 type ViewMode = 'overview' | 'cockpit' | 'rest';
 type InfoPanel = 'set-unit' | 'rpe' | null;
@@ -807,64 +809,9 @@ function toTrainingSetInput(
   };
 }
 
-function toTrainingHistorySets(sessions: WorkoutSession[]): TrainingHistorySet[] {
-  return sessions.flatMap((session) =>
-    session.sets.map((set) => ({
-      id: set.id,
-      workoutSessionId: session.id,
-      exerciseId: set.exerciseId,
-      exerciseName: set.exerciseName,
-      actualWeight: set.actualWeight,
-      weightUnit: set.weightUnit,
-      actualReps: set.actualReps,
-      actualRPE: set.actualRPE,
-      actualRIR: set.actualRIR,
-      prescribedReps: set.prescribedReps,
-      prescribedRPE: set.prescribedRPE,
-      prescribedRIR: set.prescribedRIR,
-      prescribedPercentage: set.prescribedPercentage,
-      prescribedWeight: set.prescribedWeight,
-      e1rm: set.e1rm,
-      completed: set.completed,
-      skipped: set.skipped,
-      setType: set.setType,
-      performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
-    }))
-  );
-}
-
-function getLocalPersonalRecordInputs(exerciseId: string | null | undefined): TrainingPersonalRecord[] {
+function getLocalPersonalRecordInputs(exerciseId: string | null | undefined) {
   if (!exerciseId) return [];
-  const records = storage.getPersonalRecords(exerciseId);
-  if (!records) return [];
-  return [
-    {
-      exerciseId,
-      recordType: 'max_weight',
-      weight: records.maxWeight.weight,
-      reps: records.maxWeight.reps,
-    },
-    {
-      exerciseId,
-      recordType: 'max_reps',
-      weight: records.maxReps.weight,
-      reps: records.maxReps.reps,
-    },
-    {
-      exerciseId,
-      recordType: 'max_e1rm',
-      weight: records.maxE1RM.weight,
-      reps: records.maxE1RM.reps,
-      e1rm: records.maxE1RM.e1rm,
-    },
-    {
-      exerciseId,
-      recordType: 'max_volume',
-      weight: records.maxVolume.weight,
-      reps: records.maxVolume.reps,
-      volume: records.maxVolume.volume,
-    },
-  ];
+  return mapLocalPersonalRecordsToTrainingRecords(exerciseId, storage.getPersonalRecords(exerciseId));
 }
 
 function locateSetForPatch(blocks: Block[], recommendation: TrainingRecommendation) {
@@ -1735,10 +1682,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   }, [focusedRef, focusedSet]);
 
   const nextSetContext = useMemo(() => findSetByActiveCell(session.blocks, session.activeCell), [session.blocks, session.activeCell]);
-  const localHistorySets = useMemo<TrainingHistorySet[]>(() => {
+  const localHistorySets = useMemo(() => {
     void namespaceId;
     if (typeof window === 'undefined') return [];
-    return toTrainingHistorySets(storage.getWorkoutHistory().slice(0, 30));
+    return mapWorkoutHistoryToTrainingHistory(storage.getWorkoutHistory(), { limit: 30 });
   }, [namespaceId]);
   const sessionTrainingSets = useMemo<TrainingSetInput[]>(() => {
     return session.blocks.flatMap((block) =>

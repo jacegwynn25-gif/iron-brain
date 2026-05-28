@@ -4,11 +4,13 @@ import { KG_TO_LBS } from '../units';
 import { storage } from '../storage';
 import {
   buildTrainingRecommendations,
-  type TrainingHistorySet,
-  type TrainingPersonalRecord,
   type TrainingRecommendationInput,
   type TrainingSetInput,
 } from '../intelligence/training-recommendations';
+import {
+  mapLocalPersonalRecordsToTrainingRecords,
+  mapWorkoutHistoryToTrainingHistory,
+} from '../intelligence/training-inputs';
 import type {
   ActiveCell,
   Block,
@@ -316,58 +318,13 @@ type ExerciseHistoryCue = {
   alreadyAdjusted?: boolean;
 };
 
-function toInitialHistorySets(): TrainingHistorySet[] {
+function toInitialHistorySets() {
   if (typeof window === 'undefined') return [];
-
-  return storage.getWorkoutHistory().slice(0, 30).flatMap((session) =>
-    session.sets.map((set) => ({
-      id: set.id,
-      workoutSessionId: session.id,
-      exerciseId: set.exerciseId,
-      exerciseName: set.exerciseName,
-      setIndex: set.setIndex,
-      actualWeight: set.skipped === true ? null : set.actualWeight,
-      weightUnit: set.weightUnit,
-      actualReps: set.skipped === true ? null : set.actualReps,
-      actualRPE: set.skipped === true ? null : set.actualRPE,
-      actualRIR: set.skipped === true ? null : set.actualRIR,
-      prescribedReps: set.prescribedReps,
-      prescribedRPE: set.prescribedRPE,
-      prescribedRIR: set.prescribedRIR,
-      prescribedPercentage: set.prescribedPercentage,
-      prescribedWeight: set.prescribedWeight,
-      e1rm: set.skipped === true ? null : set.e1rm,
-      completed: set.completed === true && set.skipped !== true,
-      skipped: set.skipped,
-      setType: set.setType,
-      performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
-    }))
-  );
+  return mapWorkoutHistoryToTrainingHistory(storage.getWorkoutHistory(), { limit: 30 });
 }
 
-function getInitialPersonalRecords(exerciseId: string): TrainingPersonalRecord[] {
-  const records = storage.getPersonalRecords(exerciseId);
-  if (!records) return [];
-
-  const mapped: TrainingPersonalRecord[] = [];
-  if (records.maxWeight) {
-    mapped.push({
-      exerciseId,
-      recordType: 'max_weight',
-      weight: records.maxWeight.weight,
-      reps: records.maxWeight.reps,
-    });
-  }
-  if (records.maxE1RM) {
-    mapped.push({
-      exerciseId,
-      recordType: 'e1rm',
-      weight: records.maxE1RM.weight,
-      reps: records.maxE1RM.reps,
-      e1rm: records.maxE1RM.e1rm,
-    });
-  }
-  return mapped;
+function getInitialPersonalRecords(exerciseId: string) {
+  return mapLocalPersonalRecordsToTrainingRecords(exerciseId, storage.getPersonalRecords(exerciseId));
 }
 
 function smartCueKey(

@@ -1,8 +1,8 @@
 import { logger } from './logger';
 import { WorkoutSession, SetLog, type CustomExercise, type WeightUnit } from './types';
-import { shouldTriggerAutoReduction, calculateAdjustedWeight, calculateMuscleFatigue } from './fatigueModel';
+import { calculateMuscleFatigue } from './fatigueModel';
 import { supabase } from './supabase/client';
-import { saveFatigueSnapshot, getRecoveryProfiles } from './fatigue/cross-session';
+import { saveFatigueSnapshot } from './fatigue/cross-session';
 import { calculateWorkoutSFR, saveSFRAnalysis } from './fatigue/sfr';
 import { defaultExercises } from './programs';
 import { createUuid, isValidUuid } from './uuid';
@@ -18,6 +18,16 @@ import {
 } from './supabase/workouts';
 import { isMissingPrescribedWeightColumn, stripPrescribedWeight } from './supabase/set-log-schema';
 import { calculateSetE1RMLbs, calculateSetVolumeLbs, isPerformedSetLog } from './stats/set-metrics';
+import {
+  buildTrainingRecommendations,
+  type TrainingRecommendation,
+  type TrainingRecommendationInput,
+} from './intelligence/training-recommendations';
+import {
+  mapLocalPersonalRecordsToTrainingRecords,
+  mapSetLogsToTrainingSetInputs,
+  mapWorkoutHistoryToTrainingHistory,
+} from './intelligence/training-inputs';
 
 const STORAGE_KEYS = {
   WORKOUT_HISTORY: 'iron_brain_workout_history',
@@ -1304,216 +1314,79 @@ export interface WeightSuggestion {
   };
 }
 
+function resolveLocalExerciseName(exerciseId: string): string {
+  const catalog = buildExerciseCatalog(defaultExercises, readLocalCustomExercises());
+  return resolveExerciseDisplayName(exerciseId, { catalog });
+}
+
+function resolveLegacySuggestionUnit(
+  exerciseId: string,
+  currentSessionSets?: WorkoutSession['sets']
+): WeightUnit {
+  const recentSessionSet = [...(currentSessionSets ?? [])]
+    .reverse()
+    .find((set) => set.exerciseId === exerciseId && set.weightUnit);
+  if (recentSessionSet?.weightUnit === 'kg' || recentSessionSet?.weightUnit === 'lbs') {
+    return recentSessionSet.weightUnit;
+  }
+
+  const lastWorkoutUnit = getLastWorkoutForExercise(exerciseId)?.bestSet.weightUnit;
+  return lastWorkoutUnit === 'kg' || lastWorkoutUnit === 'lbs' ? lastWorkoutUnit : 'lbs';
+}
+
+function mapRecommendationBasis(recommendation: TrainingRecommendation): WeightSuggestion['basedOn'] {
+  if (recommendation.source === 'session_fatigue') return 'rpe_adjustment';
+  if (recommendation.source === 'readiness') return 'recovery_state';
+  if (recommendation.source === 'load_pressure' || recommendation.source === 'performance_trend') return 'volume_fatigue';
+  if (recommendation.source === 'exercise_history' || recommendation.source === 'e1rm' || recommendation.source === 'prescription') {
+    return 'previous_performance';
+  }
+  return 'default';
+}
+
+function buildLegacyTrainingInput(
+  exerciseId: string,
+  targetReps: number,
+  targetRPE?: number | null,
+  currentSessionSets?: WorkoutSession['sets']
+): TrainingRecommendationInput {
+  const unit = resolveLegacySuggestionUnit(exerciseId, currentSessionSets);
+  const exerciseName = resolveLocalExerciseName(exerciseId);
+
+  return {
+    currentSet: {
+      exerciseId,
+      exerciseName,
+      weightUnit: unit,
+      reps: targetReps,
+      prescribedRPE: targetRPE ?? null,
+      completed: false,
+      skipped: false,
+    },
+    sessionSets: mapSetLogsToTrainingSetInputs(currentSessionSets ?? []),
+    historySets: mapWorkoutHistoryToTrainingHistory(getWorkoutHistory(), { limit: 30 }),
+    personalRecords: mapLocalPersonalRecordsToTrainingRecords(exerciseId, getPersonalRecords(exerciseId)),
+    weightUnit: unit,
+    preferHistoryOverPrescription: true,
+  };
+}
+
 export async function suggestWeight(
   exerciseId: string,
   targetReps: number,
   targetRPE?: number | null,
   currentSessionSets?: WorkoutSession['sets']
 ): Promise<WeightSuggestion | null> {
-  // Reduced logging to prevent console spam
-  // logger.debug('\n💡 SUGGEST WEIGHT called for:', exerciseId);
+  const recommendation = buildTrainingRecommendations(
+    buildLegacyTrainingInput(exerciseId, targetReps, targetRPE, currentSessionSets)
+  ).find((entry) => entry.scope === 'next_set');
+  if (!recommendation || recommendation.target?.weight == null) return null;
 
-  // PRIORITY 0: Check cross-session recovery state (chronic fatigue)
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Get muscle groups for this exercise
-      const exercise = defaultExercises.find(ex => ex.id === exerciseId);
-      const primaryMuscles = exercise?.muscleGroups.map(mg => mg.toLowerCase()) || [];
-
-      if (primaryMuscles.length > 0) {
-        // Check recovery state for primary muscle
-        const recoveryProfiles = await getRecoveryProfiles(user.id, primaryMuscles);
-        const primaryMuscleRecovery = recoveryProfiles[0]; // Worst recovery (sorted by readiness)
-
-        // If muscle isn't recovered, suggest weight reduction
-        if (primaryMuscleRecovery && primaryMuscleRecovery.readinessScore < 7) {
-          const lastWorkout = getLastWorkoutForExercise(exerciseId);
-          const referenceWeight = lastWorkout?.bestSet.actualWeight;
-
-          if (referenceWeight) {
-            // Scale reduction based on readiness (readiness 6 = 5%, readiness 3 = 15%)
-            const reductionPercent = Math.min(0.20, (7 - primaryMuscleRecovery.readinessScore) * 0.025);
-            const adjustedWeight = Math.round(referenceWeight * (1 - reductionPercent));
-
-            return {
-              suggestedWeight: adjustedWeight,
-              reasoning: `${primaryMuscleRecovery.muscleGroup} is ${Math.round(primaryMuscleRecovery.recoveryPercentage)}% recovered (${primaryMuscleRecovery.daysSinceLastTraining}d ago). Reduced ${Math.round(reductionPercent * 100)}% for optimal performance.`,
-              confidence: 'high',
-              basedOn: 'recovery_state',
-              recoveryWarning: {
-                muscleGroup: primaryMuscleRecovery.muscleGroup,
-                readinessScore: primaryMuscleRecovery.readinessScore,
-                recoveryPercentage: primaryMuscleRecovery.recoveryPercentage,
-                daysSinceLastTraining: primaryMuscleRecovery.daysSinceLastTraining,
-                suggestion: reductionPercent > 0.10
-                  ? `Consider switching to a different muscle group or taking a rest day`
-                  : `Train conservatively and focus on technique`,
-              },
-            };
-          }
-        }
-      }
-    }
-  } catch (err) {
-    // Recovery check is non-critical - continue to other suggestions
-    console.debug('Could not check recovery state:', err);
-  }
-
-  // PRIORITY 1: Check for acute session fatigue (works WITHOUT previous history)
-  const completedSets = currentSessionSets?.filter((set) => isPerformedSetLog(set, { allowWarmup: true })) || [];
-  // logger.debug('   Completed sets in session:', completedSets.length);
-
-  if (completedSets.length > 0) {
-    // logger.debug('   🔬 Running fatigue analysis...');
-    const fatigueAlert = shouldTriggerAutoReduction(completedSets, exerciseId);
-
-    if (fatigueAlert.shouldAlert) {
-      // Reduced logging - main alert already logged by fatigue model
-      // logger.debug('   🚨 FATIGUE ALERT TRIGGERED:', fatigueAlert.severity);
-
-      // Find reference weight to base reduction on
-      // Option 1: Most recent weight used for THIS exercise in current session
-      const recentSetsSameExercise = completedSets
-        .filter(s => s.exerciseId === exerciseId && s.actualWeight && s.actualWeight > 0)
-        .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-
-      let referenceWeight: number | null = recentSetsSameExercise[0]?.actualWeight || null;
-      let referenceUnit: WeightUnit | null = recentSetsSameExercise[0]?.weightUnit ?? null;
-      // logger.debug('   🏋️ Reference weight from current session:', referenceWeight);
-
-      // Option 2: If no current session data for this exercise, try history
-      if (!referenceWeight) {
-        const lastWorkout = getLastWorkoutForExercise(exerciseId);
-        referenceWeight = lastWorkout?.bestSet.actualWeight || null;
-        referenceUnit = lastWorkout?.bestSet.weightUnit ?? referenceUnit;
-        // logger.debug('   📚 Reference weight from history:', referenceWeight);
-      }
-
-      // Option 3: If still no weight, use any recent weight from session (for new exercises)
-      if (!referenceWeight) {
-        const anyRecentSet = completedSets
-          .filter(s => s.actualWeight && s.actualWeight > 0)
-          .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())[0];
-
-        if (anyRecentSet) {
-          // Use 80% of recent weight as starting point for new exercise
-          referenceWeight = Math.round(anyRecentSet.actualWeight! * 0.8);
-          referenceUnit = anyRecentSet.weightUnit ?? referenceUnit;
-          // logger.debug('   🎯 Estimated reference weight:', referenceWeight);
-        }
-      }
-
-      if (referenceWeight) {
-        const adjustedWeight = calculateAdjustedWeight(referenceWeight, fatigueAlert);
-        const fatigueScores = calculateMuscleFatigue(completedSets, fatigueAlert.affectedMuscles);
-
-        // Build detailed explanation - plain text, no markdown
-        const topFatigue = fatigueScores[0];
-        const topContributors = topFatigue?.contributingSets.slice(0, 3) || [];
-
-        let detailedExplanation = fatigueAlert.reasoning;
-
-        if (topContributors.length > 0) {
-          const contributorList = topContributors
-            .map(c => `${c.exerciseName} Set ${c.setIndex} (+${c.rpeOvershoot.toFixed(1)} RPE)`)
-            .join(', ');
-          detailedExplanation += ` Contributing sets: ${contributorList}.`;
-        }
-
-        const unitLabel = referenceUnit ?? 'lbs';
-        const reductionPercent = Math.round(fatigueAlert.suggestedReduction * 100);
-        detailedExplanation += ` Recommended: reduce by ${reductionPercent}% to ${adjustedWeight}${unitLabel}.`;
-
-        // logger.debug('   ✅ Returning fatigue-based suggestion:', adjustedWeight, 'lbs');
-
-        return {
-          suggestedWeight: adjustedWeight,
-          reasoning: fatigueAlert.reasoning,
-          confidence: fatigueAlert.confidence >= 0.8 ? 'high' : fatigueAlert.confidence >= 0.6 ? 'medium' : 'low',
-          basedOn: 'rpe_adjustment',
-          fatigueAlert: {
-            severity: fatigueAlert.severity,
-            affectedMuscles: fatigueAlert.affectedMuscles,
-            scientificBasis: fatigueAlert.scientificBasis,
-            detailedExplanation,
-            recommendations: fatigueAlert.recommendations,
-          },
-        };
-      } else {
-        // logger.debug('   ⚠️ Fatigue detected but no reference weight available');
-      }
-    } else {
-      // logger.debug('   ✓ No fatigue alert triggered');
-    }
-  } else {
-    // logger.debug('   ℹ️ No completed sets yet - cannot assess fatigue');
-  }
-
-  // PRIORITY 2: Try historical progression (only if no fatigue alert)
-  // logger.debug('   📖 Checking previous workout history...');
-  const lastWorkout = getLastWorkoutForExercise(exerciseId);
-
-  if (!lastWorkout) {
-    // logger.debug('   ❌ No previous workout history - returning null');
-    return null; // No history and no fatigue alert
-  }
-
-  // logger.debug('   ✓ Found previous workout history');
-  const { bestSet } = lastWorkout;
-  const lastWeight = bestSet.actualWeight || 0;
-  const lastReps = bestSet.actualReps || 0;
-  const lastRPE = bestSet.actualRPE || null;
-  const unitLabel = bestSet.weightUnit ?? 'lbs';
-
-  // If same reps, suggest small progression
-  if (targetReps === lastReps && lastRPE && targetRPE) {
-    if (lastRPE < targetRPE - 1) {
-      // Last time was too easy, increase weight
-      const increase = Math.round(lastWeight * 0.025); // 2.5% increase
-      return {
-        suggestedWeight: lastWeight + increase,
-        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. You can handle more.`,
-        confidence: 'high',
-        basedOn: 'previous_performance',
-      };
-    } else if (lastRPE > targetRPE + 1) {
-      // Last time was too hard, decrease weight
-      const decrease = Math.round(lastWeight * 0.025); // 2.5% decrease
-      return {
-        suggestedWeight: lastWeight - decrease,
-        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. Reducing slightly.`,
-        confidence: 'high',
-        basedOn: 'previous_performance',
-      };
-    } else {
-      // RPE was on target, use same weight
-      return {
-        suggestedWeight: lastWeight,
-        reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps} @ RPE ${lastRPE}. Good match.`,
-        confidence: 'high',
-        basedOn: 'previous_performance',
-      };
-    }
-  }
-
-  // Different rep count - use E1RM to estimate
-  if (bestSet.e1rm && targetReps !== lastReps) {
-    const estimatedWeight = Math.round(bestSet.e1rm / (1 + targetReps / 30)); // Reverse Epley formula
-    return {
-      suggestedWeight: estimatedWeight,
-      reasoning: `Based on your E1RM of ${bestSet.e1rm}${unitLabel}, estimated for ${targetReps} reps.`,
-      confidence: 'medium',
-      basedOn: 'previous_performance',
-    };
-  }
-
-  // Fallback: use last weight
   return {
-    suggestedWeight: lastWeight,
-    reasoning: `Last time: ${lastWeight}${unitLabel} x${lastReps}`,
-    confidence: 'low',
-    basedOn: 'previous_performance',
+    suggestedWeight: recommendation.target.weight,
+    reasoning: recommendation.reason,
+    confidence: recommendation.confidence,
+    basedOn: mapRecommendationBasis(recommendation),
   };
 }
 
@@ -1547,10 +1420,10 @@ export function analyzeProgressionReadiness(
   targetReps: number,
   targetRPE: number | null | undefined
 ): ProgressionRecommendation {
-  const history = getExerciseHistory(exerciseId);
+  const input = buildLegacyTrainingInput(exerciseId, targetReps, targetRPE);
+  const recommendation = buildTrainingRecommendations(input).find((entry) => entry.scope === 'next_set');
 
-  // No history = maintain current weight
-  if (history.length === 0) {
+  if (!recommendation || recommendation.dataSufficiency === 'baseline') {
     return {
       status: 'maintain',
       indicator: '●',
@@ -1562,99 +1435,48 @@ export function analyzeProgressionReadiness(
     };
   }
 
-  // Analyze last 2-3 sessions for this exercise
-  const recentSessions = history.slice(0, 3);
-  const allRecentSets = recentSessions.flatMap(session =>
-    session.sets.filter(s => s.exerciseId === exerciseId && isPerformedSetLog(s))
-  );
+  const lastWorkout = getLastWorkoutForExercise(exerciseId);
+  const lastWeight = lastWorkout?.bestSet.actualWeight ?? null;
+  const targetWeight = recommendation.target?.weight ?? null;
+  const weightDelta = lastWeight != null && targetWeight != null ? targetWeight - lastWeight : null;
 
-  if (allRecentSets.length === 0) {
-    return {
-      status: 'maintain',
-      indicator: '●',
-      message: 'No recent completed sets',
-      confidence: 'high',
-      suggestion: {
-        action: 'maintain',
-      },
-    };
-  }
-
-  // Count how many sessions achieved target reps + RPE
-  let sessionsAtTarget = 0;
-  let sessionsOvershot = 0;
-
-  for (const session of recentSessions) {
-    const sessionSets = session.sets.filter(s => s.exerciseId === exerciseId && isPerformedSetLog(s));
-    if (sessionSets.length === 0) continue;
-
-    // Check if ALL sets in this session hit target
-    const allSetsHitReps = sessionSets.every(s => (s.actualReps || 0) >= targetReps);
-    const avgRPE = sessionSets.reduce((sum, s) => sum + (s.actualRPE || 0), 0) / sessionSets.length;
-
-    if (allSetsHitReps && targetRPE) {
-      if (Math.abs(avgRPE - targetRPE) <= 0.5) {
-        sessionsAtTarget++;
-      } else if (avgRPE > targetRPE + 1) {
-        sessionsOvershot++;
-      }
-    }
-  }
-
-  // READY TO PROGRESS: 2+ sessions at target
-  if (sessionsAtTarget >= 2) {
+  if (
+    recommendation.action === 'increase_load' ||
+    recommendation.action === 'add_volume' ||
+    (recommendation.action === 'adjust_reps' && (weightDelta ?? 0) > 0)
+  ) {
     return {
       status: 'ready',
       indicator: '⬆️',
-      message: `${sessionsAtTarget} sessions at target - ready to increase!`,
-      confidence: 'high',
+      message: recommendation.reason,
+      confidence: recommendation.confidence,
       suggestion: {
         action: 'increase',
-        amount: 5, // Standard 5lb increase
-        percentage: 0.025, // 2.5%
+        ...(weightDelta != null && weightDelta > 0 ? { amount: weightDelta } : {}),
+        ...(lastWeight != null && weightDelta != null && weightDelta > 0 ? { percentage: weightDelta / lastWeight } : {}),
       },
     };
   }
 
-  // DELOAD: 2+ sessions with high RPE overshoot
-  if (sessionsOvershot >= 2) {
+  if (recommendation.action === 'reduce_load' || recommendation.action === 'deload' || recommendation.action === 'trim_volume') {
     return {
       status: 'deload',
       indicator: '⬇️',
-      message: `${sessionsOvershot} sessions with RPE overshoot - suggest deload`,
-      confidence: 'high',
+      message: recommendation.reason,
+      confidence: recommendation.confidence,
       suggestion: {
         action: 'decrease',
-        percentage: 0.1, // 10% reduction
+        ...(weightDelta != null && weightDelta < 0 ? { amount: Math.abs(weightDelta) } : {}),
+        ...(lastWeight != null && weightDelta != null && weightDelta < 0 ? { percentage: Math.abs(weightDelta) / lastWeight } : {}),
       },
     };
   }
 
-  // Check for recent fatigue issues
-  const lastSession = recentSessions[0];
-  const lastSessionSets = lastSession.sets.filter((set) => isPerformedSetLog(set, { allowWarmup: true }));
-  if (lastSessionSets.length > 0) {
-    const fatigueAlert = shouldTriggerAutoReduction(lastSessionSets, exerciseId);
-    if (fatigueAlert.shouldAlert && fatigueAlert.severity === 'critical') {
-      return {
-        status: 'deload',
-        indicator: '⬇️',
-        message: 'Severe fatigue detected - reduce load',
-        confidence: 'high',
-        suggestion: {
-          action: 'decrease',
-          percentage: fatigueAlert.suggestedReduction,
-        },
-      };
-    }
-  }
-
-  // DEFAULT: Maintain current weight
   return {
     status: 'maintain',
     indicator: '●',
-    message: 'Keep working at current weight',
-    confidence: 'medium',
+    message: recommendation.reason || 'Keep working at current weight',
+    confidence: recommendation.confidence,
     suggestion: {
       action: 'maintain',
     },
