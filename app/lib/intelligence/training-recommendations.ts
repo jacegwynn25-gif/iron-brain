@@ -165,6 +165,7 @@ export interface TrainingRecommendationInput {
   readiness?: TrainingReadinessInput | null;
   program?: ProgramTemplate | null;
   weightUnit?: WeightUnit;
+  preferHistoryOverPrescription?: boolean | null;
 }
 
 type BaseLoad = {
@@ -1054,10 +1055,14 @@ function resolveBaseLoad(input: TrainingRecommendationInput, set: TrainingSetInp
     if (currentSession) return currentSession;
   }
 
+  const history = latestHistoryLoad(input, set, unit);
+  if (input.preferHistoryOverPrescription === true && history.weight != null && history.basis !== 'similar_history' && set.touchedWeight !== true) {
+    return history;
+  }
+
   const prescribed = prescriptionLoad(input, set, unit);
   if (prescribed) return prescribed;
 
-  const history = latestHistoryLoad(input, set, unit);
   if (history.weight != null && history.basis !== 'similar_history' && set.touchedWeight !== true) {
     return history;
   }

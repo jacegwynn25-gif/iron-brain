@@ -132,13 +132,15 @@ async function expectSheetWithinViewport(page, selector, label) {
 
   console.log('▶️ Checking program tune-up review and dismiss...');
   await page.evaluate(() => {
+    const performedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const performedDate = performedAt.split('T')[0];
     const history = [{
       id: 'qa_tuneup_session',
       programId: 'qa_builder',
       programName: 'Builder QA',
-      date: '2026-05-07',
-      startTime: '2026-05-07T12:00:00.000Z',
-      endTime: '2026-05-07T13:00:00.000Z',
+      date: performedDate,
+      startTime: performedAt,
+      endTime: performedAt,
       durationMinutes: 60,
       totalVolumeLoad: 9000,
       averageRPE: 9.5,
@@ -156,10 +158,10 @@ async function expectSheetWithinViewport(page, selector, label) {
         completed: true,
         e1rm: 265,
         volumeLoad: 1125,
-        timestamp: '2026-05-07T12:30:00.000Z',
+        timestamp: performedAt,
       })),
-      createdAt: '2026-05-07T13:00:00.000Z',
-      updatedAt: '2026-05-07T13:00:00.000Z',
+      createdAt: performedAt,
+      updatedAt: performedAt,
     }];
     localStorage.setItem('iron_brain_workout_history__default', JSON.stringify(history));
     localStorage.removeItem('iron_brain_dismissed_tuneups_v1');

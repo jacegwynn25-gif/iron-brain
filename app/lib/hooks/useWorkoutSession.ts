@@ -1,6 +1,14 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import type { ProgramTemplate, SetTemplate, WeightUnit } from '../types';
 import { KG_TO_LBS } from '../units';
+import { storage } from '../storage';
+import {
+  buildTrainingRecommendations,
+  type TrainingHistorySet,
+  type TrainingPersonalRecord,
+  type TrainingRecommendationInput,
+  type TrainingSetInput,
+} from '../intelligence/training-recommendations';
 import type {
   ActiveCell,
   Block,
@@ -302,24 +310,152 @@ function getBlockIdentity(templateSet: SetTemplate): { key: string; type: 'singl
   };
 }
 
-import { storage } from '../storage';
-
 type ExerciseHistoryCue = {
   weight: number | null;
   note: string | null;
+  alreadyAdjusted?: boolean;
 };
+
+function toInitialHistorySets(): TrainingHistorySet[] {
+  if (typeof window === 'undefined') return [];
+
+  return storage.getWorkoutHistory().slice(0, 30).flatMap((session) =>
+    session.sets.map((set) => ({
+      id: set.id,
+      workoutSessionId: session.id,
+      exerciseId: set.exerciseId,
+      exerciseName: set.exerciseName,
+      setIndex: set.setIndex,
+      actualWeight: set.skipped === true ? null : set.actualWeight,
+      weightUnit: set.weightUnit,
+      actualReps: set.skipped === true ? null : set.actualReps,
+      actualRPE: set.skipped === true ? null : set.actualRPE,
+      actualRIR: set.skipped === true ? null : set.actualRIR,
+      prescribedReps: set.prescribedReps,
+      prescribedRPE: set.prescribedRPE,
+      prescribedRIR: set.prescribedRIR,
+      prescribedPercentage: set.prescribedPercentage,
+      prescribedWeight: set.prescribedWeight,
+      e1rm: set.skipped === true ? null : set.e1rm,
+      completed: set.completed === true && set.skipped !== true,
+      skipped: set.skipped,
+      setType: set.setType,
+      performedAt: set.timestamp ?? session.endTime ?? session.startTime ?? session.date,
+    }))
+  );
+}
+
+function getInitialPersonalRecords(exerciseId: string): TrainingPersonalRecord[] {
+  const records = storage.getPersonalRecords(exerciseId);
+  if (!records) return [];
+
+  const mapped: TrainingPersonalRecord[] = [];
+  if (records.maxWeight) {
+    mapped.push({
+      exerciseId,
+      recordType: 'max_weight',
+      weight: records.maxWeight.weight,
+      reps: records.maxWeight.reps,
+    });
+  }
+  if (records.maxE1RM) {
+    mapped.push({
+      exerciseId,
+      recordType: 'e1rm',
+      weight: records.maxE1RM.weight,
+      reps: records.maxE1RM.reps,
+      e1rm: records.maxE1RM.e1rm,
+    });
+  }
+  return mapped;
+}
+
+function smartCueKey(
+  exerciseId: string,
+  unit: WeightUnit,
+  templateSet: SetTemplate,
+  targetReps?: number | null
+): string {
+  return [
+    exerciseId,
+    unit,
+    targetReps ?? 'reps',
+    templateSet.prescriptionMethod ?? 'rpe',
+    templateSet.prescribedReps ?? '',
+    templateSet.targetRPE ?? '',
+    templateSet.targetRIR ?? '',
+    templateSet.targetPercentage ?? '',
+    templateSet.fixedWeight ?? '',
+    templateSet.targetSeconds ?? '',
+    templateSet.setType ?? '',
+  ].join('|');
+}
+
+function buildInitialTrainingSetInput(
+  templateSet: SetTemplate,
+  exerciseId: string,
+  exerciseName: string,
+  unit: WeightUnit,
+  targetReps?: number | null
+): TrainingSetInput {
+  const prescriptionMethod = templateSet.prescriptionMethod ?? 'rpe';
+  return {
+    exerciseId,
+    exerciseName,
+    weightUnit: unit,
+    reps: targetReps ?? null,
+    prescribedRPE: prescriptionMethod === 'rpe' ? clampRpe(templateSet.targetRPE ?? null) : null,
+    prescribedRIR: prescriptionMethod === 'rir' ? clampRir(templateSet.targetRIR ?? null) : null,
+    prescribedPercentage:
+      prescriptionMethod === 'percentage_1rm' || prescriptionMethod === 'percentage_tm'
+        ? positiveTarget(templateSet.targetPercentage ?? null)
+        : null,
+    prescribedWeight: resolvePrescribedWeight(templateSet, exerciseId, unit),
+    completed: false,
+    skipped: false,
+    type: mapTemplateSetType(templateSet),
+  };
+}
 
 function getLastCueForExercise(
   historyMap: Map<string, ExerciseHistoryCue>,
   exerciseId: string,
+  exerciseName: string,
   unit: WeightUnit,
-  targetReps?: number | null
+  targetReps: number | null | undefined,
+  templateSet: SetTemplate,
+  readinessModifier: number
 ): ExerciseHistoryCue {
-  if (!historyMap.has(exerciseId)) {
-    // Try to get actual history for this exercise
+  const cacheKey = smartCueKey(exerciseId, unit, templateSet, targetReps);
+  if (!historyMap.has(cacheKey)) {
     const lastWorkout = storage.getLastWorkoutForExercise(exerciseId);
     const previousNote = lastWorkout?.bestSet.notes?.trim() || null;
+    const currentSet = buildInitialTrainingSetInput(templateSet, exerciseId, exerciseName, unit, targetReps);
+    const input: TrainingRecommendationInput = {
+      currentSet,
+      historySets: toInitialHistorySets(),
+      personalRecords: getInitialPersonalRecords(exerciseId),
+      readiness: {
+        modifier: readinessModifier,
+        source: readinessModifier === 1 ? null : 'manual',
+      },
+      weightUnit: unit,
+      preferHistoryOverPrescription: true,
+    };
+    const smartTarget = buildTrainingRecommendations(input)
+      .find((recommendation) => recommendation.scope === 'next_set');
+    const smartWeight = smartTarget?.target?.weight ?? null;
 
+    if (smartWeight != null) {
+      historyMap.set(cacheKey, {
+        weight: smartWeight,
+        note: previousNote,
+        alreadyAdjusted: true,
+      });
+      return historyMap.get(cacheKey) ?? { weight: smartWeight, note: previousNote, alreadyAdjusted: true };
+    }
+
+    // Try to get actual history for this exercise
     if (lastWorkout && lastWorkout.bestSet && lastWorkout.bestSet.actualWeight != null) {
       const bestSet = lastWorkout.bestSet;
       const actualWeight = Number(bestSet.actualWeight);
@@ -332,7 +468,7 @@ function getLastCueForExercise(
           ? actualWeight * KG_TO_LBS
           : actualWeight / KG_TO_LBS;
       }
-      historyMap.set(exerciseId, {
+      historyMap.set(cacheKey, {
         weight: roundToIncrement(convertedWeight, unit),
         note: previousNote,
       });
@@ -351,14 +487,14 @@ function getLastCueForExercise(
         const suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
 
         const rounded = roundToIncrement(suggestedWeight, unit);
-        historyMap.set(exerciseId, { weight: rounded, note: previousNote });
+        historyMap.set(cacheKey, { weight: rounded, note: previousNote });
       } else {
         // Truly no data
-        historyMap.set(exerciseId, { weight: null, note: previousNote });
+        historyMap.set(cacheKey, { weight: null, note: previousNote });
       }
     }
   }
-  return historyMap.get(exerciseId) ?? { weight: null, note: null };
+  return historyMap.get(cacheKey) ?? { weight: null, note: null };
 }
 
 function buildSessionSetFromTemplate(
@@ -386,10 +522,10 @@ function buildSessionSetFromTemplate(
   const prescribedSeconds =
     prescriptionMethod === 'time_based' ? positiveTarget(templateSet.targetSeconds ?? null) : null;
 
-  const baseWeight = prescribedWeight ?? historyCue.weight;
+  const baseWeight = historyCue.weight ?? prescribedWeight;
   const shouldAdjust = shouldAutoAdjustLoad(mappedSetType);
   const computedWeight = baseWeight != null && shouldAdjust
-    ? roundToIncrement(baseWeight * readinessModifier, weightUnit)
+    ? historyCue.alreadyAdjusted ? baseWeight : roundToIncrement(baseWeight * readinessModifier, weightUnit)
     : prescribedWeight;
 
   return {
@@ -592,10 +728,22 @@ function buildBlocksFromProgram(
         const exerciseId = templateExercise.exerciseId || createId('exercise');
         const exerciseName = resolveExerciseName(exerciseId);
         const exerciseReadinessModifier = getExerciseReadinessModifier(exerciseName, loadModifiers);
-        const firstSetReps = parseRepsTarget(templateExercise.sets?.[0]?.prescribedReps);
-        const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, firstSetReps);
-        const setsForExercise = (templateExercise.sets ?? []).map((templateSet) =>
-          buildSessionSetFromTemplate(
+        let firstHistoryCue: ExerciseHistoryCue | undefined;
+        const setsForExercise = (templateExercise.sets ?? []).map((templateSet) => {
+          const setTargetReps = parseRepsTarget(templateSet.prescribedReps);
+          const historyCue = getLastCueForExercise(
+            mockHistoryByExercise,
+            exerciseId,
+            exerciseName,
+            weightUnit,
+            setTargetReps,
+            templateSet,
+            exerciseReadinessModifier
+          );
+          if (!firstHistoryCue) {
+            firstHistoryCue = historyCue;
+          }
+          return buildSessionSetFromTemplate(
             templateSet,
             historyCue,
             exerciseReadinessModifier,
@@ -606,8 +754,8 @@ function buildBlocksFromProgram(
                 supersetGroup: templateSet.supersetGroup ?? templateBlock.id,
               }
               : undefined
-          )
-        );
+          );
+        });
 
         if (setsForExercise.length === 0) continue;
 
@@ -616,7 +764,7 @@ function buildBlocksFromProgram(
           name: exerciseName,
           slot: templateExercise.slot,
           notes: templateExercise.notes ?? '',
-          historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${setsForExercise[0]?.reps ?? 8}` : null,
+          historyNote: firstHistoryCue?.weight != null ? `Smart start: ${firstHistoryCue.weight}${weightUnit} x ${setsForExercise[0]?.reps ?? 8}` : null,
           sets: setsForExercise,
         });
       }
@@ -639,7 +787,15 @@ function buildBlocksFromProgram(
     const exerciseName = resolveExerciseName(exerciseId);
     const exerciseReadinessModifier = getExerciseReadinessModifier(exerciseName, loadModifiers);
     const targetReps = parseRepsTarget(templateSet.prescribedReps);
-    const historyCue = getLastCueForExercise(mockHistoryByExercise, exerciseId, weightUnit, targetReps);
+    const historyCue = getLastCueForExercise(
+      mockHistoryByExercise,
+      exerciseId,
+      exerciseName,
+      weightUnit,
+      targetReps,
+      templateSet,
+      exerciseReadinessModifier
+    );
     const sessionSet = buildSessionSetFromTemplate(templateSet, historyCue, exerciseReadinessModifier, weightUnit, exerciseId);
     const repsTarget = sessionSet.reps;
 
@@ -665,7 +821,7 @@ function buildBlocksFromProgram(
         id: exerciseId,
         name: exerciseName,
         notes: '',
-        historyNote: historyCue.weight != null ? `Last session: ${historyCue.weight}${weightUnit} x ${repsTarget ?? 8}` : null,
+        historyNote: historyCue.weight != null ? `Smart start: ${historyCue.weight}${weightUnit} x ${repsTarget ?? 8}` : null,
         sets: [],
       };
       block.exercises.push(exercise);
