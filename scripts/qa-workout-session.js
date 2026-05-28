@@ -135,6 +135,11 @@ async function installWorkoutQaBootstrap(page) {
     localStorage.setItem('iron_brain_selected_program__guest', program.id);
     localStorage.setItem('iron_brain_workout_history__default', JSON.stringify(history));
   });
+  await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+  await expectVisible(page.getByTestId('dashboard-command-center'), 'Dashboard command center loaded');
+  await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/START PLANNED/i), 'Dashboard smart action starts planned session');
+  await expectVisible(page.getByTestId('dashboard-next-session').getByText(/Smart Start Day/i), 'Dashboard next session shows selected program day');
+  await expectVisible(page.getByTestId('dashboard-training-pulse').getByText(/^Sets$/i).first(), 'Dashboard training pulse loaded');
   await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'networkidle' });
   await page.getByText(/Bench Press \(Touch & Go\)/i).tap({ timeout: 10000 });
   await expectVisible(page.getByText(/SMART TARGET/i), 'Smart target card shown for program-start set');
