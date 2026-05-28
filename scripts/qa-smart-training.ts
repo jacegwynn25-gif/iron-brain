@@ -6,7 +6,12 @@ import {
   type TrainingRecommendation,
   type TrainingRecommendationInput,
 } from '../app/lib/intelligence/training-recommendations';
+import {
+  mapSetLogsToTrainingSetInputs,
+  mapWorkoutHistoryToTrainingHistory,
+} from '../app/lib/intelligence/training-inputs';
 import { calculateMuscleFatigue } from '../app/lib/fatigueModel';
+import { storage } from '../app/lib/storage';
 import { buildWarmupPlan, calculatePlateLoad } from '../app/lib/workout-tools';
 import type { ProgramTemplate } from '../app/lib/types';
 
@@ -26,9 +31,33 @@ const baseSet = {
   completed: false,
   skipped: false,
 };
+const asyncChecks: Promise<void>[] = [];
 
 function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function installMemoryStorage() {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, String(value));
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      clear: () => {
+        store.clear();
+      },
+      key: (index: number) => Array.from(store.keys())[index] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+  });
 }
 
 function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRecommendationInput['historySets']>[number]> = {}) {
@@ -439,6 +468,100 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
   assert.equal(recommendation.target?.weight, 200);
   assert.equal(recommendation.evidenceSource, 'current_session');
+}
+
+{
+  installMemoryStorage();
+  const now = isoDaysAgo(1);
+  const session = {
+    id: 'legacy_smart_session',
+    programId: 'qa',
+    programName: 'QA',
+    cycleNumber: 1,
+    weekNumber: 1,
+    dayOfWeek: 'Mon',
+    dayName: 'Lower',
+    date: now.split('T')[0],
+    startTime: now,
+    endTime: now,
+    durationMinutes: 40,
+    sets: [{
+      id: 'legacy_real_set',
+      exerciseId: 'back_squat',
+      exerciseName: 'Back Squat',
+      setIndex: 1,
+      prescribedReps: '5',
+      prescribedRPE: 8,
+      actualWeight: 200,
+      weightUnit: 'lbs' as const,
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      skipped: false,
+      e1rm: 240,
+      volumeLoad: 1000,
+      timestamp: now,
+    }, {
+      id: 'legacy_skipped_set',
+      exerciseId: 'back_squat',
+      exerciseName: 'Back Squat',
+      setIndex: 2,
+      prescribedReps: '5',
+      prescribedRPE: 8,
+      actualWeight: 405,
+      weightUnit: 'lbs' as const,
+      actualReps: 5,
+      actualRPE: 6,
+      completed: true,
+      skipped: true,
+      e1rm: 470,
+      volumeLoad: 2025,
+      timestamp: now,
+    }],
+    totalVolumeLoad: 1000,
+    averageRPE: 8,
+    createdAt: now,
+    updatedAt: now,
+  };
+  localStorage.setItem('iron_brain_workout_history__default', JSON.stringify([session]));
+
+  const historyInputs = mapWorkoutHistoryToTrainingHistory([session]);
+  const skippedHistory = historyInputs.find((set) => set.id === 'legacy_skipped_set');
+  assert.equal(skippedHistory?.completed, false);
+  assert.equal(skippedHistory?.actualWeight, null);
+  assert.equal(skippedHistory?.actualReps, null);
+  assert.equal(skippedHistory?.actualRPE, null);
+  assert.equal(skippedHistory?.e1rm, null);
+
+  const sessionInputs = mapSetLogsToTrainingSetInputs(session.sets);
+  const skippedSession = sessionInputs.find((set) => set.setId === 'legacy_skipped_set');
+  assert.equal(skippedSession?.completed, false);
+  assert.equal(skippedSession?.weight, null);
+  assert.equal(skippedSession?.reps, null);
+
+  asyncChecks.push(storage.suggestWeight('back_squat', 5, 8, [{
+    id: 'hard_current_session_set',
+    exerciseId: 'back_squat',
+    exerciseName: 'Back Squat',
+    setIndex: 1,
+    prescribedReps: '5',
+    prescribedRPE: 8,
+    actualWeight: 200,
+    weightUnit: 'lbs' as const,
+    actualReps: 5,
+    actualRPE: 10,
+    completed: true,
+    skipped: false,
+    timestamp: now,
+  }]).then((legacySuggestion) => {
+    assert.ok(legacySuggestion);
+    assert.equal(legacySuggestion.basedOn, 'rpe_adjustment');
+    assert.ok(legacySuggestion.suggestedWeight <= 200);
+  }));
+
+  const legacyProgression = storage.analyzeProgressionReadiness('back_squat', 5, 8);
+  assert.equal(legacyProgression.status, 'maintain');
+  assert.notEqual(legacyProgression.status, 'ready');
 }
 
 {
@@ -952,4 +1075,11 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.doesNotMatch(recommendation?.reason ?? '', /readiness is 0/i);
 }
 
-console.log('✅ Smart training recommendation QA passed');
+Promise.all(asyncChecks)
+  .then(() => {
+    console.log('✅ Smart training recommendation QA passed');
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
