@@ -522,6 +522,7 @@ export async function calculateRecoveryFromWorkouts(
         actual_reps,
         actual_rpe,
         completed,
+        skipped,
         set_type
       )
     `)
@@ -552,7 +553,7 @@ export async function calculateRecoveryFromWorkouts(
 
     // Convert to SetLog format for fatigue calculation
     const completedSets: SetLog[] = setLogs
-      .filter(s => s.completed !== false && s.set_type !== 'warmup')
+      .filter(s => s.completed === true && s.skipped !== true && s.set_type !== 'warmup')
       .map(s => ({
         exerciseId: s.exercise_id ?? s.exercise_slug ?? '',
         actualWeight: s.actual_weight ?? undefined,
@@ -560,6 +561,7 @@ export async function calculateRecoveryFromWorkouts(
         actualReps: s.actual_reps ?? undefined,
         actualRPE: s.actual_rpe ?? undefined,
         completed: true,
+        skipped: false,
       } as SetLog));
 
     if (completedSets.length === 0) continue;

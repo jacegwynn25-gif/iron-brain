@@ -6,7 +6,7 @@ import type { WeightUnit } from '../types';
 
 type SupabaseSetLogRow = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'e1rm' | 'volume_load'
+  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'actual_rpe' | 'e1rm' | 'volume_load' | 'completed' | 'skipped'
 >;
 
 type SupabaseSetLogSummaryRow = Pick<
@@ -23,7 +23,7 @@ type PersonalRecordType = 'max_weight' | 'max_reps' | 'max_e1rm' | 'max_volume';
 
 type SetLogPrCandidate = Pick<
   Database['public']['Tables']['set_logs']['Row'],
-  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'e1rm' | 'volume_load' | 'completed' | 'performed_at'
+  'id' | 'exercise_id' | 'actual_weight' | 'weight_unit' | 'actual_reps' | 'e1rm' | 'volume_load' | 'completed' | 'skipped' | 'performed_at'
 >;
 
 const PERSONAL_RECORD_TYPES: PersonalRecordType[] = ['max_weight', 'max_reps', 'max_e1rm', 'max_volume'];
@@ -148,7 +148,11 @@ export async function upsertPersonalRecordsForSetLogs(
   if (!userId || setLogs.length === 0) return [];
 
   const completedSets = setLogs.filter(
-    (setLog) => setLog.completed !== false && typeof setLog.exercise_id === 'string' && setLog.exercise_id.length > 0
+    (setLog) =>
+      setLog.completed === true &&
+      setLog.skipped !== true &&
+      typeof setLog.exercise_id === 'string' &&
+      setLog.exercise_id.length > 0
   );
   if (completedSets.length === 0) return [];
 
@@ -335,7 +339,7 @@ export async function createSetLog(data: CreateSetLogData) {
 
   // Check if this is a new personal record
   const setLogRow = setLog as SupabaseSetLogRow | null;
-  if (setLogRow?.exercise_id && data.completed !== false) {
+  if (setLogRow?.exercise_id && data.completed !== false && data.skipped !== true) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -350,6 +354,7 @@ export async function createSetLog(data: CreateSetLogData) {
           e1rm: setLogRow.e1rm,
           volume_load: setLogRow.volume_load,
           completed: true,
+          skipped: false,
           performed_at: new Date().toISOString(),
         },
       ]);
@@ -375,7 +380,7 @@ export async function updateSetLog(
 
   // Re-check personal records if weight/reps changed
   const updatedSetLog = setLog as SupabaseSetLogRow | null;
-  if (updatedSetLog?.exercise_id && (data.actual_weight || data.actual_reps)) {
+  if (updatedSetLog?.exercise_id && updatedSetLog.completed !== false && updatedSetLog.skipped !== true && (data.actual_weight || data.actual_reps)) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -389,7 +394,8 @@ export async function updateSetLog(
           actual_reps: updatedSetLog.actual_reps,
           e1rm: updatedSetLog.e1rm,
           volume_load: updatedSetLog.volume_load,
-          completed: true,
+          completed: updatedSetLog.completed,
+          skipped: updatedSetLog.skipped,
           performed_at: new Date().toISOString(),
         },
       ]);

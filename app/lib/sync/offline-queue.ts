@@ -232,49 +232,53 @@ const syncWorkoutToCloud = async (
     );
     const exerciseIdByRef = await resolveExerciseIds(client, exerciseRefs);
 
-    const setLogs = session.sets.map((set, index) => ({
-      id: set.id && isValidUuid(set.id) ? set.id : undefined,
-      workout_session_id: workoutUuid,
-      exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
-      exercise_slug: set.exerciseId,
-      program_set_id: null,
-      order_index: index,
-      set_index: set.setIndex || index + 1,
-      prescribed_reps: set.prescribedReps,
-      prescribed_rpe: set.prescribedRPE,
-      prescribed_rir: set.prescribedRIR,
-      prescribed_percentage: set.prescribedPercentage,
-      prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
-      actual_weight: set.actualWeight,
-      weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
-      actual_reps: set.actualReps,
-      actual_rpe: set.actualRPE,
-      actual_rir: set.actualRIR,
-      e1rm: calculateSetE1RMLbs(set),
-      volume_load: (() => {
-        const volume = calculateSetVolumeLbs(set);
-        return volume == null ? null : volume;
-      })(),
-      set_type: set.setType || 'straight',
-      tempo: set.tempo,
-      rest_seconds: set.restTakenSeconds,
-      actual_seconds: set.setDurationSeconds,
-      notes: set.notes,
-      performed_at: set.timestamp ?? session.endTime ?? new Date().toISOString(),
-      completed: set.completed !== false,
-      skipped: set.completed === false,
-    }));
+    const setLogs = session.sets.map((set, index) => {
+      const skipped = set.skipped === true || set.completed === false;
+      return {
+        id: set.id && isValidUuid(set.id) ? set.id : undefined,
+        workout_session_id: workoutUuid,
+        exercise_id: exerciseIdByRef.get(set.exerciseId) ?? null,
+        exercise_slug: set.exerciseId,
+        program_set_id: null,
+        order_index: index,
+        set_index: set.setIndex || index + 1,
+        prescribed_reps: set.prescribedReps,
+        prescribed_rpe: set.prescribedRPE,
+        prescribed_rir: set.prescribedRIR,
+        prescribed_percentage: set.prescribedPercentage,
+        prescribed_weight: set.prescribedWeight != null ? Number(set.prescribedWeight) : null,
+        actual_weight: skipped ? null : set.actualWeight,
+        weight_unit: set.weightUnit === 'kg' ? 'kg' : 'lbs',
+        actual_reps: skipped ? null : set.actualReps,
+        actual_rpe: skipped ? null : set.actualRPE,
+        actual_rir: skipped ? null : set.actualRIR,
+        e1rm: skipped ? null : calculateSetE1RMLbs(set),
+        volume_load: (() => {
+          if (skipped) return null;
+          const volume = calculateSetVolumeLbs(set);
+          return volume == null ? null : volume;
+        })(),
+        set_type: set.setType || 'straight',
+        tempo: set.tempo,
+        rest_seconds: set.restTakenSeconds,
+        actual_seconds: set.setDurationSeconds,
+        notes: set.notes,
+        performed_at: set.timestamp ?? session.endTime ?? new Date().toISOString(),
+        completed: set.completed === true && !skipped,
+        skipped,
+      };
+    });
 
     let { data: insertedSetRows, error: setsError } = await client
       .from('set_logs')
       .insert(setLogs)
-      .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+      .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
 
     if (isMissingPrescribedWeightColumn(setsError)) {
       const retry = await client
         .from('set_logs')
         .insert(stripPrescribedWeight(setLogs))
-        .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, performed_at');
+        .select('id, exercise_id, actual_weight, weight_unit, actual_reps, e1rm, volume_load, completed, skipped, performed_at');
       insertedSetRows = retry.data;
       setsError = retry.error;
     }

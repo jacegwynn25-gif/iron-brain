@@ -173,7 +173,7 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   });
 
   assert.equal(recommendation.target?.weightUnit, 'kg');
-  assert.equal(recommendation.target?.weight, 108.75);
+  assert.equal(recommendation.target?.weight, 110);
 }
 
 {
@@ -297,6 +297,82 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
 {
   const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'next_heavy_drop', weight: 225, reps: 6, prescribedRPE: 8, completed: false },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'wide_rep_prev', weight: 200, reps: 12, rpe: 10, completed: true },
+      { ...baseSet, setId: 'next_heavy_drop', weight: 225, reps: 6, prescribedRPE: 8, completed: false },
+    ],
+    readiness: { score: 90, modifier: 1.025 },
+  });
+
+  assert.equal(recommendation.action, 'reduce_load');
+  assert.ok((recommendation.target?.weight ?? 999) <= 200);
+  assert.equal(recommendation.apply?.weight, 180);
+  assert.match(recommendation.reason, /Last set was 10\.0 RPE/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'next_easy_cap', weight: 225, reps: 6, prescribedRPE: 8, completed: false },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'easy_wide_rep_prev', weight: 200, reps: 12, rpe: 6, completed: true },
+      { ...baseSet, setId: 'next_easy_cap', weight: 225, reps: 6, prescribedRPE: 8, completed: false },
+    ],
+    readiness: { score: 90, modifier: 1.025 },
+  });
+
+  assert.equal(recommendation.action, 'increase_load');
+  assert.equal(recommendation.target?.weight, 205);
+  assert.equal(recommendation.apply?.weight, 205);
+  assert.notEqual(recommendation.target?.weight, 240);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'next_missed_no_rpe', weight: 205, reps: 6, prescribedRPE: 8, completed: false },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'missed_no_rpe_prev', weight: 200, reps: 4, rpe: null, completed: true },
+      { ...baseSet, setId: 'next_missed_no_rpe', weight: 205, reps: 6, prescribedRPE: 8, completed: false },
+    ],
+    readiness: { score: 78, modifier: 1 },
+  });
+
+  assert.equal(recommendation.action, 'reduce_load');
+  assert.ok((recommendation.target?.weight ?? 999) <= 200);
+  assert.equal(recommendation.apply?.restSeconds, 30);
+}
+
+{
+  const hardRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'next_rir_hard', weight: 205, reps: 6, prescribedRIR: 2, completed: false },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'rir_hard_prev', weight: 200, reps: 6, rir: 0, completed: true },
+      { ...baseSet, setId: 'next_rir_hard', weight: 205, reps: 6, prescribedRIR: 2, completed: false },
+    ],
+    readiness: { score: 78, modifier: 1 },
+  });
+  assert.equal(hardRecommendation.action, 'reduce_load');
+  assert.ok((hardRecommendation.target?.weight ?? 999) <= 200);
+
+  const easyRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'next_rir_easy', weight: 200, reps: 6, prescribedRIR: 2, completed: false },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'rir_easy_prev', weight: 200, reps: 6, rir: 4, completed: true },
+      { ...baseSet, setId: 'next_rir_easy', weight: 200, reps: 6, prescribedRIR: 2, completed: false },
+    ],
+    readiness: { score: 82, modifier: 1 },
+  });
+  assert.equal(easyRecommendation.action, 'increase_load');
+  assert.equal(easyRecommendation.target?.weight, 205);
+}
+
+{
+  const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: 205, reps: 5, prescribedRPE: 8, touchedWeight: false },
     historySets: [{
       exerciseId: 'back_squat',
@@ -314,6 +390,84 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.equal(recommendation.target?.weight, 225);
   assert.equal(recommendation.apply?.weight, 225);
   assert.match(recommendation.reason, /recent completed sets/i);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8, touchedWeight: false },
+    historySets: [{
+      id: 'skipped_fake_history',
+      exerciseId: 'back_squat',
+      actualWeight: 405,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 6,
+      completed: false,
+      skipped: true,
+      performedAt: '2026-05-07T12:00:00.000Z',
+    }, {
+      id: 'real_history',
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      skipped: false,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 200);
+  assert.notEqual(recommendation.target?.weight, 405);
+  assert.equal(recommendation.evidenceCount, 1);
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, setId: 'skip_current_next', weight: 205, reps: 5, prescribedRPE: 8 },
+    historySets: [],
+    sessionSets: [
+      { ...baseSet, setId: 'real_prev', weight: 200, reps: 5, rpe: 8, completed: true, skipped: false },
+      { ...baseSet, setId: 'skip_prev', weight: 405, reps: 5, rpe: 6, completed: true, skipped: true },
+      { ...baseSet, setId: 'skip_current_next', weight: 205, reps: 5, prescribedRPE: 8, completed: false },
+    ],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.target?.weight, 200);
+  assert.equal(recommendation.evidenceSource, 'current_session');
+}
+
+{
+  const recommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: 200, reps: 5, prescribedRPE: 8 },
+    historySets: [{
+      id: 'same_set_id',
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }, {
+      id: 'same_set_id',
+      exerciseId: 'back_squat',
+      actualWeight: 200,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      performedAt: '2026-05-06T12:00:00.000Z',
+    }],
+    sessionSets: [],
+    readiness: { score: 75, modifier: 1 },
+  });
+
+  assert.equal(recommendation.evidenceCount, 1);
 }
 
 {
@@ -578,8 +732,8 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   const recommendation = nextSetRecommendation({
     currentSet: { ...baseSet, weight: 225, reps: 5, prescribedRPE: 8 },
     historySets: [
-      ...Array.from({ length: 8 }, (_, index) => squatHistory(1 + (index % 4))),
-      ...Array.from({ length: 8 }, (_, index) => squatHistory(10 + index * 2)),
+      ...Array.from({ length: 8 }, (_, index) => squatHistory(1 + (index % 4), { id: `acute_${index}` })),
+      ...Array.from({ length: 8 }, (_, index) => squatHistory(10 + index * 2, { id: `chronic_${index}` })),
     ],
     sessionSets: [],
     readiness: { score: 80, modifier: 1 },
@@ -718,6 +872,47 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   const tuned = applyProgramTuneUp(program, recommendation!);
   assert.equal(tuned.weeks[0]?.days[0]?.sets[0]?.fixedWeight, 135);
   assert.equal(tuned.weeks[0]?.days[0]?.sets[1]?.fixedWeight, 190);
+}
+
+{
+  const program: ProgramTemplate = {
+    id: 'qa_skipped_program',
+    name: 'QA Skipped Program',
+    weeks: [{
+      weekNumber: 1,
+      days: [{
+        dayOfWeek: 'Mon',
+        name: 'Lower',
+        sets: [{
+          exerciseId: 'back_squat',
+          setIndex: 1,
+          prescribedReps: '5',
+          prescriptionMethod: 'fixed_weight',
+          fixedWeight: 200,
+          targetRPE: 8,
+        }],
+      }],
+    }],
+  };
+  const recommendation = buildProgramTuneUpRecommendation({
+    program,
+    historySets: Array.from({ length: 8 }, (_, index) => ({
+      exerciseId: 'back_squat',
+      actualWeight: 405,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 10,
+      prescribedReps: '5',
+      prescribedRPE: 8,
+      completed: false,
+      skipped: true,
+      performedAt: isoDaysAgo(index + 1),
+    })),
+    readiness: { score: 72, modifier: 1 },
+  });
+
+  assert.equal(recommendation?.action, 'hold_program');
+  assert.equal(recommendation?.evidenceCount, 0);
 }
 
 {

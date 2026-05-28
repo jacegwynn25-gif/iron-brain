@@ -40,6 +40,7 @@ type EditableWorkoutSet = {
   actualReps: string;
   actualRPE: string;
   completed: boolean;
+  skipped?: boolean;
   notes: string;
   setType?: SetLog['setType'];
   timestamp?: string;
@@ -170,7 +171,8 @@ export default function WorkoutHistory({
         actualWeight: set.actualWeight != null ? String(set.actualWeight) : '',
         actualReps: set.actualReps != null ? String(set.actualReps) : '',
         actualRPE: set.actualRPE != null ? String(set.actualRPE) : '',
-        completed: set.completed === true,
+        completed: set.completed === true && set.skipped !== true,
+        skipped: set.skipped === true,
         notes: set.notes ?? '',
         setType: set.setType ?? 'straight',
         timestamp: set.timestamp,
@@ -206,7 +208,7 @@ export default function WorkoutHistory({
     workoutHistory.forEach((session) => {
       const sessionDate = session.date || '';
       session.sets.forEach((set) => {
-        if (!set.completed) return;
+        if (!set.completed || set.skipped) return;
         const exerciseId = set.exerciseId;
         const reps = Number(set.actualReps ?? 0);
         const weightLbs = toLbs(set.actualWeight, set.weightUnit);
@@ -331,7 +333,7 @@ export default function WorkoutHistory({
     }).format(value);
 
   const calculateSessionStats = (session: WorkoutSession) => {
-    const completedSets = session.sets.filter(s => s.completed);
+    const completedSets = session.sets.filter(s => s.completed && !s.skipped);
     const totalVolume = completedSets.reduce((sum, set) => {
       const reps = typeof set.actualReps === 'number' ? set.actualReps : Number(set.actualReps ?? 0);
       const rawWeight = typeof set.actualWeight === 'number' ? set.actualWeight : Number(set.actualWeight ?? 0);
@@ -595,6 +597,7 @@ export default function WorkoutHistory({
               actualRPE: normalizedRpe,
               notes: set.notes.trim(),
               completed,
+              skipped: false,
               setType: set.setType,
               timestamp: set.timestamp ?? nowIso,
             };
@@ -614,6 +617,7 @@ export default function WorkoutHistory({
             actualReps: set.actualReps,
             actualRPE: set.actualRPE,
             completed: set.completed,
+            skipped: set.skipped,
             notes: set.notes || undefined,
             setType: set.setType ?? 'straight',
             timestamp: set.timestamp,
@@ -728,9 +732,9 @@ export default function WorkoutHistory({
             const stats = calculateSessionStats(session);
             const groupedSets = groupSetsByExercise(session.sets);
             const exerciseIds = Object.keys(groupedSets);
-            const completedSetCount = session.sets.filter(s => s.completed).length;
+            const completedSetCount = session.sets.filter(s => s.completed && !s.skipped).length;
             const completedExerciseCount = exerciseIds.filter((exerciseId) =>
-              groupedSets[exerciseId].some((set) => set.completed)
+              groupedSets[exerciseId].some((set) => set.completed && !set.skipped)
             ).length;
             const sourceLabel = getSessionSourceLabel(session);
 
@@ -833,7 +837,7 @@ export default function WorkoutHistory({
                     <div className="space-y-6">
                       {exerciseIds.map((exerciseId, exIdx) => {
                         const exerciseSets = groupedSets[exerciseId];
-                        const completedSets = exerciseSets.filter(s => s.completed);
+                        const completedSets = exerciseSets.filter(s => s.completed && !s.skipped);
                         if (completedSets.length === 0) return null;
 
                         const exerciseName = getExerciseName(exerciseId, exerciseSets[0]?.exerciseName);

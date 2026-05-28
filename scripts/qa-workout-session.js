@@ -113,6 +113,43 @@ async function swipeRowLeft(page, row, label) {
   });
   console.log('✅ Quick Start sets use RPE 8 target while actual RPE stays blank');
 
+  console.log('▶️  Checking skip-set audit flow...');
+  await page.getByRole('button', { name: /Add Exercise/i }).click();
+  await expectVisible(page.getByText(/ADD MOVEMENT/i), 'Add movement modal opened for skip flow');
+  await page.getByText(/Bicep Curl/i).first().click();
+  await expectVisible(page.getByRole('button', { name: /ADD \d+ SETS/i }), 'Skip flow set count modal opened');
+  await page.getByRole('button', { name: '1', exact: true }).click();
+  await page.getByRole('button', { name: /ADD \d+ SET/i }).click();
+  await page.getByText(/How many sets\?/i).waitFor({ state: 'hidden', timeout: 10000 });
+  await page.getByText(/Bicep Curl/i).first().tap({ timeout: 10000 });
+  await expectVisible(page.getByRole('button', { name: /Skip Set/i }), 'Skip set button visible');
+  await page.getByRole('button', { name: /Skip Set/i }).click();
+  await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer shown after skipped set');
+  await page.getByRole('button', { name: /Skip Rest/i }).click();
+  await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Returned to overview after skipped set');
+  await expectVisible(page.getByRole('button', { name: /Skipped/i }).first(), 'Skipped set chip visible');
+  await page.waitForFunction(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    const raw = activeKey ? localStorage.getItem(activeKey) : null;
+    if (!raw) return false;
+    const snapshot = JSON.parse(raw);
+    const sets = snapshot.blocks?.flatMap((block) => block.exercises?.flatMap((exercise) => exercise.sets ?? []) ?? []) ?? [];
+    return sets.some((set) => set.skipped === true && set.completed === true);
+  }, null, { timeout: 5000 });
+  const activeSkipMarker = await page.evaluate(() => {
+    const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
+    const raw = activeKey ? localStorage.getItem(activeKey) : null;
+    if (!raw) return null;
+    const snapshot = JSON.parse(raw);
+    const sets = snapshot.blocks?.flatMap((block) => block.exercises?.flatMap((exercise) => exercise.sets ?? []) ?? []) ?? [];
+    const skipped = sets.find((set) => set.skipped === true);
+    return skipped ? { completed: skipped.completed, skipped: skipped.skipped } : null;
+  });
+  if (!activeSkipMarker?.completed || !activeSkipMarker?.skipped) {
+    throw new Error('Skipped active set did not retain completed=true/skipped=true marker');
+  }
+  console.log('✅ Skip Set records a skipped marker in the active session');
+
   console.log('▶️  Checking leave/resume/back-forward session integrity...');
   for (let index = 0; index < 3; index += 1) {
     await page.getByText(/Bench Press/i).first().tap({ timeout: 10000 });
@@ -213,6 +250,38 @@ async function swipeRowLeft(page, row, label) {
   await page.getByRole('button', { name: /^Complete Workout$/i }).click();
   await page.waitForURL('http://localhost:3000/', { timeout: 15000 });
   console.log('✅ Returned to dashboard');
+
+  const savedSkippedSet = await page.evaluate(() => {
+    const historyKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_workout_history'));
+    const raw = historyKey ? localStorage.getItem(historyKey) : null;
+    if (!raw) return null;
+    const history = JSON.parse(raw);
+    const latest = history[history.length - 1];
+    const skipped = latest?.sets?.find((set) => set.skipped === true);
+    return skipped
+      ? {
+        completed: skipped.completed,
+        skipped: skipped.skipped,
+        actualWeight: skipped.actualWeight ?? null,
+        actualReps: skipped.actualReps ?? null,
+        actualRPE: skipped.actualRPE ?? null,
+        e1rm: skipped.e1rm ?? null,
+        volumeLoad: skipped.volumeLoad ?? null,
+      }
+      : null;
+  });
+  if (
+    !savedSkippedSet?.skipped ||
+    savedSkippedSet.completed !== false ||
+    savedSkippedSet.actualWeight !== null ||
+    savedSkippedSet.actualReps !== null ||
+    savedSkippedSet.actualRPE !== null ||
+    savedSkippedSet.e1rm !== null ||
+    savedSkippedSet.volumeLoad !== null
+  ) {
+    throw new Error(`Skipped set was saved with fake performance: ${JSON.stringify(savedSkippedSet)}`);
+  }
+  console.log('✅ Finished workout saves skipped sets without fake performance numbers');
 
   console.log('▶️  Checking history...');
   await page.goto('http://localhost:3000/history', { waitUntil: 'networkidle' });

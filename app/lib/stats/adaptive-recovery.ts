@@ -136,7 +136,7 @@ export function calculateTrainingLoad(sets: SetLog[]): number {
   let totalLoad = 0;
 
   for (const set of sets) {
-    if (!set.completed || !set.actualReps || !set.actualWeight) continue;
+    if (!set.completed || set.skipped || !set.actualReps || !set.actualWeight) continue;
 
     const weightLbs = convertWeight(set.actualWeight, set.weightUnit ?? 'lbs', 'lbs');
     const volume = set.actualReps * weightLbs;

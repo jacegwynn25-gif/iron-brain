@@ -198,7 +198,7 @@ export function buildCanonicalAnalyticsSets(
       const reps = positiveFinite(set.actualReps) ?? 0;
       const rawWeightUnit: WeightUnit = set.weightUnit === 'kg' ? 'kg' : 'lbs';
       const weightLbs = rawWeight > 0 ? convertWeight(rawWeight, rawWeightUnit, 'lbs') : 0;
-      const completed = set.completed !== false;
+      const completed = set.completed === true && set.skipped !== true;
       const isWarmup = set.setType === 'warmup';
       const rpe = typeof set.actualRPE === 'number' && Number.isFinite(set.actualRPE) ? set.actualRPE : null;
       let anomalyReason: CanonicalAnalyticsAnomalyReason | undefined;
