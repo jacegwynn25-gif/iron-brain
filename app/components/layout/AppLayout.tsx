@@ -198,14 +198,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       )}
 
-      <main className={`relative mx-auto min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-24'}`}>
+      <main className={`relative mx-auto box-border min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-24'}`}>
         {children}
       </main>
 
       {!hideBottomNav && <WorkoutMiniBar />}
 
       {!hideBottomNav && (
-        <nav className="app-bottom-nav pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.35rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.45rem] border border-white/10 bg-zinc-950/88 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.95)] backdrop-blur-2xl touch-manipulation sm:inset-x-6">
+        <nav
+          data-testid="app-bottom-nav"
+          className="app-bottom-nav pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.35rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.45rem] border border-white/10 bg-zinc-950/88 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.95)] backdrop-blur-2xl touch-manipulation sm:inset-x-6"
+        >
           <div className="relative flex min-h-16 w-full items-stretch justify-between gap-1 p-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;

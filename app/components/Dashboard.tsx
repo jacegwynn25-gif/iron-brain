@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
-  Activity,
   CalendarDays,
   ClipboardCheck,
   Dumbbell,
@@ -209,9 +208,9 @@ export default function Dashboard() {
       return {
         eyebrow: 'Active Session',
         title: 'Resume the workout in progress',
-        detail: 'Keep the current log alive instead of starting a duplicate session.',
+        detail: 'Continue the current log.',
         href: '/workout/new',
-        label: 'RESUME SESSION',
+        label: 'RESUME',
         tone: 'amber' as const,
       };
     }
@@ -220,9 +219,9 @@ export default function Dashboard() {
       return {
         eyebrow: 'Recovery Guardrail',
         title: 'Review readiness before loading up',
-        detail: readiness.recommendation || 'Today looks constrained. Check in before pushing volume.',
+        detail: readiness.recommendation || 'Check readiness before pushing volume.',
         href: '/checkin',
-        label: 'CHECK IN',
+        label: 'CHECK',
         tone: 'rose' as const,
       };
     }
@@ -231,10 +230,10 @@ export default function Dashboard() {
       const dayName = nextProgramSession.resolved.day?.name ?? 'planned session';
       return {
         eyebrow: 'Planned Training',
-        title: `Start ${dayName}`,
+        title: dayName,
         detail: `${nextProgramSession.program.name} / Week ${nextProgramSession.resolved.weekNumber}, Day ${nextProgramSession.resolved.dayIndex + 1}`,
         href: nextProgramSession.href,
-        label: 'START PLANNED',
+        label: 'START',
         tone: 'emerald' as const,
       };
     }
@@ -242,10 +241,10 @@ export default function Dashboard() {
     if (!readinessLoading && !readiness?.hasRecoveryInput) {
       return {
         eyebrow: 'Missing Readiness',
-        title: 'Check in before the next hard session',
-        detail: 'A quick readiness entry gives the target engine better guardrails.',
+        title: 'Check in',
+        detail: 'Add readiness so targets get better guardrails.',
         href: '/checkin',
-        label: 'CHECK IN',
+        label: 'CHECK',
         tone: 'zinc' as const,
       };
     }
@@ -277,7 +276,7 @@ export default function Dashboard() {
     !hasPriorLocalUse;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3 pb-24 pt-2 sm:space-y-5 sm:pt-8">
+    <div className="mx-auto w-full max-w-5xl space-y-2 pb-0 pt-1 sm:space-y-5 sm:pt-8">
       {showFreshUserAuthPrompt && (
         <AuthModal
           hideClose
@@ -349,24 +348,10 @@ export default function Dashboard() {
       )}
 
       <section data-testid="dashboard-command-center" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="border-b border-zinc-900/80 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-3">
+        <div className="p-3 sm:p-5">
+          <div data-testid="dashboard-smart-action" className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-400/80">Training Command</p>
-              <h2 className="mt-1 text-2xl font-black italic leading-none text-zinc-100 sm:text-3xl">
-                {activeSessionReady && isSessionActive ? 'Live Session' : 'Today'}
-              </h2>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-emerald-300">
-              <Activity className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        <div data-testid="dashboard-smart-action" className="p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className={`text-[9px] font-black uppercase tracking-[0.22em] ${
+              <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${
                 smartAction.tone === 'rose'
                   ? 'text-rose-300'
                   : smartAction.tone === 'amber'
@@ -375,18 +360,18 @@ export default function Dashboard() {
                       ? 'text-zinc-400'
                       : 'text-emerald-300'
               }`}>
-                Smart Action / {smartAction.eyebrow}
+                Next Action
               </p>
-              <h3 className="mt-1 text-lg font-black italic leading-tight text-zinc-100 sm:text-xl">
+              <h2 className="mt-0.5 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
                 {smartAction.title}
-              </h3>
-              <p className="mt-1 max-w-2xl text-xs font-medium leading-5 text-zinc-500 sm:text-sm">
+              </h2>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-500 sm:text-sm">
                 {smartAction.detail}
               </p>
             </div>
             <Link
               href={smartAction.href}
-              className={`group inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black italic tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] ${
+              className={`group inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-black uppercase tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] sm:h-11 sm:px-4 sm:text-xs ${
                 smartAction.tone === 'rose'
                   ? 'bg-rose-500 shadow-lg shadow-rose-500/15'
                   : smartAction.tone === 'amber'
@@ -397,81 +382,61 @@ export default function Dashboard() {
               }`}
             >
               {smartAction.label}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 sm:h-4 sm:w-4" />
             </Link>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
             <Link
               href={nextProgramSession?.href ?? '/start'}
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
             >
               <CalendarDays className="h-4 w-4 text-emerald-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Planned</p>
-              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">
-                {nextProgramSession ? 'START' : programsLoading ? 'LOADING' : 'PICK PLAN'}
+              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Plan</p>
+              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
+                {nextProgramSession?.resolved.day?.dayOfWeek ?? (programsLoading ? 'Wait' : 'Pick')}
               </p>
             </Link>
             <Link
               href="/workout/new?type=empty"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
             >
               <Plus className="h-4 w-4 text-zinc-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Quick Log</p>
-              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">EMPTY</p>
+              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Log</p>
+              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">Empty</p>
             </Link>
             <Link
               href="/checkin"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
             >
               <ClipboardCheck className="h-4 w-4 text-cyan-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-600">Readiness</p>
-              <p className="mt-0.5 truncate text-[11px] font-black italic text-zinc-100 sm:text-xs">
-                {readiness?.hasRecoveryInput ? `${Math.round(readiness.score)}` : 'CHECK IN'}
+              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Ready</p>
+              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
+                {readiness?.hasRecoveryInput ? `${Math.round(readiness.score)}` : 'Check'}
               </p>
             </Link>
           </div>
         </div>
-      </section>
 
-      <section data-testid="dashboard-next-session" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-900/80 p-4 sm:p-5">
-          <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">Next Session</p>
-            <h2 className="mt-1 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
-              {nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading Program' : 'No Program Selected')}
-            </h2>
-            <p className="mt-1 truncate text-xs font-semibold text-zinc-500">
-              {nextProgramSession
-                ? `${nextProgramSession.program.name} / Cycle ${nextProgramSession.resolved.cycleNumber}, Week ${nextProgramSession.resolved.weekNumber}`
-                : 'Choose a program or start an empty session.'}
+        <div data-testid="dashboard-next-session" className="grid grid-cols-[minmax(0,1.4fr)_0.65fr_0.65fr] divide-x divide-zinc-900 border-t border-zinc-900/80">
+          <div className="min-w-0 px-3 py-2.5 sm:px-4 sm:py-3">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+              <p className="truncate text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Next</p>
+            </div>
+            <p className="mt-0.5 truncate text-sm font-black italic text-zinc-100 sm:text-base">
+              {nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading' : 'No Plan')}
             </p>
           </div>
-          <Link
-            href="/programs"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
-            aria-label="Open programs"
-          >
-            <Dumbbell className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-3 divide-x divide-zinc-900 p-0">
-          <div className="px-4 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Day</p>
-            <p className="mt-1 truncate text-sm font-black italic text-zinc-100">
-              {nextProgramSession?.resolved.day?.dayOfWeek ?? '--'}
-            </p>
-          </div>
-          <div className="px-4 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Movements</p>
-            <p className="mt-1 text-sm font-black italic text-zinc-100">
+          <div className="px-3 py-2.5 sm:px-4 sm:py-3">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Moves</p>
+            <p className="mt-0.5 text-sm font-black text-zinc-100">
               {nextProgramSession ? nextProgramSession.work.movementCount : '--'}
             </p>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-600">Sets</p>
-            <p className="mt-1 text-sm font-black italic text-zinc-100">
+          <div className="px-3 py-2.5 sm:px-4 sm:py-3">
+            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Sets</p>
+            <p className="mt-0.5 text-sm font-black text-zinc-100">
               {nextProgramSession ? nextProgramSession.work.setCount : '--'}
             </p>
           </div>
@@ -479,10 +444,12 @@ export default function Dashboard() {
       </section>
 
       <section data-testid="dashboard-training-pulse" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-900/80 p-3 sm:p-5">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">Training Pulse</p>
-            <h2 className="mt-1 text-base font-black italic text-zinc-100 sm:text-lg">Last 14 Days</h2>
+        <div className="flex items-center justify-between border-b border-zinc-900/80 px-3 py-2.5 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Training Pulse</p>
+            <h2 className="mt-0.5 truncate text-sm font-black italic text-zinc-100 sm:text-lg">
+              Last: {trainingPulse.lastWorkoutName}
+            </h2>
           </div>
           <Link
             href="/history"
@@ -492,28 +459,28 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="grid grid-cols-4 divide-x divide-zinc-900">
-          <div className="min-w-0 p-3 sm:p-4">
+          <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
               <span className="sm:hidden">Sess</span>
               <span className="hidden sm:inline">Sessions</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.sessions}</p>
           </div>
-          <div className="min-w-0 p-3 sm:p-4">
+          <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
               <span className="sm:hidden">Sets</span>
               <span className="hidden sm:inline">Completed Sets</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.completedSets}</p>
           </div>
-          <div className="min-w-0 p-3 sm:p-4">
+          <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
               <span className="sm:hidden">Vol</span>
               <span className="hidden sm:inline">Volume</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{formatCompactNumber(trainingPulse.volume)}</p>
           </div>
-          <div className="min-w-0 p-3 sm:p-4">
+          <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
               <span className="sm:hidden">PR</span>
               <span className="hidden sm:inline">Recent PR</span>
@@ -522,8 +489,6 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="truncate border-t border-zinc-900/80 px-3 py-2 text-[11px] font-semibold text-zinc-500 sm:px-4 sm:py-3 sm:text-xs">
-          Last workout: <span className="text-zinc-300">{trainingPulse.lastWorkoutName}</span>
-          <span className="text-zinc-700"> / </span>
           {trainingPulse.lastWorkoutDate}
           <span className="text-zinc-700"> / </span>
           {trainingPulse.lastCompletedSets} sets
@@ -532,19 +497,19 @@ export default function Dashboard() {
 
       {/* Readiness Section */}
       {showReadiness && (
-        <section className="stagger-item mx-1">
+        <section className="stagger-item mx-1 hidden sm:block">
           <ReadinessCard readiness={readiness} loading={readinessLoading} />
         </section>
       )}
 
       {/* Consistency Chart */}
-      <section className="stagger-item mx-1 mt-24 sm:mt-0">
+      <section className="stagger-item mx-1 hidden sm:block">
         <WeeklyConsistency workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 
       {/* Status Footer */}
       {showSystemFooter && (
-        <footer className="flex flex-col items-center justify-center gap-4 pt-4 opacity-50 pb-8">
+        <footer className="hidden flex-col items-center justify-center gap-4 pt-4 opacity-50 pb-8 sm:flex">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
