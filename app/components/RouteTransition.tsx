@@ -14,7 +14,7 @@ export default function RouteTransition({ children }: { children: React.ReactNod
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        className="min-h-dvh"
+        className="min-h-0"
         style={{ willChange: reduceMotion ? 'auto' : 'opacity' }}
         suppressHydrationWarning
       >
