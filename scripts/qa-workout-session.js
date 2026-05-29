@@ -181,16 +181,13 @@ async function installWorkoutQaBootstrap(page) {
   await swipeRowLeft(page, customRow, 'QA Logger Row');
   await page.getByRole('button', { name: /Delete QA Logger Row/i }).tap({ timeout: 10000 });
   await page.getByText(/QA Logger Row/i).waitFor({ state: 'hidden', timeout: 10000 });
-  const customStillStored = await page.evaluate(() => {
+  await page.waitForFunction(() => {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
-    if (!activeKey) return true;
+    if (!activeKey) return false;
     const raw = localStorage.getItem(activeKey);
-    if (!raw) return true;
-    return raw.includes('QA Logger Row');
-  });
-  if (customStillStored) {
-    throw new Error('Deleted logger exercise remained in active-session storage');
-  }
+    if (!raw) return false;
+    return !raw.includes('QA Logger Row');
+  }, undefined, { timeout: 5000 });
   console.log('✅ Custom logger exercise can be added, backed out, and removed cleanly');
 
   console.log('▶️  Adding exercise...');
