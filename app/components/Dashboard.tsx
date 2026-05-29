@@ -259,6 +259,51 @@ export default function Dashboard() {
     };
   }, [activeSessionReady, isSessionActive, nextProgramSession, readiness, readinessLoading]);
 
+  const readinessSignal = useMemo(() => {
+    if (readinessLoading) {
+      return {
+        value: '...',
+        label: 'Readiness',
+        detail: 'Syncing recovery signal',
+        tone: 'zinc' as const,
+        progress: 0,
+      };
+    }
+
+    if (!readiness) {
+      return {
+        value: '--',
+        label: 'Readiness',
+        detail: "Set today's guardrails before loading up",
+        tone: 'zinc' as const,
+        progress: 0,
+      };
+    }
+
+    const score = Math.round(readiness.score);
+    const tone =
+      score >= 80
+        ? 'emerald'
+        : score >= 50
+          ? 'amber'
+          : 'rose';
+    const detail =
+      readiness.recommendation ||
+      (score >= 80
+        ? 'Good window for planned work'
+        : score >= 50
+          ? 'Keep jumps conservative'
+          : 'Hold back on load and volume');
+
+    return {
+      value: String(score),
+      label: readiness.hasRecoveryInput ? 'Readiness' : 'Training estimate',
+      detail,
+      tone,
+      progress: score,
+    };
+  }, [readiness, readinessLoading]);
+
   const dismissPrSummary = () => {
     setRecentPrHits([]);
     if (typeof window !== 'undefined') {
@@ -276,7 +321,7 @@ export default function Dashboard() {
     !hasPriorLocalUse;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-2 pb-0 pt-1 sm:space-y-5 sm:pt-8">
+    <div className="mx-auto w-full max-w-5xl space-y-3 pb-0 pt-2 sm:space-y-5 sm:pt-8">
       {showFreshUserAuthPrompt && (
         <AuthModal
           hideClose
@@ -348,7 +393,7 @@ export default function Dashboard() {
       )}
 
       <section data-testid="dashboard-command-center" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="p-3 sm:p-5">
+        <div className="p-4 sm:p-5">
           <div data-testid="dashboard-smart-action" className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${
@@ -362,16 +407,16 @@ export default function Dashboard() {
               }`}>
                 Next Action
               </p>
-              <h2 className="mt-0.5 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
+              <h2 className="mt-1 truncate text-[1.35rem] font-black italic leading-none text-zinc-100 sm:text-2xl">
                 {smartAction.title}
               </h2>
-              <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-500 sm:text-sm">
+              <p className="mt-1 truncate text-[11px] font-semibold text-zinc-500 sm:text-sm">
                 {smartAction.detail}
               </p>
             </div>
             <Link
               href={smartAction.href}
-              className={`group inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-black uppercase tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] sm:h-11 sm:px-4 sm:text-xs ${
+              className={`group inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-[11px] font-black uppercase tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] sm:px-4 sm:text-xs ${
                 smartAction.tone === 'rose'
                   ? 'bg-rose-500 shadow-lg shadow-rose-500/15'
                   : smartAction.tone === 'amber'
@@ -386,31 +431,31 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+          <div className="mt-4 grid grid-cols-3 gap-2">
             <Link
               href={nextProgramSession?.href ?? '/start'}
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
             >
               <CalendarDays className="h-4 w-4 text-emerald-300" />
-              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Plan</p>
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Plan</p>
               <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
                 {nextProgramSession?.resolved.day?.dayOfWeek ?? (programsLoading ? 'Wait' : 'Pick')}
               </p>
             </Link>
             <Link
               href="/workout/new?type=empty"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
             >
               <Plus className="h-4 w-4 text-zinc-300" />
-              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Log</p>
-              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">Empty</p>
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Log</p>
+              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">Quick</p>
             </Link>
             <Link
               href="/checkin"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/65 px-2.5 py-2.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3 sm:py-3"
+              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
             >
               <ClipboardCheck className="h-4 w-4 text-cyan-300" />
-              <p className="mt-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Ready</p>
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Ready</p>
               <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
                 {readiness?.hasRecoveryInput ? `${Math.round(readiness.score)}` : 'Check'}
               </p>
@@ -419,7 +464,7 @@ export default function Dashboard() {
         </div>
 
         <div data-testid="dashboard-next-session" className="grid grid-cols-[minmax(0,1.4fr)_0.65fr_0.65fr] divide-x divide-zinc-900 border-t border-zinc-900/80">
-          <div className="min-w-0 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="min-w-0 px-4 py-3">
             <div className="flex items-center gap-2">
               <Dumbbell className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
               <p className="truncate text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Next</p>
@@ -428,19 +473,63 @@ export default function Dashboard() {
               {nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading' : 'No Plan')}
             </p>
           </div>
-          <div className="px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="px-4 py-3">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Moves</p>
             <p className="mt-0.5 text-sm font-black text-zinc-100">
               {nextProgramSession ? nextProgramSession.work.movementCount : '--'}
             </p>
           </div>
-          <div className="px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="px-4 py-3">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Sets</p>
             <p className="mt-0.5 text-sm font-black text-zinc-100">
               {nextProgramSession ? nextProgramSession.work.setCount : '--'}
             </p>
           </div>
         </div>
+      </section>
+
+      <section data-testid="dashboard-readiness-strip" className="stagger-item mx-1 sm:hidden">
+        <Link
+          href="/checkin"
+          className="flex items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/55 px-3 py-2.5 transition-colors hover:border-zinc-800 hover:bg-zinc-900/60"
+        >
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-sm font-black italic ${
+              readinessSignal.tone === 'emerald'
+                ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                : readinessSignal.tone === 'amber'
+                  ? 'border-amber-400/25 bg-amber-400/10 text-amber-300'
+                  : readinessSignal.tone === 'rose'
+                    ? 'border-rose-400/25 bg-rose-400/10 text-rose-300'
+                    : 'border-zinc-800 bg-zinc-900/70 text-zinc-300'
+            }`}
+          >
+            {readinessSignal.value}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                {readinessSignal.label}
+              </p>
+              <p className="shrink-0 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600">Check-in</p>
+            </div>
+            <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-300">{readinessSignal.detail}</p>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-900">
+              <div
+                className={`h-full rounded-full ${
+                  readinessSignal.tone === 'emerald'
+                    ? 'bg-emerald-400'
+                    : readinessSignal.tone === 'amber'
+                      ? 'bg-amber-400'
+                      : readinessSignal.tone === 'rose'
+                        ? 'bg-rose-400'
+                        : 'bg-zinc-700'
+                }`}
+                style={{ width: `${Math.max(0, Math.min(100, readinessSignal.progress))}%` }}
+              />
+            </div>
+          </div>
+        </Link>
       </section>
 
       <section data-testid="dashboard-training-pulse" className="surface-card stagger-item mx-1 overflow-hidden">
@@ -461,7 +550,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-4 divide-x divide-zinc-900">
           <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">Sess</span>
+              <span className="sm:hidden">Sessions</span>
               <span className="hidden sm:inline">Sessions</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.sessions}</p>
@@ -475,14 +564,14 @@ export default function Dashboard() {
           </div>
           <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">Vol</span>
+              <span className="sm:hidden">Volume</span>
               <span className="hidden sm:inline">Volume</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{formatCompactNumber(trainingPulse.volume)}</p>
           </div>
           <div className="min-w-0 px-3 py-2.5 sm:p-4">
             <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">PR</span>
+              <span className="sm:hidden">PRs</span>
               <span className="hidden sm:inline">Recent PR</span>
             </p>
             <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.prCount}</p>
@@ -493,6 +582,10 @@ export default function Dashboard() {
           <span className="text-zinc-700"> / </span>
           {trainingPulse.lastCompletedSets} sets
         </div>
+      </section>
+
+      <section data-testid="dashboard-activity-mobile" className="stagger-item mx-1 sm:hidden">
+        <WeeklyConsistency compact workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 
       {/* Readiness Section */}
