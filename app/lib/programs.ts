@@ -1,4 +1,4 @@
-import { ProgramTemplate, Exercise } from './types';
+import { ProgramTemplate, Exercise, DayTemplate, SetTemplate } from './types';
 
 export const defaultExercises: Exercise[] = [
   // ========================================
@@ -90,6 +90,13 @@ export const defaultExercises: Exercise[] = [
     name: 'T-Bar Row',
     type: 'compound',
     muscleGroups: ['back', 'biceps'],
+    equipment: ['barbell'],
+  },
+  {
+    id: 'barbell_shrug',
+    name: 'Barbell Shrug',
+    type: 'isolation',
+    muscleGroups: ['back'],
     equipment: ['barbell'],
   },
 
@@ -373,6 +380,13 @@ export const defaultExercises: Exercise[] = [
     equipment: ['cable'],
   },
   {
+    id: 'high_cable_row',
+    name: 'High Cable Row to Chest',
+    type: 'compound',
+    muscleGroups: ['back', 'shoulders', 'biceps'],
+    equipment: ['cable'],
+  },
+  {
     id: 'cable_pullover',
     name: 'Cable Pullover',
     type: 'isolation',
@@ -386,8 +400,31 @@ export const defaultExercises: Exercise[] = [
     muscleGroups: ['shoulders', 'back'],
     equipment: ['cable'],
   },
+  {
+    id: 'cable_rear_delt_fly',
+    name: 'Cable Rear Delt Fly',
+    type: 'isolation',
+    muscleGroups: ['shoulders', 'back'],
+    equipment: ['cable'],
+  },
+
+  // CABLE - SHOULDERS
+  {
+    id: 'cable_lateral_raise',
+    name: 'Cable Lateral Raise',
+    type: 'isolation',
+    muscleGroups: ['shoulders'],
+    equipment: ['cable'],
+  },
 
   // CABLE - ARMS
+  {
+    id: 'rope_pressdown',
+    name: 'Rope Pressdown',
+    type: 'isolation',
+    muscleGroups: ['triceps'],
+    equipment: ['cable'],
+  },
   {
     id: 'tricep_pressdown',
     name: 'Tricep Pressdown',
@@ -405,6 +442,20 @@ export const defaultExercises: Exercise[] = [
   {
     id: 'bicep_curl_cable',
     name: 'Cable Curl',
+    type: 'isolation',
+    muscleGroups: ['biceps'],
+    equipment: ['cable'],
+  },
+  {
+    id: 'rope_hammer_curl',
+    name: 'Rope Hammer Curl',
+    type: 'isolation',
+    muscleGroups: ['biceps'],
+    equipment: ['cable'],
+  },
+  {
+    id: 'cable_reverse_curl',
+    name: 'Cable Reverse Curl',
     type: 'isolation',
     muscleGroups: ['biceps'],
     equipment: ['cable'],
@@ -648,6 +699,378 @@ export const defaultExercises: Exercise[] = [
     equipment: ['bodyweight'],
   },
 ];
+
+type ProgramSetSeed = Omit<SetTemplate, 'setIndex'> & {
+  count: number;
+};
+
+type HybridWaveConfig = {
+  weekNumber: number;
+  note: string;
+  setScale: number;
+  topRPE: number;
+  backoffRPE: number;
+  compoundRPE: number;
+  lowerRPE: number;
+  isolationRPE: number;
+  highIsolationRPE: number;
+  easyLowerRPE: number;
+  fridayUpperRPE: number;
+  armPumpRPE: number;
+};
+
+function joinSetNotes(...notes: Array<string | undefined>): string | undefined {
+  const cleaned = notes.map((note) => note?.trim()).filter(Boolean) as string[];
+  return cleaned.length > 0 ? cleaned.join(' ') : undefined;
+}
+
+function repeatProgramSet(seed: ProgramSetSeed, setScale: number): SetTemplate[] {
+  const { count, ...setTemplate } = seed;
+  const scaledCount = Math.max(1, Math.ceil(count * setScale));
+
+  return Array.from({ length: scaledCount }, (_, index) => ({
+    ...setTemplate,
+    setIndex: index + 1,
+  }));
+}
+
+function buildHybridDay(
+  wave: HybridWaveConfig,
+  dayOfWeek: DayTemplate['dayOfWeek'],
+  name: string,
+  seeds: ProgramSetSeed[]
+): DayTemplate {
+  return {
+    dayOfWeek,
+    name,
+    sets: seeds.flatMap((seed, seedIndex) =>
+      repeatProgramSet(
+        {
+          ...seed,
+          notes: seedIndex === 0 ? joinSetNotes(wave.note, seed.notes) : seed.notes,
+        },
+        wave.setScale
+      )
+    ),
+  };
+}
+
+const upperBodyHybridWaves: HybridWaveConfig[] = [
+  {
+    weekNumber: 1,
+    note: 'Week 1 conservative: leave reps in reserve and keep every rep clean.',
+    setScale: 1,
+    topRPE: 8,
+    backoffRPE: 7.5,
+    compoundRPE: 7.5,
+    lowerRPE: 7.5,
+    isolationRPE: 8,
+    highIsolationRPE: 8.5,
+    easyLowerRPE: 6.5,
+    fridayUpperRPE: 7.5,
+    armPumpRPE: 8,
+  },
+  {
+    weekNumber: 2,
+    note: 'Week 2: add reps or a small load if last week was clean.',
+    setScale: 1,
+    topRPE: 8,
+    backoffRPE: 8,
+    compoundRPE: 8,
+    lowerRPE: 8,
+    isolationRPE: 8.5,
+    highIsolationRPE: 8.5,
+    easyLowerRPE: 6.5,
+    fridayUpperRPE: 7.5,
+    armPumpRPE: 8,
+  },
+  {
+    weekNumber: 3,
+    note: 'Week 3 hard week: last sets can reach RPE 8.5-9, but no ugly grinders.',
+    setScale: 1,
+    topRPE: 8.5,
+    backoffRPE: 8.5,
+    compoundRPE: 8.5,
+    lowerRPE: 8.5,
+    isolationRPE: 9,
+    highIsolationRPE: 9,
+    easyLowerRPE: 7,
+    fridayUpperRPE: 8,
+    armPumpRPE: 8.5,
+  },
+  {
+    weekNumber: 4,
+    note: 'Week 4 deload: sets are cut roughly in half and effort stays easy.',
+    setScale: 0.5,
+    topRPE: 6.5,
+    backoffRPE: 6.5,
+    compoundRPE: 6.5,
+    lowerRPE: 6.5,
+    isolationRPE: 6.5,
+    highIsolationRPE: 6.5,
+    easyLowerRPE: 6,
+    fridayUpperRPE: 6.5,
+    armPumpRPE: 6.5,
+  },
+];
+
+function buildUpperBodyHybridWeek(wave: HybridWaveConfig): ProgramTemplate['weeks'][number] {
+  return {
+    weekNumber: wave.weekNumber,
+    days: [
+      buildHybridDay(wave, 'Mon', 'Bench Strength + Shoulders', [
+        {
+          exerciseId: 'bench_tng',
+          count: 1,
+          prescribedReps: '4-6',
+          targetRPE: wave.topRPE,
+          restSeconds: 240,
+          notes: 'Top set. Start around 175-185 if that is still a clean RPE 8.',
+        },
+        {
+          exerciseId: 'bench_backoff',
+          count: 2,
+          prescribedReps: '6-8',
+          targetRPE: wave.backoffRPE,
+          restSeconds: 240,
+          setType: 'backoff',
+          notes: 'Start around 155-170. Add weight only after the top of the rep range is clean.',
+        },
+        {
+          exerciseId: 'row_cable',
+          count: 2,
+          prescribedReps: '8-12',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 150,
+          notes: 'Standing or seated cable row. Floor-seated with feet braced is fine.',
+        },
+        {
+          exerciseId: 'ohp',
+          count: 2,
+          prescribedReps: '5-8',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 180,
+          notes: 'Standing or seated.',
+        },
+        {
+          exerciseId: 'cable_lateral_raise',
+          count: 3,
+          prescribedReps: '12-20',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+          notes: 'Clean reps. Add the smallest jump once the top of the range is there.',
+        },
+        {
+          exerciseId: 'rope_pressdown',
+          count: 3,
+          prescribedReps: '10-15',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'face_pull',
+          count: 2,
+          prescribedReps: '15-25',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+      ]),
+      buildHybridDay(wave, 'Tue', 'Lower + Arms', [
+        {
+          exerciseId: 'squat',
+          count: 3,
+          prescribedReps: '4-6',
+          targetRPE: wave.lowerRPE,
+          restSeconds: 240,
+          notes: 'Start around 265-275 if it matches the target RPE. Squat, RDL, done.',
+        },
+        {
+          exerciseId: 'rdl',
+          count: 2,
+          prescribedReps: '6-8',
+          targetRPE: wave.lowerRPE,
+          restSeconds: 240,
+          notes: 'Start around 245-255 if it matches the target RPE.',
+        },
+        {
+          exerciseId: 'bicep_curl_cable',
+          count: 3,
+          prescribedReps: '8-12',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'rope_hammer_curl',
+          count: 2,
+          prescribedReps: '10-15',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'cable_reverse_curl',
+          count: 2,
+          prescribedReps: '12-20',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+      ]),
+      buildHybridDay(wave, 'Wed', 'Upper Back, Traps, Pull', [
+        {
+          exerciseId: 'lat_pulldown',
+          count: 3,
+          prescribedReps: '6-10',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 150,
+          notes: 'Pull-up or chin-up can replace this if preferred.',
+        },
+        {
+          exerciseId: 'high_cable_row',
+          count: 3,
+          prescribedReps: '10-15',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 150,
+          notes: 'Pull toward upper chest with elbows more out than tucked.',
+        },
+        {
+          exerciseId: 'barbell_shrug',
+          count: 3,
+          prescribedReps: '8-12',
+          targetRPE: wave.highIsolationRPE,
+          restSeconds: 150,
+          notes: 'One-second squeeze at the top, controlled stretch at the bottom.',
+        },
+        {
+          exerciseId: 'cable_rear_delt_fly',
+          count: 2,
+          prescribedReps: '15-25',
+          targetRPE: wave.highIsolationRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'bicep_curl_cable',
+          count: 2,
+          prescribedReps: '12-15',
+          targetRPE: wave.isolationRPE,
+          restSeconds: 90,
+        },
+      ]),
+      buildHybridDay(wave, 'Thu', 'Chest + Shoulder Hypertrophy', [
+        {
+          exerciseId: 'incline_bench',
+          count: 3,
+          prescribedReps: '6-10',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 180,
+          notes: 'Start around 145-155 if it matches the target RPE.',
+        },
+        {
+          exerciseId: 'bench_close_grip',
+          count: 2,
+          prescribedReps: '6-10',
+          targetRPE: wave.compoundRPE,
+          restSeconds: 180,
+          notes: 'JM Press is the alternate.',
+        },
+        {
+          exerciseId: 'cable_fly',
+          count: 2,
+          prescribedReps: '12-20',
+          targetRPE: wave.highIsolationRPE,
+          restSeconds: 90,
+          notes: 'Smooth and controlled. Do not turn it into a standing press.',
+        },
+        {
+          exerciseId: 'cable_lateral_raise',
+          count: 3,
+          prescribedReps: '12-20',
+          targetRPE: wave.highIsolationRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'rope_pressdown',
+          count: 2,
+          prescribedReps: '12-20',
+          targetRPE: wave.highIsolationRPE,
+          restSeconds: 90,
+        },
+      ]),
+      buildHybridDay(wave, 'Fri', 'Easy Lower + Upper Pump', [
+        {
+          exerciseId: 'squat',
+          count: 2,
+          prescribedReps: '6-8',
+          targetRPE: wave.easyLowerRPE,
+          restSeconds: 180,
+          notes: 'Paused squat or light squat. Friday should not be death.',
+        },
+        {
+          exerciseId: 'rdl',
+          count: 2,
+          prescribedReps: '8',
+          targetRPE: wave.easyLowerRPE,
+          restSeconds: 180,
+          notes: 'Light RDL.',
+        },
+        {
+          exerciseId: 'lat_pulldown',
+          count: 2,
+          prescribedReps: '10-12',
+          targetRPE: wave.fridayUpperRPE,
+          restSeconds: 120,
+          notes: 'Pull-up can replace this if preferred.',
+        },
+        {
+          exerciseId: 'row_cable',
+          count: 2,
+          prescribedReps: '12-15',
+          targetRPE: wave.fridayUpperRPE,
+          restSeconds: 120,
+        },
+        {
+          exerciseId: 'cable_lateral_raise',
+          count: 2,
+          prescribedReps: '15-25',
+          targetRPE: wave.armPumpRPE,
+          restSeconds: 90,
+        },
+        {
+          exerciseId: 'bicep_curl_cable',
+          count: 2,
+          prescribedReps: '12-15',
+          targetRPE: wave.armPumpRPE,
+          restSeconds: 90,
+          setType: 'superset',
+          supersetGroup: 'friday-arm-pump',
+          notes: 'Superset with rope pressdown.',
+        },
+        {
+          exerciseId: 'rope_pressdown',
+          count: 2,
+          prescribedReps: '12-15',
+          targetRPE: wave.armPumpRPE,
+          restSeconds: 90,
+          setType: 'superset',
+          supersetGroup: 'friday-arm-pump',
+          notes: 'Superset with cable curl.',
+        },
+      ]),
+    ],
+  };
+}
+
+const upperBodyBiasedHybridSplit: ProgramTemplate = {
+  id: 'upper_body_biased_hybrid_4w_v1',
+  name: 'Upper-Body Biased Hybrid Split',
+  description:
+    'Monday-Friday shoulders, chest, upper-back, and traps focused split with squat/RDL-only lower work, double progression, and a week-four deload.',
+  author: 'Iron Brain',
+  goal: 'hypertrophy',
+  experienceLevel: 'intermediate',
+  daysPerWeek: 5,
+  weekCount: 4,
+  intensityMethod: 'rpe',
+  weeks: upperBodyHybridWaves.map(buildUpperBodyHybridWeek),
+};
 
 const benchSpecialization5D: ProgramTemplate = {
   id: 'bench_spec_5d_v1',
@@ -2719,6 +3142,7 @@ const liftingProBenchSpecialization: ProgramTemplate = {
 
 // Export all available programs
 export const allPrograms: ProgramTemplate[] = [
+  upperBodyBiasedHybridSplit,
   liftingProBenchSpecialization,
   benchSpecialization5D,
   phul4Day,
