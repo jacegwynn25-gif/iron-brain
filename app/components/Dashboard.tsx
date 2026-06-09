@@ -4,10 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
-  CalendarDays,
-  ClipboardCheck,
   HeartHandshake,
-  History,
   Info,
   LogIn,
   Settings,
@@ -259,7 +256,7 @@ export default function Dashboard() {
 
     return {
       eyebrow: 'Open session',
-      title: 'Start training',
+      title: 'No program selected',
       detail: 'Pick a program day or begin an empty log.',
       href: '/start',
       label: 'Start',
@@ -314,27 +311,38 @@ export default function Dashboard() {
 
   const nextSessionTitle =
     nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading' : 'No plan');
-  const planChipValue = nextSessionTitle;
-  const workChipValue = nextProgramSession
-    ? `${nextProgramSession.work.movementCount} moves / ${nextProgramSession.work.setCount} sets`
-    : '--';
-  const sessionContext = [
-    readinessSignal.value !== '--' && !readinessLoading ? `${readinessSignal.value} readiness` : null,
-    planChipValue && planChipValue !== 'No plan' && planChipValue !== 'Loading' ? planChipValue : null,
-    workChipValue !== '--' ? workChipValue : null,
-  ].filter((item): item is string => Boolean(item));
-  const actionSubtitle =
-    smartAction.tone === 'emerald' && nextProgramSession ? nextProgramSession.program.name : null;
+  const displayTitle = nextProgramSession ? nextProgramSession.program.name : smartAction.title;
+  const displaySubtitle = nextProgramSession
+    ? nextProgramSession.resolved.day?.name ?? 'Planned session'
+    : smartAction.label === 'Resume'
+      ? 'Active workout in progress'
+      : smartAction.tone === 'rose'
+        ? 'Check readiness before you load up'
+        : 'Pick a program or freestyle session';
+  const dayDisplayValue = nextProgramSession
+    ? nextProgramSession.resolved.day?.dayOfWeek?.trim() || `Day ${nextProgramSession.resolved.dayIndex + 1}`
+    : trainingPulse.lastWorkoutDate;
+  const sessionFacts = nextProgramSession
+    ? [
+        { value: String(nextProgramSession.work.movementCount), label: 'Movements' },
+        { value: String(nextProgramSession.work.setCount), label: 'Sets' },
+        { value: `Week ${nextProgramSession.resolved.weekNumber}`, label: 'Program week' },
+        { value: dayDisplayValue, label: dayDisplayValue.startsWith('Day') ? 'Training day' : 'Scheduled day' },
+      ]
+    : [
+        { value: String(trainingPulse.sessions), label: '14-day sessions' },
+        { value: formatCompactNumber(trainingPulse.volume), label: '14-day volume' },
+        { value: String(trainingPulse.prCount), label: 'PRs' },
+        { value: dayDisplayValue, label: 'Last lift' },
+      ];
   const primaryButtonVariant = smartAction.tone === 'rose' ? 'danger' : smartAction.tone === 'zinc' ? 'neutral' : 'action';
-  const primaryActionLabel =
-    smartAction.label === 'Start'
-      ? 'Start training'
-      : smartAction.label === 'Resume'
-        ? 'Resume session'
-        : smartAction.label === 'Check'
-          ? 'Open readiness check-in'
-          : smartAction.label;
-  const hiddenPrimaryActionText = smartAction.label === 'Resume' ? primaryActionLabel : null;
+  const primaryButtonText =
+    smartAction.label === 'Resume'
+      ? 'Resume session'
+      : smartAction.label === 'Check'
+        ? 'Check readiness'
+        : 'Start training';
+  const primaryActionLabel = primaryButtonText;
   const showSyncPrompt = !authLoading && !user;
 
   const dismissPrSummary = () => {
@@ -345,7 +353,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 pb-8 pt-3 sm:space-y-5 sm:pt-8">
+    <div className="mx-auto w-full max-w-5xl space-y-5 pb-8 pt-3 sm:space-y-6 sm:pt-8">
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
@@ -355,8 +363,8 @@ export default function Dashboard() {
 
       <header className="flex items-center justify-between gap-4 px-1">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-zinc-500">Today</p>
-          <h1 className="mt-0.5 truncate text-3xl font-medium tracking-tight text-zinc-50 sm:text-4xl">
+          <p className="iron-label">Today</p>
+          <h1 className="iron-display mt-1 truncate text-3xl text-zinc-50 sm:text-4xl">
             Iron Brain
           </h1>
         </div>
@@ -366,7 +374,7 @@ export default function Dashboard() {
             href="/upgrade"
             aria-label="Support Iron Brain"
             title="Support Iron Brain"
-            className="hidden h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100 sm:inline-flex"
+            className="liquid-icon-button hidden h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-zinc-300 transition-colors hover:text-zinc-100 sm:inline-flex"
           >
             <HeartHandshake className="h-4 w-4" />
             Support
@@ -380,7 +388,7 @@ export default function Dashboard() {
             href="/profile"
             aria-label="Open profile"
             title="Open profile"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
+            className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-100"
           >
             <User className="h-4.5 w-4.5" />
           </Link>
@@ -388,7 +396,7 @@ export default function Dashboard() {
             href="/profile/settings"
             aria-label="Open settings"
             title="Open settings"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
+            className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-100"
           >
             <Settings className="h-4.5 w-4.5" />
           </Link>
@@ -399,7 +407,7 @@ export default function Dashboard() {
         <LiquidSurface density="compact" className="mx-1 animate-fadeIn">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(119,224,169,0.22)] bg-[rgba(67,201,135,0.075)] text-[rgb(137,226,178)]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-300/20 bg-emerald-400/[0.075] text-emerald-300">
                 <Sparkles className="h-4 w-4" />
               </span>
               <div className="min-w-0">
@@ -416,95 +424,63 @@ export default function Dashboard() {
         </LiquidSurface>
       )}
 
-      <LiquidSurface
+      <section
         data-testid="dashboard-command-center"
-        variant="elevated"
-        className="mx-1 overflow-hidden p-0"
+        className="liquid-primary-card mx-1 p-4 sm:p-5"
       >
-        <div className="relative p-5 sm:p-6">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[rgba(67,201,135,0.045)] blur-3xl" />
-          <div data-testid="dashboard-smart-action" className="relative">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h2 className="truncate text-3xl font-medium tracking-tight text-zinc-50 sm:text-5xl">
-                  {smartAction.title}
-                </h2>
-                {actionSubtitle && (
-                  <p className="mt-2 truncate text-sm text-zinc-500 sm:text-base">
-                    {actionSubtitle}
-                  </p>
-                )}
-              </div>
-
-              <IconButton label="Open today details" onClick={() => setDetailsOpen(true)} className="mt-0.5">
-                <Info className="h-4 w-4" />
-              </IconButton>
+        <div data-testid="dashboard-smart-action" className="relative">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="iron-label">Today</p>
+              <h2 className="iron-display mt-2 break-words text-[2rem] leading-[0.95] text-zinc-50 sm:text-5xl">
+                {displayTitle}
+              </h2>
+              <p className="mt-2 truncate text-sm font-semibold text-zinc-400 sm:text-base">
+                {displaySubtitle}
+              </p>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <Link
-                href={smartAction.href}
-                aria-label={primaryActionLabel}
-                className={liquidButtonClass({
-                  variant: primaryButtonVariant,
-                  className: 'w-full justify-between px-5 sm:min-w-56',
-                })}
-              >
-                <span>{smartAction.label}</span>
-                {hiddenPrimaryActionText && <span className="sr-only">{hiddenPrimaryActionText}</span>}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-
-              <div className="grid grid-cols-3 gap-1 sm:flex sm:gap-1.5">
-                <Link
-                  href={nextProgramSession?.href ?? '/start'}
-                  aria-label="Open plan"
-                  title="Open plan"
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  <span>Plan</span>
-                </Link>
-                <Link
-                  href="/workout/new?type=empty"
-                  aria-label="Start quick log"
-                  title="Start quick log"
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
-                >
-                  <Zap className="h-4 w-4" />
-                  <span>Log</span>
-                </Link>
-                <Link
-                  href="/checkin"
-                  aria-label="Open check-in"
-                  title="Open check-in"
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
-                >
-                  <ClipboardCheck className="h-4 w-4" />
-                  <span>Check</span>
-                </Link>
-              </div>
-            </div>
+            <IconButton label="Open today details" onClick={() => setDetailsOpen(true)} className="mt-0.5">
+              <Info className="h-4 w-4" />
+            </IconButton>
           </div>
 
-          {sessionContext.length > 0 ? (
-            <div
-              data-testid="dashboard-next-session"
-              className="relative mt-5 flex min-h-6 flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/8 pt-4 text-sm text-zinc-500"
+          <div data-testid="dashboard-next-session" className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {sessionFacts.map((fact) => (
+              <div key={fact.label} className="iron-metric-tile">
+                <p className="iron-display truncate text-xl leading-none text-zinc-50">{fact.value}</p>
+                <p className="mt-2 truncate text-[10px] font-bold text-zinc-500">{fact.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <Link
+              href={smartAction.href}
+              aria-label={primaryActionLabel}
+              className={liquidButtonClass({
+                variant: primaryButtonVariant,
+                className: 'min-h-14 w-full justify-between px-5 text-sm sm:min-w-60',
+              })}
             >
-              {sessionContext.map((item) => (
-                <span key={item} className="truncate">
-                  {item}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div data-testid="dashboard-next-session" className="sr-only">
-              No planned session
-            </div>
-          )}
+              <span>{primaryButtonText}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+
+            <Link
+              href="/workout/new?type=empty"
+              aria-label="Start freestyle workout"
+              className={liquidButtonClass({
+                variant: 'elevated',
+                className: 'min-h-14 justify-center px-5 sm:min-w-32',
+              })}
+            >
+              <Zap className="h-4 w-4" />
+              <span>Freestyle</span>
+            </Link>
+          </div>
         </div>
-      </LiquidSurface>
+      </section>
 
       <section data-testid="dashboard-readiness-strip" className="sr-only">
         {readinessSignal.label}: {readinessSignal.value}. {readinessSignal.detail}
@@ -512,42 +488,38 @@ export default function Dashboard() {
 
       <section
         data-testid="dashboard-training-pulse"
-        className="mx-1 px-1 py-2"
+        className="mx-1 px-1 py-1"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-zinc-200">Training pulse</p>
-            {trainingPulse.sessions > 0 && (
-              <p className="mt-0.5 truncate text-xs text-zinc-600">
-                Last: {trainingPulse.lastWorkoutName}
-              </p>
-            )}
+            <p className="text-sm font-black text-zinc-100">Last 14 days</p>
           </div>
-          <Link
-            href="/history"
-            aria-label="Open history"
-            title="Open history"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100"
+          <button
+            type="button"
+            aria-label="Open training pulse details"
+            title="Open training pulse details"
+            onClick={() => setDetailsOpen(true)}
+            className="liquid-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-100"
           >
-            <History className="h-4 w-4" />
-          </Link>
+            <Info className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-3 border-t border-white/8 pt-3">
-          <div>
-            <p className="text-base font-medium text-zinc-100">{trainingPulse.sessions}</p>
-            <p className="text-xs text-zinc-600">Sessions</p>
+        <div className="mt-3 grid grid-cols-4 gap-2.5">
+          <div className="iron-metric-tile">
+            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.sessions}</p>
+            <p className="mt-2 text-[10px] font-bold text-zinc-500">Sessions</p>
           </div>
-          <div>
-            <p className="text-base font-medium text-zinc-100">{trainingPulse.completedSets}</p>
-            <p className="text-xs text-zinc-600">Sets</p>
+          <div className="iron-metric-tile">
+            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.completedSets}</p>
+            <p className="mt-2 text-[10px] font-bold text-zinc-500">Sets</p>
           </div>
-          <div>
-            <p className="text-base font-medium text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
-            <p className="text-xs text-zinc-600">Volume</p>
+          <div className="iron-metric-tile">
+            <p className="iron-display text-xl leading-none text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
+            <p className="mt-2 text-[10px] font-bold text-zinc-500">Volume</p>
           </div>
-          <div>
-            <p className="text-base font-medium text-zinc-100">{trainingPulse.prCount}</p>
-            <p className="text-xs text-zinc-600">PRs</p>
+          <div className="iron-metric-tile">
+            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.prCount}</p>
+            <p className="mt-2 text-[10px] font-bold text-zinc-500">PRs</p>
           </div>
         </div>
       </section>
@@ -588,7 +560,7 @@ export default function Dashboard() {
                 className={cn(
                   'h-full rounded-full',
                   readinessSignal.tone === 'emerald'
-                    ? 'bg-[rgb(67,201,135)]'
+                    ? 'bg-emerald-400'
                     : readinessSignal.tone === 'amber'
                       ? 'bg-amber-300'
                       : readinessSignal.tone === 'rose'

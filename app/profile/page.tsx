@@ -202,12 +202,12 @@ export default function ProfilePage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item px-1">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
+          <div className="liquid-icon-button flex h-16 w-16 items-center justify-center rounded-full">
             <User className="h-8 w-8 text-zinc-300" />
           </div>
           <div className="space-y-0.5 sm:space-y-1">
-            <p className="text-sm text-zinc-500">Profile</p>
-            <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">
+            <p className="iron-label">Profile</p>
+            <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">
               {user?.email?.split('@')[0] || 'Guest user'}
             </h1>
             <p className="text-[10px] text-zinc-500 sm:text-xs">
@@ -219,15 +219,15 @@ export default function ProfilePage() {
 
       <section className="stagger-item grid grid-cols-3 gap-2.5 border-y border-white/8 px-1 py-4 sm:gap-4">
         <div>
-          <div className="text-2xl font-medium text-white">{workoutHistory.length}</div>
+          <div className="iron-display text-2xl text-white">{workoutHistory.length}</div>
           <div className="text-xs text-zinc-500">Workouts</div>
         </div>
         <div>
-          <div className="text-2xl font-medium text-white">{weeklyStreak}</div>
+          <div className="iron-display text-2xl text-white">{weeklyStreak}</div>
           <div className="text-xs text-zinc-500">Week streak</div>
         </div>
         <div>
-          <div className="text-2xl font-medium text-white">{prCount}</div>
+          <div className="iron-display text-2xl text-white">{prCount}</div>
           <div className="text-xs text-zinc-500">PRs</div>
         </div>
       </section>
@@ -236,10 +236,10 @@ export default function ProfilePage() {
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
-            className="group flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/[0.055] px-4 py-3 text-left text-zinc-100 transition-colors hover:bg-white/[0.09] active:bg-white/[0.12]"
+            className="surface-card group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-zinc-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045]">
+              <div className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
                 <Sparkles className="h-4 w-4 text-zinc-300" />
               </div>
               <div className="min-w-0">
@@ -252,7 +252,7 @@ export default function ProfilePage() {
       )}
 
       <section className="stagger-item space-y-3 px-1">
-        <h2 className="text-xl font-medium text-zinc-100">Preferences</h2>
+        <h2 className="iron-display text-xl text-zinc-100">Preferences</h2>
         <div className="surface-card divide-y divide-white/8 overflow-hidden">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -304,7 +304,7 @@ export default function ProfilePage() {
         <section className="stagger-item space-y-3 px-1">
           <button
             onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
-            className="liquid-action-button flex w-full items-center justify-center gap-2 rounded-[1.25rem] p-4 font-medium transition-all active:scale-[0.98]"
+            className="liquid-action-button flex w-full items-center justify-center gap-2 rounded-[1.25rem] p-4 font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
           >
             <User className="w-5 h-5" />
             Sign in

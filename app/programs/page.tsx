@@ -2363,14 +2363,14 @@ export default function ProgramsPage() {
         <header className="stagger-item px-1">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-0.5 sm:space-y-1">
-              <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Programs</h1>
+              <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Programs</h1>
             </div>
             {workspaceView === 'builder' && (
               <button
                 type="button"
                 onClick={openCreateEditor}
                 disabled={loading}
-                className="liquid-action-button inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-50"
+                className="liquid-action-button inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black italic tracking-tight text-zinc-950 transition-colors disabled:cursor-wait disabled:opacity-50"
               >
                 <CirclePlus className="h-4 w-4" />
                 New
@@ -2384,7 +2384,7 @@ export default function ProgramsPage() {
                 type="button"
                 onClick={() => setWorkspaceView('builder')}
                 className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'builder'
-                  ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
+                  ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
                   : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                   }`}
               >
@@ -2395,7 +2395,7 @@ export default function ProgramsPage() {
                   type="button"
                   onClick={() => setWorkspaceView('calendar')}
                   className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'calendar'
-                    ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
+                    ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
                     : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                     }`}
                 >
@@ -2407,7 +2407,7 @@ export default function ProgramsPage() {
                   type="button"
                   onClick={() => setWorkspaceView('collab')}
                   className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'collab'
-                    ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
+                    ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
                     : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                     }`}
                 >
@@ -2429,14 +2429,14 @@ export default function ProgramsPage() {
                 />
               </div>
 
-              <div className="mt-4 inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
+              <div className="mt-4 inline-flex rounded-xl border border-white/10 bg-white/[0.045] p-1">
                 {(['all', 'mine', 'built-in'] as const).map((option) => (
                   <button
                     key={option}
                     type="button"
                     onClick={() => setFilter(option)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${filter === option
-                      ? 'bg-zinc-100 text-zinc-950'
+                      ? 'bg-emerald-400 text-zinc-950'
                       : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                   >
@@ -2455,7 +2455,7 @@ export default function ProgramsPage() {
               <p className="text-sm text-zinc-500">Active program</p>
               <div className="mt-3 flex items-start justify-between gap-4">
                 <div>
-                  <p className="break-words text-2xl font-medium text-zinc-100">
+                  <p className="iron-display break-words text-2xl text-zinc-100">
                     {activeProgram?.name ?? 'No program selected'}
                   </p>
                   <p className="mt-2 text-sm text-zinc-500">
@@ -2466,7 +2466,7 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={() => handleStartProgram(activeProgram)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-white/18"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-white/18"
                   >
                     <Play className="h-3.5 w-3.5" />
                     Start
@@ -2480,7 +2480,7 @@ export default function ProgramsPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-[rgb(137,226,178)]">
+                      <p className="text-xs font-medium text-emerald-300">
                         Program Tune-Up
                       </p>
                       <p className="mt-1 text-sm font-medium text-zinc-100">
@@ -2498,7 +2498,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => openTuneUpEditor(activeProgram, visibleProgramTuneUp)}
-                      className="liquid-action-button rounded-xl px-3 py-2 text-sm font-medium active:scale-95"
+                      className="liquid-action-button rounded-xl px-3 py-2 text-sm font-black italic tracking-tight text-zinc-950 active:scale-95"
                       data-testid="program-tune-up-apply"
                     >
                       Review changes
@@ -2550,9 +2550,9 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-[rgba(67,201,135,0.03)]' : ''}`}
+                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-emerald-400/[0.035]' : ''}`}
                     >
-                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-[rgb(67,201,135)]" aria-hidden="true" />}
+                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-emerald-400" aria-hidden="true" />}
                       <div className="flex items-center justify-between gap-3 pl-3">
                         <button
                           type="button"
@@ -2560,7 +2560,7 @@ export default function ProgramsPage() {
                           className="min-w-0 flex-1 text-left"
                         >
                           <p
-                            className={`break-words text-lg font-medium leading-tight ${isSelected ? 'text-[rgb(137,226,178)]' : 'text-zinc-100'}`}
+                            className={`break-words text-lg font-medium leading-tight ${isSelected ? 'text-emerald-200' : 'text-zinc-100'}`}
                           >
                             {program.name}
                           </p>
@@ -2575,7 +2575,7 @@ export default function ProgramsPage() {
                             onClick={() => handleSelectProgram(program)}
                             aria-label={isSelected ? `${program.name} is active` : `Set ${program.name} active`}
                             className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-2 text-xs font-medium transition-colors sm:px-2.5 ${isSelected
-                              ? 'border border-[rgba(119,224,169,0.3)] text-[rgb(137,226,178)]'
+                              ? 'border border-emerald-300/30 text-emerald-200'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                           >
@@ -2640,7 +2640,7 @@ export default function ProgramsPage() {
                                     handleStartProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-lg bg-[rgba(67,201,135,0.1)] px-3 text-sm font-medium text-[rgb(137,226,178)] transition-colors hover:bg-[rgba(67,201,135,0.15)]"
+                                  className="inline-flex h-10 items-center rounded-lg bg-emerald-400/10 px-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-400/15"
                                 >
                                   Start
                                 </button>

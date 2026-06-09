@@ -438,7 +438,7 @@ async function checkStartPageLaunchpad(browser) {
   await page.goto(`${BASE_URL}/start`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
-  await page.getByText(/QUICK LOG/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/FREESTYLE/i).waitFor({ state: 'visible', timeout: 30000 });
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
@@ -461,7 +461,7 @@ async function checkStartPageLaunchpad(browser) {
       viewportWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       hasOldLabels: /Gym Floor|Current Program|Recent Programs|QUICK START/.test(text),
-      hasQuickLog: /Quick log/i.test(text),
+      hasFreestyle: /Freestyle/i.test(text),
       controls,
     };
   });
@@ -472,8 +472,8 @@ async function checkStartPageLaunchpad(browser) {
   if (report.hasOldLabels) {
     throw new Error('Start page still exposes removed filler labels');
   }
-  if (!report.hasQuickLog) {
-    throw new Error('Start page quick-log action is missing or clipped');
+  if (!report.hasFreestyle) {
+    throw new Error('Start page freestyle action is missing or clipped');
   }
   if (report.controls.length < 3) {
     throw new Error(`Start page expected 3 compact launch controls, found ${report.controls.length}`);
@@ -487,13 +487,13 @@ async function checkStartPageLaunchpad(browser) {
     throw new Error(`Start page launch controls are undersized: ${JSON.stringify(undersized)}`);
   }
 
-  await page.getByRole('button', { name: /QUICK LOG/i }).tap({ timeout: 30000 });
+  await page.getByRole('button', { name: /FREESTYLE/i }).tap({ timeout: 30000 });
   await page.getByTestId('quick-log-confirm').waitFor({ state: 'visible', timeout: 5000 });
   await page.getByTestId('quick-log-confirm-start').tap({ timeout: 30000 });
   await page.waitForURL(/\/workout\/new\?type=empty/, { timeout: 60000 });
 
   await page.close();
-  console.log('✅ start page launchpad is compact, aligned, confirms quick log, and free of old filler labels');
+  console.log('✅ start page launchpad is compact, aligned, confirms freestyle, and free of old filler labels');
 }
 
 async function checkProgramsNoFalseReadinessTuneUp(browser) {

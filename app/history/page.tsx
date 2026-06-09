@@ -308,11 +308,11 @@ export default function HistoryPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item flex items-start justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Workout history</h1>
+          <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Workout history</h1>
         </div>
         <button
           onClick={() => router.push('/start')}
-          className="liquid-action-button stagger-item flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-medium transition-all active:scale-[0.98]"
+          className="liquid-action-button stagger-item flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
         >
           Start workout
         </button>

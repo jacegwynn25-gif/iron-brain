@@ -978,7 +978,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
             <BarChart3 className="h-7 w-7 text-emerald-300" />
           </div>
-          <div className="text-xl font-black italic tracking-tight text-white">LOADING INSIGHTS</div>
+          <div className="iron-display text-xl text-white">Loading insights</div>
           <div className="text-xs text-zinc-500">Calculating your stats</div>
         </div>
       </div>
@@ -994,7 +994,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
           <h2 className="mb-2 text-xl font-black italic tracking-tight text-white">
-            {awaitingSync ? 'SYNCING WORKOUTS...' : 'NOT ENOUGH DATA YET'}
+            {awaitingSync ? 'Syncing workouts...' : 'Not enough data yet'}
           </h2>
           <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
             {awaitingSync
@@ -1019,7 +1019,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       <header className="stagger-item px-1">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
-            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">INSIGHTS</h1>
+            <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Insights</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (

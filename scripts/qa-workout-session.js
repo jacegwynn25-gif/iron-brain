@@ -138,8 +138,8 @@ async function installWorkoutQaBootstrap(page) {
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
   await expectVisible(page.getByTestId('dashboard-command-center'), 'Dashboard command center loaded');
   await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/Smart Start Day/i), 'Dashboard smart action shows planned session');
-  await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^START$/i), 'Dashboard smart action has compact start button');
-  await expectVisible(page.getByTestId('dashboard-next-session').getByText(/Smart Start Day/i), 'Dashboard next session shows selected program day');
+  await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^START TRAINING$/i), 'Dashboard smart action has primary start button');
+  await expectVisible(page.getByTestId('dashboard-next-session').getByText(/Mon/i), 'Dashboard next session shows selected training day');
   await expectVisible(page.getByTestId('dashboard-training-pulse').getByText(/^Sets$/i).first(), 'Dashboard training pulse loaded');
   await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'networkidle' });
   await page.getByText(/Bench Press \(Touch & Go\)/i).tap({ timeout: 10000 });
@@ -264,7 +264,7 @@ async function installWorkoutQaBootstrap(page) {
     await expectVisible(page.getByText(/Bench Press/i).first(), `Cockpit loop ${index + 1} returned to overview`);
   }
   await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
-  await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^RESUME$/i), 'Dashboard resume CTA survives leaving logger');
+  await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^RESUME SESSION$/i), 'Dashboard resume CTA survives leaving logger');
   await page.goto(`${BASE_URL}?type=empty`, { waitUntil: 'networkidle' });
   await expectVisible(page.getByText(/Bench Press/i).first(), 'Stale quick-start URL resumes existing active workout');
   const resumedStartTime = await page.evaluate(() => {

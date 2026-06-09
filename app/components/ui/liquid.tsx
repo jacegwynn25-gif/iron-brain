@@ -26,16 +26,16 @@ export function liquidButtonClass({
   className?: string;
 } = {}): string {
   return cn(
-    'inline-flex items-center justify-center gap-2 rounded-[1.05rem] font-medium tracking-normal transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55',
+    'inline-flex items-center justify-center gap-2 rounded-[1.05rem] tracking-normal transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55',
     density === 'compact' ? 'min-h-10 px-3 text-xs' : 'min-h-12 px-4 text-sm',
     variant === 'action' &&
-      'liquid-action-button',
+      'liquid-action-button font-black italic tracking-tight text-zinc-950',
     variant === 'danger' &&
-      'border border-rose-400/35 bg-rose-500/12 text-rose-100 hover:bg-rose-500/18',
+      'border border-rose-400/35 bg-rose-500/12 font-semibold text-rose-100 hover:bg-rose-500/18',
     variant === 'elevated' &&
-      'border border-white/12 bg-white/[0.09] text-zinc-100 shadow-[0_16px_50px_-35px_rgba(255,255,255,0.5)] hover:bg-white/[0.13]',
+      'border border-white/12 bg-white/[0.09] font-semibold text-zinc-100 shadow-[0_16px_50px_-35px_rgba(255,255,255,0.5)] hover:bg-white/[0.13]',
     variant === 'neutral' &&
-      'border border-white/10 bg-white/[0.055] text-zinc-200 hover:bg-white/[0.09] hover:text-white',
+      'border border-white/10 bg-white/[0.055] font-semibold text-zinc-200 hover:bg-white/[0.09] hover:text-white',
     className
   );
 }
@@ -99,12 +99,12 @@ export function IconButton({
       className={cn(
         'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] disabled:opacity-50',
         variant === 'action'
-          ? 'border border-[rgba(119,224,169,0.38)] bg-[rgba(67,201,135,0.12)] text-[rgb(137,226,178)] hover:bg-[rgba(67,201,135,0.18)]'
+          ? 'liquid-icon-button text-emerald-300 hover:text-emerald-200'
           : variant === 'danger'
             ? 'border border-rose-400/35 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18'
-            : variant === 'elevated'
-              ? 'border border-white/12 bg-white/[0.08] text-zinc-100 hover:bg-white/[0.12]'
-              : 'border border-white/10 bg-white/[0.045] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100',
+          : variant === 'elevated'
+              ? 'liquid-icon-button text-zinc-100 hover:text-white'
+              : 'liquid-icon-button text-zinc-400 hover:text-zinc-100',
         className
       )}
       {...props}
@@ -132,7 +132,7 @@ export function MetricChip({
       className={cn(
         'rounded-[1rem] border px-3 py-2.5',
         tone === 'emerald'
-          ? 'border-[rgba(119,224,169,0.22)] bg-[rgba(67,201,135,0.075)] text-[rgb(155,230,190)]'
+          ? 'border-emerald-300/20 bg-emerald-400/[0.075] text-emerald-200'
           : tone === 'amber'
             ? 'border-amber-300/25 bg-amber-300/[0.08] text-amber-100'
             : tone === 'rose'
@@ -143,11 +143,11 @@ export function MetricChip({
         className
       )}
     >
-      <div className="flex items-center gap-2 text-[11px] font-medium text-zinc-400">
+      <div className="flex items-center gap-2 text-[11px] font-bold text-zinc-500">
         {icon}
         <span className="truncate">{label}</span>
       </div>
-      <div className="mt-1 truncate text-base font-medium text-current">{value}</div>
+      <div className="mt-1 truncate text-base font-black italic text-current">{value}</div>
     </div>
   );
 }

@@ -358,7 +358,7 @@ export default function WorkoutHistory({
     if (session.programId) {
       return programName || 'Program session';
     }
-    return 'Quick log';
+    return 'Freestyle';
   };
 
   const formatSessionDate = (session: WorkoutSession) =>

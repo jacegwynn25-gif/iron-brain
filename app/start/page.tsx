@@ -122,9 +122,9 @@ export default function StartWorkoutPage() {
       />
       <header className="stagger-item flex items-center justify-between gap-4 px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Start session</h1>
+          <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Start session</h1>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] sm:h-10 sm:w-10">
+        <div className="liquid-icon-button flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10">
           <Play className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
         </div>
       </header>
@@ -133,7 +133,7 @@ export default function StartWorkoutPage() {
         <div className="border-b border-white/8 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-medium leading-tight text-zinc-100 sm:text-2xl">
+              <h2 className="iron-display truncate text-xl leading-tight text-zinc-100 sm:text-2xl">
                 {nextSessionTitle}
               </h2>
               {!loading && nextSessionSubtitle && (
@@ -145,7 +145,7 @@ export default function StartWorkoutPage() {
             <button
               type="button"
               onClick={() => router.push('/programs')}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
+              className="liquid-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:text-zinc-100"
               aria-label="Open programs"
             >
               <BookOpen className="h-4 w-4" />
@@ -188,7 +188,7 @@ export default function StartWorkoutPage() {
                   setProgramPickerOpen(false);
                 }}
                 aria-expanded={dayPickerOpen}
-                className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+                className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
               >
                 <span className="min-w-0">
                   <span className="block text-xs text-zinc-500">Day</span>
@@ -211,7 +211,7 @@ export default function StartWorkoutPage() {
                 setDayPickerOpen(false);
               }}
               aria-expanded={programPickerOpen}
-              className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+              className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
             >
               <span className="min-w-0">
                 <span className="block text-xs text-zinc-500">Program</span>
@@ -227,11 +227,11 @@ export default function StartWorkoutPage() {
             <button
               type="button"
               onClick={() => setQuickLogConfirmOpen(true)}
-              className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+              className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
             >
               <span className="min-w-0">
                 <span className="block text-xs text-zinc-500">Empty</span>
-                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Quick log</span>
+                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Freestyle</span>
               </span>
               <RotateCcw className="hidden h-4 w-4 shrink-0 text-zinc-100/40 sm:block" />
             </button>
