@@ -1,22 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ArrowRight,
   CalendarDays,
   ClipboardCheck,
-  Dumbbell,
   HeartHandshake,
+  History,
+  Info,
+  LogIn,
   Settings,
   Sparkles,
-  X,
-  Plus,
   User,
+  X,
+  Zap,
 } from 'lucide-react';
 import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 import type { PersonalRecordHit } from '@/app/lib/supabase/workouts';
-import { ReadinessCard } from './dashboard/ReadinessCard';
 import { WeeklyConsistency } from './dashboard/WeeklyConsistency';
 import { useActiveSession } from '@/app/providers/ActiveSessionProvider';
 import { useWorkoutDataContext } from '@/app/providers/WorkoutDataProvider';
@@ -25,7 +26,16 @@ import { useProgramContext } from '@/app/providers/ProgramProvider';
 import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '@/app/lib/programs/progress';
 import { calculateSetVolumeLbs, isPerformedSetLog } from '@/app/lib/stats/set-metrics';
 import { AuthModal } from './Auth';
+import {
+  ActionSheet,
+  IconButton,
+  LiquidSurface,
+  cn,
+  liquidButtonClass,
+} from '@/app/components/ui/liquid';
 import type { DayTemplate, ProgramTemplate, WorkoutSession } from '@/app/lib/types';
+
+type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
 
 function toLocalDateKey(value?: string | null): string | null {
   if (!value) return null;
@@ -91,6 +101,21 @@ function buildPlannedSessionHref(program: ProgramTemplate, progress: ProgramProg
   return `/workout/new?program_id=${encodeURIComponent(program.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`;
 }
 
+function DetailBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-[1rem] border border-white/8 bg-white/[0.035] p-3.5">
+      <p className="text-sm font-medium text-zinc-100">{title}</p>
+      <div className="mt-2 text-sm leading-5 text-zinc-400">{children}</div>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { readiness, loading: readinessLoading, error, lastUpdated } = useRecoveryState();
@@ -98,8 +123,9 @@ export default function Dashboard() {
   const { workouts, loading: workoutsLoading } = useWorkoutDataContext();
   const { selectedProgram, loading: programsLoading } = useProgramContext();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
-  const [localProfileResolved, setLocalProfileResolved] = useState(false);
-  const [hasPriorLocalUse, setHasPriorLocalUse] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   const namespaceId = user?.id ?? 'guest';
 
   const workoutDates = useMemo(() => {
@@ -110,19 +136,6 @@ export default function Dashboard() {
     });
     return Array.from(dates);
   }, [workouts]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const localOnboardingComplete = localStorage.getItem('iron_brain_onboarding_complete') === 'true';
-      const localCoachMarksComplete = localStorage.getItem('iron_brain_coach_marks_complete') === 'true';
-
-      setHasPriorLocalUse(localOnboardingComplete || localCoachMarksComplete || workouts.length > 0);
-    } catch {
-    } finally {
-      setLocalProfileResolved(true);
-    }
-  }, [workouts.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -138,13 +151,17 @@ export default function Dashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
+
   const prSummary = useMemo(() => {
     if (recentPrHits.length === 0) return [];
     const labels: Record<PersonalRecordHit['recordType'], string> = {
-      max_weight: 'Max Weight',
-      max_reps: 'Max Reps',
+      max_weight: 'Max weight',
+      max_reps: 'Max reps',
       max_e1rm: 'Max e1RM',
-      max_volume: 'Max Volume',
+      max_volume: 'Max volume',
     };
     const grouped = new Map<string, number>();
     recentPrHits.forEach((hit) => {
@@ -179,12 +196,14 @@ export default function Dashboard() {
   );
 
   const trainingPulse = useMemo(() => {
-    const now = Date.now();
     const windowMs = 14 * 24 * 60 * 60 * 1000;
-    const recent = workouts.filter((workout) => {
-      const time = getWorkoutTime(workout);
-      return time > 0 && now - time <= windowMs;
-    });
+    const recent =
+      nowMs == null
+        ? []
+        : workouts.filter((workout) => {
+            const time = getWorkoutTime(workout);
+            return time > 0 && nowMs - time <= windowMs;
+          });
     const completedSets = recent.flatMap((workout) =>
       workout.sets.filter((set) => isPerformedSetLog(set, { allowWarmup: true }))
     );
@@ -201,63 +220,52 @@ export default function Dashboard() {
       lastCompletedSets,
       prCount: recentPrHits.length,
     };
-  }, [latestWorkout, recentPrHits.length, workouts]);
+  }, [latestWorkout, nowMs, recentPrHits.length, workouts]);
 
   const smartAction = useMemo(() => {
     if (activeSessionReady && isSessionActive) {
       return {
-        eyebrow: 'Active Session',
-        title: 'Resume the workout in progress',
+        eyebrow: 'Active session',
+        title: 'Resume workout',
         detail: 'Continue the current log.',
         href: '/workout/new',
-        label: 'RESUME',
-        tone: 'amber' as const,
+        label: 'Resume',
+        tone: 'emerald' as Tone,
       };
     }
 
     if (readiness?.hasRecoveryInput && readiness.score <= 45) {
       return {
-        eyebrow: 'Recovery Guardrail',
-        title: 'Review readiness before loading up',
+        eyebrow: 'Recovery guardrail',
+        title: 'Review readiness',
         detail: readiness.recommendation || 'Check readiness before pushing volume.',
         href: '/checkin',
-        label: 'CHECK',
-        tone: 'rose' as const,
+        label: 'Check',
+        tone: 'rose' as Tone,
       };
     }
 
     if (nextProgramSession) {
-      const dayName = nextProgramSession.resolved.day?.name ?? 'planned session';
+      const dayName = nextProgramSession.resolved.day?.name ?? 'Planned session';
       return {
-        eyebrow: 'Planned Training',
+        eyebrow: 'Planned training',
         title: dayName,
         detail: `${nextProgramSession.program.name} / Week ${nextProgramSession.resolved.weekNumber}, Day ${nextProgramSession.resolved.dayIndex + 1}`,
         href: nextProgramSession.href,
-        label: 'START',
-        tone: 'emerald' as const,
-      };
-    }
-
-    if (!readinessLoading && !readiness?.hasRecoveryInput) {
-      return {
-        eyebrow: 'Missing Readiness',
-        title: 'Check in',
-        detail: 'Add readiness so targets get better guardrails.',
-        href: '/checkin',
-        label: 'CHECK',
-        tone: 'zinc' as const,
+        label: 'Start',
+        tone: 'emerald' as Tone,
       };
     }
 
     return {
-      eyebrow: 'Open Session',
+      eyebrow: 'Open session',
       title: 'Start training',
       detail: 'Pick a program day or begin an empty log.',
       href: '/start',
-      label: 'START',
-      tone: 'emerald' as const,
+      label: 'Start',
+      tone: 'emerald' as Tone,
     };
-  }, [activeSessionReady, isSessionActive, nextProgramSession, readiness, readinessLoading]);
+  }, [activeSessionReady, isSessionActive, nextProgramSession, readiness]);
 
   const readinessSignal = useMemo(() => {
     if (readinessLoading) {
@@ -265,7 +273,7 @@ export default function Dashboard() {
         value: '...',
         label: 'Readiness',
         detail: 'Syncing recovery signal',
-        tone: 'zinc' as const,
+        tone: 'zinc' as Tone,
         progress: 0,
       };
     }
@@ -275,7 +283,7 @@ export default function Dashboard() {
         value: '--',
         label: 'Readiness',
         detail: "Set today's guardrails before loading up",
-        tone: 'zinc' as const,
+        tone: 'zinc' as Tone,
         progress: 0,
       };
     }
@@ -299,10 +307,35 @@ export default function Dashboard() {
       value: String(score),
       label: readiness.hasRecoveryInput ? 'Readiness' : 'Training estimate',
       detail,
-      tone,
+      tone: tone as Tone,
       progress: score,
     };
   }, [readiness, readinessLoading]);
+
+  const nextSessionTitle =
+    nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading' : 'No plan');
+  const planChipValue = nextSessionTitle;
+  const workChipValue = nextProgramSession
+    ? `${nextProgramSession.work.movementCount} moves / ${nextProgramSession.work.setCount} sets`
+    : '--';
+  const sessionContext = [
+    readinessSignal.value !== '--' && !readinessLoading ? `${readinessSignal.value} readiness` : null,
+    planChipValue && planChipValue !== 'No plan' && planChipValue !== 'Loading' ? planChipValue : null,
+    workChipValue !== '--' ? workChipValue : null,
+  ].filter((item): item is string => Boolean(item));
+  const actionSubtitle =
+    smartAction.tone === 'emerald' && nextProgramSession ? nextProgramSession.program.name : null;
+  const primaryButtonVariant = smartAction.tone === 'rose' ? 'danger' : smartAction.tone === 'zinc' ? 'neutral' : 'action';
+  const primaryActionLabel =
+    smartAction.label === 'Start'
+      ? 'Start training'
+      : smartAction.label === 'Resume'
+        ? 'Resume session'
+        : smartAction.label === 'Check'
+          ? 'Open readiness check-in'
+          : smartAction.label;
+  const hiddenPrimaryActionText = smartAction.label === 'Resume' ? primaryActionLabel : null;
+  const showSyncPrompt = !authLoading && !user;
 
   const dismissPrSummary = () => {
     setRecentPrHits([]);
@@ -311,313 +344,286 @@ export default function Dashboard() {
     }
   };
 
-  const showReadiness = readinessLoading || Boolean(readiness);
-  const showSystemFooter = lastUpdated && !readinessLoading && Boolean(readiness?.hasRecoveryInput);
-  const showFreshUserAuthPrompt =
-    localProfileResolved &&
-    !authLoading &&
-    !workoutsLoading &&
-    !user &&
-    !hasPriorLocalUse;
-
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-3 pb-0 pt-2 sm:space-y-5 sm:pt-8">
-      {showFreshUserAuthPrompt && (
+    <div className="mx-auto w-full max-w-5xl space-y-4 pb-8 pt-3 sm:space-y-5 sm:pt-8">
+      {authOpen && (
         <AuthModal
-          hideClose
-          onSuccess={() => setHasPriorLocalUse(true)}
+          onClose={() => setAuthOpen(false)}
+          onSuccess={() => setAuthOpen(false)}
         />
       )}
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-1">
-        <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-2xl font-black italic tracking-normal text-zinc-100 sm:text-4xl">
-            IRON BRAIN
+      <header className="flex items-center justify-between gap-4 px-1">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-zinc-500">Today</p>
+          <h1 className="mt-0.5 truncate text-3xl font-medium tracking-tight text-zinc-50 sm:text-4xl">
+            Iron Brain
           </h1>
+        </div>
+
+        <div className="flex items-center gap-2">
           <Link
             href="/upgrade"
-            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300/85 transition-colors hover:text-amber-200"
+            aria-label="Support Iron Brain"
+            title="Support Iron Brain"
+            className="hidden h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100 sm:inline-flex"
           >
-            <HeartHandshake className="h-3.5 w-3.5" />
-            Support Iron Brain
+            <HeartHandshake className="h-4 w-4" />
+            Support
           </Link>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+          {showSyncPrompt && (
+            <IconButton label="Sync account" onClick={() => setAuthOpen(true)}>
+              <LogIn className="h-4 w-4" />
+            </IconButton>
+          )}
           <Link
             href="/profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900 sm:h-10 sm:w-10"
+            aria-label="Open profile"
+            title="Open profile"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
           >
-            <User className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
+            <User className="h-4.5 w-4.5" />
           </Link>
           <Link
             href="/profile/settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-900 bg-zinc-950 transition-colors hover:border-zinc-700 hover:bg-zinc-900 sm:h-10 sm:w-10"
+            aria-label="Open settings"
+            title="Open settings"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
           >
-            <Settings className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
+            <Settings className="h-4.5 w-4.5" />
           </Link>
         </div>
       </header>
 
-      {/* PR Alert */}
       {prSummary.length > 0 && (
-        <section className="animate-fadeIn rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 sm:rounded-3xl sm:p-6 mx-1">
-          <div className="flex items-start justify-between gap-3 sm:gap-4">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 sm:h-10 sm:w-10">
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
-              </div>
-              <div className="min-w-0 space-y-0.5 sm:space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 sm:text-xs">New Personal Records</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {prSummary.map((entry) => (
-                    <span
-                      key={entry.label}
-                      className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[9px] font-bold text-emerald-300 sm:text-[10px]"
-                    >
-                      {entry.label} {entry.count > 1 ? `x${entry.count}` : ''}
-                    </span>
-                  ))}
-                </div>
+        <LiquidSurface density="compact" className="mx-1 animate-fadeIn">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(119,224,169,0.22)] bg-[rgba(67,201,135,0.075)] text-[rgb(137,226,178)]">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-100">New personal records</p>
+                <p className="mt-1 truncate text-xs text-zinc-500">
+                  {prSummary.map((entry) => `${entry.label}${entry.count > 1 ? ` x${entry.count}` : ''}`).join(' / ')}
+                </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={dismissPrSummary}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/50 hover:text-zinc-200 sm:h-8 sm:w-8"
-            >
-              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
+            <IconButton label="Dismiss PR summary" onClick={dismissPrSummary} className="h-8 w-8">
+              <X className="h-3.5 w-3.5" />
+            </IconButton>
           </div>
-        </section>
+        </LiquidSurface>
       )}
 
-      <section data-testid="dashboard-command-center" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="p-4 sm:p-5">
-          <div data-testid="dashboard-smart-action" className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${
-                smartAction.tone === 'rose'
-                  ? 'text-rose-300'
-                  : smartAction.tone === 'amber'
-                    ? 'text-amber-300'
-                    : smartAction.tone === 'zinc'
-                      ? 'text-zinc-400'
-                      : 'text-emerald-300'
-              }`}>
-                Next Action
-              </p>
-              <h2 className="mt-1 truncate text-[1.35rem] font-black italic leading-none text-zinc-100 sm:text-2xl">
-                {smartAction.title}
-              </h2>
-              <p className="mt-1 truncate text-[11px] font-semibold text-zinc-500 sm:text-sm">
-                {smartAction.detail}
-              </p>
+      <LiquidSurface
+        data-testid="dashboard-command-center"
+        variant="elevated"
+        className="mx-1 overflow-hidden p-0"
+      >
+        <div className="relative p-5 sm:p-6">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[rgba(67,201,135,0.045)] blur-3xl" />
+          <div data-testid="dashboard-smart-action" className="relative">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="truncate text-3xl font-medium tracking-tight text-zinc-50 sm:text-5xl">
+                  {smartAction.title}
+                </h2>
+                {actionSubtitle && (
+                  <p className="mt-2 truncate text-sm text-zinc-500 sm:text-base">
+                    {actionSubtitle}
+                  </p>
+                )}
+              </div>
+
+              <IconButton label="Open today details" onClick={() => setDetailsOpen(true)} className="mt-0.5">
+                <Info className="h-4 w-4" />
+              </IconButton>
             </div>
-            <Link
-              href={smartAction.href}
-              className={`group inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-[11px] font-black uppercase tracking-normal text-white transition-all hover:scale-[1.01] active:scale-[0.99] sm:px-4 sm:text-xs ${
-                smartAction.tone === 'rose'
-                  ? 'bg-rose-500 shadow-lg shadow-rose-500/15'
-                  : smartAction.tone === 'amber'
-                    ? 'bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/15'
-                    : smartAction.tone === 'zinc'
-                      ? 'border border-zinc-700 bg-zinc-900 text-zinc-100'
-                      : 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/15'
-              }`}
-            >
-              {smartAction.label}
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 sm:h-4 sm:w-4" />
-            </Link>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <Link
+                href={smartAction.href}
+                aria-label={primaryActionLabel}
+                className={liquidButtonClass({
+                  variant: primaryButtonVariant,
+                  className: 'w-full justify-between px-5 sm:min-w-56',
+                })}
+              >
+                <span>{smartAction.label}</span>
+                {hiddenPrimaryActionText && <span className="sr-only">{hiddenPrimaryActionText}</span>}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+
+              <div className="grid grid-cols-3 gap-1 sm:flex sm:gap-1.5">
+                <Link
+                  href={nextProgramSession?.href ?? '/start'}
+                  aria-label="Open plan"
+                  title="Open plan"
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  <span>Plan</span>
+                </Link>
+                <Link
+                  href="/workout/new?type=empty"
+                  aria-label="Start quick log"
+                  title="Start quick log"
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
+                >
+                  <Zap className="h-4 w-4" />
+                  <span>Log</span>
+                </Link>
+                <Link
+                  href="/checkin"
+                  aria-label="Open check-in"
+                  title="Open check-in"
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-zinc-400 hover:bg-white/[0.045] hover:text-zinc-100"
+                >
+                  <ClipboardCheck className="h-4 w-4" />
+                  <span>Check</span>
+                </Link>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <Link
-              href={nextProgramSession?.href ?? '/start'}
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+          {sessionContext.length > 0 ? (
+            <div
+              data-testid="dashboard-next-session"
+              className="relative mt-5 flex min-h-6 flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/8 pt-4 text-sm text-zinc-500"
             >
-              <CalendarDays className="h-4 w-4 text-emerald-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Plan</p>
-              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
-                {nextProgramSession?.resolved.day?.dayOfWeek ?? (programsLoading ? 'Wait' : 'Pick')}
-              </p>
-            </Link>
-            <Link
-              href="/workout/new?type=empty"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
-            >
-              <Plus className="h-4 w-4 text-zinc-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Log</p>
-              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">Quick</p>
-            </Link>
-            <Link
-              href="/checkin"
-              className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 py-3 transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
-            >
-              <ClipboardCheck className="h-4 w-4 text-cyan-300" />
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-600">Ready</p>
-              <p className="mt-0.5 truncate text-[11px] font-black text-zinc-100 sm:text-xs">
-                {readiness?.hasRecoveryInput ? `${Math.round(readiness.score)}` : 'Check'}
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        <div data-testid="dashboard-next-session" className="grid grid-cols-[minmax(0,1.4fr)_0.65fr_0.65fr] divide-x divide-zinc-900 border-t border-zinc-900/80">
-          <div className="min-w-0 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-              <p className="truncate text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Next</p>
+              {sessionContext.map((item) => (
+                <span key={item} className="truncate">
+                  {item}
+                </span>
+              ))}
             </div>
-            <p className="mt-0.5 truncate text-sm font-black italic text-zinc-100 sm:text-base">
-              {nextProgramSession?.resolved.day?.name ?? selectedProgram?.name ?? (programsLoading ? 'Loading' : 'No Plan')}
-            </p>
-          </div>
-          <div className="px-4 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Moves</p>
-            <p className="mt-0.5 text-sm font-black text-zinc-100">
-              {nextProgramSession ? nextProgramSession.work.movementCount : '--'}
-            </p>
-          </div>
-          <div className="px-4 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600">Sets</p>
-            <p className="mt-0.5 text-sm font-black text-zinc-100">
-              {nextProgramSession ? nextProgramSession.work.setCount : '--'}
-            </p>
-          </div>
+          ) : (
+            <div data-testid="dashboard-next-session" className="sr-only">
+              No planned session
+            </div>
+          )}
         </div>
+      </LiquidSurface>
+
+      <section data-testid="dashboard-readiness-strip" className="sr-only">
+        {readinessSignal.label}: {readinessSignal.value}. {readinessSignal.detail}
       </section>
 
-      <section data-testid="dashboard-readiness-strip" className="stagger-item mx-1 sm:hidden">
-        <Link
-          href="/checkin"
-          className="flex items-center gap-3 rounded-2xl border border-zinc-900 bg-zinc-950/55 px-3 py-2.5 transition-colors hover:border-zinc-800 hover:bg-zinc-900/60"
-        >
-          <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-sm font-black italic ${
-              readinessSignal.tone === 'emerald'
-                ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-                : readinessSignal.tone === 'amber'
-                  ? 'border-amber-400/25 bg-amber-400/10 text-amber-300'
-                  : readinessSignal.tone === 'rose'
-                    ? 'border-rose-400/25 bg-rose-400/10 text-rose-300'
-                    : 'border-zinc-800 bg-zinc-900/70 text-zinc-300'
-            }`}
-          >
-            {readinessSignal.value}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">
-                {readinessSignal.label}
-              </p>
-              <p className="shrink-0 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600">Check-in</p>
-            </div>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-300">{readinessSignal.detail}</p>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-900">
-              <div
-                className={`h-full rounded-full ${
-                  readinessSignal.tone === 'emerald'
-                    ? 'bg-emerald-400'
-                    : readinessSignal.tone === 'amber'
-                      ? 'bg-amber-400'
-                      : readinessSignal.tone === 'rose'
-                        ? 'bg-rose-400'
-                        : 'bg-zinc-700'
-                }`}
-                style={{ width: `${Math.max(0, Math.min(100, readinessSignal.progress))}%` }}
-              />
-            </div>
-          </div>
-        </Link>
-      </section>
-
-      <section data-testid="dashboard-training-pulse" className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-zinc-900/80 px-3 py-2.5 sm:p-5">
+      <section
+        data-testid="dashboard-training-pulse"
+        className="mx-1 px-1 py-2"
+      >
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Training Pulse</p>
-            <h2 className="mt-0.5 truncate text-sm font-black italic text-zinc-100 sm:text-lg">
-              Last: {trainingPulse.lastWorkoutName}
-            </h2>
+            <p className="text-sm font-medium text-zinc-200">Training pulse</p>
+            {trainingPulse.sessions > 0 && (
+              <p className="mt-0.5 truncate text-xs text-zinc-600">
+                Last: {trainingPulse.lastWorkoutName}
+              </p>
+            )}
           </div>
           <Link
             href="/history"
-            className="inline-flex h-8 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 sm:h-9"
+            aria-label="Open history"
+            title="Open history"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100"
           >
-            History
+            <History className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-4 divide-x divide-zinc-900">
-          <div className="min-w-0 px-3 py-2.5 sm:p-4">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">Sessions</span>
-              <span className="hidden sm:inline">Sessions</span>
-            </p>
-            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.sessions}</p>
+        <div className="mt-3 grid grid-cols-4 gap-3 border-t border-white/8 pt-3">
+          <div>
+            <p className="text-base font-medium text-zinc-100">{trainingPulse.sessions}</p>
+            <p className="text-xs text-zinc-600">Sessions</p>
           </div>
-          <div className="min-w-0 px-3 py-2.5 sm:p-4">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">Sets</span>
-              <span className="hidden sm:inline">Completed Sets</span>
-            </p>
-            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.completedSets}</p>
+          <div>
+            <p className="text-base font-medium text-zinc-100">{trainingPulse.completedSets}</p>
+            <p className="text-xs text-zinc-600">Sets</p>
           </div>
-          <div className="min-w-0 px-3 py-2.5 sm:p-4">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">Volume</span>
-              <span className="hidden sm:inline">Volume</span>
-            </p>
-            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{formatCompactNumber(trainingPulse.volume)}</p>
+          <div>
+            <p className="text-base font-medium text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
+            <p className="text-xs text-zinc-600">Volume</p>
           </div>
-          <div className="min-w-0 px-3 py-2.5 sm:p-4">
-            <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-600 sm:tracking-[0.2em]">
-              <span className="sm:hidden">PRs</span>
-              <span className="hidden sm:inline">Recent PR</span>
-            </p>
-            <p className="mt-1 text-lg font-black italic text-zinc-100 sm:text-xl">{trainingPulse.prCount}</p>
+          <div>
+            <p className="text-base font-medium text-zinc-100">{trainingPulse.prCount}</p>
+            <p className="text-xs text-zinc-600">PRs</p>
           </div>
-        </div>
-        <div className="truncate border-t border-zinc-900/80 px-3 py-2 text-[11px] font-semibold text-zinc-500 sm:px-4 sm:py-3 sm:text-xs">
-          {trainingPulse.lastWorkoutDate}
-          <span className="text-zinc-700"> / </span>
-          {trainingPulse.lastCompletedSets} sets
         </div>
       </section>
 
-      <section data-testid="dashboard-activity-mobile" className="stagger-item mx-1 sm:hidden">
+      <section data-testid="dashboard-activity-mobile" className="mx-1">
         <WeeklyConsistency compact workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 
-      {/* Readiness Section */}
-      {showReadiness && (
-        <section className="stagger-item mx-1 hidden sm:block">
-          <ReadinessCard readiness={readiness} loading={readinessLoading} />
-        </section>
-      )}
-
-      {/* Consistency Chart */}
-      <section className="stagger-item mx-1 hidden sm:block">
-        <WeeklyConsistency workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
-      </section>
-
-      {/* Status Footer */}
-      {showSystemFooter && (
-        <footer className="hidden flex-col items-center justify-center gap-4 pt-4 opacity-50 pb-8 sm:flex">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
-              System Active • {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
-          <div className="h-px w-12 bg-zinc-900" />
-        </footer>
-      )}
-
       {error && (
-        <p className="text-center text-xs text-rose-400/50">
+        <p className="text-center text-xs text-rose-300/70">
           Analytics server currently unreachable. Some data may be local.
         </p>
       )}
+
+      <ActionSheet
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        title="Today details"
+        footer={
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/checkin" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+              Check-in
+            </Link>
+            <Link href="/history" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+              History
+            </Link>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <DetailBlock title="Primary action">
+            <p>{smartAction.detail}</p>
+          </DetailBlock>
+          <DetailBlock title="Readiness">
+            <p>{readinessSignal.detail}</p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className={cn(
+                  'h-full rounded-full',
+                  readinessSignal.tone === 'emerald'
+                    ? 'bg-[rgb(67,201,135)]'
+                    : readinessSignal.tone === 'amber'
+                      ? 'bg-amber-300'
+                      : readinessSignal.tone === 'rose'
+                        ? 'bg-rose-300'
+                        : 'bg-zinc-600'
+                )}
+                style={{ width: `${Math.max(0, Math.min(100, readinessSignal.progress))}%` }}
+              />
+            </div>
+            {lastUpdated && (
+              <p className="mt-2 text-xs text-zinc-500">
+                Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+          </DetailBlock>
+          <DetailBlock title="Plan">
+            <p>{nextSessionTitle}</p>
+            {nextProgramSession && (
+              <p className="mt-1 text-zinc-500">
+                Week {nextProgramSession.resolved.weekNumber}, day {nextProgramSession.resolved.dayIndex + 1} /{' '}
+                {nextProgramSession.work.movementCount} movements / {nextProgramSession.work.setCount} sets
+              </p>
+            )}
+          </DetailBlock>
+          <DetailBlock title="Training pulse">
+            <p>
+              {trainingPulse.sessions} sessions / {trainingPulse.completedSets} sets /{' '}
+              {formatCompactNumber(trainingPulse.volume)} volume over the last 14 days.
+            </p>
+            <p className="mt-1 text-zinc-500">
+              Last: {trainingPulse.lastWorkoutDate} / {trainingPulse.lastCompletedSets} sets
+            </p>
+          </DetailBlock>
+        </div>
+      </ActionSheet>
     </div>
   );
 }

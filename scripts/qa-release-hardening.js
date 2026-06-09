@@ -461,7 +461,7 @@ async function checkStartPageLaunchpad(browser) {
       viewportWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       hasOldLabels: /Gym Floor|Current Program|Recent Programs|QUICK START/.test(text),
-      hasQuickLog: /QUICK LOG/.test(text),
+      hasQuickLog: /Quick log/i.test(text),
       controls,
     };
   });

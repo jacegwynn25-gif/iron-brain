@@ -8,12 +8,12 @@
   --surface: #11131a;
   --surface-strong: #161924;
   --surface-muted: #1a1f2b;
-  --primary: #8b5cf6;
-  --primary-strong: #a855f7;
-  --primary-foreground: #fdfcff;
-  --accent: #22d3ee;
-  --accent-strong: #38bdf8;
-  --success: #34d399;
+  --primary: #43c987;
+  --primary-strong: #2f9f6b;
+  --primary-foreground: #04130d;
+  --accent: #9ca3af;
+  --accent-strong: #e5e7eb;
+  --success: #43c987;
   --warning: #fbbf24;
   --danger: #fb7185;
   --muted: #1a1d27;
@@ -21,13 +21,23 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.18);
   --radius: 1rem;
+  --liquid-fill: rgba(9, 12, 16, 0.62);
+  --liquid-fill-strong: rgba(12, 15, 20, 0.78);
+  --liquid-border: rgba(255, 255, 255, 0.105);
+  --liquid-border-strong: rgba(255, 255, 255, 0.18);
+  --liquid-highlight: rgba(255, 255, 255, 0.07);
+  --liquid-shadow: 0 28px 90px -50px rgba(0, 0, 0, 0.98);
+  --liquid-action: #43c987;
+  --liquid-action-strong: #2f9f6b;
+  --liquid-action-text: #04130d;
   --app-grid:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   --app-gradient:
-    radial-gradient(1200px circle at 12% 8%, rgba(139, 92, 246, 0.18), transparent 45%),
-    radial-gradient(900px circle at 88% 6%, rgba(34, 211, 238, 0.12), transparent 42%),
-    linear-gradient(180deg, #0b0d12 0%, #0a0c10 55%, #0b0d12 100%);
+    radial-gradient(1000px circle at 14% 0%, rgba(148, 163, 184, 0.12), transparent 42%),
+    radial-gradient(820px circle at 86% 8%, rgba(148, 163, 184, 0.055), transparent 40%),
+    radial-gradient(700px circle at 52% 100%, rgba(67, 201, 135, 0.04), transparent 46%),
+    linear-gradient(180deg, #090b0f 0%, #07090d 56%, #090b0f 100%);
 }
 
 @theme inline {
@@ -43,8 +53,8 @@
     --foreground: #f8fafc;
     --card: #11131a;
     --card-foreground: #f8fafc;
-    --primary: #8b5cf6;
-    --primary-foreground: #fdfcff;
+    --primary: #43c987;
+    --primary-foreground: #04130d;
     --secondary: #1a1f2b;
     --secondary-foreground: #f8fafc;
     --muted: #1a1d27;
@@ -113,19 +123,80 @@ body {
     background-color: var(--background);
   }
 
+  .liquid-ambient {
+    background:
+      radial-gradient(58rem 58rem at 16% 0%, rgba(148, 163, 184, 0.11), transparent 44%),
+      radial-gradient(48rem 48rem at 88% 8%, rgba(148, 163, 184, 0.055), transparent 42%),
+      radial-gradient(42rem 42rem at 58% 100%, rgba(67, 201, 135, 0.04), transparent 48%);
+  }
+
+  .liquid-grid {
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+
+  .liquid-surface {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015)),
+      var(--liquid-fill);
+    border: 1px solid var(--liquid-border);
+    border-radius: 1.35rem;
+    box-shadow: var(--liquid-shadow), inset 0 1px 0 var(--liquid-highlight);
+    backdrop-filter: blur(22px) saturate(1.18);
+    -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  }
+
+  .liquid-surface-elevated {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018)),
+      var(--liquid-fill-strong);
+    border-color: var(--liquid-border-strong);
+    box-shadow:
+      0 36px 110px -52px rgba(0, 0, 0, 1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.085);
+  }
+
+  .liquid-subtle-line {
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+
+  .liquid-action-button {
+    border: 1px solid rgba(119, 224, 169, 0.34);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.025)),
+      linear-gradient(180deg, rgba(67, 201, 135, 0.42) 0%, rgba(47, 159, 107, 0.34) 100%),
+      rgba(255, 255, 255, 0.045);
+    color: #dff8ea;
+    box-shadow:
+      0 18px 54px -36px rgba(67, 201, 135, 0.62),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(4, 19, 13, 0.22);
+  }
+
+  .liquid-action-button:hover {
+    filter: brightness(1.06) saturate(1.02);
+  }
+
   .surface-card {
-    background: rgba(9, 10, 12, 0.82);
-    border: 1px solid rgba(63, 63, 70, 0.7);
-    border-radius: var(--radius);
-    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(18px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
+      var(--liquid-fill);
+    border: 1px solid var(--liquid-border);
+    border-radius: 1.2rem;
+    box-shadow: var(--liquid-shadow), inset 0 1px 0 var(--liquid-highlight);
+    backdrop-filter: blur(20px) saturate(1.12);
+    -webkit-backdrop-filter: blur(20px) saturate(1.12);
   }
 
   .surface-panel {
-    background: rgba(17, 19, 26, 0.55);
-    border: 1px solid rgba(63, 63, 70, 0.4);
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: calc(var(--radius) - 0.25rem);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
   .surface-solid {
@@ -135,8 +206,8 @@ body {
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-    color: #ffffff;
+    background: #34d399;
+    color: #07110d;
     transition: transform 150ms ease, filter 150ms ease;
   }
 
@@ -341,7 +412,7 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(168, 85, 247, 0.3);
+  background: rgba(52, 211, 153, 0.28);
   color: white;
 }
 

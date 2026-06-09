@@ -41,7 +41,7 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
 
     if (loading) {
         return (
-            <div className={`surface-card animate-pulse ${compact ? 'p-3' : 'p-4'}`}>
+            <div className={`${compact ? 'px-1 py-2' : 'surface-card p-4'} animate-pulse`}>
                 <div className="flex justify-between gap-2">
                     {Array.from({ length: 14 }).map((_, i) => (
                         <div key={i} className={`flex flex-col items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
@@ -55,14 +55,16 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
     }
 
     return (
-        <div className={`surface-card overflow-hidden rounded-[1rem] ${compact ? 'p-3' : 'p-4 sm:p-6'}`}>
-            <div className={`${compact ? 'mb-2' : 'mb-3 sm:mb-5'} flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 text-emerald-400 sm:h-4 sm:w-4" />
-                    <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:text-[10px]">Activity</span>
+        <div className={`overflow-hidden ${compact ? 'px-1 py-2' : 'surface-card rounded-[1rem] p-4 sm:p-6'}`}>
+            {!compact && (
+                <div className="mb-3 flex items-center justify-between sm:mb-5">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 text-emerald-400 sm:h-4 sm:w-4" />
+                        <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:text-[10px]">Activity</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-zinc-400 sm:text-[10px]">14 days</span>
                 </div>
-                <span className="text-[9px] font-bold text-zinc-400 sm:text-[10px]">14 days</span>
-            </div>
+            )}
 
             <div className={`flex items-end justify-between ${compact ? 'gap-0.5' : 'gap-0.5 sm:gap-2'}`}>
                 {days.map((day) => (

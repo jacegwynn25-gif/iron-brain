@@ -406,7 +406,11 @@ async function installWorkoutQaBootstrap(page) {
   console.log('✅ History workout delete-to-trash opens, cancels, confirms, and removes the session');
 
   console.log('✅ QA sweep completed');
-  await browser.close();
+  await Promise.race([
+    browser.close(),
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  process.exit(0);
 })().catch(async (err) => {
   console.error('❌ QA sweep failed:', err);
   process.exit(1);

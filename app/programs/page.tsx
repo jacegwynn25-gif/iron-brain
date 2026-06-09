@@ -2363,14 +2363,14 @@ export default function ProgramsPage() {
         <header className="stagger-item px-1">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-0.5 sm:space-y-1">
-              <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">PROGRAMS</h1>
+              <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Programs</h1>
             </div>
             {workspaceView === 'builder' && (
               <button
                 type="button"
                 onClick={openCreateEditor}
                 disabled={loading}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.22em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-50"
+                className="liquid-action-button inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-50"
               >
                 <CirclePlus className="h-4 w-4" />
                 New
@@ -2383,35 +2383,35 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => setWorkspaceView('builder')}
-                className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'builder'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'builder'
+                  ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
                   : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                   }`}
               >
-                BUILDER
+                Builder
               </button>
               {FEATURES.programCalendar && (
                 <button
                   type="button"
                   onClick={() => setWorkspaceView('calendar')}
-                  className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'calendar'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'calendar'
+                    ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
                     : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                     }`}
                 >
-                  CALENDAR
+                  Calendar
                 </button>
               )}
               {FEATURES.coachCollab && (
                 <button
                   type="button"
                   onClick={() => setWorkspaceView('collab')}
-                  className={`surface-card flex items-center gap-2 px-4 py-2 font-black italic whitespace-nowrap transition-all text-xs ${workspaceView === 'collab'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                  className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'collab'
+                    ? 'border-[rgba(119,224,169,0.28)] bg-[rgba(67,201,135,0.09)] text-[rgb(137,226,178)]'
                     : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
                     }`}
                 >
-                  COLLABORATION
+                  Collaboration
                 </button>
               )}
             </div>
@@ -2435,12 +2435,12 @@ export default function ProgramsPage() {
                     key={option}
                     type="button"
                     onClick={() => setFilter(option)}
-                    className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${filter === option
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${filter === option
                       ? 'bg-zinc-100 text-zinc-950'
                       : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                   >
-                    {option === 'built-in' ? 'Built-In' : option}
+                    {option === 'built-in' ? 'Built-in' : option === 'all' ? 'All' : 'Mine'}
                   </button>
                 ))}
               </div>
@@ -2451,14 +2451,14 @@ export default function ProgramsPage() {
 
         {workspaceView === 'builder' && (
           <>
-            <section className="border-b border-zinc-900 py-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Active Program</p>
+            <section className="border-b border-white/8 py-6">
+              <p className="text-sm text-zinc-500">Active program</p>
               <div className="mt-3 flex items-start justify-between gap-4">
                 <div>
-                  <p className="break-words text-2xl font-black text-zinc-100">
-                    {activeProgram?.name ?? 'No Program Selected'}
+                  <p className="break-words text-2xl font-medium text-zinc-100">
+                    {activeProgram?.name ?? 'No program selected'}
                   </p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                  <p className="mt-2 text-sm text-zinc-500">
                     {activeProgram ? getFrequencyLabel(activeProgram) : 'Pick or build a program'}
                   </p>
                 </div>
@@ -2466,7 +2466,7 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={() => handleStartProgram(activeProgram)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-200 hover:border-zinc-500"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-zinc-200 hover:border-white/18"
                   >
                     <Play className="h-3.5 w-3.5" />
                     Start
@@ -2480,14 +2480,14 @@ export default function ProgramsPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
+                      <p className="text-xs font-medium text-[rgb(137,226,178)]">
                         Program Tune-Up
                       </p>
-                      <p className="mt-1 text-sm font-black uppercase tracking-[0.16em] text-zinc-100">
+                      <p className="mt-1 text-sm font-medium text-zinc-100">
                         {visibleProgramTuneUp.title}
                       </p>
                     </div>
-                    <p className="shrink-0 text-right text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                    <p className="shrink-0 text-right text-xs text-zinc-500">
                       {visibleProgramTuneUp.confidence} · {formatTuneUpSource(visibleProgramTuneUp.source)}
                     </p>
                   </div>
@@ -2498,15 +2498,15 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => openTuneUpEditor(activeProgram, visibleProgramTuneUp)}
-                      className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
+                      className="liquid-action-button rounded-xl px-3 py-2 text-sm font-medium active:scale-95"
                       data-testid="program-tune-up-apply"
                     >
-                      Review Changes
+                      Review changes
                     </button>
                     <button
                       type="button"
                       onClick={() => dismissTuneUp(programTuneUpKey)}
-                      className="rounded-xl border border-zinc-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400 hover:text-zinc-200"
+                      className="rounded-xl border border-zinc-800 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200"
                       data-testid="program-tune-up-dismiss"
                     >
                       Dismiss
@@ -2518,7 +2518,7 @@ export default function ProgramsPage() {
 
             <section className="py-4 [overflow-anchor:none]">
               {loading && (
-                <div className="py-6 text-xs uppercase tracking-[0.25em] text-zinc-500">Loading Programs...</div>
+                <div className="py-6 text-sm text-zinc-500">Loading programs...</div>
               )}
 
               {!loading && programList.length === 0 && (
@@ -2527,10 +2527,10 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={openCreateEditor}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-200"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200"
                   >
                     <CirclePlus className="h-4 w-4" />
-                    Build from Scratch
+                    Build from scratch
                   </button>
                 </div>
               )}
@@ -2550,9 +2550,9 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-emerald-500/[0.03]' : ''}`}
+                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-[rgba(67,201,135,0.03)]' : ''}`}
                     >
-                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-emerald-400" aria-hidden="true" />}
+                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-[rgb(67,201,135)]" aria-hidden="true" />}
                       <div className="flex items-center justify-between gap-3 pl-3">
                         <button
                           type="button"
@@ -2560,11 +2560,11 @@ export default function ProgramsPage() {
                           className="min-w-0 flex-1 text-left"
                         >
                           <p
-                            className={`break-words text-lg font-black leading-tight ${isSelected ? 'text-emerald-300' : 'text-zinc-100'}`}
+                            className={`break-words text-lg font-medium leading-tight ${isSelected ? 'text-[rgb(137,226,178)]' : 'text-zinc-100'}`}
                           >
                             {program.name}
                           </p>
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+                          <p className="mt-1 text-xs text-zinc-500">
                             {getFrequencyLabel(program)}
                           </p>
                         </button>
@@ -2574,8 +2574,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => handleSelectProgram(program)}
                             aria-label={isSelected ? `${program.name} is active` : `Set ${program.name} active`}
-                            className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:px-2.5 sm:text-[10px] sm:tracking-[0.18em] ${isSelected
-                              ? 'border border-emerald-500/30 text-emerald-300'
+                            className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-2 text-xs font-medium transition-colors sm:px-2.5 ${isSelected
+                              ? 'border border-[rgba(119,224,169,0.3)] text-[rgb(137,226,178)]'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                           >
@@ -2584,8 +2584,8 @@ export default function ProgramsPage() {
                           <button
                             type="button"
                             onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
-                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] transition-colors ${detailsOpen
-                              ? 'bg-cyan-500/10 text-cyan-300'
+                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-xs font-medium transition-colors ${detailsOpen
+                              ? 'bg-white/[0.07] text-zinc-100'
                               : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
                               }`}
                             aria-expanded={detailsOpen}
@@ -2628,7 +2628,7 @@ export default function ProgramsPage() {
                               )}
 
                               {detailTokens.length > 0 && (
-                                <p className={`${program.description ? 'mt-3' : ''} text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500`}>
+                                <p className={`${program.description ? 'mt-3' : ''} text-xs text-zinc-500`}>
                                   {detailTokens.join(' • ')}
                                 </p>
                               )}
@@ -2640,7 +2640,7 @@ export default function ProgramsPage() {
                                     handleStartProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-lg bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/15 hover:text-emerald-200"
+                                  className="inline-flex h-10 items-center rounded-lg bg-[rgba(67,201,135,0.1)] px-3 text-sm font-medium text-[rgb(137,226,178)] transition-colors hover:bg-[rgba(67,201,135,0.15)]"
                                 >
                                   Start
                                 </button>
@@ -2650,7 +2650,7 @@ export default function ProgramsPage() {
                                     openEditEditor(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
                                 >
                                   Edit
                                 </button>
@@ -2660,7 +2660,7 @@ export default function ProgramsPage() {
                                     void handleDuplicateProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
                                 >
                                   Duplicate
                                 </button>
@@ -2671,7 +2671,7 @@ export default function ProgramsPage() {
                                     void handleDeleteProgram(program);
                                     setDetailsProgramId(null);
                                   }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
+                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
                                 >
                                   Delete
                                 </button>

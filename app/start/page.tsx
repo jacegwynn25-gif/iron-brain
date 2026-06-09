@@ -7,6 +7,7 @@ import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
 import QuickLogConfirm from '../components/workout/QuickLogConfirm';
+import { liquidButtonClass } from '../components/ui/liquid';
 
 type RecentProgram = {
   id: string;
@@ -81,14 +82,12 @@ export default function StartWorkoutPage() {
   }, [selectedProgramDay]);
 
   const nextSessionTitle = loading
-    ? 'Loading Programs...'
-    : selectedProgram?.name ?? 'No Program Selected';
+    ? 'Loading programs...'
+    : selectedProgram?.name ?? 'No program selected';
   const nextSessionSubtitle = selectedProgramDay?.day
     ? `${selectedProgramDay.day.dayOfWeek} / ${selectedProgramDay.day.name}`
-    : selectedProgram
-      ? 'Choose a training day or start from the saved plan.'
-      : 'Start empty, or pick a program first.';
-  const primaryActionLabel = selectedProgram ? 'START PROGRAM SESSION' : 'START SESSION';
+    : null;
+  const primaryActionLabel = selectedProgram ? 'Start program session' : 'Start session';
 
   const handleStartSession = () => {
     if (selectedProgram?.id && effectiveProgress) {
@@ -123,23 +122,22 @@ export default function StartWorkoutPage() {
       />
       <header className="stagger-item flex items-center justify-between gap-4 px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">START SESSION</h1>
+          <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Start session</h1>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 sm:h-10 sm:w-10">
-          <Play className="h-4.5 w-4.5 text-emerald-300 sm:h-5 sm:w-5" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] sm:h-10 sm:w-10">
+          <Play className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
         </div>
       </header>
 
       <section className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="border-b border-zinc-900/80 p-4 sm:p-5">
+        <div className="border-b border-white/8 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-emerald-400/80">Next Up</p>
-              <h2 className="mt-1 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
+              <h2 className="truncate text-xl font-medium leading-tight text-zinc-100 sm:text-2xl">
                 {nextSessionTitle}
               </h2>
-              {!loading && (
-                <p className="mt-1 max-w-xl truncate text-xs font-medium text-zinc-500 sm:text-sm">
+              {!loading && nextSessionSubtitle && (
+                <p className="mt-1 max-w-xl truncate text-xs text-zinc-500 sm:text-sm">
                   {nextSessionSubtitle}
                 </p>
               )}
@@ -154,26 +152,15 @@ export default function StartWorkoutPage() {
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 divide-x divide-zinc-900 rounded-xl border border-zinc-900 bg-zinc-950/70">
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Cycle</p>
-              <p className="mt-0.5 text-sm font-black italic text-zinc-100">
-                {selectedProgramDay ? selectedProgramDay.cycleNumber : '--'}
-              </p>
+          {selectedProgramDay && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
+              <>
+                <span>Cycle {selectedProgramDay.cycleNumber}</span>
+                <span>Week {selectedProgramDay.weekNumber}</span>
+                <span>{selectedDayStats.setCount} sets</span>
+              </>
             </div>
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Week</p>
-              <p className="mt-0.5 text-sm font-black italic text-zinc-100">
-                {selectedProgramDay ? selectedProgramDay.weekNumber : '--'}
-              </p>
-            </div>
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Work</p>
-              <p className="mt-0.5 truncate text-sm font-black italic text-zinc-100">
-                {selectedDayStats.setCount > 0 ? `${selectedDayStats.setCount} SETS` : '--'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="space-y-3 p-4 sm:p-5">
@@ -181,13 +168,15 @@ export default function StartWorkoutPage() {
             type="button"
             onClick={handleStartSession}
             disabled={loading}
-            className="group relative flex min-h-14 w-full items-center justify-between overflow-hidden rounded-[1.1rem] bg-gradient-to-br from-emerald-500 to-teal-600 px-5 py-4 text-left shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-wait disabled:opacity-60 sm:rounded-[1.35rem] sm:px-6"
+            className={liquidButtonClass({
+              variant: 'action',
+              className: 'min-h-14 w-full justify-between px-5 text-left sm:px-6',
+            })}
           >
-            <span className="relative z-10 text-sm font-black italic tracking-tight text-white sm:text-base">
-              {loading ? 'LOADING PROGRAMS' : primaryActionLabel}
+            <span>
+              {loading ? 'Loading programs' : primaryActionLabel}
             </span>
-            <ArrowRight className="relative z-10 h-5 w-5 text-white/55 transition-transform group-hover:translate-x-1" />
-            <div className="absolute -bottom-8 -right-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+            <ArrowRight className="h-5 w-5" />
           </button>
 
           <div className={`grid gap-2.5 ${selectedProgram && selectedProgramDay?.day ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -202,9 +191,9 @@ export default function StartWorkoutPage() {
                 className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
               >
                 <span className="min-w-0">
-                  <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Day</span>
-                  <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">
-                    {overrideProgress ? 'CUSTOM' : selectedProgramDay.day.dayOfWeek}
+                  <span className="block text-xs text-zinc-500">Day</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">
+                    {overrideProgress ? 'Custom' : selectedProgramDay.day.dayOfWeek}
                   </span>
                 </span>
                 {dayPickerOpen ? (
@@ -225,8 +214,8 @@ export default function StartWorkoutPage() {
               className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
             >
               <span className="min-w-0">
-                <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Program</span>
-                <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">SELECT</span>
+                <span className="block text-xs text-zinc-500">Program</span>
+                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Select</span>
               </span>
               {programPickerOpen ? (
                 <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
@@ -241,8 +230,8 @@ export default function StartWorkoutPage() {
               className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
             >
               <span className="min-w-0">
-                <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Empty</span>
-                <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">QUICK LOG</span>
+                <span className="block text-xs text-zinc-500">Empty</span>
+                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Quick log</span>
               </span>
               <RotateCcw className="hidden h-4 w-4 shrink-0 text-zinc-100/40 sm:block" />
             </button>

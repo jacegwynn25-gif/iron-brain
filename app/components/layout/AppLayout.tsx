@@ -171,34 +171,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [pathname]);
 
+  const mainChromeClass = hideBottomNav ? 'pb-12 md:pl-6' : 'pb-24 md:pb-12 md:pl-28';
+
   return (
-    <div
-      className="relative min-h-dvh bg-zinc-950 text-zinc-100"
-    >
+    <div className="relative min-h-dvh bg-zinc-950 text-zinc-100">
       <div className="pointer-events-none fixed inset-0 -z-20 bg-zinc-950" />
-      <div
-        className="pointer-events-none fixed inset-0 -z-20 opacity-70"
-        style={{
-          background:
-            'radial-gradient(55rem 55rem at 14% 8%, rgba(148,163,184,0.11), transparent 45%), radial-gradient(50rem 50rem at 88% 10%, rgba(59,130,246,0.08), transparent 45%), radial-gradient(40rem 40rem at 55% 92%, rgba(34,197,94,0.07), transparent 50%)',
-        }}
-      />
-      <div
-        className="pointer-events-none fixed inset-0 -z-20 opacity-35"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
-        }}
-      />
+      <div className="liquid-ambient pointer-events-none fixed inset-0 -z-20 opacity-90" />
+      <div className="liquid-grid pointer-events-none fixed inset-0 -z-20 opacity-55" />
 
       {(pendingHref || isRoutePending) && (
-        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-emerald-400/20">
-          <div className="h-full w-2/3 animate-pulse bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.8)]" />
+        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-[rgba(67,201,135,0.16)]">
+          <div className="h-full w-2/3 animate-pulse bg-[rgb(137,226,178)] shadow-[0_0_18px_rgba(67,201,135,0.55)]" />
         </div>
       )}
 
-      <main className={`relative mx-auto box-border min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${hideBottomNav ? 'pb-12' : 'pb-24'}`}>
+      <main className={`relative mx-auto box-border min-h-dvh w-full max-w-7xl px-4 safe-top sm:px-6 ${mainChromeClass}`}>
         {children}
       </main>
 
@@ -207,9 +194,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {!hideBottomNav && (
         <nav
           data-testid="app-bottom-nav"
-          className="app-bottom-nav pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.35rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.45rem] border border-white/10 bg-zinc-950/88 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.95)] backdrop-blur-2xl touch-manipulation sm:inset-x-6"
+          className="app-bottom-nav liquid-surface pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.35rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.45rem] touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:w-[4.9rem] md:-translate-y-1/2 md:rounded-[1.55rem]"
         >
-          <div className="relative flex min-h-16 w-full items-stretch justify-between gap-1 p-1.5">
+          <div className="relative flex min-h-16 w-full items-stretch justify-between gap-1 p-1.5 md:min-h-0 md:flex-col md:p-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
@@ -230,11 +217,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   onPointerCancel={() => {
                     navPointerRef.current = null;
                   }}
-                  className={`group relative flex min-h-14 min-w-0 flex-1 select-none items-center justify-center rounded-[1.05rem] px-1 transition-all [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:scale-[0.97] active:bg-zinc-900/80 sm:flex-col sm:gap-1 ${active
-                    ? 'bg-white/[0.07] text-emerald-300 ring-1 ring-white/10'
+                  className={`group relative flex min-h-14 min-w-0 flex-1 select-none items-center justify-center rounded-[1.05rem] px-1 transition-all [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] active:scale-[0.97] active:bg-white/[0.08] sm:flex-col sm:gap-1 md:min-h-[4.1rem] md:flex-none ${active
+                    ? 'bg-white/[0.075] text-[rgb(137,226,178)] ring-1 ring-white/10'
                     : pending
-                      ? 'bg-white/[0.05] text-emerald-200 ring-1 ring-emerald-300/20'
-                    : 'text-zinc-500 hover:text-zinc-300'
+                      ? 'bg-white/[0.05] text-[rgb(137,226,178)] ring-1 ring-[rgba(119,224,169,0.18)]'
+                    : 'text-zinc-500 hover:bg-white/[0.045] hover:text-zinc-300'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active || pending ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
@@ -242,11 +229,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     {item.label}
                   </span>
                   {(active || pending) && (
-                    <span className="pointer-events-none absolute -top-0.5 h-1 w-1 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.85)] sm:hidden" />
+                    <span className="pointer-events-none absolute -top-0.5 h-1 w-1 rounded-full bg-[rgb(137,226,178)] shadow-[0_0_10px_rgba(67,201,135,0.52)] md:left-1/2 md:top-1 md:-translate-x-1/2" />
                   )}
                   {pending && (
-                    <span className="pointer-events-none absolute inset-x-3 bottom-1 h-px overflow-hidden rounded-full bg-emerald-300/20">
-                      <span className="block h-full w-1/2 animate-pulse bg-emerald-300" />
+                    <span className="pointer-events-none absolute inset-x-3 bottom-1 h-px overflow-hidden rounded-full bg-[rgba(119,224,169,0.16)]">
+                      <span className="block h-full w-1/2 animate-pulse bg-[rgb(137,226,178)]" />
                     </span>
                   )}
                 </Link>

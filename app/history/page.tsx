@@ -308,13 +308,13 @@ export default function HistoryPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item flex items-start justify-between px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">WORKOUT HISTORY</h1>
+          <h1 className="text-3xl font-medium tracking-tight text-zinc-100 sm:text-4xl">Workout history</h1>
         </div>
         <button
           onClick={() => router.push('/start')}
-          className="stagger-item group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="liquid-action-button stagger-item flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-medium transition-all active:scale-[0.98]"
         >
-          Start Workout
+          Start workout
         </button>
       </header>
       {cloudFetchFailed && (
