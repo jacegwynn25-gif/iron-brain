@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   HeartHandshake,
@@ -27,7 +27,6 @@ import {
   ActionSheet,
   IconButton,
   LiquidSurface,
-  cn,
   liquidButtonClass,
 } from '@/app/components/ui/liquid';
 import type { DayTemplate, ProgramTemplate, WorkoutSession } from '@/app/lib/types';
@@ -98,24 +97,9 @@ function buildPlannedSessionHref(program: ProgramTemplate, progress: ProgramProg
   return `/workout/new?program_id=${encodeURIComponent(program.id)}&week=${progress.weekIndex}&day=${progress.dayIndex}&cycle=${progress.cycleNumber}`;
 }
 
-function DetailBlock({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[1rem] border border-white/8 bg-white/[0.035] p-3.5">
-      <p className="text-sm font-medium text-zinc-100">{title}</p>
-      <div className="mt-2 text-sm leading-5 text-zinc-400">{children}</div>
-    </section>
-  );
-}
-
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
-  const { readiness, loading: readinessLoading, error, lastUpdated } = useRecoveryState();
+  const { readiness, loading: readinessLoading, error } = useRecoveryState();
   const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
   const { workouts, loading: workoutsLoading } = useWorkoutDataContext();
   const { selectedProgram, loading: programsLoading } = useProgramContext();
@@ -440,7 +424,7 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <IconButton label="Open today details" onClick={() => setDetailsOpen(true)} className="mt-0.5">
+            <IconButton label="Open today menu" onClick={() => setDetailsOpen(true)} className="mt-0.5">
               <Info className="h-4 w-4" />
             </IconButton>
           </div>
@@ -537,63 +521,56 @@ export default function Dashboard() {
       <ActionSheet
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        title="Today details"
-        footer={
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/checkin" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-              Check-in
-            </Link>
-            <Link href="/history" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-              History
-            </Link>
-          </div>
-        }
+        title="Today"
       >
         <div className="space-y-3">
-          <DetailBlock title="Primary action">
-            <p>{smartAction.detail}</p>
-          </DetailBlock>
-          <DetailBlock title="Readiness">
-            <p>{readinessSignal.detail}</p>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className={cn(
-                  'h-full rounded-full',
-                  readinessSignal.tone === 'emerald'
-                    ? 'bg-emerald-400'
-                    : readinessSignal.tone === 'amber'
-                      ? 'bg-amber-300'
-                      : readinessSignal.tone === 'rose'
-                        ? 'bg-rose-300'
-                        : 'bg-zinc-600'
-                )}
-                style={{ width: `${Math.max(0, Math.min(100, readinessSignal.progress))}%` }}
-              />
-            </div>
-            {lastUpdated && (
-              <p className="mt-2 text-xs text-zinc-500">
-                Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
-          </DetailBlock>
-          <DetailBlock title="Plan">
-            <p>{nextSessionTitle}</p>
-            {nextProgramSession && (
-              <p className="mt-1 text-zinc-500">
+          <div>
+            <p className="truncate text-sm font-semibold text-zinc-50">{nextSessionTitle}</p>
+            {nextProgramSession ? (
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
                 Week {nextProgramSession.resolved.weekNumber}, day {nextProgramSession.resolved.dayIndex + 1} /{' '}
                 {nextProgramSession.work.movementCount} movements / {nextProgramSession.work.setCount} sets
               </p>
+            ) : (
+              <p className="mt-1 text-xs leading-5 text-zinc-500">{smartAction.detail}</p>
             )}
-          </DetailBlock>
-          <DetailBlock title="Training pulse">
-            <p>
-              {trainingPulse.sessions} sessions / {trainingPulse.completedSets} sets /{' '}
-              {formatCompactNumber(trainingPulse.volume)} volume over the last 14 days.
-            </p>
-            <p className="mt-1 text-zinc-500">
-              Last: {trainingPulse.lastWorkoutDate} / {trainingPulse.lastCompletedSets} sets
-            </p>
-          </DetailBlock>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-[0.95rem] bg-white/[0.045] px-3 py-2.5">
+              <p className="font-semibold text-zinc-200">{readinessSignal.value}</p>
+              <p className="mt-0.5 text-zinc-500">{readinessSignal.label}</p>
+            </div>
+            <div className="rounded-[0.95rem] bg-white/[0.045] px-3 py-2.5">
+              <p className="font-semibold text-zinc-200">{trainingPulse.sessions}</p>
+              <p className="mt-0.5 text-zinc-500">14-day sessions</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 pt-1">
+            <Link
+              href={smartAction.href}
+              className={liquidButtonClass({
+                variant: primaryButtonVariant,
+                density: 'compact',
+                className: 'justify-between',
+              })}
+            >
+              <span>{primaryButtonText}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <div className="grid grid-cols-3 gap-2">
+              <Link href="/checkin" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+                Check in
+              </Link>
+              <Link href="/programs" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+                Plan
+              </Link>
+              <Link href="/history" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+                History
+              </Link>
+            </div>
+          </div>
         </div>
       </ActionSheet>
     </div>

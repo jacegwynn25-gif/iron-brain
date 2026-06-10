@@ -437,19 +437,16 @@ async function checkStartPageLaunchpad(browser) {
 
   await page.goto(`${BASE_URL}/start`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 30000 });
-  await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/START TRAINING/i).waitFor({ state: 'visible', timeout: 30000 });
   await page.getByText(/FREESTYLE/i).waitFor({ state: 'visible', timeout: 30000 });
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
-    const controls = Array.from(document.querySelectorAll('button'))
-      .filter((button) => {
-        const label = button.textContent ?? '';
-        return /DAY|PROGRAM|EMPTY/i.test(label) && !/START/i.test(label);
-      })
+    const controls = Array.from(document.querySelectorAll('.liquid-control-button'))
       .map((button) => {
         const rect = button.getBoundingClientRect();
         return {
+          ariaLabel: button.getAttribute('aria-label'),
           text: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
           top: rect.top,
           width: rect.width,
@@ -461,7 +458,9 @@ async function checkStartPageLaunchpad(browser) {
       viewportWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       hasOldLabels: /Gym Floor|Current Program|Recent Programs|QUICK START/.test(text),
+      hasStaleSelect: /\bSelect\b/.test(text),
       hasFreestyle: /Freestyle/i.test(text),
+      hasOnDeck: /On deck/i.test(text),
       controls,
     };
   });
@@ -472,8 +471,14 @@ async function checkStartPageLaunchpad(browser) {
   if (report.hasOldLabels) {
     throw new Error('Start page still exposes removed filler labels');
   }
+  if (report.hasStaleSelect) {
+    throw new Error('Start page still shows stale Select copy after a program is selected');
+  }
   if (!report.hasFreestyle) {
     throw new Error('Start page freestyle action is missing or clipped');
+  }
+  if (!report.hasOnDeck) {
+    throw new Error('Start page does not show the selected session movement preview');
   }
   if (report.controls.length < 3) {
     throw new Error(`Start page expected 3 compact launch controls, found ${report.controls.length}`);

@@ -4,15 +4,61 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, BookOpen, ChevronDown, ChevronRight, ChevronUp, Play, RotateCcw } from 'lucide-react';
 import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../lib/programs/progress';
+import { buildExerciseCatalog, resolveExerciseDisplayName } from '../lib/exercises/catalog';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
 import QuickLogConfirm from '../components/workout/QuickLogConfirm';
 import { liquidButtonClass } from '../components/ui/liquid';
+import type { DayTemplate } from '../lib/types';
 
 type RecentProgram = {
   id: string;
   name: string;
 };
+
+type MovementPreview = {
+  id: string;
+  name: string;
+  setCount: number;
+  slot?: string;
+};
+
+const startExerciseCatalog = buildExerciseCatalog();
+
+function resolvePreviewExerciseName(exerciseId: string): string {
+  return resolveExerciseDisplayName(exerciseId, { catalog: startExerciseCatalog });
+}
+
+function getMovementPreview(day: DayTemplate | null | undefined): MovementPreview[] {
+  if (!day) return [];
+
+  if (day.blocks && day.blocks.length > 0) {
+    return day.blocks.flatMap((block) =>
+      block.exercises.map((exercise) => ({
+        id: exercise.id || exercise.exerciseId,
+        name: resolvePreviewExerciseName(exercise.exerciseId),
+        setCount: exercise.sets.length,
+        slot: block.type === 'superset' ? exercise.slot : undefined,
+      }))
+    );
+  }
+
+  const grouped = new Map<string, MovementPreview>();
+  day.sets?.forEach((set) => {
+    const existing = grouped.get(set.exerciseId);
+    if (existing) {
+      existing.setCount += 1;
+      return;
+    }
+    grouped.set(set.exerciseId, {
+      id: set.exerciseId,
+      name: resolvePreviewExerciseName(set.exerciseId),
+      setCount: 1,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
 
 export default function StartWorkoutPage() {
   const router = useRouter();
@@ -74,12 +120,20 @@ export default function StartWorkoutPage() {
         0
       ) ?? 0;
     const legacySetCount = day.sets?.length ?? 0;
+    const legacyMovementCount = new Set((day.sets ?? []).map((set) => set.exerciseId).filter(Boolean)).size;
 
     return {
-      movementCount: blockMovementCount || (legacySetCount > 0 ? 1 : 0),
+      movementCount: blockMovementCount || legacyMovementCount || (legacySetCount > 0 ? 1 : 0),
       setCount: blockSetCount || legacySetCount,
     };
   }, [selectedProgramDay]);
+
+  const movementPreview = useMemo(
+    () => getMovementPreview(selectedProgramDay?.day),
+    [selectedProgramDay?.day]
+  );
+  const visibleMovementPreview = movementPreview.slice(0, 6);
+  const hiddenMovementCount = Math.max(0, movementPreview.length - visibleMovementPreview.length);
 
   const nextSessionTitle = loading
     ? 'Loading programs...'
@@ -87,7 +141,12 @@ export default function StartWorkoutPage() {
   const nextSessionSubtitle = selectedProgramDay?.day
     ? `${selectedProgramDay.day.dayOfWeek} / ${selectedProgramDay.day.name}`
     : null;
-  const primaryActionLabel = selectedProgram ? 'Start program session' : 'Start session';
+  const primaryActionLabel = 'Start training';
+  const dayControlText = selectedProgramDay?.day
+    ? `Week ${selectedProgramDay.weekNumber} / ${selectedProgramDay.day.dayOfWeek}`
+    : 'Choose day';
+  const programControlText = selectedProgram?.name ?? (availablePrograms.length > 0 ? 'Choose program' : 'Programs');
+  const programControlLabel = selectedProgram ? `Change program, ${selectedProgram.name}` : 'Choose program';
 
   const handleStartSession = () => {
     if (selectedProgram?.id && effectiveProgress) {
@@ -179,7 +238,16 @@ export default function StartWorkoutPage() {
             <ArrowRight className="h-5 w-5" />
           </button>
 
-          <div className={`grid gap-2.5 ${selectedProgram && selectedProgramDay?.day ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div
+            className={`liquid-control-strip grid gap-1 p-1 ${selectedProgram && selectedProgramDay?.day
+              ? 'grid-cols-[1fr_1.12fr_1fr]'
+              : 'grid-cols-2'
+            }`}
+            style={{
+              backdropFilter: 'blur(28px) saturate(1.28)',
+              WebkitBackdropFilter: 'blur(28px) saturate(1.28)',
+            }}
+          >
             {selectedProgram && selectedProgramDay?.day && (
               <button
                 type="button"
@@ -187,14 +255,12 @@ export default function StartWorkoutPage() {
                   setDayPickerOpen((prev) => !prev);
                   setProgramPickerOpen(false);
                 }}
+                aria-label={overrideProgress ? `Custom day, ${dayControlText}` : `Training day, ${dayControlText}`}
                 aria-expanded={dayPickerOpen}
-                className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
+                className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
               >
-                <span className="min-w-0">
-                  <span className="block text-xs text-zinc-500">Day</span>
-                  <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">
-                    {overrideProgress ? 'Custom' : selectedProgramDay.day.dayOfWeek}
-                  </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {overrideProgress ? 'Custom day' : dayControlText}
                 </span>
                 {dayPickerOpen ? (
                   <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
@@ -210,13 +276,11 @@ export default function StartWorkoutPage() {
                 setProgramPickerOpen((prev) => !prev);
                 setDayPickerOpen(false);
               }}
+              aria-label={programControlLabel}
               aria-expanded={programPickerOpen}
-              className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
+              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
             >
-              <span className="min-w-0">
-                <span className="block text-xs text-zinc-500">Program</span>
-                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Select</span>
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{programControlText}</span>
               {programPickerOpen ? (
                 <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
               ) : (
@@ -226,13 +290,11 @@ export default function StartWorkoutPage() {
 
             <button
               type="button"
+              aria-label="Start freestyle session"
               onClick={() => setQuickLogConfirmOpen(true)}
-              className="surface-panel flex min-h-12 items-center justify-between px-2.5 py-2.5 text-left transition-colors hover:border-white/12 hover:bg-white/[0.06] sm:px-3"
+              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
             >
-              <span className="min-w-0">
-                <span className="block text-xs text-zinc-500">Empty</span>
-                <span className="mt-0.5 block truncate text-sm font-medium text-zinc-100">Freestyle</span>
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">Freestyle</span>
               <RotateCcw className="hidden h-4 w-4 shrink-0 text-zinc-100/40 sm:block" />
             </button>
           </div>
@@ -244,17 +306,23 @@ export default function StartWorkoutPage() {
                 setOverrideProgress(null);
                 setDayPickerOpen(false);
               }}
-              className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-400"
+              className="text-xs font-semibold text-zinc-600 transition-colors hover:text-zinc-400"
             >
-              Reset to next scheduled day
+              Reset to scheduled day
             </button>
           )}
 
           {selectedProgram && dayPickerOpen && (
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/95 p-3">
+            <div
+              className="liquid-menu max-h-72 overflow-y-auto p-3"
+              style={{
+                backdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+                WebkitBackdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+              }}
+            >
               {selectedProgram.weeks.map((week, wIdx) => (
                 <div key={wIdx} className="mb-3 last:mb-0">
-                  <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.28em] text-zinc-600">
+                  <p className="mb-1.5 px-1 text-[11px] font-semibold text-zinc-500">
                     Week {week.weekNumber}
                   </p>
                   <div className="grid gap-1">
@@ -287,12 +355,12 @@ export default function StartWorkoutPage() {
                             : 'border border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                             }`}
                         >
-                          <span className="w-8 shrink-0 text-[10px] font-black italic text-zinc-500">
+                          <span className="w-8 shrink-0 text-xs font-black italic text-zinc-500">
                             {day.dayOfWeek}
                           </span>
                           <span className="min-w-0 flex-1 truncate text-xs font-semibold">{day.name}</span>
                           {isAutoDay && (
-                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                            <span className="shrink-0 text-[11px] font-semibold text-emerald-400">
                               Next
                             </span>
                           )}
@@ -306,7 +374,13 @@ export default function StartWorkoutPage() {
           )}
 
           {programPickerOpen && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/95 p-3">
+            <div
+              className="liquid-menu p-3"
+              style={{
+                backdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+                WebkitBackdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+              }}
+            >
               {alternatePrograms.length > 0 ? (
                 <div className="grid gap-1">
                   {alternatePrograms.map((program) => (
@@ -319,9 +393,7 @@ export default function StartWorkoutPage() {
                       <span className="min-w-0 flex-1 break-words text-xs font-bold leading-snug text-zinc-200">
                         {program.name}
                       </span>
-                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 group-hover:text-emerald-400">
-                        Use
-                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors group-hover:text-emerald-400" />
                     </button>
                   ))}
                 </div>
@@ -331,9 +403,41 @@ export default function StartWorkoutPage() {
                   onClick={() => router.push('/programs')}
                   className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-zinc-900"
                 >
-                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">Build or pick a program</span>
+                  <span className="text-xs font-semibold text-zinc-400">Build or pick a program</span>
                   <ChevronRight className="h-4 w-4 text-zinc-600" />
                 </button>
+              )}
+            </div>
+          )}
+
+          {visibleMovementPreview.length > 0 && (
+            <div className="border-t border-white/8 pt-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-zinc-200">On deck</p>
+                <span className="shrink-0 text-xs text-zinc-500">
+                  {movementPreview.length} {movementPreview.length === 1 ? 'movement' : 'movements'}
+                </span>
+              </div>
+              <div className="mt-2 divide-y divide-white/[0.055]">
+                {visibleMovementPreview.map((movement, index) => (
+                  <div key={`${movement.id}-${index}`} className="flex min-h-11 items-center gap-3 py-2">
+                    <span className="w-5 shrink-0 text-xs font-black italic text-zinc-600">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">
+                      {movement.name}
+                    </span>
+                    {movement.slot && (
+                      <span className="shrink-0 text-xs font-semibold text-zinc-500">{movement.slot}</span>
+                    )}
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      {movement.setCount} {movement.setCount === 1 ? 'set' : 'sets'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {hiddenMovementCount > 0 && (
+                <p className="pt-2 text-xs text-zinc-500">+{hiddenMovementCount} more</p>
               )}
             </div>
           )}

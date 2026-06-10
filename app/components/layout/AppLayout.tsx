@@ -195,6 +195,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <nav
           data-testid="app-bottom-nav"
           className="app-bottom-nav liquid-nav-shell pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.875rem] touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:w-[4.9rem] md:-translate-y-1/2"
+          style={{
+            backdropFilter: 'blur(56px) saturate(1.86) contrast(1.1)',
+            WebkitBackdropFilter: 'blur(56px) saturate(1.86) contrast(1.1)',
+          }}
         >
           <div className="relative z-10 flex min-h-16 w-full items-stretch justify-between gap-0.5 p-1.5 md:min-h-0 md:flex-col md:gap-1 md:p-2">
             {navItems.map((item) => {
@@ -221,7 +225,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     ? 'liquid-nav-item-active'
                     : pending
                       ? 'text-emerald-200'
-                    : 'text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-300'
+                    : 'text-zinc-300/70 hover:bg-white/[0.055] hover:text-zinc-100'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active || pending ? 'stroke-[2.5]' : 'stroke-[2]'}`} />
