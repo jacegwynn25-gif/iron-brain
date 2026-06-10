@@ -39,7 +39,9 @@ The mock covers:
 - Preserve Iron Brain identity: Inter, black italic brand/page moments, classic action green `#10b981`, pressed/depth green `#059669`.
 - Keep popups more transparent than the current sheets while preserving readable text contrast.
 - Popovers attach to the tapped source control. They appear near the source, not at the bottom, unless the bottom command opened them.
+- Popups/menus must not use fake sheen, glow, decorative gradients, or bubbly highlight layers. The material should be a flat translucent blur over real background content with a fine border and subtle shadow only.
 - Builder becomes a guided workspace editing one week/session at a time.
+- Week navigation should not rely on a long visible `Week 1 / Week 2 / Week 3...` strip for every program. Use a compact week/session selector that opens a source-attached menu, especially for longer plans.
 
 ## Apple-Informed Design Logic
 
@@ -75,7 +77,7 @@ References:
 
 3. Builder guided workspace
    - Full-screen dark workspace with direct header content and a clear Done commit control; add Back only when there is a real back stack.
-   - Week/session strip.
+   - Compact week/session selector with a source-attached menu; avoid exposed week strips for long plans.
    - Direct exercise rows.
    - One focused editor at a time: source-attached Liquid Glass popover/sheet on mobile, side inspector/popover on desktop.
    - Every exercise row uses the same action affordance; no one-off `Edit Sets` button next to rows that otherwise use a menu control.

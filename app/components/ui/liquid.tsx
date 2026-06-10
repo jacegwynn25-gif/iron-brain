@@ -274,16 +274,25 @@ export function LiquidActionMenu({
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     const margin = 12;
+    const gap = 8;
+    const menuHeight = Math.min(360, viewportHeight - margin * 2);
+    const belowTop = rect.bottom + gap;
+    const aboveTop = rect.top - menuHeight - gap;
+    const placeAbove = belowTop + menuHeight > viewportHeight - margin && aboveTop > margin;
     const left =
       align === 'end'
         ? clamp(rect.right - width, margin, viewportWidth - width - margin)
         : clamp(rect.left, margin, viewportWidth - width - margin);
     setStyle({
       left,
-      top: rect.bottom + 8,
-      width,
-      transformOrigin: align === 'end' ? 'calc(100% - 1.4rem) -0.35rem' : '1.4rem -0.35rem',
+      top: placeAbove ? aboveTop : belowTop,
+      width: Math.min(width, viewportWidth - margin * 2),
+      maxHeight: menuHeight,
+      transformOrigin: align === 'end'
+        ? `calc(100% - 1.4rem) ${placeAbove ? 'calc(100% + 0.35rem)' : '-0.35rem'}`
+        : `1.4rem ${placeAbove ? 'calc(100% + 0.35rem)' : '-0.35rem'}`,
     });
   }, [align, width]);
 
@@ -293,14 +302,14 @@ export function LiquidActionMenu({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
-    const handleReposition = () => updatePosition();
+    const close = () => setOpen(false);
     document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
     };
   }, [open, updatePosition]);
 
@@ -331,6 +340,12 @@ export function LiquidActionMenu({
               aria-label={label}
               className={cn('liquid-menu liquid-sheet-panel absolute max-h-[70dvh] overflow-y-auto p-1.5', menuClassName)}
               style={style ?? undefined}
+              onClick={(event) => {
+                const target = event.target as HTMLElement;
+                if (target.closest('button:not([disabled])')) {
+                  setOpen(false);
+                }
+              }}
             >
               {children}
             </div>

@@ -140,7 +140,7 @@ export default function StartWorkoutPage() {
   const dayControlText = selectedProgramDay?.day
     ? `Week ${selectedProgramDay.weekNumber} / ${selectedProgramDay.day.dayOfWeek}`
     : 'Choose day';
-  const programControlText = selectedProgram?.name ?? (availablePrograms.length > 0 ? 'Choose program' : 'Programs');
+  const programControlText = selectedProgram?.name ?? (availablePrograms.length > 0 ? 'Program' : 'Programs');
   const programControlLabel = selectedProgram ? `Change program, ${selectedProgram.name}` : 'Choose program';
 
   const handleStartSession = () => {
@@ -431,6 +431,36 @@ export default function StartWorkoutPage() {
           )}
         </div>
       </section>
+
+      {!selectedProgram && !loading && availablePrograms.length > 0 && (
+        <section className="stagger-item mx-1 border-t border-white/8 pt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-zinc-200">Programs</h2>
+            <button
+              type="button"
+              onClick={() => router.push('/programs')}
+              className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              Manage
+            </button>
+          </div>
+          <div className="divide-y divide-white/[0.055]">
+            {availablePrograms.slice(0, 5).map((program) => (
+              <button
+                key={program.id}
+                type="button"
+                onClick={() => handleProgramSelect(program.id)}
+                className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-white"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
+                  {program.name}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

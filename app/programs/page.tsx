@@ -919,7 +919,7 @@ export default function ProgramsPage() {
   const hasEditorSetFocus = editorSetFocus != null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
-  const hasProgramBuilderOverlay = Boolean(editorMode || editorJumpPicker || exercisePickerOpen);
+  const hasProgramBuilderOverlay = Boolean(editorJumpPicker || exercisePickerOpen);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -2555,22 +2555,22 @@ export default function ProgramsPage() {
 
       {
         editorMode && draft && (
-          <div className="fixed inset-0 z-[120] flex flex-col bg-[#05070b] text-zinc-100">
+          <div className="fixed inset-0 z-[70] flex flex-col bg-[#05070b] text-zinc-100">
             <div className="liquid-ambient pointer-events-none fixed inset-0 opacity-70" />
-            <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
+            <div className="flex-1 overflow-y-auto px-4 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
               <div className="mx-auto w-full max-w-5xl">
-              <header className="liquid-nav-shell sticky top-3 z-30 rounded-[1.35rem] px-2 py-2">
+              <header className="sticky top-3 z-30">
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
                   <button
                     type="button"
+                    aria-label="Back"
                     onClick={closeEditor}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-zinc-100"
+                    className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-100"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back
                   </button>
-                  <p className="truncate text-center text-sm font-semibold text-zinc-100">
-                    {draft.name.trim() || (editorMode === 'create' ? 'New program' : 'Program')}
+                  <p className="truncate text-center text-sm font-black uppercase italic tracking-tight text-zinc-100">
+                    Builder
                   </p>
                   <button
                     type="button"
@@ -2758,13 +2758,31 @@ export default function ProgramsPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditorJumpPicker('week')}
-                      className="liquid-field flex-1 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100"
+                    <LiquidActionMenu
+                      label="Choose week"
+                      align="start"
+                      width={320}
+                      className="flex-1"
+                      trigger={
+                        <span className="liquid-field flex w-full items-center justify-center px-3 py-2.5 text-center text-sm font-semibold text-zinc-100">
+                          Week {activeWeekIndex + 1}
+                        </span>
+                      }
                     >
-                      Week {activeWeekIndex + 1}
-                    </button>
+                      {draft.weeks.map((week, index) => {
+                        const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
+                        const isActive = index === activeWeekIndex;
+                        return (
+                          <LiquidMenuRow
+                            key={`menu-week-${week.weekNumber}`}
+                            label={`Week ${index + 1}`}
+                            detail={`${week.days.length} sessions / ${weekSetCount} sets`}
+                            icon={isActive ? <Check className="h-3.5 w-3.5" /> : undefined}
+                            onClick={() => selectEditorWeek(index)}
+                          />
+                        );
+                      })}
+                    </LiquidActionMenu>
                     <button
                       type="button"
                       onClick={() => stepEditorWeek(1)}
@@ -2814,13 +2832,31 @@ export default function ProgramsPage() {
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorJumpPicker('session')}
-                        className="liquid-field flex-1 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100"
+                      <LiquidActionMenu
+                        label="Choose session"
+                        align="start"
+                        width={320}
+                        className="flex-1"
+                        trigger={
+                          <span className="liquid-field flex w-full items-center justify-center px-3 py-2.5 text-center text-sm font-semibold text-zinc-100">
+                            {currentDay?.name?.trim() || `Day ${activeDayIndex + 1}`}
+                          </span>
+                        }
                       >
-                        {currentDay?.name?.trim() || `Day ${activeDayIndex + 1}`}
-                      </button>
+                        {currentWeek.days.map((day, index) => {
+                          const isActive = index === activeDayIndex;
+                          const dayLabel = day.name?.trim() || `Session ${index + 1}`;
+                          return (
+                            <LiquidMenuRow
+                              key={`menu-session-${index}`}
+                              label={`Session ${index + 1}`}
+                              detail={`${dayLabel} / ${countDaySets(day)} sets`}
+                              icon={isActive ? <Check className="h-3.5 w-3.5" /> : undefined}
+                              onClick={() => selectEditorSession(index)}
+                            />
+                          );
+                        })}
+                      </LiquidActionMenu>
                       <button
                         type="button"
                         onClick={() => stepEditorSession(1)}
@@ -2972,7 +3008,7 @@ export default function ProgramsPage() {
             </div>
 
             {pendingExerciseUndo && (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[140] px-4 sm:px-6">
+              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[140] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
                 <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
                   <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
                     {pendingExerciseUndo.message}
@@ -2994,7 +3030,7 @@ export default function ProgramsPage() {
 
       {
         editorMode && draft && editorJumpPicker && (
-          <div className="fixed inset-0 z-[135] bg-black/65 backdrop-blur-md">
+          <div className="fixed inset-0 z-[135] bg-transparent">
             <button
               type="button"
               aria-label="Close picker"
@@ -3080,7 +3116,7 @@ export default function ProgramsPage() {
 
       {
         exercisePickerOpen && (
-          <div className="fixed inset-0 z-[140] bg-black/35">
+          <div className="fixed inset-0 z-[140] bg-transparent">
             <div
               className="liquid-sheet-panel absolute inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto max-h-[82dvh] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:w-[32rem]"
               data-program-exercise-picker-sheet="true"

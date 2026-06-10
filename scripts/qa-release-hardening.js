@@ -631,7 +631,12 @@ async function checkBottomNavTapTargets(browser) {
       if (node instanceof HTMLElement) node.style.pointerEvents = 'none';
     });
 
-    return Array.from(document.querySelectorAll('[data-nav-item]')).map((node) => {
+    return Array.from(document.querySelectorAll('.app-bottom-nav [data-nav-item]'))
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((node) => {
       const link = node;
       const rect = link.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
@@ -661,7 +666,14 @@ async function checkBottomNavTapTargets(browser) {
   ];
 
   for (const [item, route] of routes) {
-    await page.locator(`[data-nav-item="${item}"]`).tap({ timeout: 5000 });
+    const directTarget = page.locator(`.app-bottom-nav [data-nav-item="${item}"]:visible`).first();
+    if (await directTarget.count()) {
+      await directTarget.tap({ timeout: 5000 });
+    } else {
+      await page.locator('.app-bottom-nav [data-nav-item="more"]:visible').tap({ timeout: 5000 });
+      await page.locator('.app-bottom-nav [role="menu"]').waitFor({ state: 'visible', timeout: 5000 });
+      await page.locator(`.app-bottom-nav [data-nav-item="menu-${item}"]:visible`).tap({ timeout: 5000 });
+    }
     await page.waitForURL((url) => url.pathname === route, { timeout: 60000 });
     await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 30000 });
   }
