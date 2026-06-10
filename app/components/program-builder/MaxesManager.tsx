@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Trash2, AlertCircle, TrendingUp, Calendar, Pencil } from 'lucide-react';
+import { Plus, Search, Trash2, AlertCircle, TrendingUp, Calendar, Pencil, X } from 'lucide-react';
 import { getUserMaxes, saveUserMax, deleteUserMax, isMaxStale } from '../../lib/maxes/maxes-service';
 import { useDialog } from '@/app/providers/DialogProvider';
 import type { UserMax } from '../../lib/types';
 import ExercisePicker from './ExercisePicker';
 import type { Exercise, CustomExercise } from '../../lib/types';
+import { useBodyScrollLock } from '../../lib/hooks/useBodyScrollLock';
+import { liquidButtonClass } from '../ui/liquid';
 
 type ExerciseOption = {
   id: string;
@@ -34,6 +36,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
   const [notes, setNotes] = useState('');
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  useBodyScrollLock(showAddModal, 'maxes-modal', { hideBottomNav: false });
 
   // Load maxes
   const loadMaxes = useCallback(async () => {
@@ -150,22 +153,20 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 border-b border-zinc-900 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px]">
-            Strength Ceilings
-          </p>
-          <h2 className="mt-1 text-2xl font-black italic tracking-tight text-zinc-100 sm:text-3xl">
-            MAX TABLE
+          <h2 className="text-2xl font-black italic tracking-tight text-zinc-100 sm:text-3xl">
+            Max table
           </h2>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-zinc-500">
-            Values here drive percentage prescriptions and strength suggestions.
-          </p>
         </div>
         <button
           type="button"
           onClick={handleOpenAddModal}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500"
+          className={liquidButtonClass({
+            variant: 'action',
+            density: 'compact',
+            className: 'min-h-11 px-4 text-[11px]',
+          })}
         >
           <Plus className="h-4 w-4" />
           Add 1RM
@@ -179,20 +180,20 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search exercises..."
-          className="w-full rounded-xl border border-zinc-900 bg-zinc-950/70 py-3 pl-11 pr-4 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+          className="liquid-field w-full py-3 pl-11 pr-4 text-sm"
         />
       </div>
 
       {loading ? (
-        <div className="animate-pulse rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-5 sm:p-6">
+        <div className="animate-pulse rounded-[1rem] border border-white/8 bg-zinc-950/72 p-5 sm:p-6">
           <div className="h-4 w-40 rounded bg-zinc-800" />
           <div className="mt-4 h-3 w-64 max-w-full rounded bg-zinc-900" />
         </div>
       ) : filteredMaxes.length === 0 ? (
-        <div className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 px-5 py-10 text-center sm:px-8">
+        <div className="rounded-[1rem] border border-white/8 bg-zinc-950/72 px-5 py-10 text-center sm:px-8">
           <TrendingUp className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
           <h3 className="text-lg font-black italic tracking-tight text-zinc-100">
-            {searchTerm ? 'NO MATCHES' : 'NO MAXES TRACKED'}
+            {searchTerm ? 'No matches' : 'No maxes tracked'}
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
             {searchTerm
@@ -203,15 +204,15 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-100 transition-colors hover:border-zinc-500 hover:bg-zinc-800 active:bg-zinc-950"
+              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-[11px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.08] active:bg-white/[0.1]"
             >
               <Plus className="h-4 w-4" />
-              Add First 1RM
+              Add first 1RM
             </button>
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/55">
+        <div className="overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72">
           {filteredMaxes.map((max) => {
             const stale = isMaxStale(max);
             const testDate = new Date(max.testedAt).toLocaleDateString();
@@ -219,7 +220,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
             return (
               <div
                 key={max.id}
-                className="border-b border-zinc-900 p-4 last:border-b-0 sm:p-5"
+                className="border-b border-white/8 p-4 last:border-b-0 sm:p-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -228,7 +229,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                     </h3>
                     <div className="mt-3 grid gap-3 text-sm sm:grid-cols-[minmax(7rem,0.8fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)] sm:items-end">
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
                           Load
                         </p>
                         <p className="mt-0.5 text-2xl font-black tracking-tight text-zinc-100">
@@ -236,7 +237,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
                           Tested
                         </p>
                         <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-zinc-400">
@@ -245,11 +246,11 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                         </div>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
                           Source
                         </p>
                         <p className={`mt-1 text-xs font-black uppercase tracking-[0.16em] ${max.estimatedOrTested === 'tested'
-                          ? 'text-emerald-300'
+                          ? 'text-emerald-500'
                           : 'text-sky-300'
                           }`}
                         >
@@ -274,7 +275,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                       type="button"
                       onClick={() => handleOpenEditModal(max)}
                       aria-label={`Edit ${max.exerciseName}`}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 text-zinc-500 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+                      className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:text-zinc-200"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -282,7 +283,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                       type="button"
                       onClick={() => handleDeleteMax(max.id)}
                       aria-label={`Delete ${max.exerciseName}`}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 text-rose-400 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-200"
+                      className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-400 transition-colors hover:text-rose-200"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -296,26 +297,38 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl">
-            <div className="border-b border-zinc-900 p-5 sm:p-6">
-              <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-emerald-500/80">
-                Strength Ceiling
-              </p>
-              <h3 className="mt-1 text-2xl font-black italic tracking-tight text-zinc-100">
-                {editingMax ? 'EDIT 1RM' : 'ADD 1RM'}
+        <div className="fixed inset-0 z-[110] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+4.75rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]">
+          <button
+            type="button"
+            aria-label="Close max editor"
+            className="absolute inset-0 cursor-default"
+            onClick={handleCloseModal}
+          />
+          <div className="liquid-sheet-panel relative w-full max-w-lg overflow-hidden rounded-[1.2rem] p-0">
+            <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4 sm:p-5">
+              <h3 className="text-xl font-black italic tracking-tight text-zinc-100 sm:text-2xl">
+                {editingMax ? 'Edit 1RM' : 'Add 1RM'}
               </h3>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                disabled={saving}
+                className="liquid-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-100 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="space-y-4 p-5 sm:p-6">
+            <div className="max-h-[58dvh] space-y-4 overflow-y-auto p-4 sm:p-5">
               {/* Exercise Selection */}
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                  Exercise *
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Exercise
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowExercisePicker(true)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-left text-sm text-zinc-100 outline-none transition-colors hover:border-zinc-700 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                  className="liquid-field w-full px-4 py-3 text-left text-sm"
                 >
                   {selectedExercise ? selectedExercise.name : 'Select exercise...'}
                 </button>
@@ -323,8 +336,8 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
               {/* Weight */}
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                  Weight *
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Weight
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -333,12 +346,12 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                     onChange={(e) => setWeight(parseFloat(e.target.value))}
                     min="0"
                     step="2.5"
-                    className="min-w-0 flex-1 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                    className="liquid-field min-w-0 flex-1 px-4 py-2.5 text-sm"
                   />
                   <select
                     value={unit}
                     onChange={(e) => setUnit(e.target.value as 'lbs' | 'kg')}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm font-bold uppercase text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                    className="liquid-field px-4 py-2.5 text-sm font-bold uppercase"
                   >
                     <option value="lbs">lbs</option>
                     <option value="kg">kg</option>
@@ -348,40 +361,36 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
               {/* Date Tested */}
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                  Date Tested *
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Date tested
                 </label>
                 <input
                   type="date"
                   value={testedAt}
                   onChange={(e) => setTestedAt(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                  className="liquid-field w-full px-4 py-2.5 text-sm"
                 />
               </div>
 
               {/* Tested or Estimated */}
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                  Type *
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Type
                 </label>
-                <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-1">
+                <div className="liquid-segmented grid grid-cols-2 gap-1 p-1">
                   <button
                     type="button"
                     onClick={() => setEstimatedOrTested('tested')}
-                    className={`rounded-lg px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors ${estimatedOrTested === 'tested'
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'text-zinc-500 hover:text-zinc-200'
-                      }`}
+                    data-active={estimatedOrTested === 'tested' ? 'true' : 'false'}
+                    className="liquid-segmented-item px-4 py-2 text-[11px] font-semibold"
                   >
                     Tested
                   </button>
                   <button
                     type="button"
                     onClick={() => setEstimatedOrTested('estimated')}
-                    className={`rounded-lg px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition-colors ${estimatedOrTested === 'estimated'
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'text-zinc-500 hover:text-zinc-200'
-                      }`}
+                    data-active={estimatedOrTested === 'estimated' ? 'true' : 'false'}
+                    className="liquid-segmented-item px-4 py-2 text-[11px] font-semibold"
                   >
                     Estimated
                   </button>
@@ -390,26 +399,26 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
               {/* Notes */}
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                  Notes (optional)
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  Notes
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   placeholder="e.g., Touch & go, paused, competition"
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                  className="liquid-field w-full px-4 py-2.5 text-sm"
                 />
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 border-t border-zinc-900 p-5 sm:p-6">
+            <div className="flex gap-3 border-t border-white/8 bg-black/10 p-3 sm:p-4">
               <button
                 type="button"
                 onClick={handleCloseModal}
                 disabled={saving}
-                className="min-h-12 flex-1 rounded-xl border border-zinc-800 px-5 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-zinc-100 disabled:opacity-50"
+                className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.045] px-5 text-[11px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -417,7 +426,11 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                 type="button"
                 onClick={handleSaveMax}
                 disabled={saving || !selectedExercise || weight <= 0}
-                className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-5 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className={liquidButtonClass({
+                  variant: 'action',
+                  density: 'compact',
+                  className: 'min-h-12 flex-1 rounded-xl px-5 text-[11px] disabled:cursor-not-allowed disabled:opacity-50',
+                })}
               >
                 {saving ? 'Saving...' : editingMax ? 'Update' : 'Save'}
               </button>

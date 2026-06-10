@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
+  Check,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
   Copy,
+  Dumbbell,
   MoreHorizontal,
+  Pencil,
   Play,
   Search,
+  Settings2,
   X,
   Trash2,
 } from 'lucide-react';
@@ -38,6 +42,12 @@ import { useRecoveryState } from '@/app/lib/hooks/useRecoveryState';
 
 import EditableNumberInput from '@/app/components/ui/EditableNumberInput';
 import FancySelect from '@/app/components/ui/FancySelect';
+import {
+  LiquidActionMenu,
+  LiquidMenuRow,
+  LiquidSegmentedControl,
+  liquidButtonClass,
+} from '@/app/components/ui/liquid';
 import ProgramsCalendarView from '@/app/components/program-builder/ProgramsCalendarView';
 import CoachCollabPanel from '@/app/components/program-builder/CoachCollabPanel';
 import { FEATURES } from '@/app/lib/features';
@@ -752,7 +762,6 @@ export default function ProgramsPage() {
   const [editorNotice, setEditorNotice] = useState<string | null>(null);
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
-  const [detailsProgramId, setDetailsProgramId] = useState<string | null>(null);
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [exercisePickerTarget, setExercisePickerTarget] = useState<ExercisePickerTarget>(null);
   const [exerciseQuery, setExerciseQuery] = useState('');
@@ -767,10 +776,6 @@ export default function ProgramsPage() {
   const [pendingExerciseUndo, setPendingExerciseUndo] = useState<ExerciseRemovalUndoPayload | null>(
     null
   );
-  const [exerciseActionMenu, setExerciseActionMenu] = useState<{
-    blockIndex: number;
-    exerciseIndex: number;
-  } | null>(null);
   const [editorSetFocus, setEditorSetFocus] = useState<EditorSetFocus>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
   const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
@@ -781,7 +786,6 @@ export default function ProgramsPage() {
   const [workspaceView, setWorkspaceView] = useState<'builder' | 'calendar' | 'collab'>('builder');
   const [dismissedTuneUps, setDismissedTuneUps] = useState<Record<string, boolean>>({});
   const showWorkspaceTabs = FEATURES.programCalendar || FEATURES.coachCollab;
-  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -941,18 +945,6 @@ export default function ProgramsPage() {
   }, []);
 
   useEffect(() => {
-    if (!exerciseActionMenu) return;
-    if (typeof document === 'undefined') return;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('[data-exercise-action-menu]')) return;
-      setExerciseActionMenu(null);
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [exerciseActionMenu]);
-
-  useEffect(() => {
     if (!draft) {
       setWeekCountInput('');
       setDaysPerWeekInput('');
@@ -1035,13 +1027,11 @@ export default function ProgramsPage() {
     setEditorNotice(null);
     setPendingExerciseUndo(null);
     resetCustomExerciseBuilder();
-    setDetailsProgramId(null);
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const openEditEditor = (program: ProgramTemplate) => {
@@ -1062,11 +1052,9 @@ export default function ProgramsPage() {
     resetCustomExerciseBuilder();
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
-    setDetailsProgramId(null);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const openTuneUpEditor = (program: ProgramTemplate, recommendation: TrainingRecommendation) => {
@@ -1088,11 +1076,9 @@ export default function ProgramsPage() {
     resetCustomExerciseBuilder();
     setActiveWeekIndex(0);
     setActiveDayIndex(0);
-    setDetailsProgramId(null);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const dismissTuneUp = (key: string) => {
@@ -1122,7 +1108,6 @@ export default function ProgramsPage() {
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const closeEditor = async () => {
@@ -1147,7 +1132,6 @@ export default function ProgramsPage() {
     setActiveWeekIndex((currentIndex) => Math.max(0, Math.min(nextWeekCount - 1, currentIndex)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const updateDraftDaysPerWeek = (nextDaysPerWeek: number) => {
@@ -1155,7 +1139,6 @@ export default function ProgramsPage() {
     setActiveDayIndex((currentIndex) => Math.max(0, Math.min(nextDaysPerWeek - 1, currentIndex)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const selectEditorWeek = (index: number) => {
@@ -1167,7 +1150,6 @@ export default function ProgramsPage() {
     setActiveDayIndex((current) => Math.max(0, Math.min(nextDayLimit, current)));
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const selectEditorSession = (index: number) => {
@@ -1176,7 +1158,6 @@ export default function ProgramsPage() {
     setActiveDayIndex(clampedDay);
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
   };
 
   const stepEditorWeek = (delta: number) => {
@@ -1262,7 +1243,6 @@ export default function ProgramsPage() {
     setActiveWeekIndex(sourceWeekIndex + 1);
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
     setEditorError(null);
   };
 
@@ -1299,7 +1279,6 @@ export default function ProgramsPage() {
 
     setEditorSetFocus(null);
     setEditorJumpPicker(null);
-    setExerciseActionMenu(null);
     setEditorError(null);
   };
 
@@ -1332,7 +1311,6 @@ export default function ProgramsPage() {
     }
 
     setEditorSetFocus(null);
-    setExerciseActionMenu(null);
     setEditorError(null);
   };
 
@@ -1397,7 +1375,6 @@ export default function ProgramsPage() {
       }
       return current;
     });
-    setExerciseActionMenu(null);
   };
 
   const handleUpdateSupersetMetadata = (
@@ -1464,7 +1441,6 @@ export default function ProgramsPage() {
       blocks: nextBlocks,
     }));
     setEditorSetFocus({ blockIndex, exerciseIndex: 0, setIndex: 0 });
-    setExerciseActionMenu(null);
     setExercisePickerOpen(true);
     setExercisePickerTarget({ mode: 'set-superset-slot', blockIndex, slot: 'A2' });
     setExerciseQuery('');
@@ -1509,7 +1485,6 @@ export default function ProgramsPage() {
     }));
     setPendingExerciseUndo(null);
     setEditorSetFocus({ blockIndex, exerciseIndex: 0, setIndex: 0 });
-    setExerciseActionMenu(null);
   };
 
   const handleRemoveExercise = (blockIndex: number, exerciseIndex: number) => {
@@ -1556,7 +1531,6 @@ export default function ProgramsPage() {
       message: `${removedLabel} removed.`,
     });
     setEditorSetFocus(null);
-    setExerciseActionMenu(null);
   };
 
   const handleUndoExerciseRemoval = () => {
@@ -1597,7 +1571,6 @@ export default function ProgramsPage() {
     setActiveWeekIndex(undo.weekIndex);
     setActiveDayIndex(undo.dayIndex);
     setEditorSetFocus(null);
-    setExerciseActionMenu(null);
     setEditorError(null);
     setPendingExerciseUndo(null);
   };
@@ -1661,7 +1634,6 @@ export default function ProgramsPage() {
     setExercisePickerOpen(true);
     setExerciseQuery('');
     resetCustomExerciseBuilder();
-    setExerciseActionMenu(null);
   };
 
   const applyPickedExercise = (exerciseId: string) => {
@@ -1923,9 +1895,6 @@ export default function ProgramsPage() {
       hasEditorSetFocus &&
       editorSetFocus?.blockIndex === blockIndex &&
       editorSetFocus.exerciseIndex === exerciseIndex;
-    const isMenuOpen =
-      exerciseActionMenu?.blockIndex === blockIndex &&
-      exerciseActionMenu.exerciseIndex === exerciseIndex;
     const canReorderBlock =
       block.type === 'single' || slotLabel === 'A1' || (block.type === 'superset' && block.exercises.length < 2);
     const canMoveUp = blockIndex > 0;
@@ -1944,7 +1913,7 @@ export default function ProgramsPage() {
     return (
       <article
         key={`${block.id}-${exercise.id}-${slotLabel ?? 'single'}`}
-        className={`border-b border-zinc-900 py-3 ${hasFocusedSet ? 'border-cyan-400/30 bg-cyan-500/[0.03]' : ''
+        className={`border-b border-white/8 py-3 ${hasFocusedSet ? 'bg-white/[0.025]' : ''
           }`}
       >
         <div className="mb-2 flex items-start justify-between gap-3">
@@ -1957,6 +1926,7 @@ export default function ProgramsPage() {
           <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
+              aria-label={hasFocusedSet ? 'Collapse' : 'Edit Sets'}
               onClick={() =>
                 setEditorSetFocus((current) => {
                   const isCurrent =
@@ -1965,18 +1935,71 @@ export default function ProgramsPage() {
                   return { blockIndex, exerciseIndex, setIndex: 0 };
                 })
               }
-              className={`inline-flex h-11 items-center rounded-full border px-4 text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${hasFocusedSet
-                ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/24'
-                : 'border-cyan-500/35 bg-cyan-500/8 text-cyan-300 hover:bg-cyan-500/14'
+              className={`inline-flex h-10 items-center rounded-xl border px-3 text-xs font-semibold transition-colors ${hasFocusedSet
+                ? 'border-white/18 bg-white/[0.08] text-zinc-100'
+                : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:bg-white/[0.065] hover:text-zinc-100'
                 }`}
             >
-              {hasFocusedSet ? 'Collapse' : 'Edit Sets'}
+              {hasFocusedSet ? 'Done' : 'Sets'}
             </button>
+            <LiquidActionMenu
+              label={`Exercise actions for ${exerciseLabel}`}
+              trigger={
+                <span className="liquid-icon-button flex h-10 w-10 items-center justify-center rounded-full text-zinc-300">
+                  <MoreHorizontal className="h-4 w-4" />
+                </span>
+              }
+            >
+              <LiquidMenuRow
+                label="Replace"
+                icon={<Search className="h-3.5 w-3.5" />}
+                onClick={() => handleReplaceExercise(blockIndex, exerciseIndex)}
+              />
+              {block.type === 'single' && (
+                <LiquidMenuRow
+                  label="Make superset"
+                  icon={<Dumbbell className="h-3.5 w-3.5" />}
+                  onClick={() => handleConvertSingleToSupersetPair(blockIndex)}
+                />
+              )}
+              {canBreakSupersetPair && (
+                <LiquidMenuRow
+                  label="Break superset"
+                  icon={<Settings2 className="h-3.5 w-3.5" />}
+                  onClick={() => handleBreakSupersetPair(blockIndex)}
+                />
+              )}
+              {canReorderBlock && (
+                <>
+                  <LiquidMenuRow
+                    label="Move up"
+                    icon={<ChevronLeft className="h-3.5 w-3.5 rotate-90" />}
+                    disabled={!canMoveUp}
+                    onClick={() => handleMoveBlock(blockIndex, -1)}
+                  />
+                  <LiquidMenuRow
+                    label="Move down"
+                    icon={<ChevronRight className="h-3.5 w-3.5 rotate-90" />}
+                    disabled={!canMoveDown}
+                    onClick={() => handleMoveBlock(blockIndex, 1)}
+                  />
+                </>
+              )}
+              <LiquidMenuRow
+                label="Remove Exercise"
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                danger
+                aria-label="Remove Exercise"
+                onClick={() => handleRemoveExercise(blockIndex, exerciseIndex)}
+              >
+                Remove
+              </LiquidMenuRow>
+            </LiquidActionMenu>
           </div>
         </div>
 
         {showSupersetSettings && (
-          <div className="mb-3 grid gap-2 border-y border-zinc-900 py-2 sm:grid-cols-3">
+          <div className="mb-3 grid gap-2 border-y border-white/8 py-2 sm:grid-cols-3">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                 Rounds
@@ -1991,7 +2014,7 @@ export default function ProgramsPage() {
                     rounds: value == null ? 1 : value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
               />
             </div>
             <div>
@@ -2008,7 +2031,7 @@ export default function ProgramsPage() {
                     restAfterRoundSeconds: value == null ? undefined : value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
               />
             </div>
             {editorDetailMode === 'advanced' && (
@@ -2026,7 +2049,7 @@ export default function ProgramsPage() {
                       transitionSeconds: value == null ? undefined : value,
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                  className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                 />
               </div>
             )}
@@ -2034,7 +2057,7 @@ export default function ProgramsPage() {
         )}
 
         {!hasFocusedSet && (
-          <p className="truncate border-t border-zinc-900 pt-2 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+          <p className="truncate border-t border-white/8 pt-2 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
             {compactSetSummary}
           </p>
         )}
@@ -2042,7 +2065,7 @@ export default function ProgramsPage() {
         {hasFocusedSet && (
           <div className="space-y-2">
             {exercise.sets.map((set, setIndex) => (
-              <div key={`${exercise.id}-set-${setIndex}`} className="rounded-xl border border-zinc-900/80 bg-zinc-950/40 p-3">
+              <div key={`${exercise.id}-set-${setIndex}`} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
                     Set {setIndex + 1} • {getSetSummaryLine(set)}
@@ -2052,7 +2075,7 @@ export default function ProgramsPage() {
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
                       disabled={exercise.sets.length <= 1}
-                      className="inline-flex h-11 items-center rounded-lg border border-rose-500/35 bg-rose-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200 transition-colors hover:bg-rose-500/18 disabled:opacity-40"
+                      className="liquid-danger-button inline-flex h-10 items-center rounded-lg px-3 text-[10px] font-bold uppercase tracking-[0.18em] disabled:opacity-40"
                       aria-label={`Remove set ${setIndex + 1}`}
                     >
                       Remove
@@ -2077,7 +2100,7 @@ export default function ProgramsPage() {
                           prescribedReps: event.target.value,
                         }))
                       }
-                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                     />
                   </div>
 
@@ -2093,7 +2116,7 @@ export default function ProgramsPage() {
                           applySetTargetInput(current, event.target.value)
                         )
                       }
-                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                     />
                   </div>
 
@@ -2112,7 +2135,7 @@ export default function ProgramsPage() {
                           restSeconds: value == null ? undefined : value,
                         }))
                       }
-                      className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                     />
                   </div>
 
@@ -2146,7 +2169,7 @@ export default function ProgramsPage() {
                             })
                           }
                           ariaLabel="Prescription method"
-                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          buttonClassName="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                           listClassName="max-h-56 overflow-y-auto"
                         />
                       </div>
@@ -2171,7 +2194,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             ariaLabel="Set style"
-                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            buttonClassName="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                             listClassName="max-h-56 overflow-y-auto"
                           />
                         </div>
@@ -2180,9 +2203,9 @@ export default function ProgramsPage() {
                       {block.type === 'superset' && (
                         <div>
                           <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            Block Mode
+                            Group
                           </label>
-                          <div className="mt-1 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-200">
+                          <div className="liquid-field mt-1 px-2.5 py-2 text-xs font-semibold text-zinc-200">
                             Superset {slotLabel ?? ''}
                           </div>
                         </div>
@@ -2201,7 +2224,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="3-1-1-0"
-                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          className="liquid-field mt-1 w-full px-2.5 py-2 text-sm placeholder:text-zinc-600"
                         />
                       </div>
 
@@ -2226,7 +2249,7 @@ export default function ProgramsPage() {
                                 })
                               }
                               placeholder="2,2,2"
-                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                              className="liquid-field mt-1 w-full px-2.5 py-2 text-sm placeholder:text-zinc-600"
                             />
                           </div>
                           <div>
@@ -2244,7 +2267,7 @@ export default function ProgramsPage() {
                                   clusterRestSeconds: value == null ? undefined : value,
                                 }))
                               }
-                              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                              className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
                             />
                           </div>
                         </>
@@ -2258,98 +2281,10 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-colors hover:bg-emerald-500/18"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-3 text-xs font-semibold text-zinc-200 transition-colors hover:bg-white/[0.065]"
               >
                 Add Set
               </button>
-              <div className="relative" data-exercise-action-menu="true">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExerciseActionMenu((current) =>
-                      current?.blockIndex === blockIndex && current.exerciseIndex === exerciseIndex
-                        ? null
-                        : { blockIndex, exerciseIndex }
-                    )
-                  }
-                  className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${isMenuOpen
-                    ? 'border-indigo-400/55 bg-indigo-500/18 text-indigo-100'
-                    : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
-                    }`}
-                  aria-label={`Exercise actions for ${exerciseLabel}`}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                  Exercise Actions
-                </button>
-                {isMenuOpen && (
-                  <div className="mt-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-2xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleReplaceExercise(blockIndex, exerciseIndex);
-                        setExerciseActionMenu(null);
-                      }}
-                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-200 hover:bg-zinc-900"
-                    >
-                      Replace Exercise
-                    </button>
-                    {block.type === 'single' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExerciseActionMenu(null);
-                          handleConvertSingleToSupersetPair(blockIndex);
-                        }}
-                        className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
-                      >
-                        Convert To Superset Pair
-                      </button>
-                    )}
-                    {canBreakSupersetPair && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setExerciseActionMenu(null);
-                          handleBreakSupersetPair(blockIndex);
-                        }}
-                        className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900"
-                      >
-                        Break Superset Pair
-                      </button>
-                    )}
-                    {canReorderBlock && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={!canMoveUp}
-                          onClick={() => handleMoveBlock(blockIndex, -1)}
-                          className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
-                        >
-                          Move Up
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!canMoveDown}
-                          onClick={() => handleMoveBlock(blockIndex, 1)}
-                          className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300 hover:bg-zinc-900 disabled:opacity-35"
-                        >
-                          Move Down
-                        </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExerciseActionMenu(null);
-                        handleRemoveExercise(blockIndex, exerciseIndex);
-                      }}
-                      className="w-full rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.18em] text-rose-300 hover:bg-rose-500/10"
-                    >
-                      Remove Exercise
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}
@@ -2379,47 +2314,21 @@ export default function ProgramsPage() {
           </div>
 
           {showWorkspaceTabs && (
-            <div className="mt-6 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <button
-                type="button"
-                onClick={() => setWorkspaceView('builder')}
-                className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'builder'
-                  ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
-                  : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-                  }`}
-              >
-                Builder
-              </button>
-              {FEATURES.programCalendar && (
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceView('calendar')}
-                  className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'calendar'
-                    ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
-                    : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-                    }`}
-                >
-                  Calendar
-                </button>
-              )}
-              {FEATURES.coachCollab && (
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceView('collab')}
-                  className={`surface-card flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-medium transition-all ${workspaceView === 'collab'
-                    ? 'border-emerald-300/25 bg-emerald-400/[0.08] text-emerald-200'
-                    : 'text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
-                    }`}
-                >
-                  Collaboration
-                </button>
-              )}
-            </div>
+            <LiquidSegmentedControl
+              value={workspaceView}
+              onChange={setWorkspaceView}
+              className={`mt-6 w-full max-w-md ${FEATURES.programCalendar && FEATURES.coachCollab ? 'grid-cols-3' : 'grid-cols-2'}`}
+              options={[
+                { value: 'builder', label: 'Builder' },
+                ...(FEATURES.programCalendar ? [{ value: 'calendar' as const, label: 'Calendar' }] : []),
+                ...(FEATURES.coachCollab ? [{ value: 'collab' as const, label: 'Collab' }] : []),
+              ]}
+            />
           )}
 
           {workspaceView === 'builder' && (
             <>
-              <div className="mt-5 flex items-center gap-3 border-b border-zinc-900 pb-4">
+              <div className="liquid-field mt-5 flex items-center gap-3 px-3 py-2.5">
                 <Search className="h-4 w-4 text-zinc-500" />
                 <input
                   value={query}
@@ -2429,21 +2338,16 @@ export default function ProgramsPage() {
                 />
               </div>
 
-              <div className="mt-4 inline-flex rounded-xl border border-white/10 bg-white/[0.045] p-1">
-                {(['all', 'mine', 'built-in'] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setFilter(option)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${filter === option
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'text-zinc-400 hover:text-zinc-200'
-                      }`}
-                  >
-                    {option === 'built-in' ? 'Built-in' : option === 'all' ? 'All' : 'Mine'}
-                  </button>
-                ))}
-              </div>
+              <LiquidSegmentedControl
+                value={filter}
+                onChange={setFilter}
+                className="mt-4 w-full max-w-xs grid-cols-3"
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'mine', label: 'Mine' },
+                  { value: 'built-in', label: 'Built-in' },
+                ]}
+              />
             </>
           )
           }
@@ -2451,14 +2355,13 @@ export default function ProgramsPage() {
 
         {workspaceView === 'builder' && (
           <>
-            <section className="border-b border-white/8 py-6">
-              <p className="text-sm text-zinc-500">Active program</p>
-              <div className="mt-3 flex items-start justify-between gap-4">
-                <div>
-                  <p className="iron-display break-words text-2xl text-zinc-100">
+            <section className="border-y border-white/8 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-zinc-200">
                     {activeProgram?.name ?? 'No program selected'}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-1 text-xs text-zinc-500">
                     {activeProgram ? getFrequencyLabel(activeProgram) : 'Pick or build a program'}
                   </p>
                 </div>
@@ -2466,7 +2369,7 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={() => handleStartProgram(activeProgram)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-white/18"
+                    className={liquidButtonClass({ variant: 'action', density: 'compact', className: 'shrink-0 rounded-xl px-3' })}
                   >
                     <Play className="h-3.5 w-3.5" />
                     Start
@@ -2475,14 +2378,11 @@ export default function ProgramsPage() {
               </div>
               {activeProgram && visibleProgramTuneUp && programTuneUpKey && (
                 <div
-                  className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3"
+                  className="mt-4 border-t border-white/8 pt-3"
                   data-testid="program-tune-up"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-emerald-300">
-                        Program Tune-Up
-                      </p>
                       <p className="mt-1 text-sm font-medium text-zinc-100">
                         {visibleProgramTuneUp.title}
                       </p>
@@ -2491,22 +2391,19 @@ export default function ProgramsPage() {
                       {visibleProgramTuneUp.confidence} · {formatTuneUpSource(visibleProgramTuneUp.source)}
                     </p>
                   </div>
-                  <p className="mt-2 text-xs leading-snug text-zinc-400">
-                    {visibleProgramTuneUp.reason}
-                  </p>
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => openTuneUpEditor(activeProgram, visibleProgramTuneUp)}
-                      className="liquid-action-button rounded-xl px-3 py-2 text-sm font-black italic tracking-tight text-zinc-950 active:scale-95"
+                      className={liquidButtonClass({ variant: 'action', density: 'compact', className: 'rounded-xl px-3' })}
                       data-testid="program-tune-up-apply"
                     >
-                      Review changes
+                      Review
                     </button>
                     <button
                       type="button"
                       onClick={() => dismissTuneUp(programTuneUpKey)}
-                      className="rounded-xl border border-zinc-800 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200"
+                      className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200"
                       data-testid="program-tune-up-dismiss"
                     >
                       Dismiss
@@ -2516,7 +2413,7 @@ export default function ProgramsPage() {
               )}
             </section>
 
-            <section className="py-4 [overflow-anchor:none]">
+            <section className="py-3 [overflow-anchor:none]">
               {loading && (
                 <div className="py-6 text-sm text-zinc-500">Loading programs...</div>
               )}
@@ -2538,9 +2435,6 @@ export default function ProgramsPage() {
               {!loading &&
                 programList.map((program) => {
                   const isSelected = selectedProgram?.id === program.id;
-                  const detailsOpen = detailsProgramId === program.id;
-                  const detailsId = `program-details-${program.id}`;
-                  const selectActionLabel = isSelected ? 'Active' : 'Set Active';
                   const detailTokens = [
                     program.goal ? GOAL_LABELS[program.goal] ?? formatTokenLabel(program.goal) : null,
                     program.experienceLevel
@@ -2550,9 +2444,9 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative border-b border-zinc-900 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-emerald-400/[0.035]' : ''}`}
+                      className={`relative border-b border-white/8 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-white/[0.035]' : ''}`}
                     >
-                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-emerald-400" aria-hidden="true" />}
+                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-white/55" aria-hidden="true" />}
                       <div className="flex items-center justify-between gap-3 pl-3">
                         <button
                           type="button"
@@ -2560,7 +2454,7 @@ export default function ProgramsPage() {
                           className="min-w-0 flex-1 text-left"
                         >
                           <p
-                            className={`break-words text-lg font-medium leading-tight ${isSelected ? 'text-emerald-200' : 'text-zinc-100'}`}
+                            className={`break-words text-lg font-medium leading-tight ${isSelected ? 'text-zinc-50' : 'text-zinc-100'}`}
                           >
                             {program.name}
                           </p>
@@ -2570,117 +2464,70 @@ export default function ProgramsPage() {
                         </button>
 
                         <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleSelectProgram(program)}
-                            aria-label={isSelected ? `${program.name} is active` : `Set ${program.name} active`}
-                            className={`inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg px-2 text-xs font-medium transition-colors sm:px-2.5 ${isSelected
-                              ? 'border border-emerald-300/30 text-emerald-200'
-                              : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
-                              }`}
+	                          {isSelected && (
+	                            <span className="hidden items-center gap-1.5 text-xs font-semibold text-zinc-300 sm:inline-flex">
+	                              <Check className="h-3.5 w-3.5" />
+	                              Active
+	                            </span>
+	                          )}
+                          {!isSelected && (
+                            <button
+                              type="button"
+                              onClick={() => handleSelectProgram(program)}
+                              className="inline-flex min-h-9 items-center rounded-xl border border-white/10 bg-white/[0.035] px-3 text-xs font-semibold text-zinc-300 transition-colors hover:bg-white/[0.065] hover:text-zinc-50"
+                            >
+                              Set Active
+                            </button>
+                          )}
+	                          <LiquidActionMenu
+                            label={`Actions for ${program.name}`}
+                            trigger={
+                              <span className="liquid-icon-button flex h-9 w-9 items-center justify-center rounded-full text-zinc-300">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </span>
+                            }
                           >
-                            {selectActionLabel}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDetailsProgramId((current) => (current === program.id ? null : program.id))}
-                            className={`inline-flex h-9 items-center justify-center rounded-lg px-2.5 text-xs font-medium transition-colors ${detailsOpen
-                              ? 'bg-white/[0.07] text-zinc-100'
-                              : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'
-                              }`}
-                            aria-expanded={detailsOpen}
-                            aria-controls={detailsId}
-                          >
-                            {detailsOpen ? 'Hide' : 'More'}
-                          </button>
+                            <LiquidMenuRow
+                              label="Start"
+                              icon={<Play className="h-3.5 w-3.5" />}
+                              onClick={() => handleStartProgram(program)}
+                            />
+	                            <LiquidMenuRow
+	                              label={isSelected ? 'Active' : 'Set Active'}
+	                              icon={<Check className="h-3.5 w-3.5" />}
+                              onClick={() => handleSelectProgram(program)}
+                              disabled={isSelected}
+                            />
+                            <LiquidMenuRow
+                              label="Edit"
+                              icon={<Pencil className="h-3.5 w-3.5" />}
+                              onClick={() => openEditEditor(program)}
+                            />
+                            <LiquidMenuRow
+                              label="Duplicate"
+                              icon={<Copy className="h-3.5 w-3.5" />}
+                              onClick={() => void handleDuplicateProgram(program)}
+                            />
+                            <LiquidMenuRow
+                              label="Delete"
+                              icon={<Trash2 className="h-3.5 w-3.5" />}
+                              danger
+                              disabled={builtInProgramIds.has(program.id)}
+                              onClick={() => void handleDeleteProgram(program)}
+                            />
+                            {(program.description || detailTokens.length > 0) && (
+                              <div className="mt-1 border-t border-white/8 px-3 py-2 text-xs leading-5 text-zinc-400">
+                                {program.description && <p>{program.description}</p>}
+                                {detailTokens.length > 0 && (
+                                  <p className={program.description ? 'mt-2 text-zinc-500' : 'text-zinc-500'}>
+                                    {detailTokens.join(' / ')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </LiquidActionMenu>
                         </div>
                       </div>
-
-                      <AnimatePresence initial={false} mode="wait">
-                        {detailsOpen && (
-                          <motion.div
-                            key={`details-${program.id}`}
-                            id={detailsId}
-                            initial={prefersReducedMotion ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={prefersReducedMotion ? { opacity: 1, height: 0 } : { opacity: 0, height: 0 }}
-                            transition={{
-                              opacity: { duration: prefersReducedMotion ? 0 : 0.18 },
-                              height: {
-                                duration: prefersReducedMotion ? 0 : 0.28,
-                                ease: [0.25, 0.8, 0.2, 1],
-                              },
-                            }}
-                            className="mt-3 overflow-hidden pl-3"
-                          >
-                            <motion.div
-                              initial={prefersReducedMotion ? { y: 0 } : { y: 10 }}
-                              animate={{ y: 0 }}
-                              exit={prefersReducedMotion ? { y: 0 } : { y: 6 }}
-                              transition={{
-                                duration: prefersReducedMotion ? 0 : 0.22,
-                                ease: [0.25, 0.8, 0.2, 1],
-                              }}
-                              className="border-t border-zinc-800 pt-3"
-                            >
-                              {program.description && (
-                                <p className="text-sm text-zinc-400">{program.description}</p>
-                              )}
-
-                              {detailTokens.length > 0 && (
-                                <p className={`${program.description ? 'mt-3' : ''} text-xs text-zinc-500`}>
-                                  {detailTokens.join(' • ')}
-                                </p>
-                              )}
-
-                              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleStartProgram(program);
-                                    setDetailsProgramId(null);
-                                  }}
-                                  className="inline-flex h-10 items-center rounded-lg bg-emerald-400/10 px-3 text-sm font-medium text-emerald-200 transition-colors hover:bg-emerald-400/15"
-                                >
-                                  Start
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    openEditEditor(program);
-                                    setDetailsProgramId(null);
-                                  }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    void handleDuplicateProgram(program);
-                                    setDetailsProgramId(null);
-                                  }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900/80 hover:text-zinc-100"
-                                >
-                                  Duplicate
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={builtInProgramIds.has(program.id)}
-                                  onClick={() => {
-                                    void handleDeleteProgram(program);
-                                    setDetailsProgramId(null);
-                                  }}
-                                  className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-35"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </motion.div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
                     </motion.article>
                   );
                 })}
@@ -2708,20 +2555,22 @@ export default function ProgramsPage() {
 
       {
         editorMode && draft && (
-          <div className="fixed inset-0 z-[120] flex flex-col bg-zinc-950">
+          <div className="fixed inset-0 z-[120] flex flex-col bg-[#05070b] text-zinc-100">
+            <div className="liquid-ambient pointer-events-none fixed inset-0 opacity-70" />
             <div className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
-              <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/95 pb-4 pt-1 backdrop-blur-xl">
-                <div className="flex items-center justify-between">
+              <div className="mx-auto w-full max-w-5xl">
+              <header className="liquid-nav-shell sticky top-3 z-30 rounded-[1.35rem] px-2 py-2">
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
                   <button
                     type="button"
                     onClick={closeEditor}
-                    className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-xs font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:bg-zinc-900/70 hover:text-zinc-100"
+                    className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-zinc-100"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back
                   </button>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">
-                    {editorMode === 'create' ? 'Creating' : 'Editing'}
+                  <p className="truncate text-center text-sm font-semibold text-zinc-100">
+                    {draft.name.trim() || (editorMode === 'create' ? 'New program' : 'Program')}
                   </p>
                   <button
                     type="button"
@@ -2729,7 +2578,7 @@ export default function ProgramsPage() {
                       void handleSaveDraft();
                     }}
                     disabled={editorSaving}
-                    className="inline-flex h-11 items-center rounded-full border border-emerald-500/45 bg-emerald-500/10 px-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-45"
+                    className={liquidButtonClass({ variant: 'action', density: 'compact', className: 'h-10 rounded-xl px-4' })}
                   >
                     {editorSaving ? 'Saving...' : 'Done'}
                   </button>
@@ -2737,13 +2586,13 @@ export default function ProgramsPage() {
               </header>
 
               {editorNotice && (
-                <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300">
+                <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200">
                   {editorNotice}
                 </div>
               )}
 
-              <section className="border-b border-zinc-900 py-4">
-                <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">Program Name</label>
+              <section className="border-b border-white/8 py-5">
+                <label className="sr-only">Program name</label>
                 <textarea
                   value={draft.name}
                   onChange={(event) => updateDraft((current) => ({ ...current, name: event.target.value }))}
@@ -2760,12 +2609,11 @@ export default function ProgramsPage() {
                   className="mt-3 w-full resize-none bg-transparent text-sm text-zinc-400 placeholder:text-zinc-700 focus:outline-none"
                 />
 
-                <div className="mt-3 space-y-3">
+                <div className="mt-4 space-y-3">
                   <div className="space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Program Structure</p>
-                    <div className="mt-2 grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Weeks</label>
+                        <label className="text-xs font-semibold text-zinc-500">Weeks</label>
                         <input
                           type="number"
                           min={1}
@@ -2802,13 +2650,11 @@ export default function ProgramsPage() {
                               updateDraftWeekCount(clamped);
                             }
                           }}
-                          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                          Sessions / Week
-                        </label>
+                        <label className="text-xs font-semibold text-zinc-500">Sessions/week</label>
                         <input
                           type="number"
                           min={1}
@@ -2845,14 +2691,13 @@ export default function ProgramsPage() {
                               updateDraftDaysPerWeek(clamped);
                             }
                           }}
-                          className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2 border-t border-zinc-900 pt-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400">Training Profile</p>
+                  <div className="space-y-2 border-t border-white/8 pt-3">
                     <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <FancySelect
                         value={draft.goal ?? 'general'}
@@ -2864,7 +2709,7 @@ export default function ProgramsPage() {
                           updateDraft((current) => ({ ...current, goal: value as GoalOption }))
                         }
                         ariaLabel="Program goal"
-                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
                       />
                       <FancySelect
                         value={draft.experienceLevel ?? 'intermediate'}
@@ -2879,7 +2724,7 @@ export default function ProgramsPage() {
                           }))
                         }
                         ariaLabel="Experience level"
-                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
                       />
                       <FancySelect
                         value={draft.intensityMethod ?? 'rpe'}
@@ -2894,21 +2739,21 @@ export default function ProgramsPage() {
                           }))
                         }
                         ariaLabel="Intensity method"
-                        buttonClassName="rounded-xl border border-zinc-700 bg-zinc-950/55 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-zinc-100 focus:border-cyan-500/50 focus:outline-none"
+                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
                       />
                     </div>
                   </div>
                 </div>
               </section>
 
-              <section className="border-b border-zinc-900 py-4">
+              <section className="border-b border-white/8 py-4">
                 <div className="mb-4 space-y-2">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => stepEditorWeek(-1)}
                       disabled={activeWeekIndex === 0}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 disabled:opacity-35"
                       aria-label="Previous week"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -2916,15 +2761,15 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => setEditorJumpPicker('week')}
-                      className="flex-1 rounded-lg border border-zinc-800 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-700"
+                      className="liquid-field flex-1 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100"
                     >
-                      Week {activeWeekIndex + 1} of {draft.weeks.length}
+                      Week {activeWeekIndex + 1}
                     </button>
                     <button
                       type="button"
                       onClick={() => stepEditorWeek(1)}
                       disabled={activeWeekIndex >= draft.weeks.length - 1}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                      className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 disabled:opacity-35"
                       aria-label="Next week"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -2932,7 +2777,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => handleDuplicateWeek(activeWeekIndex)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-cyan-200"
+                      className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300"
                       aria-label="Duplicate current week"
                       title="Duplicate current week"
                     >
@@ -2951,7 +2796,7 @@ export default function ProgramsPage() {
                         }
                       }}
                       disabled={draft.weeks.length <= 1}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                      className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 hover:text-rose-300 disabled:opacity-35"
                       aria-label="Delete current week"
                       title="Delete current week"
                     >
@@ -2964,7 +2809,7 @@ export default function ProgramsPage() {
                         type="button"
                         onClick={() => stepEditorSession(-1)}
                         disabled={activeDayIndex === 0}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 disabled:opacity-35"
                         aria-label="Previous session"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -2972,15 +2817,15 @@ export default function ProgramsPage() {
                       <button
                         type="button"
                         onClick={() => setEditorJumpPicker('session')}
-                        className="flex-1 rounded-lg border border-zinc-800 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-700"
+                        className="liquid-field flex-1 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100"
                       >
-                        Session {activeDayIndex + 1} of {currentWeek.days.length}
+                        {currentDay?.name?.trim() || `Day ${activeDayIndex + 1}`}
                       </button>
                       <button
                         type="button"
                         onClick={() => stepEditorSession(1)}
                         disabled={activeDayIndex >= currentWeek.days.length - 1}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-zinc-200 disabled:opacity-35"
+                        className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 disabled:opacity-35"
                         aria-label="Next session"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -2998,7 +2843,7 @@ export default function ProgramsPage() {
                           }
                         }}
                         disabled={currentWeek.days.length <= 1}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-800 text-zinc-400 transition-colors hover:text-rose-400 disabled:opacity-35"
+                        className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-300 hover:text-rose-300 disabled:opacity-35"
                         aria-label="Delete current session"
                         title="Delete current session"
                       >
@@ -3036,52 +2881,55 @@ export default function ProgramsPage() {
                               <button
                                 type="button"
                                 onClick={handleAddSingleBlock}
-                                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400"
+                                className={liquidButtonClass({ variant: 'action', density: 'compact', className: 'h-11 shrink-0 rounded-xl px-4' })}
                               >
                                 <CirclePlus className="h-3.5 w-3.5" />
-                                Add Exercise
+                                Add exercise
                               </button>
-                              <button
-                                type="button"
-                                onClick={handleAddSupersetBlock}
-                                className="inline-flex h-11 shrink-0 items-center px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:text-zinc-200"
+                              <LiquidActionMenu
+                                label="Add options"
+                                trigger={
+                                  <span className="liquid-icon-button flex h-11 w-11 items-center justify-center rounded-xl text-zinc-300">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </span>
+                                }
                               >
-                                Add Superset Pair
-                              </button>
+                                <LiquidMenuRow
+                                  label="Exercise"
+                                  icon={<CirclePlus className="h-3.5 w-3.5" />}
+                                  onClick={handleAddSingleBlock}
+                                />
+                                <LiquidMenuRow
+                                  label="Superset pair"
+                                  icon={<Dumbbell className="h-3.5 w-3.5" />}
+                                  onClick={handleAddSupersetBlock}
+                                />
+                              </LiquidActionMenu>
                             </div>
                           </div>
 
                         </div>
 
-                        <div className="mb-4 flex items-center justify-between gap-2">
-                          <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditorDetailMode('simple')}
-                              className={`h-9 rounded-lg px-3 text-[11px] font-bold uppercase tracking-[0.18em] ${editorDetailMode === 'simple'
-                                ? 'bg-zinc-100 text-zinc-950'
-                                : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                            >
-                              Simple
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditorDetailMode('advanced')}
-                              className={`h-9 rounded-lg px-3 text-[11px] font-bold uppercase tracking-[0.18em] ${editorDetailMode === 'advanced'
-                                ? 'bg-zinc-100 text-zinc-950'
-                                : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                            >
-                              Advanced
-                            </button>
-                          </div>
-                        </div>
+                        <LiquidSegmentedControl
+                          value={editorDetailMode}
+                          onChange={setEditorDetailMode}
+                          className="mb-4 w-full max-w-xs grid-cols-2"
+                          options={[
+                            { value: 'simple', label: 'Simple' },
+                            { value: 'advanced', label: 'Advanced' },
+                          ]}
+                        />
 
                         <div className="space-y-3">
                           {currentDayExerciseRows.length === 0 && (
                             <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-7 text-center">
-                              <p className="text-sm font-semibold text-zinc-300">No exercises in this session yet.</p>
+                              <button
+                                type="button"
+                                onClick={handleAddSingleBlock}
+                                className="text-sm font-semibold text-zinc-200 hover:text-white"
+                              >
+                                Add the first exercise
+                              </button>
                             </div>
                           )}
 
@@ -3139,6 +2987,7 @@ export default function ProgramsPage() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         )
       }
@@ -3152,11 +3001,11 @@ export default function ProgramsPage() {
               onClick={() => setEditorJumpPicker(null)}
               className="absolute inset-0"
             />
-            <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6">
+            <div className="liquid-sheet-panel absolute inset-x-3 top-[calc(env(safe-area-inset-top)+5rem)] mx-auto max-h-[68dvh] max-w-md overflow-hidden rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:w-96">
               <div className="mx-auto w-full max-w-5xl">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
-                    {editorJumpPicker === 'week' ? 'Jump To Week' : 'Jump To Session'}
+                    {editorJumpPicker === 'week' ? 'Choose week' : 'Choose session'}
                   </p>
                   <button
                     type="button"
@@ -3168,7 +3017,7 @@ export default function ProgramsPage() {
                   </button>
                 </div>
 
-                <div className="max-h-[46dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
+                <div className="max-h-[50dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
                   {editorJumpPicker === 'week' &&
                     draft.weeks.map((week, index) => {
                       const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
@@ -3179,8 +3028,8 @@ export default function ProgramsPage() {
                             type="button"
                             onClick={() => selectEditorWeek(index)}
                             className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                              ? 'bg-cyan-500/10 text-cyan-200'
-                              : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                              ? 'bg-white/[0.09] text-zinc-50'
+                              : 'border border-white/8 bg-white/[0.025] text-zinc-200 hover:border-white/14'
                               }`}
                           >
                             <p className="text-sm font-bold">Week {index + 1}</p>
@@ -3193,7 +3042,7 @@ export default function ProgramsPage() {
                             onClick={() => handleDuplicateWeek(index)}
                             aria-label={`Duplicate Week ${index + 1}`}
                             title="Duplicate Week"
-                            className="flex w-14 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                            className="liquid-icon-button flex w-14 shrink-0 items-center justify-center rounded-xl text-zinc-300"
                           >
                             <Copy className="h-4 w-4" />
                           </button>
@@ -3211,8 +3060,8 @@ export default function ProgramsPage() {
                           type="button"
                           onClick={() => selectEditorSession(index)}
                           className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                            ? 'bg-emerald-500/10 text-emerald-200'
-                            : 'border border-zinc-800 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700'
+                            ? 'bg-white/[0.09] text-zinc-50'
+                            : 'border border-white/8 bg-white/[0.025] text-zinc-200 hover:border-white/14'
                             }`}
                         >
                           <p className="text-sm font-bold">Session {index + 1}</p>
@@ -3231,9 +3080,9 @@ export default function ProgramsPage() {
 
       {
         exercisePickerOpen && (
-          <div className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[140] bg-black/35">
             <div
-              className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] pt-4 sm:px-6"
+              className="liquid-sheet-panel absolute inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto max-h-[82dvh] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:w-[32rem]"
               data-program-exercise-picker-sheet="true"
               data-swipe-ignore="true"
             >
@@ -3271,22 +3120,16 @@ export default function ProgramsPage() {
                   />
                 </div>
 
-                {normalizedExerciseQuery.length > 1 && !showCreateCustomExercise && (
+                {normalizedExerciseQuery.length > 1 && !matchingExerciseByName && !showCreateCustomExercise && (
                   <button
                     type="button"
                     onClick={() => {
-                      if (matchingExerciseByName) {
-                        applyPickedExercise(matchingExerciseByName.id);
-                        return;
-                      }
                       openCreateCustomExerciseForm();
                     }}
                     className="mb-3 flex h-11 w-full items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-left"
                   >
                     <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
-                      {matchingExerciseByName
-                        ? `Use "${matchingExerciseByName.name}"`
-                        : `Create "${normalizedExerciseQuery}"`}
+                      {`Create "${normalizedExerciseQuery}"`}
                     </span>
                     <CirclePlus className="h-4 w-4 text-emerald-300" />
                   </button>
@@ -3460,7 +3303,7 @@ export default function ProgramsPage() {
                                   type="button"
                                   onClick={() => toggleCustomExerciseMuscle('secondaryMusclesText', muscle)}
                                   className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
-                                    ? 'border-cyan-500/45 bg-cyan-500/10 text-cyan-300'
+                                    ? 'border-white/18 bg-white/[0.08] text-zinc-100'
                                     : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                                     }`}
                                 >
@@ -3493,7 +3336,7 @@ export default function ProgramsPage() {
                         void handleCreateCustomExercise();
                       }}
                       disabled={customExerciseSaving || !canCreateCustomExercise}
-                      className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      className={liquidButtonClass({ variant: 'action', density: 'compact', className: 'h-11 w-full rounded-xl px-3 disabled:cursor-not-allowed disabled:opacity-60' })}
                     >
                       {customExerciseSaving ? 'Creating...' : 'Create and Use Exercise'}
                     </button>
