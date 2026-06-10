@@ -18,12 +18,14 @@ The mock covers:
 
 ## Locked Direction
 
-- Keep a small Liquid Glass route dock: bottom dock on mobile, compact side rail on desktop.
+- Keep a small Liquid Glass route dock: split glass islands on mobile, compact side rail on desktop.
 - Dock routes only: Dashboard, Log, Programs, History, Insights.
 - Move secondary actions into source-attached menus, sheets, and inspectors.
 - Use glass for controls, route dock, topbars, menus, sheets, popovers, segmented controls, and focused overlays.
 - Keep dense content direct: rows, lists, separators, compact metric groups, and whitespace.
 - Avoid nested content containers and glass-on-glass.
+- Avoid blueprint/grid backgrounds; the content canvas should stay dark, calm, and non-decorative.
+- Keep page and builder headers as direct content, not text trapped inside a glass toolbar.
 - Preserve Iron Brain identity: Inter, black italic brand/page moments, classic action green `#10b981`, pressed/depth green `#059669`.
 - Keep popups more transparent than the current sheets while preserving readable text contrast.
 - Builder becomes a guided workspace editing one week/session at a time.
@@ -32,7 +34,7 @@ The mock covers:
 
 1. Shell and tokens
    - Replace remaining visual drift with canonical Liquid v2 variables.
-   - Restyle route navigation as glass dock/side rail.
+   - Restyle route navigation as split glass dock/side rail.
    - Remove square nav hover states.
    - Establish direct-content rules before page rebuilds.
 
@@ -42,7 +44,7 @@ The mock covers:
    - Programs: dense list, top filters, one active indicator, source-attached row action menus.
 
 3. Builder guided workspace
-   - Full-screen dark workspace with glass topbar.
+   - Full-screen dark workspace with direct header content and separate Back/Done controls.
    - Week/session strip.
    - Direct exercise rows.
    - One focused editor at a time: source-attached sheet on mobile, side inspector/popover on desktop.
