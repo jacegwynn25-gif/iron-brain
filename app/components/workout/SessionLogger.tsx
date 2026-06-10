@@ -1244,7 +1244,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     isDiscardConfirmOpen ||
     infoPanel !== null ||
     activeTool !== null;
-  useBodyScrollLock(isAnyModalOpen);
+  useBodyScrollLock(isAnyModalOpen, 'workout-session-modal', { hideBottomNav: false });
 
   const calculateSessionStats = useCallback((blocks: Block[]) => {
     let totalVolume = 0;
@@ -3429,7 +3429,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[145] flex items-end justify-center bg-zinc-950/75 p-4 backdrop-blur-md sm:items-center"
+            className="fixed inset-0 z-[145] flex items-start justify-center bg-black/35 p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setActiveTool(null)}
           >
@@ -3438,28 +3438,28 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="w-full max-w-md overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl"
+              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
               data-testid={activeTool === 'plates' ? 'load-calculator' : 'warmup-calculator'}
             >
-              <div className="flex items-start justify-between gap-4 border-b border-zinc-900 p-5">
+	              <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4">
                 <div className="min-w-0">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-emerald-300">
+	                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.055] text-emerald-500">
                       {activeTool === 'plates' ? <Dumbbell className="h-4 w-4" /> : <Flame className="h-4 w-4 text-amber-300" />}
                     </span>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+	                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500">
                       {focusedExerciseDisplayName}
                     </p>
                   </div>
                   <h3 className="text-2xl font-black italic tracking-tight text-zinc-100">
-                    {activeTool === 'plates' ? 'LOAD CALCULATOR' : 'WARM-UP BUILDER'}
+	                    {activeTool === 'plates' ? 'Load calculator' : 'Warm-up builder'}
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveTool(null)}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+	                  className="liquid-icon-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:text-zinc-100"
                   aria-label="Close tool"
                 >
                   <X className="h-4 w-4" />
@@ -3468,7 +3468,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                     <HardyStepper
                       layout="vertical"
                       value={resolvedToolTargetWeight}
@@ -3478,7 +3478,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       valueClassName="text-zinc-100 text-2xl sm:text-3xl"
                     />
                   </div>
-                  <div className="rounded-2xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                     <HardyStepper
                       layout="vertical"
                       value={resolvedToolBarWeight}
@@ -3496,10 +3496,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <button
                       type="button"
                       onClick={handleApplyPlateLoad}
-                      className="w-full rounded-2xl bg-emerald-400 py-4 text-xs font-black uppercase tracking-[0.28em] text-zinc-950 shadow-[0_18px_38px_-28px_rgba(52,211,153,0.9)] active:scale-[0.98]"
+	                      className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 active:scale-[0.98]"
                       data-testid="plate-load-apply"
                     >
-                      Apply Load
+	                      Apply load
                     </button>
                   </>
                 ) : (
@@ -3514,10 +3514,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       type="button"
                       onClick={handleInsertWarmupPlan}
                       disabled={isEditingSet || warmupPlan.length === 0}
-                      className="w-full rounded-2xl bg-emerald-400 py-4 text-xs font-black uppercase tracking-[0.28em] text-zinc-950 shadow-[0_18px_38px_-28px_rgba(52,211,153,0.9)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
+	                      className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
                       data-testid="warmup-insert"
                     >
-                      Insert Warm-Ups
+	                      Insert warm-ups
                     </button>
                   </>
                 )}
@@ -3534,7 +3534,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[140] flex items-end justify-center bg-zinc-950/70 p-4 backdrop-blur-md sm:items-center"
+            className="fixed inset-0 z-[140] flex items-start justify-center bg-black/35 p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setInfoPanel(null)}
           >
@@ -3543,22 +3543,22 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="w-full max-w-md overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl"
+              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4 border-b border-zinc-900 p-5">
+	              <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4">
                 <div className="min-w-0">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-500/80">
+	                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-500/80">
                     {infoPanel === 'set-unit' ? 'Set Unit' : 'Effort Scale'}
                   </p>
                   <h3 className="mt-1 text-2xl font-black italic tracking-tight text-zinc-100">
-                    {infoPanel === 'set-unit' ? 'UNIT LOCK' : 'RPE / RIR'}
+	                    {infoPanel === 'set-unit' ? 'Unit lock' : 'RPE / RIR'}
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setInfoPanel(null)}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-800 text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+	                  className="liquid-icon-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:text-zinc-100"
                   aria-label="Close info"
                 >
                   <X className="h-4 w-4" />
@@ -3571,11 +3571,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       Choose the unit for the set you are logging right now. Iron Brain saves that set exactly as entered, so old sets keep their original unit even if your display preference changes later.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">LBS</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Use for pound-based loads.</p>
                       </div>
-                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">KG</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Use for kilogram-based loads.</p>
                       </div>
@@ -3587,11 +3587,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       RPE means rate of perceived exertion. Use it to record how hard the set felt on a 1-10 scale after the set is done.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RPE</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Higher means closer to max effort.</p>
                       </div>
-                      <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-3">
+	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RIR</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Estimated reps left in reserve.</p>
                       </div>
@@ -3934,7 +3934,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[260] flex items-end justify-center bg-black/85 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-md sm:items-center sm:p-4"
+            className="fixed inset-0 z-[260] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-testid="workout-discard-confirm"
             data-swipe-scope="local"
           >
@@ -3949,15 +3949,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ y: 0, scale: 1 }}
               exit={{ y: 24, scale: 0.98 }}
               transition={{ duration: 0.16 }}
-              className="relative w-full max-w-sm overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950 shadow-[0_30px_90px_rgba(0,0,0,0.7)]"
+              className="liquid-sheet-panel relative w-full max-w-sm overflow-hidden rounded-[1.2rem] p-0"
             >
-              <div className="flex items-start justify-between gap-4 p-5">
+              <div className="flex items-start justify-between gap-4 p-4">
                 <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-[0.26em] text-rose-300">
-                    Workout In Progress
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black italic leading-none tracking-tight text-white">
-                    DISCARD SESSION?
+                  <h2 className="text-lg font-black italic leading-none tracking-tight text-white">
+                    Discard session?
                   </h2>
                   <p className="mt-2 text-sm leading-snug text-zinc-400">
                     This clears the workout currently open on this device. Saved workout history stays untouched.
@@ -3967,17 +3964,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={() => setIsDiscardConfirmOpen(false)}
                   disabled={isDiscardingWorkout}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:text-zinc-200 disabled:opacity-40"
+                  className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-200 disabled:opacity-40"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="grid gap-2 border-t border-zinc-900 bg-zinc-900/35 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+              <div className="grid gap-2 border-t border-white/8 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
                 <button
                   type="button"
                   onClick={handleConfirmDiscardWorkout}
                   disabled={isDiscardingWorkout}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-rose-400 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 active:bg-rose-500 disabled:cursor-wait disabled:opacity-70"
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/90 px-4 text-xs font-black italic tracking-tight text-zinc-950 active:bg-rose-500 disabled:cursor-wait disabled:opacity-70"
                 >
                   <Trash2 className="h-4 w-4" strokeWidth={3} />
                   {isDiscardingWorkout ? 'Discarding...' : 'Discard'}
@@ -3986,9 +3983,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={() => setIsDiscardConfirmOpen(false)}
                   disabled={isDiscardingWorkout}
-                  className="min-h-12 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-400 active:bg-zinc-900 disabled:opacity-40"
+                  className="min-h-12 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-semibold text-zinc-400 active:bg-white/[0.08] disabled:opacity-40"
                 >
-                  Keep Training
+                  Keep training
                 </button>
               </div>
             </motion.div>
@@ -4230,13 +4227,13 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-[110] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-900 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+            <div className="fixed bottom-0 left-0 right-0 z-[110] border-t border-white/10 bg-zinc-950/72 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-28px_80px_-42px_rgba(0,0,0,1)] backdrop-blur-[24px] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={handleShare}
                   disabled={isFinishingWorkout || isDiscardingWorkout}
-                  className="w-full rounded-2xl bg-zinc-900 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:bg-zinc-800 disabled:opacity-40"
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 text-xs font-semibold text-zinc-200 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
                 >
                   Share
                 </button>
@@ -4244,7 +4241,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={handleFinishWorkout}
                   disabled={isFinishingWorkout || isDiscardingWorkout}
-                  className="w-full rounded-2xl bg-emerald-500 py-4 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-65"
+                  className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 disabled:cursor-wait disabled:opacity-65"
                 >
                   {isFinishingWorkout ? (
                     <span className="flex items-center justify-center gap-2">
@@ -4254,7 +4251,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       </svg>
                       Finishing...
                     </span>
-                  ) : 'Complete Workout'}
+                  ) : 'Complete workout'}
                 </button>
               </div>
             </div>
@@ -4264,9 +4261,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 type="button"
                 onClick={requestCancelWorkout}
                 disabled={isFinishingWorkout || isDiscardingWorkout}
-                className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-bold uppercase tracking-[0.3em] text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
+                className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-semibold text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
               >
-                Cancel & Discard Workout
+                Cancel and discard workout
               </button>
             </div>
           </motion.div>
@@ -4281,12 +4278,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 180, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-0 left-0 right-0 z-[200] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800 pb-safe"
+            className="fixed bottom-0 left-0 right-0 z-[200] border-t border-white/10 bg-zinc-950/72 pb-safe shadow-[0_-28px_80px_-40px_rgba(0,0,0,1)] backdrop-blur-[24px]"
           >
             <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-[0.65rem] font-mono uppercase tracking-[0.4em] text-zinc-500">
-                  {activeInput.field === 'weight' ? 'WEIGHT' : 'REPS'}
+                <p className="text-[0.65rem] font-mono uppercase tracking-[0.18em] text-zinc-500">
+                  {activeInput.field === 'weight' ? 'Weight' : 'Reps'}
                 </p>
                 <button
                   type="button"
@@ -4295,7 +4292,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     setKeypadValue('');
                     setKeypadArmed(false);
                   }}
-                  className="rounded-full bg-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-zinc-200 hover:bg-zinc-700 transition-colors"
+                  className="liquid-icon-button rounded-full px-4 py-2 text-xs font-semibold text-zinc-200 transition-colors"
                 >
                   Done
                 </button>
@@ -4307,9 +4304,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     key={key}
                     type="button"
                     onClick={() => handleKeypadPress(key)}
-                    className="h-16 rounded-2xl bg-zinc-900 text-2xl font-black text-white active:scale-[0.98] transition-transform"
+                    className="h-16 rounded-2xl border border-white/8 bg-white/[0.045] text-2xl font-black text-white transition-transform active:scale-[0.98]"
                   >
-                    {key === 'del' ? 'DEL' : key}
+                    {key === 'del' ? 'Del' : key}
                   </button>
                 ))}
               </div>

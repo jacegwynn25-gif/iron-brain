@@ -2,6 +2,7 @@
 
 import { Zap, X } from 'lucide-react';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
+import { liquidButtonClass } from '@/app/components/ui/liquid';
 
 interface QuickLogConfirmProps {
   isOpen: boolean;
@@ -10,13 +11,13 @@ interface QuickLogConfirmProps {
 }
 
 export default function QuickLogConfirm({ isOpen, onClose, onConfirm }: QuickLogConfirmProps) {
-  useBodyScrollLock(isOpen, 'quick-log-confirm');
+  useBodyScrollLock(isOpen, 'quick-log-confirm', { hideBottomNav: false });
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-end justify-center bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-[220] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5.15rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
       data-testid="quick-log-confirm"
     >
       <button
@@ -25,33 +26,31 @@ export default function QuickLogConfirm({ isOpen, onClose, onConfirm }: QuickLog
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
-      <div className="liquid-primary-card relative w-full max-w-sm overflow-hidden p-0">
-        <div className="flex items-start justify-between gap-4 p-5">
+      <div className="liquid-sheet-panel relative w-full max-w-xs overflow-hidden rounded-[1.2rem] p-0">
+        <div className="flex items-start justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
-            <p className="iron-label text-emerald-300">
+            <h2 className="text-sm font-semibold tracking-tight text-white">
               Freestyle
-            </p>
-            <h2 className="iron-display mt-1 text-2xl leading-none text-white">
-              Start empty session?
             </h2>
-            <p className="mt-2 text-sm leading-snug text-zinc-400">
-              Use this when you want a blank workout and will add movements yourself.
-            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:text-zinc-200"
+            className="liquid-icon-button flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-200"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="grid gap-2 border-t border-white/8 bg-black/10 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+        <div className="grid gap-2 border-t border-white/8 p-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)]">
           <button
             type="button"
             onClick={onConfirm}
             data-testid="quick-log-confirm-start"
-            className="liquid-action-button flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black italic tracking-tight text-zinc-950 active:bg-emerald-500"
+            className={liquidButtonClass({
+              variant: 'action',
+              density: 'compact',
+              className: 'min-h-11 w-full rounded-xl',
+            })}
           >
             <Zap className="h-4 w-4" strokeWidth={3} />
             Start freestyle
@@ -59,7 +58,7 @@ export default function QuickLogConfirm({ isOpen, onClose, onConfirm }: QuickLog
           <button
             type="button"
             onClick={onClose}
-            className="min-h-12 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-semibold text-zinc-400 active:bg-white/[0.08]"
+            className="min-h-11 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-semibold text-zinc-400 active:bg-white/[0.08]"
           >
             Not now
           </button>
