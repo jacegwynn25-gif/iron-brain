@@ -226,7 +226,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     ? 'liquid-nav-item-active'
                     : pending
                       ? 'text-emerald-200'
-                    : 'text-zinc-300/70 hover:bg-white/[0.055] hover:text-zinc-100'
+                    : 'text-zinc-300/70 hover:text-zinc-100'
                     }`}
                 >
                   <Icon className={`h-5 w-5 ${active || pending ? 'stroke-[2.5]' : 'stroke-[2]'}`} />

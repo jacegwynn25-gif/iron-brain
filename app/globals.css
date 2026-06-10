@@ -450,6 +450,33 @@ body {
     isolation: isolate;
   }
 
+  .liquid-nav-item:not(.liquid-nav-item-active)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: -1;
+    width: 2.45rem;
+    height: 2.45rem;
+    transform: translate(-50%, -50%) scale(0.82);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background:
+      radial-gradient(85% 80% at 28% 10%, rgba(255, 255, 255, 0.18), transparent 52%),
+      rgba(255, 255, 255, 0.045);
+    opacity: 0;
+    transition:
+      opacity 160ms ease,
+      transform 160ms ease;
+    backdrop-filter: blur(20px) saturate(1.26);
+    -webkit-backdrop-filter: blur(20px) saturate(1.26);
+  }
+
+  .liquid-nav-item:not(.liquid-nav-item-active):hover::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
   .liquid-nav-item-active {
     color: #d7fff0;
   }
