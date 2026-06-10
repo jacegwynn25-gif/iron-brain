@@ -244,8 +244,8 @@ export default function StartWorkoutPage() {
               : 'grid-cols-2'
             }`}
             style={{
-              backdropFilter: 'blur(28px) saturate(1.28)',
-              WebkitBackdropFilter: 'blur(28px) saturate(1.28)',
+              backdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
+              WebkitBackdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
             }}
           >
             {selectedProgram && selectedProgramDay?.day && (
@@ -316,8 +316,8 @@ export default function StartWorkoutPage() {
             <div
               className="liquid-menu max-h-72 overflow-y-auto p-3"
               style={{
-                backdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
-                WebkitBackdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+                backdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
+                WebkitBackdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
               }}
             >
               {selectedProgram.weeks.map((week, wIdx) => (
@@ -377,8 +377,8 @@ export default function StartWorkoutPage() {
             <div
               className="liquid-menu p-3"
               style={{
-                backdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
-                WebkitBackdropFilter: 'blur(34px) saturate(1.42) contrast(1.04)',
+                backdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
+                WebkitBackdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
               }}
             >
               {alternatePrograms.length > 0 ? (

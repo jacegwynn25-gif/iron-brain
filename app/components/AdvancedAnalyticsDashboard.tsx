@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowRight,
   BarChart3,
   Battery,
   CalendarDays,
@@ -1003,6 +1005,15 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 ? 'Complete a workout or schedule sessions in Programs to unlock full Insights.'
                 : 'Complete a workout to unlock Insights.'}
           </p>
+          {!awaitingSync && (
+            <Link
+              href="/start"
+              className="liquid-action-button inline-flex min-h-11 items-center gap-2 rounded-[1rem] px-4 text-xs font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
+            >
+              <span>Start workout</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
           {cloudSyncing && (
             <div className="mb-4 rounded-lg border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
               Syncing...

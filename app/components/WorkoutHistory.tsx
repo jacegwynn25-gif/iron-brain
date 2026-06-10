@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   Clock3,
@@ -682,19 +683,20 @@ export default function WorkoutHistory({
 
   if (sortedHistory.length === 0) {
     return (
-      <div className="py-16 text-center">
-        <History className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-        <h3 className="mb-2 text-2xl font-black text-white">
-          No Workouts Yet
+      <div className="py-14 text-center">
+        <History className="mx-auto mb-4 h-11 w-11 text-zinc-600" />
+        <h3 className="iron-display mb-2 text-2xl text-white">
+          No workouts yet
         </h3>
-        <p className="text-sm text-zinc-500">
-          Complete your first workout to see it here with detailed analytics and PR tracking.
+        <p className="mx-auto max-w-xs text-sm leading-5 text-zinc-500">
+          Completed sessions will show up here with volume, PRs, and set history.
         </p>
         <button
           onClick={() => router.push('/start')}
-          className="mt-6 rounded-2xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+          className="liquid-action-button mt-6 inline-flex min-h-11 items-center gap-2 rounded-[1rem] px-4 text-xs font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
         >
-          Start a Workout
+          <span>Start workout</span>
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     );

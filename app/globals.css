@@ -264,17 +264,17 @@ body {
   .liquid-menu {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 1.15rem;
     background:
-      radial-gradient(130% 90% at 14% -18%, rgba(255, 255, 255, 0.11), transparent 44%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
-      rgba(8, 11, 16, 0.58);
+      radial-gradient(130% 90% at 14% -18%, rgba(255, 255, 255, 0.1), transparent 44%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.016)),
+      rgba(8, 11, 16, 0.49);
     box-shadow:
-      0 28px 76px -48px rgba(0, 0, 0, 1),
+      0 22px 64px -42px rgba(0, 0, 0, 0.9),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(34px) saturate(1.42) contrast(1.04);
-    -webkit-backdrop-filter: blur(34px) saturate(1.42) contrast(1.04);
+    backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
+    -webkit-backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
   }
 
   .liquid-subtle-line {
@@ -298,21 +298,21 @@ body {
 
   .surface-card {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
-      rgba(13, 17, 24, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.105);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01)),
+      rgba(13, 17, 24, 0.56);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 1.2rem;
-    box-shadow: 0 24px 80px -58px rgba(0, 0, 0, 1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(18px) saturate(1.12);
-    -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    box-shadow: 0 20px 68px -54px rgba(0, 0, 0, 0.92), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(22px) saturate(1.1);
+    -webkit-backdrop-filter: blur(22px) saturate(1.1);
   }
 
   .surface-panel {
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.075);
+    background: rgba(255, 255, 255, 0.032);
+    border: 1px solid rgba(255, 255, 255, 0.065);
     border-radius: calc(var(--radius) - 0.25rem);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .liquid-control-strip {
@@ -321,13 +321,13 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.095);
     border-radius: 1.35rem;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.062), rgba(255, 255, 255, 0.016)),
-      rgba(255, 255, 255, 0.028);
+      linear-gradient(135deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.014)),
+      rgba(255, 255, 255, 0.024);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       inset 0 -1px 0 rgba(0, 0, 0, 0.24);
-    backdrop-filter: blur(28px) saturate(1.28);
-    -webkit-backdrop-filter: blur(28px) saturate(1.28);
+    backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
+    -webkit-backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
   }
 
   .liquid-control-button {
