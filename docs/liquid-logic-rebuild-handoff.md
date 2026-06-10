@@ -13,24 +13,28 @@ The mock covers:
 - Mobile dashboard at `390 x 844`
 - Mobile log/start launchpad at `390 x 844`
 - Mobile programs list at `390 x 844`
-- Mobile route command expanded state at `390 x 844`
+- Mobile command dock expanded state at `390 x 844`
 - Mobile guided builder at `390 x 844`
 - Desktop guided builder workspace at `1280 x 720`
 
 ## Locked Direction
 
-- Replace the persistent mobile tab bar with a single Liquid Glass route command.
-- The route command opens a source-attached route menu with Dashboard, Log, Programs, History, and Insights.
+- Replace the persistent mobile tab bar with a compact Liquid Glass command dock.
+- The command dock shows only core routes/actions: Today, Log, Programs, and More.
+- More opens a source-attached route menu with Dashboard, Log, Programs, History, and Insights.
+- Use the Iron Brain mark and real route/action icons, not placeholder letters.
+- Use the same neutral glass button recipe for secondary row actions. Primary actions use green; secondary actions do not invent their own shape/color.
 - Split mobile dock islands and five-item bottom docks were reviewed and rejected; they felt like nav chrome instead of Liquid Glass logic.
 - Keep a compact side rail on desktop where persistent navigation earns its space.
-- In focused workspaces like Builder, do not show global mobile nav; use Back/Done and focused source-attached controls.
+- In Builder, avoid a Back button unless there is a real back stack; keep Done as the commit control and use the bottom command dock for route access. If there are unsaved changes, route changes should trigger save/discard confirmation.
 - Move secondary actions into source-attached menus, sheets, and inspectors.
-- Use glass for route commands, menus, sheets, popovers, segmented controls, and focused overlays.
+- Use glass for command docks, route menus, sheets, popovers, segmented controls, and focused overlays.
 - Keep dense content direct: rows, lists, separators, compact metric groups, and whitespace.
 - Avoid nested content containers and glass-on-glass.
 - Avoid blueprint/grid backgrounds; the content canvas should stay dark, calm, and non-decorative.
 - Keep page and builder headers as direct content, not text trapped inside a glass toolbar.
 - Filled color is reserved for primary actions only: `#10b981` and `#059669`. Neutral controls use glass, borders, lift, and opacity, not gray color fills.
+- Icons should come from `lucide-react` in production, plus the Iron Brain app mark where brand identity is needed.
 - Preserve Iron Brain identity: Inter, black italic brand/page moments, classic action green `#10b981`, pressed/depth green `#059669`.
 - Keep popups more transparent than the current sheets while preserving readable text contrast.
 - Builder becomes a guided workspace editing one week/session at a time.
@@ -56,7 +60,7 @@ References:
 
 1. Shell and tokens
    - Replace remaining visual drift with canonical Liquid v2 variables.
-   - Replace mobile route navigation with a source-attached glass route command.
+   - Replace mobile route navigation with a compact glass command dock and source-attached More menu.
    - Keep desktop route navigation as a compact glass side rail.
    - Remove square nav hover states.
    - Establish direct-content rules before page rebuilds.
@@ -68,10 +72,12 @@ References:
    - Keep program filters behind a source-attached menu unless the list becomes large enough to justify visible tabs.
 
 3. Builder guided workspace
-   - Full-screen dark workspace with direct header content and separate Back/Done controls.
+   - Full-screen dark workspace with direct header content and a clear Done commit control; add Back only when there is a real back stack.
    - Week/session strip.
    - Direct exercise rows.
-   - One focused editor at a time: source-attached sheet on mobile, side inspector/popover on desktop.
+   - One focused editor at a time: source-attached Liquid Glass popover/sheet on mobile, side inspector/popover on desktop.
+   - Every exercise row uses the same action affordance; no one-off `Edit Sets` button next to rows that otherwise use a menu control.
+   - Tapping outside or scrolling should dismiss temporary menus/popovers where safe, matching the native popover mental model.
 
 4. History, Insights, Profile/settings/maxes
    - History: direct workout list, details/edit/delete in liquid sheets.

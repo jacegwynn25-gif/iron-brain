@@ -27,6 +27,27 @@
     }
 
     * { box-sizing: border-box; }
+    .icon-sprite {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+    .icon {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      display: block;
+      border-radius: 8px;
+    }
     body {
       margin: 0;
       min-height: 100vh;
@@ -381,7 +402,8 @@
       justify-content: center;
       pointer-events: none;
     }
-    .route-command,
+    .command-dock,
+    .command-item,
     .route-menu,
     .desktop-rail .glass-dock {
       border: 1px solid var(--line-strong);
@@ -395,16 +417,51 @@
       backdrop-filter: blur(30px) saturate(1.34) contrast(1.04);
       -webkit-backdrop-filter: blur(30px) saturate(1.34) contrast(1.04);
     }
-    .route-command {
-      display: inline-flex;
+    .command-dock {
+      display: flex;
       align-items: center;
-      gap: 10px;
-      min-height: 58px;
+      gap: 4px;
+      min-height: 60px;
       max-width: calc(100% - 18px);
-      padding: 7px 14px 7px 7px;
+      padding: 6px;
       border-radius: 999px;
       pointer-events: auto;
       color: rgba(244, 244, 245, 0.82);
+    }
+    .command-item {
+      min-width: 52px;
+      min-height: 46px;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: rgba(244, 244, 245, 0.62);
+    }
+    .command-item.active {
+      min-width: 86px;
+      grid-template-columns: auto auto;
+      gap: 8px;
+      padding: 0 12px 0 8px;
+      color: var(--ink);
+      border-color: rgba(255, 255, 255, 0.22);
+      background:
+        radial-gradient(85% 80% at 28% 10%, rgba(255, 255, 255, 0.22), transparent 52%),
+        rgba(255, 255, 255, 0.058);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+    .command-item span {
+      display: none;
+      font-size: 11px;
+      font-weight: 850;
+      line-height: 1;
+    }
+    .command-item.active span {
+      display: block;
+    }
+    .command-item.more {
+      min-width: 46px;
     }
     .route-orb {
       display: grid;
@@ -420,29 +477,6 @@
       color: #d8fff0;
       font-size: 13px;
       font-weight: 950;
-    }
-    .route-copy {
-      display: grid;
-      gap: 2px;
-      min-width: 74px;
-    }
-    .route-copy strong {
-      font-size: 13px;
-      font-weight: 900;
-      line-height: 1;
-    }
-    .route-copy span {
-      color: var(--faint);
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 1;
-    }
-    .route-dots {
-      color: rgba(244, 244, 245, 0.55);
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      line-height: 1;
     }
     .route-menu {
       position: absolute;
@@ -483,6 +517,11 @@
       width: 28px;
       height: 28px;
       font-size: 11px;
+    }
+    .route-menu-row .route-orb .icon,
+    .route-menu-row .route-orb .logo-icon {
+      width: 16px;
+      height: 16px;
     }
     .route-menu-row.active {
       color: var(--ink);
@@ -580,6 +619,14 @@
       color: var(--muted);
       font-size: 12px;
     }
+    .row-button {
+      min-width: 78px;
+      min-height: 42px;
+      border-radius: 999px;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 850;
+    }
 
     .builder-main {
       display: grid;
@@ -629,6 +676,15 @@
     }
     .add-exercise {
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .add-exercise .icon {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.4;
     }
     .session-head h2 {
       font-size: 28px;
@@ -665,18 +721,20 @@
       color: var(--muted);
       font-size: 12px;
     }
-    .editor-sheet {
-      margin-top: 8px;
+    .exercise-stack {
+      position: relative;
+      min-height: 0;
+    }
+    .editor-popover {
+      position: absolute;
+      z-index: 8;
+      top: 78px;
+      left: 58px;
+      right: 14px;
       padding: 11px;
       border-radius: 24px;
     }
-    .set-popover {
-      position: relative;
-      width: calc(100% - 42px);
-      margin: -3px 0 10px 42px;
-      border-radius: 22px;
-    }
-    .set-popover::before {
+    .editor-popover::before {
       content: "";
       position: absolute;
       top: -7px;
@@ -742,19 +800,16 @@
       font-size: 10px;
       font-weight: 800;
     }
-    .dock-item::before {
-      content: attr(data-icon);
-      display: grid;
-      place-items: center;
+    .dock-item > .icon,
+    .dock-item > .logo-icon {
       width: 38px;
       height: 38px;
-      margin-bottom: 2px;
+      padding: 9px;
       border-radius: 999px;
-      font-size: 15px;
-      font-weight: 950;
     }
     .dock-item.active { color: #d8fff0; }
-    .dock-item.active::before {
+    .dock-item.active > .icon,
+    .dock-item.active > .logo-icon {
       border: 1px solid rgba(255, 255, 255, 0.24);
       background:
         radial-gradient(85% 80% at 28% 10%, rgba(255, 255, 255, 0.28), transparent 52%),
@@ -800,7 +855,7 @@
       gap: 10px;
       align-items: center;
       grid-row: 1;
-      justify-content: space-between;
+      justify-content: flex-end;
     }
     .screen.desktop .workspace-header {
       grid-template-columns: minmax(0, 1fr) auto;
@@ -835,18 +890,66 @@
         width: 58px;
         min-height: 52px;
         padding: 0;
-        font-size: 0;
       }
-      .add-exercise::before {
-        content: "+";
-        font-size: 28px;
-        font-style: normal;
-        line-height: 1;
+      .add-exercise span {
+        display: none;
+      }
+      .add-exercise .icon {
+        width: 25px;
+        height: 25px;
       }
     }
   </style>
 </head>
 <body>
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-user" viewBox="0 0 24 24">
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="7" r="4" />
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24">
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+      <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.05.05a2.2 2.2 0 1 1-3.11 3.11l-.05-.05A1.8 1.8 0 0 0 14.67 19a1.8 1.8 0 0 0-1.67 1.1V20a2.2 2.2 0 1 1-4.4 0v-.08A1.8 1.8 0 0 0 6.93 19a1.8 1.8 0 0 0-1.98.36l-.05.05a2.2 2.2 0 1 1-3.11-3.11l.05-.05A1.8 1.8 0 0 0 2.6 15a1.8 1.8 0 0 0-1.1-1.67H1.4a2.2 2.2 0 1 1 0-4.4h.08A1.8 1.8 0 0 0 2.6 7.27a1.8 1.8 0 0 0-.36-1.98l-.05-.05a2.2 2.2 0 1 1 3.11-3.11l.05.05A1.8 1.8 0 0 0 6.93 5a1.8 1.8 0 0 0 1.67-1.1V3.8a2.2 2.2 0 1 1 4.4 0v.08A1.8 1.8 0 0 0 14.67 5a1.8 1.8 0 0 0 1.98-.36l.05-.05a2.2 2.2 0 1 1 3.11 3.11l-.05.05A1.8 1.8 0 0 0 19.4 9a1.8 1.8 0 0 0 1.1 1.67h.1a2.2 2.2 0 1 1 0 4.4h-.1A1.8 1.8 0 0 0 19.4 15Z" />
+    </symbol>
+    <symbol id="icon-dumbbell" viewBox="0 0 24 24">
+      <path d="M6.5 6.5 17.5 17.5" />
+      <path d="m4 9 5-5" />
+      <path d="m15 20 5-5" />
+      <path d="m2 7 5-5" />
+      <path d="m17 22 5-5" />
+    </symbol>
+    <symbol id="icon-programs" viewBox="0 0 24 24">
+      <rect x="5" y="3" width="14" height="18" rx="3" />
+      <path d="M9 8h6" />
+      <path d="M9 12h6" />
+      <path d="M9 16h4" />
+    </symbol>
+    <symbol id="icon-history" viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v6h6" />
+      <path d="M12 7v5l3 2" />
+    </symbol>
+    <symbol id="icon-insights" viewBox="0 0 24 24">
+      <path d="M4 20V10" />
+      <path d="M10 20V4" />
+      <path d="M16 20v-7" />
+      <path d="M22 20H2" />
+    </symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </symbol>
+    <symbol id="icon-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </symbol>
+  </svg>
   <main class="page">
     <section class="intro">
       <div>
@@ -867,7 +970,7 @@
           <div class="screen">
             <header class="topbar">
               <div class="brand">Iron<br>Brain</div>
-              <div style="display:flex; gap:8px;"><div class="icon-btn">P</div><div class="icon-btn">S</div></div>
+              <div style="display:flex; gap:8px;"><div class="icon-btn"><svg class="icon"><use href="#icon-user"></use></svg></div><div class="icon-btn"><svg class="icon"><use href="#icon-settings"></use></svg></div></div>
             </header>
             <section class="today-block">
               <p class="micro">Today</p>
@@ -895,7 +998,14 @@
               <div class="day-row"><span>T</span><span>F</span><span>S</span><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span><span>M</span><span>T</span><span>W</span></div>
             </section>
           </div>
-          <nav class="route-layer"><div class="route-command"><div class="route-orb">IB</div><div class="route-copy"><strong>Dashboard</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
+          <nav class="route-layer">
+            <div class="command-dock">
+              <div class="command-item active"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /><span>Today</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-dumbbell"></use></svg><span>Log</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-programs"></use></svg><span>Programs</span></div>
+              <div class="command-item more"><svg class="icon"><use href="#icon-more"></use></svg><span>More</span></div>
+            </div>
+          </nav>
         </div>
       </article>
 
@@ -905,20 +1015,20 @@
           <div class="screen">
             <header class="topbar">
               <div><h2 class="title">Start</h2><p class="subtle">Choose the route into training.</p></div>
-              <div class="icon-btn">?</div>
+              <div class="icon-btn"><svg class="icon"><use href="#icon-info"></use></svg></div>
             </header>
             <section class="launchpad">
               <div class="launch-row">
                 <div><strong>Planned lift</strong><span>Upper body bias · Week 1 · Monday</span></div>
-                <button class="action">Start</button>
+                <button class="action row-button">Start</button>
               </div>
               <div class="launch-row">
                 <div><strong>Freestyle</strong><span>Empty session for anything you lift today.</span></div>
-                <button class="ghost-action">Open</button>
+                <button class="ghost-action row-button">Open</button>
               </div>
               <div class="launch-row">
                 <div><strong>Program</strong><span>Upper-Body Biased Hybrid Split</span></div>
-                <div class="glass-chip">Change</div>
+                <button class="ghost-action row-button">Change</button>
               </div>
             </section>
             <aside class="glass-menu source-menu" style="margin-top:12px; margin-left:0; width:100%;">
@@ -927,7 +1037,14 @@
               <div class="menu-row"><span>Quick log</span><span>Empty</span></div>
             </aside>
           </div>
-          <nav class="route-layer"><div class="route-command"><div class="route-orb">L</div><div class="route-copy"><strong>Log</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
+          <nav class="route-layer">
+            <div class="command-dock">
+              <div class="command-item"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /><span>Today</span></div>
+              <div class="command-item active"><svg class="icon"><use href="#icon-dumbbell"></use></svg><span>Log</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-programs"></use></svg><span>Programs</span></div>
+              <div class="command-item more"><svg class="icon"><use href="#icon-more"></use></svg><span>More</span></div>
+            </div>
+          </nav>
         </div>
       </article>
 
@@ -941,8 +1058,8 @@
             </header>
             <section class="list">
               <div class="row"><div><h3>Upper-Body Biased Hybrid Split</h3><p>4 days/week · strength + hypertrophy</p></div><div class="active-line"></div></div>
-              <div class="row"><div><h3>Powerbuilding Base</h3><p>5 days/week · intermediate</p></div><div class="icon-btn">...</div></div>
-              <div class="row"><div><h3>Strength Foundation</h3><p>3 days/week · beginner</p></div><div class="icon-btn">...</div></div>
+              <div class="row"><div><h3>Powerbuilding Base</h3><p>5 days/week · intermediate</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+              <div class="row"><div><h3>Strength Foundation</h3><p>3 days/week · beginner</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
             </section>
             <aside class="glass-menu source-menu">
               <div class="menu-row"><span>Start</span><span></span></div>
@@ -951,7 +1068,14 @@
               <div class="menu-row"><span>Duplicate</span><span></span></div>
             </aside>
           </div>
-          <nav class="route-layer"><div class="route-command"><div class="route-orb">P</div><div class="route-copy"><strong>Programs</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
+          <nav class="route-layer">
+            <div class="command-dock">
+              <div class="command-item"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /><span>Today</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-dumbbell"></use></svg><span>Log</span></div>
+              <div class="command-item active"><svg class="icon"><use href="#icon-programs"></use></svg><span>Programs</span></div>
+              <div class="command-item more"><svg class="icon"><use href="#icon-more"></use></svg><span>More</span></div>
+            </div>
+          </nav>
         </div>
       </article>
 
@@ -961,7 +1085,7 @@
           <div class="screen">
             <header class="topbar">
               <div class="brand">Iron<br>Brain</div>
-              <div class="icon-btn">S</div>
+              <div class="icon-btn"><svg class="icon"><use href="#icon-settings"></use></svg></div>
             </header>
             <section class="today-block">
               <p class="micro">Today</p>
@@ -980,13 +1104,18 @@
           </div>
           <nav class="route-layer">
             <div class="route-menu">
-              <div class="route-menu-row active"><div class="route-orb">D</div><span>Dashboard</span><span>Current</span></div>
-              <div class="route-menu-row"><div class="route-orb">L</div><span>Log</span><span></span></div>
-              <div class="route-menu-row"><div class="route-orb">P</div><span>Programs</span><span></span></div>
-              <div class="route-menu-row"><div class="route-orb">H</div><span>History</span><span></span></div>
-              <div class="route-menu-row"><div class="route-orb">I</div><span>Insights</span><span></span></div>
+              <div class="route-menu-row active"><div class="route-orb"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /></div><span>Dashboard</span><span>Current</span></div>
+              <div class="route-menu-row"><div class="route-orb"><svg class="icon"><use href="#icon-dumbbell"></use></svg></div><span>Log</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb"><svg class="icon"><use href="#icon-programs"></use></svg></div><span>Programs</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb"><svg class="icon"><use href="#icon-history"></use></svg></div><span>History</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb"><svg class="icon"><use href="#icon-insights"></use></svg></div><span>Insights</span><span></span></div>
             </div>
-            <div class="route-command"><div class="route-orb">IB</div><div class="route-copy"><strong>Dashboard</strong><span>Routes</span></div><div class="route-dots">••</div></div>
+            <div class="command-dock">
+              <div class="command-item active"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /><span>Today</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-dumbbell"></use></svg><span>Log</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-programs"></use></svg><span>Programs</span></div>
+              <div class="command-item more"><svg class="icon"><use href="#icon-more"></use></svg><span>More</span></div>
+            </div>
           </nav>
         </div>
       </article>
@@ -998,31 +1127,37 @@
             <div class="builder-main">
               <header class="workspace-header">
                 <div>
-                  <p class="micro">Program builder</p>
                   <h2 class="workspace-title">Upper Body Bias</h2>
                   <p class="subtle">Week 1 · Monday</p>
                 </div>
                 <div class="workspace-actions">
-                  <button class="nav-control">Back</button>
                   <button class="action compact-action">Done</button>
                 </div>
               </header>
               <div class="week-strip"><div class="week-pill active">Week 1</div><div class="week-pill">Week 2</div><div class="week-pill">Week 3</div><div class="week-pill">Week 4</div></div>
               <section>
-                <div class="session-head"><div><p class="micro">Monday</p><h2>Bench strength + shoulders</h2><p class="subtle">7 exercises · 15 sets</p></div><button class="action add-exercise">Add Exercise</button></div>
-                <div class="exercise-list">
-                  <div class="exercise-row"><div class="drag">=</div><div><h3>Bench Press (Touch & Go)</h3><p class="set-summary">3 sets · 6 reps · RPE 7.5</p></div><div class="icon-btn">...</div></div>
-                  <div class="editor-sheet glass-menu set-popover">
+                <div class="session-head"><div><h2>Bench strength + shoulders</h2><p class="subtle">7 exercises · 15 sets</p></div><button class="action add-exercise"><svg class="icon"><use href="#icon-plus"></use></svg><span>Add Exercise</span></button></div>
+                <div class="exercise-list exercise-stack">
+                  <div class="exercise-row"><div class="drag">=</div><div><h3>Bench Press (Touch & Go)</h3><p class="set-summary">3 sets · 6 reps · RPE 7.5</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+                  <div class="editor-popover glass-menu">
                     <div class="set-line"><strong>1</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 7.5</div><span>Edit</span></div>
                     <div class="set-line"><strong>2</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 8</div><span>Edit</span></div>
                     <div class="set-line"><strong>3</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 8</div><span>Edit</span></div>
                   </div>
-                  <div class="exercise-row"><div class="drag">=</div><div><h3>Incline Dumbbell Press</h3><p class="set-summary">3 sets · 8-10 reps</p></div><div class="icon-btn">...</div></div>
-                  <div class="exercise-row"><div class="drag">=</div><div><h3>Lateral Raise</h3><p class="set-summary">A1 · 3 sets · 12-15 reps</p></div><div class="icon-btn">...</div></div>
+                  <div class="exercise-row"><div class="drag">=</div><div><h3>Incline Dumbbell Press</h3><p class="set-summary">3 sets · 8-10 reps</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+                  <div class="exercise-row"><div class="drag">=</div><div><h3>Lateral Raise</h3><p class="set-summary">A1 · 3 sets · 12-15 reps</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
                 </div>
               </section>
             </div>
           </div>
+          <nav class="route-layer">
+            <div class="command-dock">
+              <div class="command-item"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" /><span>Today</span></div>
+              <div class="command-item"><svg class="icon"><use href="#icon-dumbbell"></use></svg><span>Log</span></div>
+              <div class="command-item active"><svg class="icon"><use href="#icon-programs"></use></svg><span>Programs</span></div>
+              <div class="command-item more"><svg class="icon"><use href="#icon-more"></use></svg><span>More</span></div>
+            </div>
+          </nav>
         </div>
       </article>
     </section>
@@ -1030,34 +1165,30 @@
     <section style="margin-top:32px" class="mock-card">
       <div class="mock-label"><h2>Desktop guided workspace</h2><span>1280 x 720</span></div>
       <div class="screen desktop">
-        <aside class="desktop-rail"><div class="glass-dock"><div class="dock-item" data-icon="D">Home</div><div class="dock-item" data-icon="L">Log</div><div class="dock-item active" data-icon="P">Plans</div><div class="dock-item" data-icon="H">History</div><div class="dock-item" data-icon="I">Insights</div></div></aside>
+        <aside class="desktop-rail"><div class="glass-dock"><div class="dock-item"><img class="logo-icon" src="../public/icons/iron-brain-ib-192.png" alt="" />Home</div><div class="dock-item"><svg class="icon"><use href="#icon-dumbbell"></use></svg>Log</div><div class="dock-item active"><svg class="icon"><use href="#icon-programs"></use></svg>Plans</div><div class="dock-item"><svg class="icon"><use href="#icon-history"></use></svg>History</div><div class="dock-item"><svg class="icon"><use href="#icon-insights"></use></svg>Insights</div></div></aside>
         <div class="desktop-grid">
           <section class="desktop-panel">
             <header class="workspace-header">
               <div>
-                <p class="micro">Program builder</p>
                 <h2 class="workspace-title">Upper-Body Biased Hybrid Split</h2>
-                <p class="subtle">Guided workspace · Week 1 · Monday</p>
+                <p class="subtle">Week 1 · Monday</p>
               </div>
               <div class="workspace-actions">
-                <button class="nav-control">Back</button>
                 <button class="action compact-action">Done</button>
               </div>
             </header>
             <div class="week-strip"><div class="week-pill active">Week 1</div><div class="week-pill">Week 2</div><div class="week-pill">Week 3</div><div class="week-pill">Week 4</div><div class="week-pill">Duplicate</div></div>
-            <div class="session-head"><div><p class="micro">Session canvas</p><h2>Bench strength + shoulders</h2><p class="subtle">Edit one focused exercise; rows stay direct.</p></div><button class="action add-exercise">Add Exercise</button></div>
+            <div class="session-head"><div><h2>Bench strength + shoulders</h2><p class="subtle">7 exercises · 15 sets</p></div><button class="action add-exercise"><svg class="icon"><use href="#icon-plus"></use></svg><span>Add Exercise</span></button></div>
             <div class="exercise-list">
-              <div class="exercise-row"><div class="drag">=</div><div><h3>Bench Press (Touch & Go)</h3><p class="set-summary">Focused · 3 sets · fixed target available</p></div><div class="glass-chip">Edit Sets</div></div>
-              <div class="exercise-row"><div class="drag">=</div><div><h3>Incline Dumbbell Press</h3><p class="set-summary">3 sets · 8-10 reps · RPE 8</p></div><div class="icon-btn">...</div></div>
-              <div class="exercise-row"><div class="drag">=</div><div><h3>Lateral Raise</h3><p class="set-summary">A1 · paired with cable pressdown</p></div><div class="icon-btn">...</div></div>
-              <div class="exercise-row"><div class="drag">=</div><div><h3>Cable Pressdown</h3><p class="set-summary">A2 · 3 sets · 12-15 reps</p></div><div class="icon-btn">...</div></div>
+              <div class="exercise-row"><div class="drag">=</div><div><h3>Bench Press (Touch & Go)</h3><p class="set-summary">3 sets · 6 reps · RPE 7.5</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+              <div class="exercise-row"><div class="drag">=</div><div><h3>Incline Dumbbell Press</h3><p class="set-summary">3 sets · 8-10 reps · RPE 8</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+              <div class="exercise-row"><div class="drag">=</div><div><h3>Lateral Raise</h3><p class="set-summary">A1 · paired with cable pressdown</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
+              <div class="exercise-row"><div class="drag">=</div><div><h3>Cable Pressdown</h3><p class="set-summary">A2 · 3 sets · 12-15 reps</p></div><div class="icon-btn"><svg class="icon"><use href="#icon-more"></use></svg></div></div>
             </div>
           </section>
           <aside class="side-inspector glass-menu">
-            <p class="micro">Focused editor</p>
             <h3>Bench Press</h3>
-            <p class="subtle" style="margin-top:10px;">This replaces the inline card stack. On desktop it lives as a source-attached inspector. On mobile it becomes a small sheet from the tapped row.</p>
-            <div class="editor-sheet" style="padding-left:0; padding-right:0;">
+            <div style="padding-left:0; padding-right:0; margin-top:16px;">
               <div class="set-line"><strong>1</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 7.5</div><span>Edit</span></div>
               <div class="set-line"><strong>2</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 8</div><span>Edit</span></div>
               <div class="set-line"><strong>3</strong><div class="field-ghost">6 reps</div><div class="field-ghost">RPE 8</div><span>Edit</span></div>
