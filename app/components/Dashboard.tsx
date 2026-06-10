@@ -337,7 +337,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 pb-8 pt-3 sm:space-y-6 sm:pt-8">
+    <div className="mx-auto w-full max-w-5xl space-y-4 overflow-hidden pb-0 pt-2 sm:space-y-6 sm:pt-8">
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
@@ -347,8 +347,7 @@ export default function Dashboard() {
 
       <header className="flex items-center justify-between gap-4 px-1">
         <div className="min-w-0">
-          <p className="iron-label">Today</p>
-          <h1 className="iron-display mt-1 truncate text-3xl text-zinc-50 sm:text-4xl">
+          <h1 className="iron-display truncate text-3xl text-zinc-50 sm:text-4xl">
             Iron Brain
           </h1>
         </div>
@@ -478,15 +477,6 @@ export default function Dashboard() {
           <div className="min-w-0">
             <p className="text-sm font-black text-zinc-100">Last 14 days</p>
           </div>
-          <button
-            type="button"
-            aria-label="Open training pulse details"
-            title="Open training pulse details"
-            onClick={() => setDetailsOpen(true)}
-            className="liquid-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-100"
-          >
-            <Info className="h-3.5 w-3.5" />
-          </button>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2.5">
           <div className="iron-metric-tile">
@@ -521,9 +511,9 @@ export default function Dashboard() {
       <ActionSheet
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        title="Today"
+        title="Session"
       >
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <div>
             <p className="truncate text-sm font-semibold text-zinc-50">{nextSessionTitle}</p>
             {nextProgramSession ? (
@@ -536,15 +526,9 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-[0.95rem] bg-white/[0.045] px-3 py-2.5">
-              <p className="font-semibold text-zinc-200">{readinessSignal.value}</p>
-              <p className="mt-0.5 text-zinc-500">{readinessSignal.label}</p>
-            </div>
-            <div className="rounded-[0.95rem] bg-white/[0.045] px-3 py-2.5">
-              <p className="font-semibold text-zinc-200">{trainingPulse.sessions}</p>
-              <p className="mt-0.5 text-zinc-500">14-day sessions</p>
-            </div>
+          <div className="flex items-center justify-between border-y border-white/[0.07] py-2 text-xs">
+            <span className="text-zinc-500">Last 14 days</span>
+            <span className="font-semibold text-zinc-200">{trainingPulse.sessions} sessions</span>
           </div>
 
           <div className="grid gap-2 pt-1">
@@ -559,15 +543,12 @@ export default function Dashboard() {
               <span>{primaryButtonText}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Link href="/checkin" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
                 Check in
               </Link>
-              <Link href="/programs" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-                Plan
-              </Link>
-              <Link href="/history" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-                History
+              <Link href="/workout/new?type=empty" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
+                Freestyle
               </Link>
             </div>
           </div>

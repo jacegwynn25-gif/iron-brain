@@ -171,7 +171,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [pathname]);
 
-  const mainChromeClass = hideBottomNav ? 'pb-12 md:pl-6' : 'pb-24 md:pb-12 md:pl-28';
+  const isDashboardRoute = pathname === '/';
+  const mainChromeClass = hideBottomNav
+    ? 'pb-12 md:pl-6'
+    : isDashboardRoute
+      ? 'pb-[5.55rem] md:pb-12 md:pl-28'
+      : 'pb-24 md:pb-12 md:pl-28';
 
   return (
     <div className="relative min-h-dvh bg-zinc-950 text-zinc-100">

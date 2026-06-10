@@ -168,7 +168,7 @@ export function ActionSheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  useBodyScrollLock(open, 'liquid-action-sheet');
+  useBodyScrollLock(open, 'liquid-action-sheet', { hideBottomNav: false });
 
   useEffect(() => {
     if (!open) return;
@@ -191,38 +191,34 @@ export function ActionSheet({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[260] flex items-start justify-center px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pb-6 sm:pt-6">
+    <div className="fixed inset-0 z-[260] flex items-start justify-end px-3 pb-3 pt-[calc(env(safe-area-inset-top)+4.9rem)] sm:px-6 sm:pb-6 sm:pt-6">
       <button
         type="button"
-        aria-label="Dismiss details"
+        aria-label="Dismiss menu"
         className="liquid-scrim absolute inset-0"
-        style={{
-          backdropFilter: 'blur(96px) saturate(1.12) brightness(0.68) contrast(0.9)',
-          WebkitBackdropFilter: 'blur(96px) saturate(1.12) brightness(0.68) contrast(0.9)',
-        }}
         onClick={() => onOpenChange(false)}
       />
       <section
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="liquid-surface liquid-surface-elevated liquid-sheet-panel relative max-h-[76dvh] w-full max-w-[23rem] overflow-hidden rounded-[1.35rem] p-0 shadow-[0_32px_110px_-45px_rgba(0,0,0,1)]"
+        className="liquid-surface liquid-surface-elevated liquid-sheet-panel relative max-h-[70dvh] w-full max-w-[19.25rem] overflow-hidden rounded-[1.15rem] p-0 shadow-[0_32px_110px_-45px_rgba(0,0,0,1)]"
         style={{
-          backdropFilter: 'blur(54px) saturate(1.28) contrast(1.06)',
-          WebkitBackdropFilter: 'blur(54px) saturate(1.28) contrast(1.06)',
+          backdropFilter: 'blur(52px) saturate(1.24) contrast(1.05)',
+          WebkitBackdropFilter: 'blur(52px) saturate(1.24) contrast(1.05)',
         }}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-4 py-3">
+        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-3.5 py-2.5">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold tracking-tight text-zinc-50">{title}</h2>
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-50">{title}</h2>
             {description && <p className="mt-0.5 text-xs leading-5 text-zinc-400">{description}</p>}
           </div>
-          <IconButton label="Close details" onClick={() => onOpenChange(false)} className="h-9 w-9">
+          <IconButton label="Close menu" onClick={() => onOpenChange(false)} className="h-8 w-8">
             <X className="h-4 w-4" />
           </IconButton>
         </div>
-        <div className="max-h-[52dvh] overflow-y-auto px-4 py-3.5">{children}</div>
-        {footer && <div className="border-t border-white/8 px-4 py-3.5">{footer}</div>}
+        <div className="max-h-[48dvh] overflow-y-auto px-3.5 py-3">{children}</div>
+        {footer && <div className="border-t border-white/8 px-3.5 py-3">{footer}</div>}
       </section>
     </div>,
     document.body
