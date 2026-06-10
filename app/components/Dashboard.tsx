@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
+  ChevronRight,
   HeartHandshake,
-  Info,
   LogIn,
+  MoreHorizontal,
   Settings,
   Sparkles,
   User,
@@ -423,8 +424,8 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <IconButton label="Open today menu" onClick={() => setDetailsOpen(true)} className="mt-0.5">
-              <Info className="h-4 w-4" />
+            <IconButton label="Open session options" onClick={() => setDetailsOpen(true)} className="mt-0.5">
+              <MoreHorizontal className="h-4 w-4" />
             </IconButton>
           </div>
 
@@ -540,7 +541,7 @@ export default function Dashboard() {
 
           <Link href="/checkin" className="liquid-menu-row">
             <span>Check in</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </ActionSheet>
