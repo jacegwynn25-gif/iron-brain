@@ -511,47 +511,37 @@ export default function Dashboard() {
       <ActionSheet
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        title="Session"
+        title="Details"
       >
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div>
             <p className="truncate text-sm font-semibold text-zinc-50">{nextSessionTitle}</p>
             {nextProgramSession ? (
               <p className="mt-1 text-xs leading-5 text-zinc-500">
-                Week {nextProgramSession.resolved.weekNumber}, day {nextProgramSession.resolved.dayIndex + 1} /{' '}
-                {nextProgramSession.work.movementCount} movements / {nextProgramSession.work.setCount} sets
+                Week {nextProgramSession.resolved.weekNumber}, day {nextProgramSession.resolved.dayIndex + 1}
               </p>
             ) : (
               <p className="mt-1 text-xs leading-5 text-zinc-500">{smartAction.detail}</p>
             )}
           </div>
 
-          <div className="flex items-center justify-between border-y border-white/[0.07] py-2 text-xs">
-            <span className="text-zinc-500">Last 14 days</span>
-            <span className="font-semibold text-zinc-200">{trainingPulse.sessions} sessions</span>
-          </div>
-
-          <div className="grid gap-2 pt-1">
-            <Link
-              href={smartAction.href}
-              className={liquidButtonClass({
-                variant: primaryButtonVariant,
-                density: 'compact',
-                className: 'justify-between',
-              })}
-            >
-              <span>{primaryButtonText}</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/checkin" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-                Check in
-              </Link>
-              <Link href="/workout/new?type=empty" className={liquidButtonClass({ variant: 'neutral', density: 'compact' })}>
-                Freestyle
-              </Link>
+          {nextProgramSession && (
+            <div className="grid grid-cols-2 gap-2 border-y border-white/[0.07] py-2 text-xs">
+              <div>
+                <p className="font-semibold text-zinc-200">{nextProgramSession.work.movementCount}</p>
+                <p className="mt-0.5 text-zinc-500">Movements</p>
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-200">{nextProgramSession.work.setCount}</p>
+                <p className="mt-0.5 text-zinc-500">Sets</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          <Link href="/checkin" className="liquid-menu-row">
+            <span>Check in</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </ActionSheet>
     </div>

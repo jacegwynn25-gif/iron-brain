@@ -204,8 +204,8 @@ export function ActionSheet({
         aria-label={title}
         className="liquid-surface liquid-surface-elevated liquid-sheet-panel relative max-h-[70dvh] w-full max-w-[19.25rem] overflow-hidden rounded-[1.15rem] p-0 shadow-[0_32px_110px_-45px_rgba(0,0,0,1)]"
         style={{
-          backdropFilter: 'blur(52px) saturate(1.24) contrast(1.05)',
-          WebkitBackdropFilter: 'blur(52px) saturate(1.24) contrast(1.05)',
+          backdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
+          WebkitBackdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
         }}
       >
         <div className="flex items-start justify-between gap-4 border-b border-white/8 px-3.5 py-2.5">
