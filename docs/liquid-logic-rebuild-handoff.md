@@ -18,7 +18,9 @@ The mock covers:
 
 ## Locked Direction
 
-- Keep a small Liquid Glass route dock: split glass islands on mobile, compact side rail on desktop.
+- Keep a small Liquid Glass route dock: compact centered dock on mobile, compact side rail on desktop.
+- Split mobile dock islands were reviewed and rejected; they looked visually awkward instead of premium.
+- Treat mobile nav as unresolved until the compact dock is compared against a route-menu/command-button option.
 - Dock routes only: Dashboard, Log, Programs, History, Insights.
 - Move secondary actions into source-attached menus, sheets, and inspectors.
 - Use glass for controls, route dock, topbars, menus, sheets, popovers, segmented controls, and focused overlays.
@@ -26,22 +28,41 @@ The mock covers:
 - Avoid nested content containers and glass-on-glass.
 - Avoid blueprint/grid backgrounds; the content canvas should stay dark, calm, and non-decorative.
 - Keep page and builder headers as direct content, not text trapped inside a glass toolbar.
+- Filled color is reserved for primary actions only: `#10b981` and `#059669`. Neutral controls use glass, borders, lift, and opacity, not gray color fills.
 - Preserve Iron Brain identity: Inter, black italic brand/page moments, classic action green `#10b981`, pressed/depth green `#059669`.
 - Keep popups more transparent than the current sheets while preserving readable text contrast.
 - Builder becomes a guided workspace editing one week/session at a time.
+
+## Apple-Informed Design Logic
+
+- Liquid Glass should mostly live in the navigation/control layer, floating over direct content.
+- Avoid making table/list/content surfaces glass; it muddies hierarchy.
+- Avoid glass-on-glass. If something sits on glass, use a thin overlay treatment instead of another full material.
+- Menus and sheets should feel attached to the source control that opened them.
+- Bar items should be grouped by function and frequency; crowded bars should move secondary actions into a more/menu control.
+- Custom control chrome should be reduced. Hierarchy should come from grouping, layout, and material behavior, not decorative borders or random fills.
+
+References:
+
+- [Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/)
+- [Get to know the new design system](https://developer.apple.com/videos/play/wwdc2025/356/)
+- [Human Interface Guidelines: Materials](https://developer.apple.com/design/human-interface-guidelines/materials)
+- [Human Interface Guidelines: Tab bars](https://developer.apple.com/design/human-interface-guidelines/tab-bars)
+- [Human Interface Guidelines: Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
 
 ## Implementation Checkpoints After Mock Acceptance
 
 1. Shell and tokens
    - Replace remaining visual drift with canonical Liquid v2 variables.
-   - Restyle route navigation as split glass dock/side rail.
+   - Restyle route navigation as compact glass dock/side rail.
    - Remove square nav hover states.
    - Establish direct-content rules before page rebuilds.
 
 2. Dashboard, Log/Start, Programs
    - Dashboard: one Today content zone, one primary action, no duplicate CTAs, no forced scroll unless content genuinely exceeds viewport.
    - Log/Start: compact launchpad with planned lift, freestyle, quick log, and selected program/session picker.
-   - Programs: dense list, top filters, one active indicator, source-attached row action menus.
+   - Programs: dense direct list, one active indicator, source-attached row action menus.
+   - Keep program filters behind a source-attached menu unless the list becomes large enough to justify visible tabs.
 
 3. Builder guided workspace
    - Full-screen dark workspace with direct header content and separate Back/Done controls.
