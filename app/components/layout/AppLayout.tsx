@@ -185,8 +185,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div className="liquid-grid pointer-events-none fixed inset-0 -z-20 opacity-55" />
 
       {(pendingHref || isRoutePending) && (
-        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-emerald-400/15">
-          <div className="h-full w-2/3 animate-pulse bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.65)]" />
+        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-emerald-500/15">
+          <div className="h-full w-2/3 animate-pulse bg-emerald-500 shadow-[0_0_18px_rgba(16,185,129,0.62)]" />
         </div>
       )}
 
@@ -200,10 +200,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <nav
           data-testid="app-bottom-nav"
           className="app-bottom-nav liquid-nav-shell pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-[90] mx-auto max-w-[28rem] rounded-[1.875rem] touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:w-[4.9rem] md:-translate-y-1/2"
-          style={{
-            backdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
-            WebkitBackdropFilter: 'blur(30px) saturate(1.16) contrast(1.03)',
-          }}
         >
           <div className="relative z-10 flex min-h-16 w-full items-stretch justify-between gap-0.5 p-1.5 md:min-h-0 md:flex-col md:gap-1 md:p-2">
             {navItems.map((item) => {
@@ -238,8 +234,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     {item.label}
                   </span>
                   {pending && (
-                    <span className="pointer-events-none absolute inset-x-3 bottom-1 h-px overflow-hidden rounded-full bg-emerald-300/20">
-                      <span className="block h-full w-1/2 animate-pulse bg-emerald-300" />
+                    <span className="pointer-events-none absolute inset-x-3 bottom-1 h-px overflow-hidden rounded-full bg-emerald-500/20">
+                      <span className="block h-full w-1/2 animate-pulse bg-emerald-500" />
                     </span>
                   )}
                 </Link>

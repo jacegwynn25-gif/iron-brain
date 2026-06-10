@@ -1,6 +1,17 @@
 'use client';
 
-import { useEffect, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
@@ -8,6 +19,7 @@ import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 type Variant = 'neutral' | 'elevated' | 'action' | 'danger';
 type Density = 'compact' | 'default';
 type Tone = 'neutral' | 'emerald' | 'amber' | 'rose' | 'cyan';
+type MenuAlign = 'start' | 'end';
 
 export function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ');
@@ -32,7 +44,7 @@ export function liquidButtonClass({
     variant === 'action' &&
       'liquid-action-button font-black italic tracking-tight text-zinc-950',
     variant === 'danger' &&
-      'border border-rose-400/35 bg-rose-500/12 font-semibold text-rose-100 hover:bg-rose-500/18',
+      'liquid-danger-button font-semibold hover:bg-rose-500/16',
     variant === 'elevated' &&
       'border border-white/12 bg-white/[0.09] font-semibold text-zinc-100 shadow-[0_16px_50px_-35px_rgba(255,255,255,0.5)] hover:bg-white/[0.13]',
     variant === 'neutral' &&
@@ -100,9 +112,9 @@ export function IconButton({
       className={cn(
         'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.96] disabled:opacity-50',
         variant === 'action'
-          ? 'liquid-icon-button text-emerald-300 hover:text-emerald-200'
+          ? 'liquid-icon-button text-emerald-200 hover:text-emerald-100'
           : variant === 'danger'
-            ? 'border border-rose-400/35 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18'
+            ? 'liquid-danger-button hover:bg-rose-500/16'
           : variant === 'elevated'
               ? 'liquid-icon-button text-zinc-100 hover:text-white'
               : 'liquid-icon-button text-zinc-400 hover:text-zinc-100',
@@ -133,7 +145,7 @@ export function MetricChip({
       className={cn(
         'rounded-[1rem] border px-3 py-2.5',
         tone === 'emerald'
-          ? 'border-emerald-300/20 bg-emerald-400/[0.075] text-emerald-200'
+          ? 'border-emerald-500/22 bg-emerald-500/[0.075] text-emerald-200'
           : tone === 'amber'
             ? 'border-amber-300/25 bg-amber-300/[0.08] text-amber-100'
             : tone === 'rose'
@@ -150,6 +162,182 @@ export function MetricChip({
       </div>
       <div className="mt-1 truncate text-base font-black italic text-current">{value}</div>
     </div>
+  );
+}
+
+export function LiquidField({
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={cn('liquid-field min-h-11 px-3 text-sm', className)} {...props} />;
+}
+
+export function LiquidSelect({
+  className,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select className={cn('liquid-field min-h-11 px-3 text-sm', className)} {...props}>
+      {children}
+    </select>
+  );
+}
+
+export function LiquidSegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn('liquid-segmented grid gap-1 p-1', className)}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          data-active={option.value === value ? 'true' : 'false'}
+          className="liquid-segmented-item min-h-9 px-3 text-xs font-semibold"
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function LiquidMenuRow({
+  icon,
+  label,
+  detail,
+  danger = false,
+  className,
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  icon?: ReactNode;
+  label: string;
+  detail?: ReactNode;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'liquid-menu-row w-full text-left',
+        danger && 'text-rose-200 hover:text-rose-100',
+        className
+      )}
+      {...props}
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        {icon && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-current">{icon}</span>}
+        <span className="truncate">{children ?? label}</span>
+      </span>
+      {detail && <span className="shrink-0 text-xs text-zinc-500">{detail}</span>}
+    </button>
+  );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function LiquidActionMenu({
+  label,
+  trigger,
+  children,
+  align = 'end',
+  width = 288,
+  className,
+  menuClassName,
+}: {
+  label: string;
+  trigger: ReactNode;
+  children: ReactNode;
+  align?: MenuAlign;
+  width?: number;
+  className?: string;
+  menuClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const updatePosition = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const viewportWidth = window.innerWidth;
+    const margin = 12;
+    const left =
+      align === 'end'
+        ? clamp(rect.right - width, margin, viewportWidth - width - margin)
+        : clamp(rect.left, margin, viewportWidth - width - margin);
+    setStyle({
+      left,
+      top: rect.bottom + 8,
+      width,
+      transformOrigin: align === 'end' ? 'calc(100% - 1.4rem) -0.35rem' : '1.4rem -0.35rem',
+    });
+  }, [align, width]);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const handleReposition = () => updatePosition();
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, updatePosition]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn('inline-flex items-center justify-center', className)}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {trigger}
+      </button>
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-[260]">
+            <button
+              type="button"
+              aria-label="Dismiss menu"
+              className="absolute inset-0 cursor-default bg-transparent"
+              onClick={() => setOpen(false)}
+            />
+            <div
+              role="menu"
+              aria-label={label}
+              className={cn('liquid-menu liquid-sheet-panel absolute max-h-[70dvh] overflow-y-auto p-1.5', menuClassName)}
+              style={style ?? undefined}
+            >
+              {children}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 

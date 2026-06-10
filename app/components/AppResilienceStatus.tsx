@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, RefreshCw, WifiOff, X } from 'lucide-react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, RefreshCw, X } from 'lucide-react';
 
 interface AppResilienceStatusProps {
   currentVersion: string;
@@ -16,33 +16,18 @@ interface SyncQueueDetail {
   failed?: number;
 }
 
-const QUEUE_KEY_PREFIX = 'iron_brain_sync_queue';
+type SyncQueueWindow = Window & {
+  __ironBrainSyncQueueEvents?: SyncQueueDetail[];
+  __ironBrainSyncQueueReady?: boolean;
+};
+
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const DISMISSED_VERSION_KEY = 'iron_brain_dismissed_app_version';
-
-function readQueuedOperationCount(): number {
-  if (typeof window === 'undefined') return 0;
-
-  let total = 0;
-  try {
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index);
-      if (!key || !key.startsWith(QUEUE_KEY_PREFIX)) continue;
-      const parsed = JSON.parse(localStorage.getItem(key) ?? '[]');
-      if (Array.isArray(parsed)) total += parsed.length;
-    }
-  } catch {
-    return 0;
-  }
-
-  return total;
-}
 
 export default function AppResilienceStatus({ currentVersion }: AppResilienceStatusProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [remoteVersion, setRemoteVersion] = useState<string | null>(null);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
-  const [queuedOperations, setQueuedOperations] = useState(0);
   const [syncNotice, setSyncNotice] = useState<SyncQueueDetail | null>(null);
   const syncNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,27 +46,32 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const syncBrowserState = () => {
-      setIsOnline(navigator.onLine);
-      setQueuedOperations(readQueuedOperationCount());
+    const syncBrowserState = (online = navigator.onLine) => {
+      setIsOnline(online);
     };
 
     const handleOnline = () => {
-      syncBrowserState();
+      syncBrowserState(true);
       void checkVersion();
     };
 
-    const handleSyncQueue = (event: Event) => {
-      const detail = (event as CustomEvent<SyncQueueDetail>).detail ?? {};
-      setQueuedOperations(readQueuedOperationCount());
+    const handleOffline = () => {
+      syncBrowserState(false);
+    };
+
+    const showSyncNotice = (detail: SyncQueueDetail) => {
       if ((detail.processed ?? 0) > 0) {
         setSyncNotice(detail);
         if (syncNoticeTimerRef.current) clearTimeout(syncNoticeTimerRef.current);
         syncNoticeTimerRef.current = setTimeout(() => setSyncNotice(null), 5200);
       }
+    };
+
+    const handleSyncQueue = (event: Event) => {
+      showSyncNotice((event as CustomEvent<SyncQueueDetail>).detail ?? {});
     };
 
     const handleVisibilityChange = () => {
@@ -93,23 +83,31 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
 
     syncBrowserState();
     setDismissedVersion(localStorage.getItem(DISMISSED_VERSION_KEY));
+    const syncWindow = window as SyncQueueWindow;
+    const queuedSyncEvents = syncWindow.__ironBrainSyncQueueEvents ?? [];
+    syncWindow.__ironBrainSyncQueueEvents = [];
+    syncWindow.__ironBrainSyncQueueReady = true;
+    queuedSyncEvents.forEach(showSyncNotice);
     void checkVersion();
 
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', syncBrowserState);
+    window.addEventListener('offline', handleOffline);
     window.addEventListener('focus', checkVersion);
     window.addEventListener('iron-brain:sync-queue', handleSyncQueue);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const interval = window.setInterval(checkVersion, CHECK_INTERVAL_MS);
+    const browserStateInterval = window.setInterval(syncBrowserState, 1000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', syncBrowserState);
+      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('focus', checkVersion);
       window.removeEventListener('iron-brain:sync-queue', handleSyncQueue);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      (window as SyncQueueWindow).__ironBrainSyncQueueReady = false;
       window.clearInterval(interval);
+      window.clearInterval(browserStateInterval);
       if (syncNoticeTimerRef.current) clearTimeout(syncNoticeTimerRef.current);
     };
   }, [checkVersion]);
@@ -121,22 +119,6 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     isOnline;
 
   const status = useMemo(() => {
-    if (!isOnline) {
-      return {
-        key: 'offline',
-        icon: WifiOff,
-        label: 'Offline Mode',
-        title: 'Saving locally',
-        body:
-          queuedOperations > 0
-            ? `${queuedOperations} change${queuedOperations === 1 ? '' : 's'} waiting to sync when you are back online.`
-            : 'Workout changes stay on this device until connection returns.',
-        tone: 'border-amber-400/35 bg-zinc-950/95 text-amber-200',
-        action: null,
-        dismissible: false,
-      };
-    }
-
     if (updateAvailable && remoteVersion) {
       return {
         key: 'update',
@@ -169,7 +151,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     }
 
     return null;
-  }, [isOnline, queuedOperations, remoteVersion, syncNotice, updateAvailable]);
+  }, [remoteVersion, syncNotice, updateAvailable]);
 
   if (!status) return null;
 

@@ -92,6 +92,30 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${inter.className} min-h-dvh bg-zinc-950 text-zinc-100 antialiased`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){window.__ironBrainSyncQueueEvents=window.__ironBrainSyncQueueEvents||[];window.addEventListener('iron-brain:sync-queue',function(event){if(window.__ironBrainSyncQueueReady)return;window.__ironBrainSyncQueueEvents.push(event.detail||{});if(window.__ironBrainSyncQueueEvents.length>10)window.__ironBrainSyncQueueEvents.shift();});function sync(){if(navigator.onLine){document.body.removeAttribute('data-iron-offline')}else{document.body.setAttribute('data-iron-offline','true')}}window.addEventListener('online',sync);window.addEventListener('offline',sync);sync();})();`,
+          }}
+        />
+        <div
+          className="app-offline-fallback pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[95] justify-center"
+          data-testid="app-resilience-offline"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex w-full max-w-md items-center gap-3 rounded-[1.1rem] border border-amber-400/35 bg-zinc-950/95 px-3 py-2.5 text-amber-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+              !
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] opacity-70">Offline Mode</p>
+              <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.08em] text-white">Saving locally</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-zinc-400">
+                Workout changes stay on this device until connection returns.
+              </p>
+            </div>
+          </div>
+        </div>
         <ErrorBoundary>
           <AuthProvider>
             <ProgramProvider>
