@@ -23,6 +23,7 @@ The mock covers:
 - The command dock shows only core routes/actions: Today, Log, Programs, and More.
 - More opens a source-attached route menu with Dashboard, Log, Programs, History, and Insights.
 - Use the Iron Brain mark and real route/action icons, not placeholder letters.
+- Active command-dock state should feel flat/dark with an emerald accent, not inflated/bubbly.
 - Use the same neutral glass button recipe for secondary row actions. Primary actions use green; secondary actions do not invent their own shape/color.
 - Split mobile dock islands and five-item bottom docks were reviewed and rejected; they felt like nav chrome instead of Liquid Glass logic.
 - Keep a compact side rail on desktop where persistent navigation earns its space.
@@ -37,6 +38,7 @@ The mock covers:
 - Icons should come from `lucide-react` in production, plus the Iron Brain app mark where brand identity is needed.
 - Preserve Iron Brain identity: Inter, black italic brand/page moments, classic action green `#10b981`, pressed/depth green `#059669`.
 - Keep popups more transparent than the current sheets while preserving readable text contrast.
+- Popovers attach to the tapped source control. They appear near the source, not at the bottom, unless the bottom command opened them.
 - Builder becomes a guided workspace editing one week/session at a time.
 
 ## Apple-Informed Design Logic
