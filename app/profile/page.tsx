@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../lib/supabase/auth-context';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
 import { useDialog } from '@/app/providers/DialogProvider';
+import { liquidButtonClass } from '../components/ui/liquid';
 
 import type {
   WorkoutSession,
@@ -193,8 +194,8 @@ export default function ProfilePage() {
   }, [workoutHistory]);
 
   const menuItems = [
-    { icon: Sparkles, label: 'Coach Export', path: '/profile/coach' },
-    { icon: Scale, label: '1RMs & Maxes', path: '/profile/maxes' },
+    { icon: Sparkles, label: 'Coach export', path: '/profile/coach' },
+    { icon: Scale, label: '1RMs & maxes', path: '/profile/maxes' },
     { icon: Settings, label: 'Settings', path: '/profile/settings' },
   ];
 
@@ -236,7 +237,7 @@ export default function ProfilePage() {
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
-            className="surface-card group flex w-full items-center justify-between gap-4 px-4 py-3 text-left text-zinc-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
+            className="group flex w-full items-center justify-between gap-4 rounded-[1rem] border border-white/8 bg-zinc-950/72 px-4 py-3 text-left text-zinc-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
@@ -253,7 +254,7 @@ export default function ProfilePage() {
 
       <section className="stagger-item space-y-3 px-1">
         <h2 className="iron-display text-xl text-zinc-100">Preferences</h2>
-        <div className="surface-card divide-y divide-white/8 overflow-hidden">
+        <div className="overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72 divide-y divide-white/8">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -294,7 +295,7 @@ export default function ProfilePage() {
 
               }
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-[1.25rem] border border-rose-500/30 p-4 font-medium text-rose-300 transition-all hover:bg-rose-500/10 active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-rose-500/30 bg-rose-500/[0.08] p-4 font-medium text-rose-300 transition-all hover:bg-rose-500/10 active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5" />
             Sign out
@@ -304,7 +305,10 @@ export default function ProfilePage() {
         <section className="stagger-item space-y-3 px-1">
           <button
             onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
-            className="liquid-action-button flex w-full items-center justify-center gap-2 rounded-[1.25rem] p-4 font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
+            className={liquidButtonClass({
+              variant: 'action',
+              className: 'w-full rounded-[1rem] p-4',
+            })}
           >
             <User className="w-5 h-5" />
             Sign in

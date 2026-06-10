@@ -157,29 +157,29 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 sm:p-5';
-const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/70 p-3.5';
+const SECTION_CLASS = 'rounded-[1rem] border border-white/8 bg-zinc-950/72 p-4 shadow-[0_20px_70px_-48px_rgba(0,0,0,0.95)] sm:p-5';
+const SUBSECTION_CARD_CLASS = 'rounded-xl border border-white/8 bg-white/[0.035] p-3.5';
 const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
-const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500';
+const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500';
 
 type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
 
 const toneTextClass: Record<Tone, string> = {
-  emerald: 'text-emerald-300',
+  emerald: 'text-emerald-500',
   amber: 'text-amber-300',
   rose: 'text-rose-300',
   zinc: 'text-zinc-400',
 };
 
 const toneBgClass: Record<Tone, string> = {
-  emerald: 'bg-emerald-400',
+  emerald: 'bg-emerald-500',
   amber: 'bg-amber-400',
   rose: 'bg-rose-400',
   zinc: 'bg-zinc-500',
 };
 
 const toneBorderClass: Record<Tone, string> = {
-  emerald: 'border-emerald-400/45',
+  emerald: 'border-emerald-500/45',
   amber: 'border-amber-400/45',
   rose: 'border-rose-400/45',
   zinc: 'border-zinc-700',
@@ -295,6 +295,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const [analytics, setAnalytics] = useState<AnalyticsData>({});
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<ViewType>(() => resolveInitialView(initialView));
+  const [showDataAudit, setShowDataAudit] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutSession[]>([]);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
@@ -1034,24 +1035,24 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">
                 Syncing...
               </span>
             )}
-            <div className="grid min-h-10 grid-cols-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1 text-xs font-bold">
+            <div className="liquid-segmented grid min-h-10 grid-cols-2 gap-1 p-1 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'imperial' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
-                  }`}
+                data-active={unitSystem === 'imperial' ? 'true' : 'false'}
+                className="liquid-segmented-item px-3"
               >
                 lbs
               </button>
               <button
                 type="button"
                 onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'metric' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
-                  }`}
+                data-active={unitSystem === 'metric' ? 'true' : 'false'}
+                className="liquid-segmented-item px-3"
               >
                 kg
               </button>
@@ -1062,7 +1063,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       {/* Navigation Tabs */}
       <div
-        className={`stagger-item mb-6 grid gap-1 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-1 ${FEATURES.adherenceAnalytics ? 'grid-cols-5' : 'grid-cols-4'}`}
+        className={`liquid-segmented stagger-item mb-6 grid gap-1 p-1 ${FEATURES.adherenceAnalytics ? 'grid-cols-5' : 'grid-cols-4'}`}
       >
         {([
           { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
@@ -1076,10 +1077,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <button
             key={id}
             onClick={() => selectInsightsView(id)}
-            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-black uppercase tracking-[0.08em] transition-colors sm:min-h-11 sm:flex-row sm:gap-2 sm:text-[11px] sm:tracking-[0.14em] ${selectedView === id
-              ? 'bg-zinc-800 text-zinc-100'
-              : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
-              }`}
+            data-active={selectedView === id ? 'true' : 'false'}
+            className="liquid-segmented-item flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[9px] font-black uppercase tracking-[0.08em] sm:min-h-11 sm:flex-row sm:gap-2 sm:text-[11px] sm:tracking-[0.12em]"
           >
             <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
             <span className="min-w-0 truncate">{label}</span>
@@ -1189,60 +1188,78 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.dataAudit && (
             <div className={SECTION_CLASS}>
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className={SECTION_TITLE_CLASS}>DATA AUDIT</h2>
-                <StatusReadout label="Source" value={workoutSyncing ? 'Syncing' : 'Current'} tone={workoutDataError ? 'amber' : 'zinc'} />
+                <h2 className={SECTION_TITLE_CLASS}>Data audit</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowDataAudit((current) => !current)}
+                  className="liquid-icon-button min-h-9 rounded-full px-3 text-xs font-semibold text-zinc-300"
+                  aria-expanded={showDataAudit}
+                >
+                  {showDataAudit ? 'Hide' : 'Show'}
+                </button>
               </div>
-              <p className="mb-3 text-xs leading-relaxed text-zinc-400">
-                {dataAuditSourceLabel}. Metrics use completed, non-warmup raw set rows only.
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Raw Sets</p>
-                  <p className="mt-1 text-2xl font-black italic text-white">{analytics.dataAudit.totalSets}</p>
-                </div>
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Included</p>
-                  <p className="mt-1 text-2xl font-black italic text-emerald-300">{analytics.dataAudit.includedSets}</p>
-                </div>
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Excluded</p>
-                  <p className="mt-1 text-2xl font-black italic text-amber-300">{analytics.dataAudit.excludedSets}</p>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Warmups: {analytics.dataAudit.excludedWarmupSets}
-                </p>
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Incomplete: {analytics.dataAudit.excludedIncompleteSets}
-                </p>
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Invalid: {analytics.dataAudit.excludedInvalidSets}
-                </p>
-              </div>
-              {analytics.dataAudit.topVolumeContributors.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className={METRIC_LABEL_CLASS}>Top raw set contributors</p>
-                  {analytics.dataAudit.topVolumeContributors.slice(0, 3).map((set, index) => (
-                    <div
-                      key={`${set.exerciseKey}-${set.date ?? 'unknown'}-${index}`}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-3`}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-zinc-100">{set.exerciseName}</p>
-                        <p className="mt-0.5 text-[11px] text-zinc-500">
-                          {set.rawWeight}{set.rawWeightUnit} x {set.reps}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-black text-emerald-300">
-                          {set.volumeLoad.toLocaleString()} {weightUnit}
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-zinc-500">e1RM {set.estimated1RM}{weightUnit}</p>
-                      </div>
+              {showDataAudit ? (
+                <>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs leading-relaxed text-zinc-400">
+                      {dataAuditSourceLabel}. Metrics use completed, non-warmup raw set rows only.
+                    </p>
+                    <StatusReadout label="Source" value={workoutSyncing ? 'Syncing' : 'Current'} tone={workoutDataError ? 'amber' : 'zinc'} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Raw Sets</p>
+                      <p className="mt-1 text-2xl font-black italic text-white">{analytics.dataAudit.totalSets}</p>
                     </div>
-                  ))}
-                </div>
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Included</p>
+                      <p className="mt-1 text-2xl font-black italic text-emerald-500">{analytics.dataAudit.includedSets}</p>
+                    </div>
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Excluded</p>
+                      <p className="mt-1 text-2xl font-black italic text-amber-300">{analytics.dataAudit.excludedSets}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Warmups: {analytics.dataAudit.excludedWarmupSets}
+                    </p>
+                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Incomplete: {analytics.dataAudit.excludedIncompleteSets}
+                    </p>
+                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Invalid: {analytics.dataAudit.excludedInvalidSets}
+                    </p>
+                  </div>
+                  {analytics.dataAudit.topVolumeContributors.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className={METRIC_LABEL_CLASS}>Top raw set contributors</p>
+                      {analytics.dataAudit.topVolumeContributors.slice(0, 3).map((set, index) => (
+                        <div
+                          key={`${set.exerciseKey}-${set.date ?? 'unknown'}-${index}`}
+                          className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-3`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-zinc-100">{set.exerciseName}</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">
+                              {set.rawWeight}{set.rawWeightUnit} x {set.reps}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-xs font-black text-emerald-500">
+                              {set.volumeLoad.toLocaleString()} {weightUnit}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-zinc-500">e1RM {set.estimated1RM}{weightUnit}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  {analytics.dataAudit.includedSets} usable sets from {analytics.dataAudit.totalSets} logged sets.
+                </p>
               )}
             </div>
           )}
