@@ -371,7 +371,7 @@
       text-align: center;
     }
 
-    .dock {
+    .route-layer {
       position: absolute;
       left: 18px;
       right: 18px;
@@ -381,46 +381,111 @@
       justify-content: center;
       pointer-events: none;
     }
-    .glass-dock {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: 58px;
-      gap: 3px;
-      min-height: 64px;
-      padding: 7px;
-      border-radius: 999px;
+    .route-command,
+    .route-menu,
+    .desktop-rail .glass-dock {
+      border: 1px solid var(--line-strong);
       background:
-        radial-gradient(90% 120% at 12% -16%, rgba(255, 255, 255, 0.2), transparent 42%),
-        linear-gradient(112deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.02) 42%, transparent),
-        rgba(8, 11, 16, 0.24);
+        radial-gradient(95% 80% at 18% 0%, rgba(255, 255, 255, 0.2), transparent 52%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.068), rgba(255, 255, 255, 0.012)),
+        rgba(8, 11, 16, 0.22);
+      box-shadow:
+        0 24px 72px -48px rgba(0, 0, 0, 1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(30px) saturate(1.34) contrast(1.04);
+      -webkit-backdrop-filter: blur(30px) saturate(1.34) contrast(1.04);
+    }
+    .route-command {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 58px;
+      max-width: calc(100% - 18px);
+      padding: 7px 14px 7px 7px;
+      border-radius: 999px;
       pointer-events: auto;
+      color: rgba(244, 244, 245, 0.82);
     }
-    .dock-item {
-      position: relative;
-      display: grid;
-      place-items: center;
-      color: rgba(244, 244, 245, 0.58);
-      font-size: 10px;
-      font-weight: 800;
-    }
-    .dock-item::before {
-      content: attr(data-icon);
+    .route-orb {
       display: grid;
       place-items: center;
       width: 38px;
       height: 38px;
-      margin-bottom: 2px;
       border-radius: 999px;
-      font-size: 15px;
-      font-weight: 950;
-    }
-    .dock-item.active { color: #d8fff0; }
-    .dock-item.active::before {
       border: 1px solid rgba(255, 255, 255, 0.24);
       background:
         radial-gradient(85% 80% at 28% 10%, rgba(255, 255, 255, 0.28), transparent 52%),
         rgba(255, 255, 255, 0.068);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+      color: #d8fff0;
+      font-size: 13px;
+      font-weight: 950;
+    }
+    .route-copy {
+      display: grid;
+      gap: 2px;
+      min-width: 74px;
+    }
+    .route-copy strong {
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .route-copy span {
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .route-dots {
+      color: rgba(244, 244, 245, 0.55);
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+    .route-menu {
+      position: absolute;
+      left: 50%;
+      bottom: 72px;
+      width: min(286px, calc(100% - 40px));
+      transform: translateX(-50%);
+      padding: 8px;
+      border-radius: 26px;
+      pointer-events: auto;
+    }
+    .route-menu::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      transform: translateX(-50%) rotate(45deg);
+      border-right: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+      background: rgba(20, 23, 29, 0.42);
+      backdrop-filter: blur(26px);
+    }
+    .route-menu-row {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 42px;
+      border-top: 1px solid rgba(255, 255, 255, 0.075);
+      color: rgba(244, 244, 245, 0.86);
+      font-size: 13px;
+      font-weight: 820;
+    }
+    .route-menu-row:first-child { border-top: 0; }
+    .route-menu-row .route-orb {
+      width: 28px;
+      height: 28px;
+      font-size: 11px;
+    }
+    .route-menu-row.active {
+      color: var(--ink);
     }
 
     .list {
@@ -664,8 +729,37 @@
       grid-auto-flow: row;
       grid-auto-rows: 72px;
       grid-template-columns: 1fr;
+      gap: 3px;
+      padding: 7px;
       min-height: 410px;
       border-radius: 34px;
+    }
+    .dock-item {
+      position: relative;
+      display: grid;
+      place-items: center;
+      color: rgba(244, 244, 245, 0.58);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .dock-item::before {
+      content: attr(data-icon);
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      margin-bottom: 2px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 950;
+    }
+    .dock-item.active { color: #d8fff0; }
+    .dock-item.active::before {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background:
+        radial-gradient(85% 80% at 28% 10%, rgba(255, 255, 255, 0.28), transparent 52%),
+        rgba(255, 255, 255, 0.068);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
     }
     .desktop-panel {
       min-height: 0;
@@ -757,7 +851,7 @@
     <section class="intro">
       <div>
         <h1>Liquid Logic Rebuild</h1>
-        <p class="deck">Static mocks for the next Iron Brain pass. The content layer is direct and dark. Glass is reserved for route dock, source-attached menus, topbars, sheets, segmented controls, and focused edit surfaces.</p>
+        <p class="deck">Static mocks for the next Iron Brain pass. The content layer is direct and dark. Glass is reserved for route commands, source-attached menus, sheets, segmented controls, and focused edit surfaces.</p>
       </div>
       <div class="rule-list">
         <p><strong>No nested content containers.</strong> Rows, separators, and spacing carry the content hierarchy.</p>
@@ -801,7 +895,7 @@
               <div class="day-row"><span>T</span><span>F</span><span>S</span><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span><span>M</span><span>T</span><span>W</span></div>
             </section>
           </div>
-          <nav class="dock"><div class="glass-dock"><div class="dock-item active" data-icon="D">Home</div><div class="dock-item" data-icon="L">Log</div><div class="dock-item" data-icon="P">Plans</div><div class="dock-item" data-icon="H">History</div><div class="dock-item" data-icon="I">Insights</div></div></nav>
+          <nav class="route-layer"><div class="route-command"><div class="route-orb">IB</div><div class="route-copy"><strong>Dashboard</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
         </div>
       </article>
 
@@ -833,7 +927,7 @@
               <div class="menu-row"><span>Quick log</span><span>Empty</span></div>
             </aside>
           </div>
-          <nav class="dock"><div class="glass-dock"><div class="dock-item" data-icon="D">Home</div><div class="dock-item active" data-icon="L">Log</div><div class="dock-item" data-icon="P">Plans</div><div class="dock-item" data-icon="H">History</div><div class="dock-item" data-icon="I">Insights</div></div></nav>
+          <nav class="route-layer"><div class="route-command"><div class="route-orb">L</div><div class="route-copy"><strong>Log</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
         </div>
       </article>
 
@@ -857,7 +951,43 @@
               <div class="menu-row"><span>Duplicate</span><span></span></div>
             </aside>
           </div>
-          <nav class="dock"><div class="glass-dock"><div class="dock-item" data-icon="D">Home</div><div class="dock-item" data-icon="L">Log</div><div class="dock-item active" data-icon="P">Plans</div><div class="dock-item" data-icon="H">History</div><div class="dock-item" data-icon="I">Insights</div></div></nav>
+          <nav class="route-layer"><div class="route-command"><div class="route-orb">P</div><div class="route-copy"><strong>Programs</strong><span>Routes</span></div><div class="route-dots">••</div></div></nav>
+        </div>
+      </article>
+
+      <article class="mock-card">
+        <div class="mock-label"><h2>Route command</h2><span>390 x 844</span></div>
+        <div class="phone">
+          <div class="screen">
+            <header class="topbar">
+              <div class="brand">Iron<br>Brain</div>
+              <div class="icon-btn">S</div>
+            </header>
+            <section class="today-block">
+              <p class="micro">Today</p>
+              <div>
+                <h2 class="program-name">Upper-Body Biased Hybrid Split</h2>
+                <p class="session-name">Bench strength + shoulders</p>
+              </div>
+              <div class="metric-row">
+                <div class="metric"><strong>7</strong><span>Moves</span></div>
+                <div class="metric"><strong>15</strong><span>Sets</span></div>
+                <div class="metric"><strong>Week 1</strong><span>Block</span></div>
+                <div class="metric"><strong>Mon</strong><span>Day</span></div>
+              </div>
+              <button class="action">Start training</button>
+            </section>
+          </div>
+          <nav class="route-layer">
+            <div class="route-menu">
+              <div class="route-menu-row active"><div class="route-orb">D</div><span>Dashboard</span><span>Current</span></div>
+              <div class="route-menu-row"><div class="route-orb">L</div><span>Log</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb">P</div><span>Programs</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb">H</div><span>History</span><span></span></div>
+              <div class="route-menu-row"><div class="route-orb">I</div><span>Insights</span><span></span></div>
+            </div>
+            <div class="route-command"><div class="route-orb">IB</div><div class="route-copy"><strong>Dashboard</strong><span>Routes</span></div><div class="route-dots">••</div></div>
+          </nav>
         </div>
       </article>
 

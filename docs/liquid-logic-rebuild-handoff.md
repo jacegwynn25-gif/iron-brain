@@ -13,17 +13,19 @@ The mock covers:
 - Mobile dashboard at `390 x 844`
 - Mobile log/start launchpad at `390 x 844`
 - Mobile programs list at `390 x 844`
+- Mobile route command expanded state at `390 x 844`
 - Mobile guided builder at `390 x 844`
 - Desktop guided builder workspace at `1280 x 720`
 
 ## Locked Direction
 
-- Keep a small Liquid Glass route dock: compact centered dock on mobile, compact side rail on desktop.
-- Split mobile dock islands were reviewed and rejected; they looked visually awkward instead of premium.
-- Treat mobile nav as unresolved until the compact dock is compared against a route-menu/command-button option.
-- Dock routes only: Dashboard, Log, Programs, History, Insights.
+- Replace the persistent mobile tab bar with a single Liquid Glass route command.
+- The route command opens a source-attached route menu with Dashboard, Log, Programs, History, and Insights.
+- Split mobile dock islands and five-item bottom docks were reviewed and rejected; they felt like nav chrome instead of Liquid Glass logic.
+- Keep a compact side rail on desktop where persistent navigation earns its space.
+- In focused workspaces like Builder, do not show global mobile nav; use Back/Done and focused source-attached controls.
 - Move secondary actions into source-attached menus, sheets, and inspectors.
-- Use glass for controls, route dock, topbars, menus, sheets, popovers, segmented controls, and focused overlays.
+- Use glass for route commands, menus, sheets, popovers, segmented controls, and focused overlays.
 - Keep dense content direct: rows, lists, separators, compact metric groups, and whitespace.
 - Avoid nested content containers and glass-on-glass.
 - Avoid blueprint/grid backgrounds; the content canvas should stay dark, calm, and non-decorative.
@@ -54,7 +56,8 @@ References:
 
 1. Shell and tokens
    - Replace remaining visual drift with canonical Liquid v2 variables.
-   - Restyle route navigation as compact glass dock/side rail.
+   - Replace mobile route navigation with a source-attached glass route command.
+   - Keep desktop route navigation as a compact glass side rail.
    - Remove square nav hover states.
    - Establish direct-content rules before page rebuilds.
 
