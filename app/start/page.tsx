@@ -7,6 +7,7 @@ import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../
 import { buildExerciseCatalog, resolveExerciseDisplayName } from '../lib/exercises/catalog';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
+import { useActiveSession } from '../providers/ActiveSessionProvider';
 import QuickLogConfirm from '../components/workout/QuickLogConfirm';
 import { liquidButtonClass } from '../components/ui/liquid';
 import type { DayTemplate } from '../lib/types';
@@ -64,6 +65,7 @@ export default function StartWorkoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { allPrograms, selectedProgram, loading, selectProgram } = useProgramContext();
+  const { isReady: activeSessionReady, isSessionActive } = useActiveSession();
   const namespaceId = user?.id ?? 'guest';
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [programPickerOpen, setProgramPickerOpen] = useState(false);
@@ -136,7 +138,8 @@ export default function StartWorkoutPage() {
   const nextSessionSubtitle = selectedProgramDay?.day
     ? `${selectedProgramDay.day.dayOfWeek} / ${selectedProgramDay.day.name}`
     : null;
-  const primaryActionLabel = 'Start training';
+  const hasActiveWorkout = activeSessionReady && isSessionActive;
+  const primaryActionLabel = hasActiveWorkout ? 'Resume training' : 'Start training';
   const dayControlText = selectedProgramDay?.day
     ? `Week ${selectedProgramDay.weekNumber} / ${selectedProgramDay.day.dayOfWeek}`
     : 'Choose day';
@@ -144,6 +147,10 @@ export default function StartWorkoutPage() {
   const programControlLabel = selectedProgram ? `Change program, ${selectedProgram.name}` : 'Choose program';
 
   const handleStartSession = () => {
+    if (hasActiveWorkout) {
+      router.push('/workout/new');
+      return;
+    }
     if (selectedProgram?.id && effectiveProgress) {
       router.push(
         `/workout/new?program_id=${encodeURIComponent(selectedProgram.id)}&week=${effectiveProgress.weekIndex}&day=${effectiveProgress.dayIndex}&cycle=${effectiveProgress.cycleNumber}`

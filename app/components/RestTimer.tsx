@@ -179,7 +179,7 @@ export default function RestTimer({
   return (
     <div className="fixed inset-0 z-50 bg-black px-6 text-white">
       <div className="h-full flex flex-col items-center justify-center gap-8 text-center">
-        <p className="text-7xl font-black tabular-nums text-white">
+        <p className="workout-timer text-7xl font-black tracking-tight text-white">
           {minutes}:{seconds.toString().padStart(2, '0')}
         </p>
 
@@ -207,7 +207,7 @@ export default function RestTimer({
                 <button
                   type="button"
                   onClick={handleApplyRecommendation}
-                  className="shrink-0 rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
+                  className="liquid-action-button shrink-0 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-950 active:scale-95"
                   data-testid="smart-rest-apply"
                 >
                   Apply

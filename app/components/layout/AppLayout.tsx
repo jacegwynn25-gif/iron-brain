@@ -167,6 +167,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       '.liquid-action-button',
       '.liquid-icon-button',
       '.liquid-control-button',
+      '.cockpit-tool-button',
       '.liquid-command-item',
       '.liquid-route-menu-row',
       '.liquid-menu-row',
@@ -237,6 +238,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     !pathname.startsWith('/workout/active') &&
     pathname !== '/workout/readiness' &&
     pathname !== '/workout/summary';
+  const isWorkoutLoggerRoute = pathname.startsWith('/workout/new');
 
   const navigateTo = useCallback((href: string) => {
     if (href === pathname) return;
@@ -352,7 +354,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const isDashboardRoute = pathname === '/';
   const mainChromeClass = hideBottomNav
-    ? 'pb-12 md:pl-6'
+    ? isWorkoutLoggerRoute
+      ? 'pb-0 md:pl-6'
+      : 'pb-12 md:pl-6'
     : hasActiveMiniBar
       ? 'pb-[10.25rem] md:pb-12 md:pl-28'
     : isDashboardRoute

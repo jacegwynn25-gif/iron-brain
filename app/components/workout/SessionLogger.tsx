@@ -398,25 +398,10 @@ function formatRecommendationSource(source: TrainingRecommendation['source']): s
   return 'Baseline';
 }
 
-function formatRecommendationEvidence(recommendation: TrainingRecommendation): string {
-  const source = recommendation.evidenceSource
-    ? recommendation.evidenceSource.replace(/_/g, ' ')
-    : formatRecommendationSource(recommendation.source);
-  const count = recommendation.evidenceCount ?? 0;
-  const sufficiency = recommendation.dataSufficiency ?? recommendation.confidence;
-  return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
-}
-
-function formatRecommendationGuardrail(recommendation: TrainingRecommendation): string {
-  if (recommendation.blockedReason) return recommendation.blockedReason;
-  if (recommendation.confidence === 'low') return 'Read-only until stronger direct data exists.';
-  return recommendation.confidenceReason ?? 'Review before applying.';
-}
-
 function SmartTargetReadout({
   recommendation,
   onApply,
-  label = 'Smart Target',
+  label = 'Target',
   testId = 'smart-target-card',
   applyTestId = 'smart-target-apply',
 }: {
@@ -442,7 +427,11 @@ function SmartTargetReadout({
     );
 
   return (
-    <div className="liquid-control-strip rounded-[1.2rem] px-3 py-2" data-testid={testId}>
+    <div
+      className="liquid-control-strip rounded-[1.2rem] px-3 py-2"
+      data-testid={testId}
+      aria-label={`Smart target ${targetText}. ${formatRecommendationSource(recommendation.source)} signal.`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-emerald-300">
@@ -452,9 +441,6 @@ function SmartTargetReadout({
             {targetText}
           </p>
         </div>
-        <p className="hidden shrink-0 text-right text-[10px] font-semibold text-zinc-500 min-[390px]:block">
-          {formatRecommendationSource(recommendation.source)} · {formatRecommendationEvidence(recommendation)}
-        </p>
         {canApply && (
           <button
             type="button"
@@ -466,9 +452,6 @@ function SmartTargetReadout({
           </button>
         )}
       </div>
-      <p className="sr-only">
-        {recommendation.reason} {formatRecommendationGuardrail(recommendation)}
-      </p>
     </div>
   );
 }
@@ -973,6 +956,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   // Must be initialized before useWorkoutSession so we can inject the saved state
   const { snapshot, isReady: activeSessionReady, saveSnapshot, clearSession } = useActiveSession();
   const resumeSnapshot = ignoreActiveSnapshot ? null : snapshot;
+  const resumeMeta = resumeSnapshot?.status === 'active' ? resumeSnapshot.meta : null;
   const [sessionWeightUnit, setSessionWeightUnit] = useState<WeightUnit>(() =>
     getSnapshotDefaultWeightUnit(resumeSnapshot, preferredWeightUnit)
   );
@@ -1034,14 +1018,14 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       activeCell: session.activeCell,
       structureDirty: session.structureDirty ?? false,
       meta: {
-        programId: baseProgram.id,
-        programName: baseProgram.name ?? 'Quick Start',
+        programId: resumeMeta?.programId ?? baseProgram.id,
+        programName: resumeMeta?.programName ?? baseProgram.name ?? 'Quick Start',
         weightUnit: sessionWeightUnit,
-        weekNumber: programDayContext?.weekNumber,
-        dayName: programDayContext?.day?.name,
-        cycleNumber: programDayContext?.cycleNumber,
-        weekIndex: programDayContext?.weekIndex,
-        dayIndex: programDayContext?.dayIndex,
+        weekNumber: resumeMeta?.weekNumber ?? programDayContext?.weekNumber,
+        dayName: resumeMeta?.dayName ?? programDayContext?.day?.name,
+        cycleNumber: resumeMeta?.cycleNumber ?? programDayContext?.cycleNumber,
+        weekIndex: resumeMeta?.weekIndex ?? programDayContext?.weekIndex,
+        dayIndex: resumeMeta?.dayIndex ?? programDayContext?.dayIndex,
       },
     };
     saveSnapshot(snap);
@@ -1054,6 +1038,13 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     programDayContext?.dayIndex,
     programDayContext?.weekIndex,
     programDayContext?.weekNumber,
+    resumeMeta?.cycleNumber,
+    resumeMeta?.dayIndex,
+    resumeMeta?.dayName,
+    resumeMeta?.programId,
+    resumeMeta?.programName,
+    resumeMeta?.weekIndex,
+    resumeMeta?.weekNumber,
     saveSnapshot,
     session.activeCell,
     session.blocks,
@@ -1109,15 +1100,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
     // If we are resuming an active session from a snapshot, don't reset
     // just because the program reference changed (which happens on mount).
-    if (resumeSnapshot && session.status === 'active' && resumeSnapshot.status === 'active') {
-      // Only reset if the program ID itself has changed fundamentally
-      if (resumeSnapshot.meta?.programId === baseProgram.id) {
-        return;
-      }
-    }
+    if (resumeSnapshot && session.status === 'active' && resumeSnapshot.status === 'active') return;
 
     reinitializeSession();
-	  }, [hasSessionEdits, reinitializeSession, sessionProgram, resumeSnapshot, session.status, baseProgram.id]);
+	  }, [hasSessionEdits, reinitializeSession, sessionProgram, resumeSnapshot, session.status]);
 
   useEffect(() => {
     if (readinessLoading) return;
@@ -2857,7 +2843,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   return (
     <>
       <div
-        className="relative flex min-h-[100dvh] w-full flex-col bg-transparent text-white"
+        className="relative flex min-h-[calc(100dvh_-_env(safe-area-inset-top))] w-full flex-col bg-transparent text-white"
         data-swipe-scope="local"
       >
 
@@ -2879,7 +2865,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     type="button"
                     onClick={requestCancelWorkout}
                     disabled={isFinishingWorkout || isDiscardingWorkout}
-                    className="liquid-icon-button group inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-xs font-semibold text-rose-200 transition-colors hover:text-rose-100 disabled:cursor-wait disabled:opacity-50"
+                    className="liquid-icon-button group inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-xs font-semibold text-zinc-300 transition-colors hover:text-zinc-100 disabled:cursor-wait disabled:opacity-50"
                     aria-label="Discard Session"
                   >
                     <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
@@ -3050,10 +3036,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="relative flex-1 w-full select-none overflow-y-auto pb-3"
+              className="workout-cockpit relative flex min-h-0 flex-1 w-full select-none flex-col overflow-hidden pb-2"
               ref={cockpitScrollRef}
             >
-              <header className="mb-2 px-4 pt-5">
+              <header className="workout-cockpit-header mb-2 px-4 pt-5">
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
@@ -3087,11 +3073,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   </div>
                 </div>
 
-                <div className="mt-4 min-w-0">
+                <div className="workout-cockpit-title mt-4 min-w-0">
                   {focusedRef && (() => {
                     const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
                     return (
-                      <div className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold text-zinc-500">
+                      <div className="workout-cockpit-muscle-row mb-1.5 flex items-center gap-2 text-[10px] font-semibold text-zinc-500">
                         <ExerciseBadge style={style} />
                         <span className="capitalize">{style.label.toLowerCase()}</span>
                         <span className="h-1 w-1 rounded-full bg-zinc-700" />
@@ -3099,16 +3085,16 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       </div>
                     );
                   })()}
-                  <h2 className="iron-display break-words text-[1.85rem] text-white sm:text-4xl">
+                  <h2 className="iron-display workout-cockpit-exercise-title break-words text-[1.85rem] text-white sm:text-4xl">
                     {focusedExerciseDisplayName ?? 'Exercise'}
                   </h2>
                 </div>
               </header>
 
 
-              <div className="mt-2 px-4">
-                <div className="flex flex-col justify-center gap-2.5">
-                  <div className="flex items-end justify-between border-y border-white/8 py-2.5">
+              <div className="workout-cockpit-main mt-2 min-h-0 flex-1 px-4">
+                <div className="workout-cockpit-stack flex h-full flex-col justify-center gap-2.5">
+                  <div className="workout-cockpit-set-row flex items-end justify-between border-y border-white/8 py-2.5">
                     <div>
                       <p className="text-sm font-black text-zinc-100">
                         Set {focusSetNumber}{focusTotalSets > 0 ? ` of ${focusTotalSets}` : ''}
@@ -3174,11 +3160,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   />
 
                   {!bodyweightExercise && (
-                    <div className="grid grid-cols-2 gap-2" data-testid="workout-tool-buttons">
+                    <div className="workout-cockpit-tools grid grid-cols-2 gap-2" data-testid="workout-tool-buttons">
                       <button
                         type="button"
                         onClick={() => openCockpitTool('plates')}
-                        className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
+                        className="cockpit-tool-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open plate calculator"
                       >
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-zinc-300">
@@ -3197,7 +3183,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       <button
                         type="button"
                         onClick={() => openCockpitTool('warmup')}
-                        className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
+                        className="cockpit-tool-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open warm-up calculator"
                       >
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-zinc-300">
@@ -3216,7 +3202,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
 
                   {!bodyweightExercise && (
-                    <div className="liquid-control-strip flex items-center justify-between gap-3 rounded-[1.2rem] px-3 py-1.5">
+                    <div className="workout-cockpit-unit liquid-control-strip flex items-center justify-between gap-3 rounded-[1.2rem] px-3 py-1.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="text-xs font-semibold text-zinc-500">Set unit</p>
                         <button
@@ -3280,8 +3266,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 </div>
               </div>
 
-              <footer className="mt-3 flex w-full flex-col items-center px-4 pb-2">
-                <div className="grid h-14 w-full grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-2.5">
+              <footer className="workout-cockpit-footer mt-3 flex w-full flex-col items-center px-4 pb-2">
+                <div className="workout-cockpit-logbar grid h-14 w-full grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-2.5">
                   <button
                     type="button"
                     onClick={handleLogSet}
@@ -3380,7 +3366,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[145] flex items-start justify-center bg-black/35 p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+            className="fixed inset-0 z-[145] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setActiveTool(null)}
           >
@@ -3389,7 +3375,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
+              className="liquid-sheet-panel liquid-focus-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
               data-testid={activeTool === 'plates' ? 'load-calculator' : 'warmup-calculator'}
             >
@@ -3419,7 +3405,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-2 gap-3">
-	                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+	                  <div className="liquid-solid-cell rounded-xl p-3">
                     <HardyStepper
                       layout="vertical"
                       value={resolvedToolTargetWeight}
@@ -3429,7 +3415,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       valueClassName="text-zinc-100 text-2xl sm:text-3xl"
                     />
                   </div>
-	                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+	                  <div className="liquid-solid-cell rounded-xl p-3">
                     <HardyStepper
                       layout="vertical"
                       value={resolvedToolBarWeight}
@@ -3485,7 +3471,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[140] flex items-start justify-center bg-black/35 p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+            className="fixed inset-0 z-[140] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setInfoPanel(null)}
           >
@@ -3494,7 +3480,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
+              className="liquid-sheet-panel liquid-focus-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
             >
 	              <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4">
@@ -3522,11 +3508,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       Choose the unit for the set you are logging right now. Iron Brain saves that set exactly as entered, so old sets keep their original unit even if your display preference changes later.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+		                      <div className="liquid-solid-cell rounded-xl p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">LBS</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Use for pound-based loads.</p>
                       </div>
-	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+		                      <div className="liquid-solid-cell rounded-xl p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">KG</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Use for kilogram-based loads.</p>
                       </div>
@@ -3538,11 +3524,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       RPE means rate of perceived exertion. Use it to record how hard the set felt on a 1-10 scale after the set is done.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+		                      <div className="liquid-solid-cell rounded-xl p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RPE</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Higher means closer to max effort.</p>
                       </div>
-	                      <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+		                      <div className="liquid-solid-cell rounded-xl p-3">
                         <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">RIR</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-400">Estimated reps left in reserve.</p>
                       </div>
@@ -3922,7 +3908,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={handleConfirmDiscardWorkout}
                   disabled={isDiscardingWorkout}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/90 px-4 text-xs font-black italic tracking-tight text-zinc-950 active:bg-rose-500 disabled:cursor-wait disabled:opacity-70"
+                  className="liquid-control-button flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black italic tracking-tight text-zinc-100 disabled:cursor-wait disabled:opacity-70"
                 >
                   <Trash2 className="h-4 w-4" strokeWidth={3} />
                   {isDiscardingWorkout ? 'Discarding...' : 'Discard'}
@@ -4209,7 +4195,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 type="button"
                 onClick={requestCancelWorkout}
                 disabled={isFinishingWorkout || isDiscardingWorkout}
-                className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 py-4 text-xs font-semibold text-rose-400 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
+                className="liquid-control-button w-full rounded-2xl py-4 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-40"
               >
                 Cancel and discard workout
               </button>

@@ -135,15 +135,15 @@ async function installWorkoutQaBootstrap(page) {
     localStorage.setItem('iron_brain_selected_program__guest', program.id);
     localStorage.setItem('iron_brain_workout_history__default', JSON.stringify(history));
   });
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
   await expectVisible(page.getByTestId('dashboard-command-center'), 'Dashboard command center loaded');
   await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/Smart Start Day/i), 'Dashboard smart action shows planned session');
   await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^START TRAINING$/i), 'Dashboard smart action has primary start button');
   await expectVisible(page.getByTestId('dashboard-next-session').getByText(/Mon/i), 'Dashboard next session shows selected training day');
   await expectVisible(page.getByTestId('dashboard-training-pulse').getByText(/^Sets$/i).first(), 'Dashboard training pulse loaded');
-  await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Bench Press \(Touch & Go\)/i).tap({ timeout: 10000 });
-  await expectVisible(page.getByText(/SMART TARGET/i), 'Smart target card shown for program-start set');
+  await expectVisible(page.getByTestId('smart-target-card'), 'Smart target card shown for program-start set');
   await expectVisible(page.getByText(/200 LBS X 6 REPS/i), 'Workout start prefill prefers recent history over stale fixed program weight');
   await page.getByRole('button', { name: /Back/i }).click();
   await page.close();
@@ -155,7 +155,7 @@ async function installWorkoutQaBootstrap(page) {
   await installWorkoutQaBootstrap(page);
 
   console.log('▶️  Opening workout logger...');
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await expectVisible(page.getByRole('button', { name: /Review Finish/i }), 'Overview loaded');
 
   console.log('▶️  Checking custom add/cancel/remove flow...');
@@ -265,10 +265,12 @@ async function installWorkoutQaBootstrap(page) {
     await page.getByRole('button', { name: /^Back$/i }).first().tap({ timeout: 10000 });
     await expectVisible(page.getByText(/Bench Press/i).first(), `Cockpit loop ${index + 1} returned to overview`);
   }
-  await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
   await expectVisible(page.getByTestId('dashboard-smart-action').getByText(/^RESUME SESSION$/i), 'Dashboard resume CTA survives leaving logger');
-  await page.goto(`${BASE_URL}?type=empty`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE_URL}?type=empty`, { waitUntil: 'domcontentloaded' });
   await expectVisible(page.getByText(/Bench Press/i).first(), 'Stale quick-start URL resumes existing active workout');
+  await page.goto(`${BASE_URL}?program_id=qa_smart_start_program&week=0&day=0&cycle=1`, { waitUntil: 'domcontentloaded' });
+  await expectVisible(page.getByText(/Bench Press/i).first(), 'Stale planned URL resumes existing active workout');
   const resumedStartTime = await page.evaluate(() => {
     const activeKey = Object.keys(localStorage).find((key) => key.includes('iron_brain_active_session_v1'));
     const raw = activeKey ? localStorage.getItem(activeKey) : null;
@@ -392,7 +394,7 @@ async function installWorkoutQaBootstrap(page) {
   console.log('✅ Finished workout saves skipped sets without fake performance numbers');
 
   console.log('▶️  Checking history...');
-  await page.goto('http://localhost:3000/history', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:3000/history', { waitUntil: 'domcontentloaded' });
   await expectVisible(page.getByRole('heading', { name: /Workout History/i }).first(), 'History page loaded');
   await page.getByRole('button', { name: /View details/i }).first().click();
   await expectVisible(page.getByTestId('history-session-details').first(), 'History details expand on first tap');
