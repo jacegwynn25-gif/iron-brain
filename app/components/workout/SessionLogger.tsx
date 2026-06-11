@@ -376,14 +376,14 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
 
   return (
     <span
-      className="inline-flex overflow-hidden rounded-full p-[1.5px]"
+      className="inline-flex overflow-hidden rounded-full p-px opacity-85"
       style={ringStyle}
     >
       <span
-        className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/5"
+        className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white/8"
         style={{
-          background: 'radial-gradient(circle at 35% 22%, rgba(255,255,255,0.14), rgba(24,24,27,0.72) 42%, rgba(9,9,11,0.98) 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
+          background: 'rgba(12,14,18,0.76)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.055)',
           color: style.primaryColor,
         }}
       >
@@ -396,7 +396,7 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
 function formatSmartWeight(value: number | null | undefined, unit: WeightUnit | undefined): string | null {
   if (value == null || !Number.isFinite(value)) return null;
   const display = unit === 'kg' ? Number(value.toFixed(2)).toString() : Math.round(value).toString();
-  return `${display} ${unit?.toUpperCase() ?? 'LBS'}`;
+  return `${display} ${unit ?? 'lbs'}`;
 }
 
 function formatRecommendationSource(source: TrainingRecommendation['source']): string {
@@ -442,9 +442,9 @@ function SmartTargetReadout({
   if (!recommendation) return null;
 
   const targetWeight = formatSmartWeight(recommendation.target?.weight, recommendation.target?.weightUnit);
-  const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} REPS` : null;
-  const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s REST` : null;
-  const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'BASELINE';
+  const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} reps` : null;
+  const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s rest` : null;
+  const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'Baseline';
   const canApply =
     recommendationHasApplyPatch(recommendation) &&
     recommendation.confidence !== 'low' &&
@@ -456,19 +456,19 @@ function SmartTargetReadout({
 
   return (
     <div
-      className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+      className="liquid-control-strip rounded-[1.2rem] px-3 py-2"
       data-testid={testId}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-emerald-300">
+          <p className="text-xs font-semibold text-emerald-300">
             {label}
           </p>
-          <p className="mt-0.5 truncate font-mono text-base font-black uppercase tracking-tight text-white">
+          <p className="mt-0.5 truncate text-base font-black tracking-tight text-white">
             {targetText}
           </p>
         </div>
-        <p className="hidden shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500 min-[390px]:block">
+        <p className="hidden shrink-0 text-right text-[10px] font-semibold text-zinc-500 min-[390px]:block">
           {formatRecommendationSource(recommendation.source)} · {formatRecommendationEvidence(recommendation)}
         </p>
       </div>
@@ -477,7 +477,7 @@ function SmartTargetReadout({
           <p className="truncate text-[11px] leading-snug text-zinc-400">
             {recommendation.reason}
           </p>
-          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+          <p className="truncate text-[10px] font-semibold text-zinc-600">
             {formatRecommendationGuardrail(recommendation)}
           </p>
         </div>
@@ -485,7 +485,7 @@ function SmartTargetReadout({
           <button
             type="button"
             onClick={() => onApply(recommendation)}
-            className="shrink-0 rounded-lg border border-emerald-400/40 bg-emerald-400 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-950 shadow-[0_12px_28px_-20px_rgba(52,211,153,0.9)] active:scale-95"
+            className="liquid-action-button shrink-0 rounded-lg px-3 py-2 text-[10px] font-black italic tracking-tight text-zinc-950 active:scale-95"
             data-testid={applyTestId}
           >
             Apply
@@ -511,7 +511,7 @@ function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
           <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
             Per Side
           </p>
-          <p className="mt-1 font-mono text-2xl font-black uppercase tracking-tight text-white">
+          <p className="mt-1 text-2xl font-black tracking-tight text-white">
             {formatToolWeight(plateLoad.sideWeight, plateLoad.unit)}
           </p>
         </div>
@@ -535,7 +535,7 @@ function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
         {plateLoad.platesPerSide.length > 0 ? (
           plateLoad.platesPerSide.map((plate) => (
             <div key={plate.weight} className="flex items-center justify-between border-t border-white/8 pt-2">
-              <span className="font-mono text-sm font-black text-zinc-100">
+              <span className="text-sm font-black tabular-nums text-zinc-100">
                 {formatToolWeight(plate.weight, plateLoad.unit)}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
@@ -579,7 +579,7 @@ function WarmupPlanPreview({
             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
               {set.label}
             </span>
-            <span className="font-mono text-sm font-black uppercase text-zinc-100">
+            <span className="text-sm font-black tabular-nums text-zinc-100">
               {formatToolWeight(set.weight, unit)} x {set.reps}
             </span>
           </div>
@@ -2881,7 +2881,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   return (
     <>
       <div
-        className="relative w-full min-h-[100dvh] bg-zinc-950 text-white flex flex-col"
+        className="relative flex min-h-[100dvh] w-full flex-col bg-transparent text-white"
         data-swipe-scope="local"
       >
 
@@ -2893,33 +2893,34 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 w-full overflow-y-auto pb-32 space-y-8"
+              className="w-full flex-1 space-y-7 overflow-y-auto pb-32"
               ref={overviewScrollRef}
               data-swipe-ignore="true"
             >
-              <div className="px-4 pt-12 pb-4">
-                <div className="mb-8 flex items-center justify-between">
+              <div className="px-4 pb-2 pt-12">
+                <div className="mb-7 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={requestCancelWorkout}
                     disabled={isFinishingWorkout || isDiscardingWorkout}
-                    className="group inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/25 bg-zinc-950/80 px-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/10 active:bg-rose-500/15 disabled:cursor-wait disabled:opacity-50"
+                    className="liquid-icon-button group inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-xs font-semibold text-rose-200 transition-colors hover:text-rose-100 disabled:cursor-wait disabled:opacity-50"
+                    aria-label="Discard Session"
                   >
                     <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
-                    <span>Discard Session</span>
+                    <span>Discard session</span>
                   </button>
-                  <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3.5 py-2">
+                  <div className="liquid-control-strip flex items-center gap-2 rounded-full px-3.5 py-2">
                     <Timer className="h-4 w-4 text-emerald-400" />
-                    <span className="font-mono text-lg font-bold tabular-nums text-emerald-300">{elapsedDisplay}</span>
+                    <span className="text-lg font-black tabular-nums tracking-tight text-emerald-300">{elapsedDisplay}</span>
                   </div>
                 </div>
 
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">
+                    <p className="iron-label">
                       {readinessLabel}
                     </p>
-                    <p className="text-6xl font-black text-white">
+                    <p className="mt-1 text-6xl font-black tracking-tight text-white">
                       {Math.round(readinessScore)}
                     </p>
                   </div>
@@ -2927,13 +2928,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </div>
 
 
-              <div
-                className="mx-4 divide-y divide-white/8 border-y border-white/8"
-              >
+              <div className="mx-4 divide-y divide-white/8 border-y border-white/8">
                 {exerciseRefs.map((entry) => {
                   const style = getExerciseStyle(entry.exercise, resolveMuscleProfile);
                   const displayName = getExerciseDisplayName(entry.exercise);
                   const bodyweightExercise = isBodyweight(displayName);
+                  const setCount = entry.exercise.sets.length;
 
                   return (
                     <div
@@ -2949,10 +2949,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         className="flex"
                         style={{ width: 'calc(100% + 4rem)' }}
                       >
-                      <div
-                        className="shrink-0 py-4"
-                        style={{ width: 'calc(100% - 4rem)' }}
-                      >
+                      <div className="shrink-0 py-4" style={{ width: 'calc(100% - 4rem)' }}>
                       <div className="flex items-start gap-3">
                         <button
                           type="button"
@@ -2962,26 +2959,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                           }}
                           className="min-w-0 flex-1 touch-manipulation text-left active:scale-[0.995]"
                         >
-                          <div className="mb-1 flex items-center gap-2">
+                          <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold text-zinc-500">
                             <ExerciseBadge style={style} />
-                            <span
-                              className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
-                                }`}
-                              style={{
-                                color: style.isCompound ? undefined : style.primaryColor,
-                                backgroundImage: style.isCompound
-                                  ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                                  : undefined,
-                              }}
-                            >
-                              {style.label}
-                            </span>
-                            <span
-                              className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                              style={{ color: style.secondaryColor }}
-                            >
-                              {style.isCompound ? 'COMP' : 'ISO'}
-                            </span>
+                            <span className="capitalize">{style.label.toLowerCase()}</span>
+                            <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                            <span>{setCount} {setCount === 1 ? 'set' : 'sets'}</span>
                           </div>
                           <p className="break-words text-3xl font-black italic leading-tight text-white">
                             {displayName}
@@ -3034,11 +3016,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                       event.stopPropagation();
                                       handleOpenFocus(entry, set.id);
                                     }}
-                                    className={`whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-mono ${set.skipped
-                                      ? 'border-amber-500/50 bg-amber-500/10 font-bold uppercase text-amber-300'
+                                    className={`whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${set.skipped
+                                      ? 'border-amber-500/35 bg-amber-500/[0.08] uppercase text-amber-300'
                                       : set.completed
-                                        ? 'border-emerald-500/50 bg-emerald-500/10 font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                                      : 'border-zinc-800 bg-zinc-900 text-zinc-600'
+                                        ? 'border-emerald-500/36 bg-emerald-500/[0.085] text-emerald-300'
+                                      : 'border-white/8 bg-white/[0.035] text-zinc-500 hover:border-white/14 hover:text-zinc-300'
                                       }`}
                                   >
                                     {label}
@@ -3071,7 +3053,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     setSearchQuery('');
                     setIsAddMovementOpen(true);
                   }}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] py-4 text-sm font-semibold text-zinc-300 transition-all hover:bg-white/[0.08] hover:text-zinc-100"
+                  className="liquid-control-button my-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold text-zinc-300 transition-all hover:text-zinc-100"
                 >
                   <Plus className="h-5 w-5" />
                   Add Exercise
@@ -3087,9 +3069,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     setShareStatusMessage(null);
                     setIsSummaryOpen(true);
                   }}
-                  className="w-full bg-emerald-500 text-zinc-950 font-black tracking-widest uppercase py-4 rounded-2xl shadow-lg shadow-emerald-500/20"
+                  className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950"
                 >
-                  Review Finish
+                  Review finish
                 </button>
               </div>
             </motion.div>
@@ -3117,7 +3099,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         overviewScrollRef.current?.scrollTo({ top: overviewScrollPositionRef.current });
                       });
                     }}
-                    className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/70 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white active:bg-zinc-900"
+                    className="liquid-icon-button mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-white"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     <span className="sr-only">Back</span>
@@ -3130,23 +3112,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       return (
                         <div className="mb-0.5 flex items-center gap-2">
                           <ExerciseBadge style={style} />
-                          <span
-                            className={`text-xs font-bold tracking-[0.2em] ${style.isCompound ? 'bg-clip-text text-transparent' : ''
-                              }`}
-                            style={{
-                              color: style.isCompound ? undefined : style.primaryColor,
-                              backgroundImage: style.isCompound
-                                ? `linear-gradient(120deg, ${style.primaryColor} 0%, ${style.secondaryColor} 100%)`
-                                : undefined,
-                            }}
-                          >
-                            {style.label}
+                          <span className="text-[10px] font-semibold capitalize text-zinc-500">
+                            {style.label.toLowerCase()}
                           </span>
-                          <span
-                            className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                            style={{ color: style.secondaryColor }}
-                          >
-                            {style.isCompound ? 'COMP' : 'ISO'}
+                          <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                          <span className="text-[10px] font-semibold text-zinc-500">
+                            {style.isCompound ? 'compound' : 'isolation'}
                           </span>
                         </div>
                       );
@@ -3162,7 +3133,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               <div className="mt-2 px-4">
                 <div className="flex flex-col justify-center gap-2.5">
                   <div className="flex items-center justify-between">
-                    <p className="text-zinc-500 text-xs uppercase">Current Set</p>
+                    <p className="text-xs font-semibold text-zinc-500">Current set</p>
                     <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
                   </div>
 
@@ -3220,17 +3191,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       <button
                         type="button"
                         onClick={() => openCockpitTool('plates')}
-                        className="group flex min-h-11 items-center gap-2 rounded-xl border border-zinc-900 bg-zinc-950/75 px-2.5 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open plate calculator"
                       >
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-emerald-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-emerald-300">
                           <Calculator className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-zinc-200">
+                          <span className="block text-xs font-semibold text-zinc-200">
                             Plates
                           </span>
-                          <span className="mt-0.5 hidden truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 min-[390px]:block">
+                          <span className="mt-0.5 hidden truncate text-[10px] font-semibold text-zinc-600 min-[390px]:block">
                             Per side
                           </span>
                         </span>
@@ -3239,17 +3210,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       <button
                         type="button"
                         onClick={() => openCockpitTool('warmup')}
-                        className="group flex min-h-11 items-center gap-2 rounded-xl border border-zinc-900 bg-zinc-950/75 px-2.5 text-left transition-colors hover:border-zinc-800 active:bg-zinc-900"
+                        className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open warm-up calculator"
                       >
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-amber-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-amber-300">
                           <Flame className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-zinc-200">
-                            Warm-Up
+                          <span className="block text-xs font-semibold text-zinc-200">
+                            Warm-up
                           </span>
-                          <span className="mt-0.5 hidden truncate text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 min-[390px]:block">
+                          <span className="mt-0.5 hidden truncate text-[10px] font-semibold text-zinc-600 min-[390px]:block">
                             Build ladder
                           </span>
                         </span>
@@ -3258,19 +3229,19 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
 
                   {!bodyweightExercise && (
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-900 bg-zinc-950/70 px-3 py-1.5">
+                    <div className="liquid-control-strip flex items-center justify-between gap-3 rounded-[1.2rem] px-3 py-1.5">
                       <div className="flex min-w-0 items-center gap-2">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">Set Unit</p>
+                        <p className="text-xs font-semibold text-zinc-500">Set unit</p>
                         <button
                           type="button"
                           onClick={() => setInfoPanel('set-unit')}
                           aria-label="What does set unit mean?"
-                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-950 text-zinc-500 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
+                          className="liquid-icon-button inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-emerald-300"
                         >
                           <Info className="h-3 w-3" />
                         </button>
                       </div>
-                      <div className="grid shrink-0 grid-cols-2 rounded-lg border border-zinc-800 bg-zinc-900/70 p-0.5">
+                      <div className="grid shrink-0 grid-cols-2 rounded-lg bg-white/[0.035] p-0.5">
                         {(['lbs', 'kg'] as WeightUnit[]).map((unit) => (
                           <button
                             key={unit}
@@ -3278,7 +3249,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                             aria-label={unit}
                             onClick={() => handleSetUnitChange(unit)}
                             className={`min-h-8 min-w-12 rounded-md px-2.5 text-[10px] font-black uppercase tracking-[0.16em] transition-colors ${currentSetWeightUnit === unit
-                              ? 'bg-emerald-400 text-zinc-950 shadow-[0_10px_24px_-18px_rgba(52,211,153,0.9)]'
+                              ? 'bg-white/[0.13] text-emerald-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
                               : 'text-zinc-500 hover:text-zinc-200'
                               }`}
                           >
@@ -3327,7 +3298,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   <button
                     type="button"
                     onClick={() => setIsHistoryOpen(true)}
-                    className="flex-1 h-full flex items-center justify-center rounded-2xl text-zinc-400 hover:bg-zinc-800/50 transition-colors active:scale-95 cursor-pointer"
+                    className="liquid-control-button flex h-full flex-1 cursor-pointer items-center justify-center rounded-2xl text-zinc-400 transition-colors active:scale-95"
                   >
                     <History className="w-5.5 h-5.5" />
                   </button>
@@ -3336,17 +3307,17 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     type="button"
                     onClick={handleLogSet}
                     disabled={!focusContext}
-                    className={`flex-[2] mx-1.5 h-full rounded-2xl flex items-center justify-center text-zinc-950 font-black text-base tracking-wider active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 ${justLogged ? 'bg-emerald-400 shadow-[0_0_20px_6px_rgba(52,211,153,0.45)]' : 'bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'}`}
+                    className={`liquid-action-button mx-1.5 flex h-full flex-[2] cursor-pointer items-center justify-center rounded-2xl text-sm font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98] disabled:opacity-40 ${justLogged ? 'brightness-110' : ''}`}
                   >
-                    {isEditingSet ? 'SAVE CHANGES' : 'LOG SET'}
+                    {isEditingSet ? 'Save changes' : 'Log set'}
                   </button>
 
                   <button
                     type="button"
                     onClick={handleOpenNotes}
-                    className={`flex-1 h-full flex items-center justify-center rounded-2xl transition-colors active:scale-95 cursor-pointer ${currentSetNote
-                      ? 'bg-emerald-500/10 text-emerald-300'
-                      : 'text-zinc-400 hover:bg-zinc-800/50'
+                    className={`liquid-control-button flex h-full flex-1 cursor-pointer items-center justify-center rounded-2xl transition-colors active:scale-95 ${currentSetNote
+                      ? 'text-emerald-300'
+                      : 'text-zinc-400'
                       }`}
                   >
                     <FileText className="w-5.5 h-5.5" />
@@ -3358,10 +3329,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <button
                       type="button"
                       onClick={handleSkipSet}
-                      className="group flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/40 px-5 py-2 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 transition-all hover:bg-zinc-800 hover:text-zinc-300 active:scale-95"
+                      className="liquid-icon-button group flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold text-zinc-500 transition-all hover:text-zinc-300 active:scale-95"
                     >
                       <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
-                      <span>Skip Set</span>
+                      <span>Skip set</span>
                     </button>
                   </div>
                 )}
@@ -3616,7 +3587,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
           >
             <div className="flex items-center justify-between mb-8">
               <div>
-                <p className="text-zinc-500 text-[10px] font-mono uppercase tracking-[0.4em]">EXERCISE HISTORY</p>
+                <p className="iron-label">Exercise history</p>
                 <h3 className="text-white text-2xl font-black mt-1 uppercase italic tracking-tighter">
                   {focusedExerciseDisplayName}
                 </h3>
@@ -3637,7 +3608,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   return (
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                       <History className="w-10 h-10 text-zinc-800 mb-4" />
-                      <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">No previous data found</p>
+                      <p className="text-xs font-semibold text-zinc-500">No previous data found</p>
                     </div>
                   );
                 }
@@ -3649,14 +3620,14 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   return (
                     <div key={session.id} className="group relative">
                       <div className="mb-3 flex items-center justify-between">
-                        <p className="text-xs font-mono uppercase tracking-[0.2em] text-emerald-400">
+                        <p className="text-xs font-bold text-emerald-400">
                           {new Date(session.date).toLocaleDateString(undefined, {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric'
                           })}
                         </p>
-                        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
+                        <p className="text-[10px] font-semibold text-zinc-600">
                           {session.dayName || 'Workout'}
                         </p>
                       </div>
@@ -3668,7 +3639,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                             className="flex items-center justify-between rounded-xl bg-zinc-900/40 border border-zinc-900/50 px-4 py-3"
                           >
                             <div className="flex items-center gap-4">
-                              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest w-4">
+                              <span className="w-4 text-[10px] font-bold text-zinc-600">
                                 {setIdx + 1}
                               </span>
                               <div className="flex items-baseline gap-1">
@@ -3689,7 +3660,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                 </span>
                               )}
                               {set.e1rm && (
-                                <span className="text-[9px] font-mono text-emerald-500/60 font-bold uppercase tracking-wider">
+                                <span className="text-[9px] font-bold text-emerald-500/60">
                                   {Math.round(set.e1rm)} E1RM
                                 </span>
                               )}
@@ -3800,7 +3771,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
                 <div className="flex flex-1 flex-col items-center justify-center gap-10">
                   <div className="text-center">
-                    <p className="text-xs font-mono uppercase tracking-[0.35em] text-zinc-500">Adding</p>
+                    <p className="iron-label">Adding</p>
                     <p className="mt-2 text-2xl font-black text-white">{pendingAddName}</p>
                   </div>
 
@@ -3892,13 +3863,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                                 : undefined,
                             }}
                           >
-                            {style.label}
+                            {style.label.toLowerCase()}
                           </span>
-                          <span
-                            className="text-[9px] font-mono uppercase tracking-[0.35em]"
-                            style={{ color: style.secondaryColor }}
-                          >
-                            {style.isCompound ? 'COMP' : 'ISO'}
+                          <span className="text-[10px] font-semibold text-zinc-500">
+                            {style.isCompound ? 'Compound' : 'Isolation'}
                           </span>
                         </div>
                         <p className="text-white text-xl font-bold">{exercise.name}</p>
@@ -4015,7 +3983,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     Back
                   </button>
                 </div>
-                <p className="text-xs font-mono uppercase tracking-[0.4em] text-zinc-500 text-center">
+                <p className="iron-label text-center">
                   SESSION REPORT
                 </p>
 
@@ -4104,7 +4072,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       >
                         {bar.overflow > 0 && (
                           <div
-                            className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[8px] font-mono tracking-wide text-white/80"
+                            className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[8px] font-bold tabular-nums text-white/80"
                             style={{
                               backgroundColor: 'rgba(0,0,0,0.45)',
                               boxShadow: `0 0 10px ${bar.glow}`,
@@ -4121,7 +4089,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
                 {legendItems.length > 0 && (
                   <div className="mb-10 text-center">
-                    <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-600">
+                    <p className="text-[10px] font-semibold text-zinc-600">
                       Muscle Map
                     </p>
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.25em] text-zinc-500">
@@ -4146,7 +4114,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
                 {summarySmartRecommendations.length > 0 && (
                   <div className="mb-10" data-testid="next-session-adjustments">
-                    <p className="text-center text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                    <p className="text-center text-[10px] font-black text-emerald-300">
                       Next Session Adjustments
                     </p>
                     <div className="mt-3 space-y-2">
@@ -4174,11 +4142,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
                 {projectedPrHits.length > 0 && (
                   <div className="mb-10">
-                    <p className="text-center text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
+                    <p className="text-center text-[10px] font-black text-emerald-300">
                       Projected PRs
                     </p>
                     {isPrBaselineSyncing && (
-                      <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-[0.24em] text-zinc-500">
+                      <p className="mt-2 text-center text-[10px] font-semibold text-zinc-500">
                         Syncing cloud baseline
                       </p>
                     )}
@@ -4282,7 +4250,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
           >
             <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-[0.65rem] font-mono uppercase tracking-[0.18em] text-zinc-500">
+                <p className="text-[0.65rem] font-semibold text-zinc-500">
                   {activeInput.field === 'weight' ? 'Weight' : 'Reps'}
                 </p>
                 <button

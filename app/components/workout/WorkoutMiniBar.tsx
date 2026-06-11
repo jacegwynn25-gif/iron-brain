@@ -85,13 +85,13 @@ export default function WorkoutMiniBar() {
                                 </span>
                             )}
                         </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
+                        <span className="text-[10px] font-semibold text-zinc-400">
                             {completed}/{total} sets
                         </span>
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <span className="font-mono text-sm font-bold tabular-nums text-emerald-300">
+                    <span className="text-sm font-black tabular-nums tracking-tight text-emerald-300">
                         {elapsed}
                     </span>
                     <ChevronUp className="h-4 w-4 text-emerald-400/60" />

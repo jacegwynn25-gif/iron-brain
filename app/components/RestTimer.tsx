@@ -199,7 +199,7 @@ export default function RestTimer({
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
                   Next Target
                 </p>
-                <p className="mt-1 font-mono text-xl font-black uppercase text-white">
+                <p className="mt-1 text-xl font-black tracking-tight text-white">
                   {smartTargetText ?? smartRecommendation.title}
                 </p>
               </div>

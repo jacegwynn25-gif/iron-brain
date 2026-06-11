@@ -25,8 +25,8 @@ import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '@/a
 import { calculateSetVolumeLbs, isPerformedSetLog } from '@/app/lib/stats/set-metrics';
 import { AuthModal } from './Auth';
 import {
-  ActionSheet,
   IconButton,
+  LiquidActionMenu,
   LiquidSurface,
   liquidButtonClass,
 } from '@/app/components/ui/liquid';
@@ -105,7 +105,6 @@ export default function Dashboard() {
   const { workouts, loading: workoutsLoading } = useWorkoutDataContext();
   const { selectedProgram, loading: programsLoading } = useProgramContext();
   const [recentPrHits, setRecentPrHits] = useState<PersonalRecordHit[]>([]);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [nowMs, setNowMs] = useState<number | null>(null);
   const namespaceId = user?.id ?? 'guest';
@@ -424,9 +423,41 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <IconButton label="Open session options" onClick={() => setDetailsOpen(true)} className="mt-0.5">
-              <MoreHorizontal className="h-4 w-4" />
-            </IconButton>
+            <LiquidActionMenu
+              label="Session details"
+              width={252}
+              trigger={
+                <span className="liquid-icon-button flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-100">
+                  <MoreHorizontal className="h-4 w-4" />
+                </span>
+              }
+            >
+              <div className="px-3 py-2">
+                <p className="truncate text-sm font-semibold text-zinc-50">Today</p>
+                <p className="mt-1 truncate text-xs leading-5 text-zinc-500">{nextSessionTitle}</p>
+              </div>
+              <Link href="/checkin" className="liquid-menu-row px-3">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <HeartHandshake className="h-4 w-4 text-zinc-400" />
+                  <span>Check in</span>
+                </span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link href="/programs" className="liquid-menu-row px-3">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Sparkles className="h-4 w-4 text-zinc-400" />
+                  <span>{selectedProgram ? 'Open program' : 'Choose program'}</span>
+                </span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link href="/workout/new?type=empty" className="liquid-menu-row px-3">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Zap className="h-4 w-4 text-zinc-400" />
+                  <span>Freestyle</span>
+                </span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </LiquidActionMenu>
           </div>
 
           <div data-testid="dashboard-next-session" className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -438,7 +469,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_3.5rem] gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
             <Link
               href={smartAction.href}
               aria-label={primaryActionLabel}
@@ -456,11 +487,11 @@ export default function Dashboard() {
               aria-label="Start freestyle workout"
               className={liquidButtonClass({
                 variant: 'elevated',
-                className: 'min-h-14 justify-center px-5 sm:min-w-32',
+                className: 'min-h-14 w-14 justify-center px-0 sm:w-auto sm:min-w-32 sm:px-5',
               })}
             >
               <Zap className="h-4 w-4" />
-              <span>Freestyle</span>
+              <span className="sr-only sm:not-sr-only">Freestyle</span>
             </Link>
           </div>
         </div>
@@ -508,43 +539,6 @@ export default function Dashboard() {
           Analytics server currently unreachable. Some data may be local.
         </p>
       )}
-
-      <ActionSheet
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        title="Details"
-      >
-        <div className="space-y-3">
-          <div>
-            <p className="truncate text-sm font-semibold text-zinc-50">{nextSessionTitle}</p>
-            {nextProgramSession ? (
-              <p className="mt-1 text-xs leading-5 text-zinc-500">
-                Week {nextProgramSession.resolved.weekNumber}, day {nextProgramSession.resolved.dayIndex + 1}
-              </p>
-            ) : (
-              <p className="mt-1 text-xs leading-5 text-zinc-500">{smartAction.detail}</p>
-            )}
-          </div>
-
-          {nextProgramSession && (
-            <div className="grid grid-cols-2 gap-2 border-y border-white/[0.07] py-2 text-xs">
-              <div>
-                <p className="font-semibold text-zinc-200">{nextProgramSession.work.movementCount}</p>
-                <p className="mt-0.5 text-zinc-500">Movements</p>
-              </div>
-              <div>
-                <p className="font-semibold text-zinc-200">{nextProgramSession.work.setCount}</p>
-                <p className="mt-0.5 text-zinc-500">Sets</p>
-              </div>
-            </div>
-          )}
-
-          <Link href="/checkin" className="liquid-menu-row">
-            <span>Check in</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </ActionSheet>
     </div>
   );
 }

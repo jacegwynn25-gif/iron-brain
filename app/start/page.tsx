@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, ChevronDown, ChevronRight, ChevronUp, Play, RotateCcw } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, RotateCcw } from 'lucide-react';
 import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../lib/programs/progress';
 import { buildExerciseCatalog, resolveExerciseDisplayName } from '../lib/exercises/catalog';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
 import QuickLogConfirm from '../components/workout/QuickLogConfirm';
-import { liquidButtonClass } from '../components/ui/liquid';
+import { LiquidActionMenu, LiquidMenuRow, liquidButtonClass } from '../components/ui/liquid';
 import type { DayTemplate } from '../lib/types';
 
 type RecentProgram = {
@@ -178,9 +178,45 @@ export default function StartWorkoutPage() {
         <div className="space-y-0.5 sm:space-y-1">
           <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Start session</h1>
         </div>
-        <div className="liquid-icon-button flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10">
-          <Play className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
-        </div>
+        <LiquidActionMenu
+          label="Session actions"
+          width={244}
+          trigger={
+            <span className="liquid-icon-button flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-100 sm:h-10 sm:w-10">
+              <MoreHorizontal className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+            </span>
+          }
+        >
+          <LiquidMenuRow
+            label={loading ? 'Loading programs' : 'Start training'}
+            icon={<ArrowRight className="h-3.5 w-3.5" />}
+            onClick={handleStartSession}
+            disabled={loading}
+          />
+          <LiquidMenuRow
+            label="Freestyle"
+            icon={<RotateCcw className="h-3.5 w-3.5" />}
+            onClick={() => setQuickLogConfirmOpen(true)}
+          />
+          {selectedProgram && selectedProgramDay?.day && (
+            <LiquidMenuRow
+              label="Change day"
+              icon={<ChevronDown className="h-3.5 w-3.5" />}
+              onClick={() => {
+                setDayPickerOpen(true);
+                setProgramPickerOpen(false);
+              }}
+            />
+          )}
+          <LiquidMenuRow
+            label={selectedProgram ? 'Change program' : 'Choose program'}
+            icon={<Check className="h-3.5 w-3.5" />}
+            onClick={() => {
+              setProgramPickerOpen(true);
+              setDayPickerOpen(false);
+            }}
+          />
+        </LiquidActionMenu>
       </header>
 
       <section className="stagger-item mx-1 border-y border-white/8 py-4 sm:py-5">

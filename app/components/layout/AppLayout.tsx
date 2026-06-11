@@ -11,9 +11,10 @@ import {
   MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, useTransition, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
+import { useActiveSessionOptional } from '@/app/providers/ActiveSessionProvider';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -86,6 +87,7 @@ function NavIcon({ item, className }: { item: NavItem; className?: string }) {
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname() ?? '/';
+  const activeSession = useActiveSessionOptional();
   const hideBottomNavByRoute =
     pathname.startsWith('/workout') ||
     pathname.startsWith('/login') ||
@@ -145,6 +147,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [pathname]);
 
   const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
+  const hasActiveMiniBar =
+    !hideBottomNav &&
+    activeSession?.snapshot?.status === 'active' &&
+    !pathname.startsWith('/workout/new') &&
+    !pathname.startsWith('/workout/active') &&
+    pathname !== '/workout/readiness' &&
+    pathname !== '/workout/summary';
 
   const navigateTo = useCallback((href: string) => {
     if (href === pathname) return;
@@ -261,9 +270,34 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const isDashboardRoute = pathname === '/';
   const mainChromeClass = hideBottomNav
     ? 'pb-12 md:pl-6'
+    : hasActiveMiniBar
+      ? 'pb-[10.25rem] md:pb-12 md:pl-28'
     : isDashboardRoute
       ? 'pb-[5.55rem] md:pb-12 md:pl-28'
       : 'pb-24 md:pb-12 md:pl-28';
+  const activeCommandRouteIndex = commandItems.findIndex((item) => isActivePath(pathname, item.href));
+  const pendingCommandRouteIndex = pendingHref ? commandItems.findIndex((item) => item.href === pendingHref) : -1;
+  const activeCommandIndex =
+    moreOpen
+      ? commandItems.length
+      : pendingHref
+        ? pendingCommandRouteIndex >= 0
+          ? pendingCommandRouteIndex
+          : commandItems.length
+        : activeCommandRouteIndex >= 0
+          ? activeCommandRouteIndex
+          : commandItems.length;
+  const activeDesktopRouteIndex = Math.max(0, navItems.findIndex((item) => isActivePath(pathname, item.href)));
+  const pendingDesktopRouteIndex = pendingHref ? navItems.findIndex((item) => item.href === pendingHref) : -1;
+  const activeDesktopIndex = pendingDesktopRouteIndex >= 0 ? pendingDesktopRouteIndex : activeDesktopRouteIndex;
+  const commandDockStyle = {
+    '--active-index': activeCommandIndex,
+    '--item-count': commandItems.length + 1,
+  } as CSSProperties;
+  const desktopDockStyle = {
+    '--active-index': activeDesktopIndex,
+    '--item-count': navItems.length,
+  } as CSSProperties;
 
   return (
       <div className="relative min-h-dvh bg-zinc-950 text-zinc-100">
@@ -288,7 +322,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
           aria-label="Primary navigation"
           className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
         >
-          <div className="liquid-command-dock relative z-10 flex min-h-[4.4rem] w-full items-center justify-center gap-1.5 rounded-full p-1.5 md:hidden">
+          <div
+            className="liquid-command-dock relative z-10 grid min-h-[4.4rem] w-full items-center justify-center rounded-full p-1.5 md:hidden"
+            style={commandDockStyle}
+          >
+            <span className="liquid-command-indicator" aria-hidden="true" />
             {commandItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const pending = pendingHref === item.href;
@@ -328,7 +366,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               aria-haspopup="menu"
               aria-expanded={moreOpen}
               data-nav-item="more"
-              className={`liquid-command-item liquid-command-more [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] ${moreOpen ? 'liquid-command-item-active' : 'text-zinc-300/68'}`}
+              className={`liquid-command-item liquid-command-more [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] ${moreOpen || activeCommandIndex === commandItems.length ? 'liquid-command-item-active' : 'text-zinc-300/68'}`}
               onPointerDown={handleMorePointerDown}
               onPointerUp={handleMorePointerUp}
               onPointerCancel={() => {
@@ -381,7 +419,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
           )}
 
-          <div className="liquid-nav-shell relative z-10 hidden w-full rounded-[1.875rem] md:block">
+          <div className="liquid-nav-shell relative z-10 hidden w-full rounded-[1.875rem] md:block" style={desktopDockStyle}>
+            <span className="liquid-nav-indicator" aria-hidden="true" />
             <div className="relative z-10 flex min-h-16 w-full items-stretch justify-between gap-0.5 p-1.5 md:min-h-0 md:flex-col md:gap-1 md:p-2">
             {navItems.map((item) => {
               const active = isActivePath(pathname, item.href);

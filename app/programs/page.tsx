@@ -2448,9 +2448,9 @@ export default function ProgramsPage() {
                   return (
                     <motion.article
                       key={program.id}
-                      className={`relative border-b border-white/8 px-1 py-3 transition-colors duration-200 sm:px-3 ${isSelected ? 'bg-white/[0.035]' : ''}`}
+                      className="relative border-b border-white/8 px-1 py-3 transition-colors duration-200 sm:px-3"
                     >
-                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 bg-white/55" aria-hidden="true" />}
+                      {isSelected && <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-emerald-400/75" aria-hidden="true" />}
                       <div className="flex items-center justify-between gap-3 pl-3">
                         <button
                           type="button"
