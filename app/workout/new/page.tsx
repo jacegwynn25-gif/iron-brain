@@ -25,7 +25,7 @@ export default function NewWorkoutPage() {
 
   // When resuming an active session, use its stored program/day metadata
   // instead of the default selectedProgram + getProgramProgress flow.
-  const shouldResumeActiveSession = activeSessionReady && isSessionActive && !requestedProgramId;
+  const shouldResumeActiveSession = activeSessionReady && isSessionActive && !forceDiscard;
   const shouldForceQuickStart = forceQuickStart && !shouldResumeActiveSession;
 
   const resumeMeta = shouldResumeActiveSession
@@ -77,7 +77,6 @@ export default function NewWorkoutPage() {
 
   const resolvedProgress = useMemo<ProgramProgress | null>(() => {
     if (shouldForceQuickStart || !resolvedProgram) return null;
-    if (queryProgress) return queryProgress;
     // If resuming, use the stored week/day indices from the active session
     if (resumeMeta && resumeMeta.weekIndex != null && resumeMeta.dayIndex != null) {
       return {
@@ -86,6 +85,7 @@ export default function NewWorkoutPage() {
         cycleNumber: resumeMeta.cycleNumber ?? 1,
       };
     }
+    if (queryProgress) return queryProgress;
     return getProgramProgress(resolvedProgram, namespaceId);
   }, [shouldForceQuickStart, namespaceId, queryProgress, resolvedProgram, resumeMeta]);
 
@@ -143,11 +143,11 @@ export default function NewWorkoutPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-6">
+    <div className="mx-auto w-full max-w-3xl">
       <SessionLogger
         initialData={resolvedProgram ?? undefined}
         initialProgress={resolvedProgress}
-        ignoreActiveSnapshot={shouldForceQuickStart || Boolean(requestedProgramId)}
+        ignoreActiveSnapshot={shouldForceQuickStart || (!shouldResumeActiveSession && Boolean(requestedProgramId))}
       />
     </div>
   );

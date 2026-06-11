@@ -54,7 +54,7 @@ export default function RpeSlider({ value, onChange, onInfoClick }: RpeSliderPro
           className={`pointer-events-none h-3 w-full overflow-hidden rounded-full bg-zinc-900 ring-1 ring-white/10 ${isEmpty ? 'opacity-50' : ''}`}
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 shadow-[0_0_16px_rgba(251,191,36,0.24)]"
+            className="h-full rounded-full bg-gradient-to-r from-emerald-700 via-emerald-500 to-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.18)]"
             style={{ width: `${percent}%` }}
           />
         </div>

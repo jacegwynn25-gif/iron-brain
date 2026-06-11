@@ -574,11 +574,11 @@ async function checkSmartTrainingTargets(browser) {
   await page.getByText('Resume Custom Press').first().click();
   await page.getByTestId('smart-target-card').waitFor({ state: 'visible', timeout: 30000 });
   const smartTargetText = await page.getByTestId('smart-target-card').innerText();
-  if (!/(current session|direct history|similar movement|readiness|load pressure|program prescription|baseline)/i.test(smartTargetText)) {
-    throw new Error(`Smart target did not expose its evidence source: ${smartTargetText}`);
+  if (!/target/i.test(smartTargetText) || !/\d/.test(smartTargetText)) {
+    throw new Error(`Smart target did not expose a compact target value: ${smartTargetText}`);
   }
-  if (!/(confidence|limited|enough|high|baseline)/i.test(smartTargetText)) {
-    throw new Error(`Smart target did not expose confidence/data sufficiency: ${smartTargetText}`);
+  if (/(confidence|read-only|direct history|similar movement|readiness|load pressure|program prescription)/i.test(smartTargetText)) {
+    throw new Error(`Smart target leaked evidence copy into the cockpit: ${smartTargetText}`);
   }
   await page.getByTestId('smart-target-apply').tap({ timeout: 30000 });
 

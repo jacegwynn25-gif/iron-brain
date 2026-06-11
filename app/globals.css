@@ -35,10 +35,7 @@
   --liquid-action-highlight: #34d399;
   --liquid-action-text: #03140d;
   --liquid-focus: rgba(16, 185, 129, 0.28);
-  --iron-dock-bottom: 0.35rem;
-  --app-grid:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  --iron-dock-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
   --app-gradient:
     radial-gradient(980px circle at 14% 0%, rgba(255, 255, 255, 0.055), transparent 42%),
     radial-gradient(820px circle at 86% 8%, rgba(16, 185, 129, 0.035), transparent 40%),
@@ -140,13 +137,6 @@ nextjs-portal {
       radial-gradient(42rem 42rem at 58% 100%, rgba(16, 185, 129, 0.032), transparent 48%);
   }
 
-  .liquid-grid {
-    background-image:
-      linear-gradient(to right, rgba(255,255,255,0.018) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.018) 1px, transparent 1px);
-    background-size: 34px 34px;
-  }
-
   .app-offline-fallback {
     display: none;
   }
@@ -188,15 +178,15 @@ nextjs-portal {
 
   .liquid-sheet-panel {
     transform-origin: calc(100% - 2.75rem) 1.55rem;
-    background: rgba(12, 14, 18, 0.42);
+    background: rgba(12, 14, 18, 0.34);
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 1.35rem;
     box-shadow:
       0 24px 76px -44px rgba(0, 0, 0, 0.96),
       inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-    backdrop-filter: blur(20px) saturate(1.12) contrast(1.02);
-    -webkit-backdrop-filter: blur(20px) saturate(1.12) contrast(1.02);
-    animation: liquid-popover-flow 520ms cubic-bezier(0.14, 1, 0.18, 1) both;
+    backdrop-filter: blur(22px) saturate(1.12) contrast(1.02);
+    -webkit-backdrop-filter: blur(22px) saturate(1.12) contrast(1.02);
+    animation: liquid-popover-flow 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
     will-change: transform, opacity;
   }
 
@@ -208,6 +198,21 @@ nextjs-portal {
     background: rgba(10, 12, 16, 0.94);
     backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
     -webkit-backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
+  }
+
+  .liquid-focus-panel {
+    background: rgba(8, 10, 14, 0.94);
+    border-color: rgba(255, 255, 255, 0.17);
+    box-shadow:
+      0 30px 86px -44px rgba(0, 0, 0, 0.98),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
+    -webkit-backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
+  }
+
+  .liquid-solid-cell {
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    background: rgba(8, 10, 14, 0.86);
   }
 
   .liquid-menu-row {
@@ -241,16 +246,13 @@ nextjs-portal {
   @keyframes liquid-popover-flow {
     0% {
       opacity: 0;
-      transform: translate3d(0, -0.52rem, 0) scale(0.78);
-      filter: blur(1.5px);
+      transform: translate3d(0, -0.36rem, 0) scale(0.92);
+      filter: blur(0.8px);
     }
-    48% {
+    58% {
       opacity: 1;
-      transform: translate3d(0, 0.04rem, 0) scale(1.02);
+      transform: translate3d(0, 0.03rem, 0) scale(1.012);
       filter: blur(0);
-    }
-    74% {
-      transform: translate3d(0, 0, 0) scale(0.996);
     }
     100% {
       opacity: 1;
@@ -287,6 +289,8 @@ nextjs-portal {
       inset 0 0 0 1px rgba(255, 255, 255, 0.035);
     backdrop-filter: blur(20px) saturate(1.12) contrast(1.02);
     -webkit-backdrop-filter: blur(20px) saturate(1.12) contrast(1.02);
+    animation: liquid-popover-flow 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    will-change: transform, opacity;
   }
 
   .liquid-action-menu-trigger[aria-expanded="true"] .liquid-icon-button {
@@ -370,6 +374,30 @@ nextjs-portal {
   }
 
   .liquid-control-button:active {
+    transform: scale(0.985);
+  }
+
+  .cockpit-tool-button {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.085);
+    border-radius: 1rem;
+    background: rgba(12, 14, 18, 0.62);
+    color: rgba(244, 244, 245, 0.86);
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .cockpit-tool-button:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(18, 21, 27, 0.74);
+    color: rgba(250, 250, 250, 0.98);
+  }
+
+  .cockpit-tool-button:active {
     transform: scale(0.985);
   }
 
@@ -730,6 +758,7 @@ nextjs-portal {
     .liquid-action-button,
     .liquid-icon-button,
     .liquid-control-button,
+    .cockpit-tool-button,
     .liquid-command-item,
     .liquid-route-menu-row,
     .liquid-menu-row,
@@ -754,6 +783,7 @@ nextjs-portal {
     .liquid-action-button,
     .liquid-icon-button,
     .liquid-control-button,
+    .cockpit-tool-button,
     .liquid-command-item,
     .liquid-route-menu-row,
     .liquid-menu-row,
@@ -787,6 +817,7 @@ nextjs-portal {
     .liquid-action-button,
     .liquid-icon-button,
     .liquid-control-button,
+    .cockpit-tool-button,
     .liquid-command-item,
     .liquid-route-menu-row,
     .liquid-menu-row,
@@ -867,7 +898,7 @@ nextjs-portal {
 
   .dashboard-hero-title {
     font-size: var(--dashboard-hero-size);
-    line-height: 0.98;
+    line-height: 1.03;
   }
 
   .dashboard-session-tile {
@@ -897,6 +928,71 @@ nextjs-portal {
     .dashboard-pulse-tile {
       min-height: 4.375rem;
       padding: 0.72rem 0.65rem;
+    }
+  }
+
+  @media (max-height: 860px) and (max-width: 430px) {
+    .workout-cockpit-header {
+      padding-top: 0.72rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .workout-cockpit-title {
+      margin-top: 0.55rem;
+    }
+
+    .workout-cockpit-muscle-row {
+      margin-bottom: 0.25rem;
+    }
+
+    .workout-cockpit-exercise-title {
+      font-size: 1.52rem;
+      line-height: 1.02;
+    }
+
+    .workout-cockpit-main {
+      margin-top: 0.25rem;
+    }
+
+    .workout-cockpit-stack {
+      gap: 0.45rem;
+    }
+
+    .workout-cockpit-set-row {
+      padding-top: 0.45rem;
+      padding-bottom: 0.45rem;
+    }
+
+    .workout-cockpit-tools .cockpit-tool-button {
+      min-height: 2.35rem;
+    }
+
+    .workout-cockpit-unit {
+      padding-top: 0.25rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .workout-cockpit-footer {
+      margin-top: 0.45rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .workout-cockpit-logbar {
+      height: 3.15rem;
+    }
+  }
+
+  @media (max-height: 790px) and (max-width: 430px) {
+    .workout-cockpit-exercise-title {
+      font-size: 1.35rem;
+    }
+
+    .workout-cockpit-stack {
+      gap: 0.32rem;
+    }
+
+    .workout-cockpit-unit {
+      display: none;
     }
   }
 
