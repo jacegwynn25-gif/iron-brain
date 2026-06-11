@@ -13,7 +13,7 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { restoreLeakedBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 import WorkoutMiniBar from '@/app/components/workout/WorkoutMiniBar';
 import { useActiveSessionOptional } from '@/app/providers/ActiveSessionProvider';
@@ -162,6 +162,73 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    const touchableSelector = [
+      '.liquid-action-button',
+      '.liquid-icon-button',
+      '.liquid-control-button',
+      '.liquid-command-item',
+      '.liquid-route-menu-row',
+      '.liquid-menu-row',
+      '.liquid-segmented-item',
+      '.liquid-action-menu-trigger',
+      '.liquid-select-trigger',
+      '.liquid-touch-target',
+      '.liquid-nav-item',
+    ].join(',');
+    const timers = new WeakMap<HTMLElement, number>();
+    let activeTarget: HTMLElement | null = null;
+
+    const clearTimer = (target: HTMLElement) => {
+      const timer = timers.get(target);
+      if (timer) {
+        window.clearTimeout(timer);
+        timers.delete(target);
+      }
+    };
+
+    const releaseTarget = (target: HTMLElement | null) => {
+      if (!target) return;
+      clearTimer(target);
+      target.classList.remove('liquid-touching');
+      target.classList.add('liquid-releasing');
+      const timer = window.setTimeout(() => {
+        target.classList.remove('liquid-releasing');
+        timers.delete(target);
+      }, 420);
+      timers.set(target, timer);
+    };
+
+    const handlePointerDown = (event: globalThis.PointerEvent) => {
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
+      const target = (event.target as Element | null)?.closest(touchableSelector) as HTMLElement | null;
+      if (!target || target.getAttribute('aria-disabled') === 'true') return;
+      const rect = target.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      clearTimer(target);
+      target.classList.remove('liquid-releasing');
+      target.classList.add('liquid-touching');
+      target.style.setProperty('--liquid-touch-x', `${((event.clientX - rect.left) / rect.width) * 100}%`);
+      target.style.setProperty('--liquid-touch-y', `${((event.clientY - rect.top) / rect.height) * 100}%`);
+      activeTarget = target;
+    };
+
+    const handlePointerEnd = () => {
+      releaseTarget(activeTarget);
+      activeTarget = null;
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    document.addEventListener('pointerup', handlePointerEnd, { passive: true });
+    document.addEventListener('pointercancel', handlePointerEnd, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('pointerup', handlePointerEnd);
+      document.removeEventListener('pointercancel', handlePointerEnd);
+      releaseTarget(activeTarget);
+    };
+  }, []);
+
   const hideBottomNav = hideBottomNavByRoute || hideBottomNavByOverlay;
   const hasActiveMiniBar =
     !hideBottomNav &&
@@ -194,7 +261,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   }, [moreOpen]);
 
-  const handleNavPointerDown = (event: PointerEvent<HTMLAnchorElement>, href: string) => {
+  const handleNavPointerDown = (event: ReactPointerEvent<HTMLAnchorElement>, href: string) => {
     if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
     navPointerRef.current = {
       href,
@@ -204,7 +271,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   };
 
-  const handleNavPointerUp = (event: PointerEvent<HTMLAnchorElement>, href: string) => {
+  const handleNavPointerUp = (event: ReactPointerEvent<HTMLAnchorElement>, href: string) => {
     const initial = navPointerRef.current;
     navPointerRef.current = null;
 
@@ -239,7 +306,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     navigateTo(href);
   };
 
-  const handleMorePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+  const handleMorePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
     morePointerRef.current = {
       pointerId: event.pointerId,
@@ -248,7 +315,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   };
 
-  const handleMorePointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+  const handleMorePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const initial = morePointerRef.current;
     morePointerRef.current = null;
     if (!initial || initial.pointerId !== event.pointerId) return;
@@ -336,7 +403,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <nav
           data-testid="app-bottom-nav"
           aria-label="Primary navigation"
-          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.25rem)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
+          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[var(--iron-dock-bottom)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
         >
           <div
             className="liquid-command-dock relative z-10 grid min-h-[4.15rem] w-full items-center justify-center rounded-full p-[0.32rem] md:hidden"

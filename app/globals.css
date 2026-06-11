@@ -35,6 +35,7 @@
   --liquid-action-highlight: #34d399;
   --liquid-action-text: #03140d;
   --liquid-focus: rgba(16, 185, 129, 0.28);
+  --iron-dock-bottom: 0.35rem;
   --app-grid:
     linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
@@ -297,11 +298,28 @@ nextjs-portal {
       inset 0 0 0 1px rgba(255, 255, 255, 0.045);
   }
 
+  .liquid-action-menu-trigger {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-select-trigger {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-touch-target {
+    position: relative;
+    overflow: hidden;
+  }
+
   .liquid-subtle-line {
     border-color: rgba(255, 255, 255, 0.075);
   }
 
   .liquid-action-button {
+    position: relative;
+    overflow: hidden;
     border: 0;
     background:
       radial-gradient(10rem 5rem at 24% 0%, rgba(255, 255, 255, 0.26), transparent 56%),
@@ -332,6 +350,8 @@ nextjs-portal {
   }
 
   .liquid-control-button {
+    position: relative;
+    overflow: hidden;
     color: rgba(244, 244, 245, 0.86);
     border: 1px solid transparent;
     border-radius: 1rem;
@@ -440,6 +460,7 @@ nextjs-portal {
 
   .liquid-nav-item {
     position: relative;
+    overflow: hidden;
     isolation: isolate;
     transition:
       background-color 160ms ease,
@@ -525,6 +546,7 @@ nextjs-portal {
 
   .liquid-command-item {
     position: relative;
+    overflow: hidden;
     z-index: 1;
     display: flex;
     min-width: 0;
@@ -594,6 +616,8 @@ nextjs-portal {
   }
 
   .liquid-route-menu-row {
+    position: relative;
+    overflow: hidden;
     display: grid;
     grid-template-columns: 2rem minmax(0, 1fr) auto;
     min-height: 2.8rem;
@@ -666,6 +690,7 @@ nextjs-portal {
 
   .liquid-segmented-item {
     position: relative;
+    overflow: hidden;
     z-index: 1;
     border-radius: 0.9rem;
     color: rgba(212, 212, 216, 0.72);
@@ -699,6 +724,109 @@ nextjs-portal {
     border: 1px solid rgba(251, 113, 133, 0.28);
     background: rgba(251, 113, 133, 0.11);
     color: #fecdd3;
+  }
+
+  :where(
+    .liquid-action-button,
+    .liquid-icon-button,
+    .liquid-control-button,
+    .liquid-command-item,
+    .liquid-route-menu-row,
+    .liquid-menu-row,
+    .liquid-segmented-item,
+    .liquid-action-menu-trigger,
+    .liquid-select-trigger,
+    .liquid-touch-target,
+    .liquid-nav-item
+  ) {
+    --liquid-touch-x: 50%;
+    --liquid-touch-y: 50%;
+    transform: translateZ(0);
+    transition:
+      transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+      filter 220ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 240ms ease;
+  }
+
+  :where(
+    .liquid-action-button,
+    .liquid-icon-button,
+    .liquid-control-button,
+    .liquid-command-item,
+    .liquid-route-menu-row,
+    .liquid-menu-row,
+    .liquid-segmented-item,
+    .liquid-action-menu-trigger,
+    .liquid-select-trigger,
+    .liquid-touch-target,
+    .liquid-nav-item
+  )::before {
+    content: "";
+    position: absolute;
+    inset: -35%;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      radial-gradient(
+        circle at var(--liquid-touch-x) var(--liquid-touch-y),
+        rgba(255, 255, 255, 0.18),
+        rgba(255, 255, 255, 0.055) 22%,
+        transparent 46%
+      );
+    opacity: 0;
+    transform: scale(0.84);
+    transition:
+      opacity 220ms ease,
+      transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  :where(
+    .liquid-action-button,
+    .liquid-icon-button,
+    .liquid-control-button,
+    .liquid-command-item,
+    .liquid-route-menu-row,
+    .liquid-menu-row,
+    .liquid-segmented-item,
+    .liquid-action-menu-trigger,
+    .liquid-select-trigger,
+    .liquid-touch-target,
+    .liquid-nav-item
+  ) > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .liquid-touching {
+    transform: scale(0.972) translateZ(0);
+    filter: saturate(1.08) brightness(1.04);
+  }
+
+  .liquid-touching::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .liquid-releasing {
+    animation: liquid-touch-release 420ms cubic-bezier(0.14, 1, 0.18, 1) both;
+  }
+
+  @keyframes liquid-touch-release {
+    0% {
+      transform: scale(0.972) translateZ(0);
+      filter: saturate(1.08) brightness(1.04);
+    }
+    52% {
+      transform: scale(1.012) translateZ(0);
+      filter: saturate(1.04) brightness(1.02);
+    }
+    100% {
+      transform: scale(1) translateZ(0);
+      filter: none;
+    }
   }
 
   .workout-timer {
