@@ -9,6 +9,8 @@ import {
   LayoutDashboard,
   History,
   MoreHorizontal,
+  Settings,
+  User,
   type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
@@ -38,6 +40,13 @@ const navItems: NavItem[] = [
 
 const commandItems = navItems.filter((item) => ['dashboard', 'log', 'programs'].includes(item.id));
 
+const moreItems: NavItem[] = [
+  { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
+  { id: 'analytics', label: 'Insights', href: '/analytics', icon: BarChart3 },
+  { id: 'profile', label: 'Profile', href: '/profile', icon: User },
+  { id: 'settings', label: 'Settings', href: '/profile/settings', icon: Settings },
+];
+
 const PREFETCH_ROUTES = [
   '/start',
   '/programs',
@@ -50,6 +59,13 @@ const PREFETCH_ROUTES = [
 function isActivePath(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isActiveMorePath(pathname: string, href: string): boolean {
+  if (href === '/profile') {
+    return pathname === '/profile' || (pathname.startsWith('/profile/') && !pathname.startsWith('/profile/settings'));
+  }
+  return isActivePath(pathname, href);
 }
 
 function IronBrainMark({ className }: { className?: string }) {
@@ -392,8 +408,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 aria-label="More routes"
                 className="liquid-route-menu absolute bottom-[4.7rem] left-1/2 w-[min(18.25rem,calc(100vw-3rem))] -translate-x-1/2 rounded-[1.65rem] p-2"
               >
-                {navItems.map((item) => {
-                  const active = isActivePath(pathname, item.href);
+                {moreItems.map((item) => {
+                  const active = isActiveMorePath(pathname, item.href);
                   const pending = pendingHref === item.href;
                   return (
                     <Link

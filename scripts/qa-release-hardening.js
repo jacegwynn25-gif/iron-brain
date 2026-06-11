@@ -519,7 +519,6 @@ async function checkProgramsNoFalseReadinessTuneUp(browser) {
       scrollWidth: document.documentElement.scrollWidth,
       hasFalseReadinessZero: /readiness is 0/i.test(text),
       hasTuneUpWithoutEvidence: /PROGRAM TUNE-UP/i.test(text),
-      hasSetActiveAction: /SET ACTIVE/i.test(text),
     };
   });
 
@@ -532,12 +531,11 @@ async function checkProgramsNoFalseReadinessTuneUp(browser) {
   if (report.hasTuneUpWithoutEvidence) {
     throw new Error('Programs page shows Program Tune-Up without workout/readiness evidence');
   }
-  if (!report.hasSetActiveAction) {
-    throw new Error('Programs page program selection action should read Set Active');
-  }
+  await page.getByRole('button', { name: /Actions for/i }).first().tap({ timeout: 30000 });
+  await page.getByRole('button', { name: /Set Active/i }).waitFor({ state: 'visible', timeout: 30000 });
 
   await page.close();
-  console.log('✅ programs page avoids false tune-ups and uses clear Set Active actions');
+  console.log('✅ programs page avoids false tune-ups and keeps Set Active in row actions');
 }
 
 async function checkSmartTrainingTargets(browser) {

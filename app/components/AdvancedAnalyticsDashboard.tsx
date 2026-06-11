@@ -157,10 +157,10 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'border-y border-white/8 py-4 sm:py-5';
-const SUBSECTION_CARD_CLASS = 'border-y border-white/8 px-1.5 py-3.5';
+const SECTION_CLASS = 'border-b border-white/8 pb-5 last:border-b-0';
+const SUBSECTION_CARD_CLASS = 'border-b border-white/[0.07] px-1.5 py-3.5 last:border-b-0';
 const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
-const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500';
+const METRIC_LABEL_CLASS = 'text-xs font-semibold text-zinc-500';
 
 type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
 
@@ -197,7 +197,7 @@ function StatusReadout({
   return (
     <div className="shrink-0 text-right">
       {label && <p className={METRIC_LABEL_CLASS}>{label}</p>}
-      <p className={`mt-0.5 text-sm font-black italic uppercase tracking-tight ${toneTextClass[tone]}`}>
+      <p className={`mt-0.5 text-sm font-black italic tracking-tight ${toneTextClass[tone]}`}>
         {value}
       </p>
     </div>
@@ -984,15 +984,16 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   if (!hasRequiredDataset) {
     const awaitingSync = cloudSyncing && completedWorkouts.length === 0;
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10 px-1">
-        <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035]">
-            <BarChart3 className="h-8 w-8 text-emerald-300" />
-          </div>
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-1 pb-12 pt-4 sm:space-y-8 sm:pt-10">
+        <header className="stagger-item">
+          <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Insights</h1>
+        </header>
+        <div className="mx-auto max-w-md pt-16 text-center sm:pt-20">
+          <BarChart3 className="mx-auto mb-5 h-10 w-10 text-emerald-400" />
           <h2 className="mb-2 text-xl font-black italic tracking-tight text-white">
             {awaitingSync ? 'Syncing workouts...' : 'Not enough data yet'}
           </h2>
-          <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
+          <p className="mx-auto mb-6 max-w-xs text-xs leading-5 text-zinc-500">
             {awaitingSync
               ? 'Pulling your workout history from the cloud.'
               : FEATURES.adherenceAnalytics
@@ -1137,7 +1138,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Shield className={`h-5 w-5 ${toneTextClass[loadPressure.tone]}`} />
-                  <h2 className={SECTION_TITLE_CLASS}>LOAD PRESSURE</h2>
+                  <h2 className={SECTION_TITLE_CLASS}>Load pressure</h2>
                 </div>
                 <StatusReadout label="Signal" value={loadPressure.label} tone={loadPressure.tone} />
               </div>
@@ -1258,7 +1259,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className={SECTION_TITLE_CLASS}>MUSCLE RECOVERY</h2>
+                <h2 className={SECTION_TITLE_CLASS}>Muscle recovery</h2>
                 <button
                   onClick={() => selectInsightsView('recovery')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
@@ -1284,7 +1285,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.strengthLeaderboard && analytics.strengthLeaderboard.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className={SECTION_TITLE_CLASS}>TOP LIFTS</h2>
+                <h2 className={SECTION_TITLE_CLASS}>Top lifts</h2>
                 <button
                   onClick={() => selectInsightsView('strength')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
@@ -1318,7 +1319,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
         <div className="space-y-6">
           <div className={SECTION_CLASS}>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className={SECTION_TITLE_CLASS}>PLAN ADHERENCE</h2>
+              <h2 className={SECTION_TITLE_CLASS}>Plan adherence</h2>
               {loadingAdherence && (
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
                   Syncing...
@@ -1355,7 +1356,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
           {adherence && (
             <div className={SECTION_CLASS}>
-              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>CONSISTENCY TREND</h2>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>Consistency trend</h2>
               <div className="space-y-2">
                 {adherence.trend.map((point) => (
                   <div
@@ -1378,7 +1379,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           )}
 
           <div className={SECTION_CLASS}>
-            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>NEXT ACTION</h2>
+            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>Next action</h2>
             <div className="space-y-2">
               {adherenceActionItems.map((action, index) => (
                 <div key={`${action}-${index}`} className={SUBSECTION_CARD_CLASS}>
@@ -1408,7 +1409,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className={SECTION_CLASS}>
             <div className="flex items-center gap-2 mb-4">
               <Award className="h-5 w-5 text-amber-300" />
-              <h2 className={SECTION_TITLE_CLASS}>ESTIMATED 1RMS</h2>
+              <h2 className={SECTION_TITLE_CLASS}>Estimated 1RMs</h2>
             </div>
             <p className="text-xs text-zinc-400 mb-4">
               Uses normal Epley when RPE is missing; adjusts for reps in reserve when actual RPE is logged.
@@ -1457,7 +1458,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <div className={SECTION_CLASS}>
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-5 w-5 text-emerald-300" />
-              <h2 className={SECTION_TITLE_CLASS}>VOLUME LEADERS</h2>
+              <h2 className={SECTION_TITLE_CLASS}>Volume leaders</h2>
             </div>
             <p className="text-xs text-zinc-400 mb-4">
               Total weight moved (reps × weight)
@@ -1498,7 +1499,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       {selectedView === 'profile' && (
         <div className="space-y-6">
           <div className={SECTION_CLASS}>
-            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>YOUR STATS</h2>
+            <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>Your stats</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className={`${SUBSECTION_CARD_CLASS} text-center`}>
                 <div className="text-3xl font-black italic text-white">
@@ -1530,7 +1531,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {/* Training Load Details */}
           {analytics.acwr && (
             <div className={SECTION_CLASS}>
-              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>TRAINING LOAD</h2>
+              <h2 className={`${SECTION_TITLE_CLASS} mb-4`}>Training load</h2>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-zinc-400">Last 7 days</span>

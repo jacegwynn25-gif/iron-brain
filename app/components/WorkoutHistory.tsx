@@ -675,7 +675,7 @@ export default function WorkoutHistory({
   if (isLoading) {
     return (
       <div className="py-16 text-center">
-        <p className="text-[11px] font-mono uppercase tracking-[0.35em] text-zinc-500">Loading History</p>
+        <p className="text-sm font-semibold text-zinc-500">Loading history</p>
         <div className="mx-auto mt-5 h-1.5 w-32 overflow-hidden rounded-full bg-zinc-900">
           <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-500/70" />
         </div>
@@ -707,10 +707,7 @@ export default function WorkoutHistory({
         {!compactHeader && (
           <div className="flex flex-col gap-4 border-b border-white/8 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
-                Session Totals
-              </p>
-              <h2 className="mt-2 text-3xl font-black text-white">Workout History</h2>
+              <h2 className="iron-display text-3xl text-white">Workout history</h2>
               <p className="mt-2 text-sm text-zinc-500">
                 {sortedHistory.length} {sortedHistory.length === 1 ? 'session' : 'sessions'} completed
               </p>
@@ -719,7 +716,7 @@ export default function WorkoutHistory({
               <p className="text-3xl font-black text-zinc-100">
                 {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
               </p>
-              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
+              <p className="text-xs font-semibold text-zinc-500">
                 {weightUnit} total volume
               </p>
             </div>
@@ -751,10 +748,11 @@ export default function WorkoutHistory({
                       type="button"
                       onClick={() => toggleSession(session.id)}
                       className="min-w-0 flex-1 touch-manipulation text-left"
+                      aria-label={isExpanded ? `Hide details for ${session.dayName || 'workout'}` : `View details for ${session.dayName || 'workout'}`}
                       aria-expanded={isExpanded}
                       aria-controls={`history-details-${sessionKey}`}
                     >
-                      <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-zinc-500">
                         <Dumbbell className="h-3.5 w-3.5 text-emerald-500" />
                         <span className="min-w-0 truncate">{sourceLabel}</span>
                       </div>
@@ -771,6 +769,16 @@ export default function WorkoutHistory({
                           {formatSessionTimeRange(session)}
                         </span>
                         <span>{formatDurationLabel(session.durationMinutes)}</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-400">
+                        <span><strong className="font-black italic text-zinc-100">{completedExerciseCount}</strong> movements</span>
+                        <span><strong className="font-black italic text-zinc-100">{completedSetCount}</strong> sets</span>
+                        <span><strong className="font-black italic text-zinc-100">{Math.round(stats.totalVolume / 1000)}k</strong> volume</span>
+                        <span><strong className="font-black italic text-zinc-100">{stats.avgRPE > 0 ? stats.avgRPE.toFixed(1) : '-'}</strong> avg RPE</span>
+                        <span className="inline-flex items-center gap-1 text-zinc-500">
+                          Details
+                          <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </span>
                       </div>
                     </button>
 
@@ -798,36 +806,6 @@ export default function WorkoutHistory({
                       </LiquidActionMenu>
                     </div>
                   </div>
-
-                  <div className="mt-4 grid grid-cols-4 divide-x divide-white/8 border-y border-white/8 py-3">
-                    <div className="px-2 first:pl-0">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Exercises</p>
-                      <p className="mt-1 text-xl font-black text-white">{completedExerciseCount}</p>
-                    </div>
-                    <div className="px-2">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Sets</p>
-                      <p className="mt-1 text-xl font-black text-white">{completedSetCount}</p>
-                    </div>
-                    <div className="px-2">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Volume</p>
-                      <p className="mt-1 text-xl font-black text-white">{Math.round(stats.totalVolume / 1000)}k</p>
-                    </div>
-                    <div className="px-2 last:pr-0">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Avg RPE</p>
-                      <p className="mt-1 text-xl font-black text-white">{stats.avgRPE > 0 ? stats.avgRPE.toFixed(1) : '-'}</p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleSession(session.id)}
-                    className="mt-3 flex min-h-10 w-full touch-manipulation items-center justify-between border-t border-white/8 pt-3 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-100 active:scale-[0.99]"
-                    aria-expanded={isExpanded}
-                    aria-controls={`history-details-${sessionKey}`}
-                  >
-                    {isExpanded ? 'Hide details' : 'View details'}
-                    <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                  </button>
                 </div>
 
                 {/* Expanded Details */}
