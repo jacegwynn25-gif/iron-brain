@@ -47,19 +47,20 @@ function formatRecommendationSource(source: TrainingRecommendation['source']): s
   return 'Baseline';
 }
 
-function formatRecommendationEvidence(recommendation: TrainingRecommendation): string {
-  const source = recommendation.evidenceSource
-    ? recommendation.evidenceSource.replace(/_/g, ' ')
-    : formatRecommendationSource(recommendation.source);
-  const count = recommendation.evidenceCount ?? 0;
-  const sufficiency = recommendation.dataSufficiency ?? recommendation.confidence;
-  return `${recommendation.confidence} · ${sufficiency} · ${count} ${source}`;
+function formatTargetWeight(value: number | null | undefined, unit: 'lbs' | 'kg'): string | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  const rounded = unit === 'kg' ? Number(value.toFixed(2)) : Math.round(value);
+  return `${rounded}${unit}`;
 }
 
-function formatRecommendationGuardrail(recommendation: TrainingRecommendation): string {
-  if (recommendation.blockedReason) return recommendation.blockedReason;
-  if (recommendation.confidence === 'low') return 'Read-only until stronger direct data exists.';
-  return recommendation.confidenceReason ?? 'Review before applying.';
+function formatReps(value: string | number | null | undefined): string | null {
+  if (value == null) return null;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase();
+    if (normalized.includes('rep') || normalized.includes('cluster')) return value;
+    return `${value} reps`;
+  }
+  return `${value} reps`;
 }
 
 export default function RestTimer({
@@ -159,22 +160,24 @@ export default function RestTimer({
 
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
-  const nextWeight = nextSetInfo?.weight ?? nextSetInfo?.suggestedWeight ?? null;
-  const nextReps = nextSetInfo?.reps ?? nextSetInfo?.prescribedReps ?? null;
-  const nextExercise = nextSetInfo?.exerciseName ?? exerciseName;
-  const upNextTextParts = [
-    nextExercise ? `Up Next: ${nextExercise}` : 'Up Next',
-    nextWeight != null ? `${nextWeight}${weightUnit}` : null,
-    nextReps != null ? `${nextReps} reps` : null,
-  ].filter(Boolean);
   const smartWeight = smartRecommendation?.target?.weight;
   const smartUnit = smartRecommendation?.target?.weightUnit ?? weightUnit;
   const smartReps = smartRecommendation?.target?.reps;
   const smartRest = smartRecommendation?.target?.restSeconds;
   const smartTargetText = [
-    smartWeight != null ? `${smartUnit === 'kg' ? Number(smartWeight.toFixed(2)) : Math.round(smartWeight)}${smartUnit}` : null,
+    formatTargetWeight(smartWeight, smartUnit),
     smartReps != null ? `${Math.round(smartReps)} reps` : null,
   ].filter(Boolean).join(' • ') || (smartRest != null ? `+${smartRest}s rest` : null);
+  const hasSmartTarget = Boolean(smartRecommendation && smartTargetText);
+  const nextWeight = hasSmartTarget ? null : nextSetInfo?.weight ?? nextSetInfo?.suggestedWeight ?? null;
+  const nextReps = hasSmartTarget ? null : nextSetInfo?.reps ?? nextSetInfo?.prescribedReps ?? null;
+  const nextExercise = nextSetInfo?.exerciseName ?? exerciseName;
+  const upNextTextParts = [
+    nextExercise ? `Up next: ${nextExercise}` : 'Up next',
+    nextSetInfo?.setNumber != null && !hasSmartTarget ? `Set ${nextSetInfo.setNumber}` : null,
+    nextWeight != null ? formatTargetWeight(nextWeight, weightUnit) : null,
+    formatReps(nextReps),
+  ].filter(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 bg-black px-6 text-white">
@@ -193,13 +196,14 @@ export default function RestTimer({
           <div
             className="liquid-sheet-panel w-full max-w-sm px-4 py-3 text-left"
             data-testid="smart-rest-target"
+            aria-label={`Rest target ${smartTargetText ?? smartRecommendation.title}. ${formatRecommendationSource(smartRecommendation.source)} signal.`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-300">
-                  Next Target
+                <p className="text-xs font-semibold text-emerald-300">
+                  Target
                 </p>
-                <p className="mt-1 text-xl font-black tracking-tight text-white">
+                <p className="mt-1 text-xl font-black tracking-tight text-white" data-testid="smart-rest-target-value">
                   {smartTargetText ?? smartRecommendation.title}
                 </p>
               </div>
@@ -214,15 +218,6 @@ export default function RestTimer({
                 </button>
               )}
             </div>
-            <p className="mt-2 text-xs leading-snug text-zinc-400">
-              {smartRecommendation.reason}
-            </p>
-            <p className="mt-2 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-600">
-              {formatRecommendationSource(smartRecommendation.source)} · {formatRecommendationEvidence(smartRecommendation)}
-            </p>
-            <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-700">
-              {formatRecommendationGuardrail(smartRecommendation)}
-            </p>
           </div>
         )}
 

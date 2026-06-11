@@ -592,6 +592,17 @@ async function checkSmartTrainingTargets(browser) {
 
   await page.getByRole('button', { name: /LOG SET/i }).tap({ timeout: 30000 });
   await page.getByTestId('smart-rest-target').waitFor({ state: 'visible', timeout: 30000 });
+  const restTargetText = await page.getByTestId('smart-rest-target').innerText();
+  const restScreenText = await page.locator('body').innerText();
+  if (!/target/i.test(restTargetText) || !/\d/.test(restTargetText)) {
+    throw new Error(`Smart rest target did not expose a compact target value: ${restTargetText}`);
+  }
+  if (/(confidence|read-only|direct history|similar movement|readiness|load pressure|program prescription)/i.test(restTargetText)) {
+    throw new Error(`Smart rest target leaked evidence copy into rest mode: ${restTargetText}`);
+  }
+  if (/225\s*lbs/i.test(restScreenText)) {
+    throw new Error(`Rest mode leaked stale stored weight alongside the smart target: ${restScreenText}`);
+  }
   await page.getByTestId('smart-rest-apply').tap({ timeout: 30000 });
   await page.waitForTimeout(500);
   if (!(await page.getByTestId('smart-rest-target').isVisible())) {

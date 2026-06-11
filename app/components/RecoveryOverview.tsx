@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield } from 'lucide-react';
+import { HeartPulse, Shield } from 'lucide-react';
 import { RecoveryProfile } from '../lib/fatigue/cross-session';
 
 interface RecoveryOverviewProps {
@@ -60,7 +60,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
     return (
       <div className="space-y-3">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-black italic tracking-tight text-white">MUSCLE RECOVERY</h2>
+          <h2 className="text-xl font-black italic tracking-tight text-white">Muscle recovery</h2>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Loading</span>
         </div>
         {[1, 2, 3, 4].map((i) => (
@@ -87,7 +87,10 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
   return (
     <div className="space-y-4">
       <div className="mb-4 flex items-end justify-between gap-4">
-        <h2 className="text-xl font-black italic tracking-tight text-white">MUSCLE RECOVERY</h2>
+        <div className="flex items-center gap-2">
+          <HeartPulse className="h-5 w-5 text-emerald-400" />
+          <h2 className="text-xl font-black italic tracking-tight text-white">Muscle recovery</h2>
+        </div>
         <div className="text-right">
           <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500">Tracked</p>
           <p className="text-sm font-black italic text-zinc-300">

@@ -58,10 +58,7 @@ function workout(id, date, exerciseId, weight, reps, rpe) {
     ],
   });
 
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('link', { name: /Insights/i }).waitFor({ state: 'visible', timeout: 15000 });
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.getByRole('link', { name: /Insights/i }).tap({ timeout: 15000 });
+  await page.goto(`${BASE_URL}/analytics`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.location.pathname === '/analytics', null, { timeout: 30000 });
   await page.getByRole('heading', { name: /INSIGHTS/i }).waitFor({ state: 'visible', timeout: 15000 });
 
@@ -85,6 +82,10 @@ function workout(id, date, exerciseId, weight, reps, rpe) {
   }
 
   await page.getByText(/DATA AUDIT/i).waitFor({ state: 'visible', timeout: 15000 });
+  const showAuditButton = page.getByRole('button', { name: 'Show', exact: true });
+  if (await showAuditButton.isVisible().catch(() => false)) {
+    await showAuditButton.click();
+  }
   const auditText = await page.locator('body').innerText();
   if (!/Included/i.test(auditText) || !/Excluded/i.test(auditText) || !/Top raw set contributors/i.test(auditText)) {
     throw new Error('Insights audit did not show included/excluded counts and raw contributors');
