@@ -202,6 +202,12 @@ nextjs-portal {
     animation: liquid-popover-content 280ms ease-out 150ms both;
   }
 
+  .liquid-form-sheet {
+    background: rgba(10, 12, 16, 0.94);
+    backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
+    -webkit-backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
+  }
+
   .liquid-menu-row {
     display: flex;
     min-height: 2.4rem;
@@ -520,6 +526,15 @@ nextjs-portal {
 
   .liquid-command-item:active {
     transform: scale(0.975);
+  }
+
+  .liquid-command-item:focus-visible,
+  .liquid-route-menu-row:focus-visible,
+  .liquid-nav-item:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--liquid-focus),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   }
 
   .liquid-command-item-active {

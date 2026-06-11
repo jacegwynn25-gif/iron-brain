@@ -394,11 +394,16 @@ async function installWorkoutQaBootstrap(page) {
   await expectVisible(page.getByRole('heading', { name: /Workout History/i }).first(), 'History page loaded');
   await page.getByRole('button', { name: /View details/i }).first().click();
   await expectVisible(page.getByTestId('history-session-details').first(), 'History details expand on first tap');
-  await page.getByRole('button', { name: /Delete workout/i }).first().tap({ timeout: 10000 });
+  const openHistoryDelete = async () => {
+    await page.getByRole('button', { name: /Workout actions/i }).first().tap({ timeout: 10000 });
+    await expectVisible(page.getByRole('button', { name: /Move to trash/i }).first(), 'History action menu opened');
+    await page.getByRole('button', { name: /Move to trash/i }).first().tap({ timeout: 10000 });
+  };
+  await openHistoryDelete();
   await expectVisible(page.getByText(/MOVE WORKOUT TO TRASH/i), 'History delete confirmation opened');
   await page.getByRole('button', { name: /Cancel/i }).click();
   await page.getByText(/MOVE WORKOUT TO TRASH/i).waitFor({ state: 'hidden', timeout: 10000 });
-  await page.getByRole('button', { name: /Delete workout/i }).first().tap({ timeout: 10000 });
+  await openHistoryDelete();
   await expectVisible(page.getByText(/MOVE WORKOUT TO TRASH/i), 'History delete confirmation reopened');
   await page.getByRole('button', { name: /MOVE TO TRASH/i }).click();
   await page.getByText(/MOVE WORKOUT TO TRASH/i).waitFor({ state: 'hidden', timeout: 15000 });

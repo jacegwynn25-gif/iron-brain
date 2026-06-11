@@ -11,10 +11,12 @@ import {
   Edit3,
   Flame,
   History,
+  MoreHorizontal,
   Trash2,
   Trophy,
   TrendingUp,
 } from 'lucide-react';
+import { LiquidActionMenu, LiquidMenuRow, liquidButtonClass } from './ui/liquid';
 import { WorkoutSession, SetLog, CustomExercise, WeightUnit } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
@@ -724,7 +726,7 @@ export default function WorkoutHistory({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="divide-y divide-white/8 border-y border-white/8">
           {sortedHistory.map((session, sessionIdx) => {
             const sessionKey = normalizeSessionKey(session.id);
             const isExpanded = expandedSessions.has(sessionKey);
@@ -740,11 +742,10 @@ export default function WorkoutHistory({
             return (
               <article
                 key={sessionKey}
-                className="stagger-item overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72 shadow-[0_24px_70px_-50px_rgba(0,0,0,0.95)]"
+                className="stagger-item scroll-mt-24"
                 style={{ animationDelay: `${sessionIdx * 50}ms` }}
               >
-                {/* Session Header */}
-                <div className="p-4 sm:p-5">
+                <div className="py-4 sm:py-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <button
                       type="button"
@@ -774,24 +775,27 @@ export default function WorkoutHistory({
                     </button>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openContentEditSession(session)}
-                        className="liquid-icon-button inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-zinc-200 transition-colors hover:text-zinc-50 active:scale-[0.98]"
-                        title="Edit workout"
+                      <LiquidActionMenu
+                        label={`Workout actions for ${session.dayName || 'Workout'}`}
+                        className="rounded-full"
+                        trigger={
+                          <span className="liquid-icon-button flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-50">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </span>
+                        }
                       >
-                        <Edit3 className="h-4 w-4" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteSession(session.id)}
-                        className="liquid-icon-button flex h-10 w-10 items-center justify-center rounded-xl text-rose-300 transition-colors hover:text-rose-200 active:scale-[0.98]"
-                        title="Delete workout"
-                        aria-label="Delete workout"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        <LiquidMenuRow
+                          icon={<Edit3 className="h-4 w-4" />}
+                          label="Edit workout"
+                          onClick={() => openContentEditSession(session)}
+                        />
+                        <LiquidMenuRow
+                          icon={<Trash2 className="h-4 w-4" />}
+                          label="Move to trash"
+                          danger
+                          onClick={() => deleteSession(session.id)}
+                        />
+                      </LiquidActionMenu>
                     </div>
                   </div>
 
@@ -817,7 +821,7 @@ export default function WorkoutHistory({
                   <button
                     type="button"
                     onClick={() => toggleSession(session.id)}
-                    className="mt-3 flex min-h-11 w-full touch-manipulation items-center justify-between rounded-xl border border-white/8 bg-white/[0.035] px-3 text-xs font-semibold text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 active:scale-[0.99]"
+                    className="mt-3 flex min-h-10 w-full touch-manipulation items-center justify-between border-t border-white/8 pt-3 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-100 active:scale-[0.99]"
                     aria-expanded={isExpanded}
                     aria-controls={`history-details-${sessionKey}`}
                   >
@@ -831,7 +835,7 @@ export default function WorkoutHistory({
                   <div
                     id={`history-details-${sessionKey}`}
                     data-testid="history-session-details"
-                    className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5"
+                    className="border-t border-white/8 pb-5 pt-5"
                   >
                     <div className="space-y-6">
                       {exerciseIds.map((exerciseId, exIdx) => {
@@ -856,7 +860,7 @@ export default function WorkoutHistory({
                         return (
                           <div
                             key={exerciseId}
-                            className="border-b border-zinc-900/50 pb-6"
+                            className="border-b border-white/8 pb-6 last:border-b-0 last:pb-0"
                             style={{ animationDelay: `${exIdx * 100}ms` }}
                           >
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -887,7 +891,7 @@ export default function WorkoutHistory({
                                 return (
                                   <div
                                     key={`${exerciseId}-${set.setIndex}-${idx}-${set.timestamp || idx}`}
-                                    className="group flex flex-col gap-3 border-b border-zinc-900 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                    className="group flex flex-col gap-3 border-b border-white/8 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                                   >
                                     <div className="flex min-w-0 flex-1 items-center gap-4">
                                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-zinc-200">
@@ -957,17 +961,17 @@ export default function WorkoutHistory({
       </div>
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
           data-swipe-scope="local"
         >
-          <div className="liquid-sheet-panel w-full max-w-sm overflow-hidden rounded-[1.2rem] p-0">
+          <div className="liquid-sheet-panel liquid-form-sheet w-full max-w-sm overflow-hidden rounded-[1.2rem] p-0">
             <div className="p-4 text-white">
               <h3 className="text-lg font-black italic tracking-tight">Move workout to trash?</h3>
               <p className="mt-1 text-sm text-zinc-400">
                 You can restore it from Data / Recently Deleted within 30 days.
               </p>
 
-              <div className="mt-4 rounded-xl border border-white/8 bg-white/[0.035] p-3">
+              <div className="mt-4 border-y border-white/8 py-3">
                 <p className="mt-1 text-lg font-black italic tracking-tight">{deleteTarget.dayName || 'Workout'}</p>
                 <p className="text-sm text-zinc-500">
                   {deleteTarget.programName || 'Custom'} • {parseLocalDate(deleteTarget.date).toLocaleDateString()}
@@ -984,14 +988,14 @@ export default function WorkoutHistory({
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteBusy}
-                className="rounded-xl border border-white/10 bg-white/[0.045] px-5 py-3 text-xs font-semibold text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ density: 'compact', className: 'w-full sm:w-auto' })}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleteBusy}
-                className="rounded-xl border border-rose-400/30 bg-rose-400/90 px-6 py-3 text-xs font-black italic tracking-tight text-zinc-950 shadow-lg shadow-rose-500/15 transition-colors hover:bg-rose-300 active:bg-rose-500 disabled:opacity-50"
+                className={liquidButtonClass({ variant: 'danger', density: 'compact', className: 'w-full sm:w-auto' })}
               >
                 {deleteBusy ? 'Moving...' : 'Move to trash'}
               </button>
@@ -1001,10 +1005,10 @@ export default function WorkoutHistory({
       )}
       {contentEditTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+2rem)]"
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+2rem)]"
           data-swipe-scope="local"
         >
-          <div className="liquid-sheet-panel flex w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[1.2rem] p-0 sm:max-h-[90dvh]">
+          <div className="liquid-sheet-panel liquid-form-sheet flex w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[1.2rem] p-0 sm:max-h-[90dvh]">
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-6 text-white sm:p-6">
               <h3 className="text-2xl font-black italic tracking-tight sm:text-3xl">Edit workout</h3>
 
@@ -1106,7 +1110,7 @@ export default function WorkoutHistory({
 
               <div className="mt-6 space-y-5">
                 {contentExercises.map((exercise) => (
-                  <div key={exercise.localId} className="rounded-xl border border-white/8 bg-white/[0.035] p-4">
+                  <div key={exercise.localId} className="border-y border-white/8 py-4">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
                         <p className="text-lg font-bold text-white">{exercise.exerciseName}</p>
@@ -1117,16 +1121,16 @@ export default function WorkoutHistory({
                       <button
                         type="button"
                         onClick={() => handleRemoveExerciseFromContentEdit(exercise.localId)}
-                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-semibold text-rose-300 transition-all active:scale-[0.98]"
+                        className={liquidButtonClass({ variant: 'danger', density: 'compact', className: 'min-h-9 px-3 text-[10px]' })}
                       >
                         Remove
                       </button>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="divide-y divide-white/8 border-y border-white/8">
                       {exercise.sets.map((set, setIndex) => (
-                        <div key={set.localId} className="grid gap-2 rounded-xl border border-white/8 bg-zinc-950/70 p-3 sm:grid-cols-12">
-                          <div className="sm:col-span-1 flex items-center justify-center rounded-lg bg-white/[0.055] text-xs font-bold text-zinc-300">
+                        <div key={set.localId} className="grid gap-2 py-3 sm:grid-cols-12">
+                          <div className="sm:col-span-1 flex items-center justify-center text-xs font-bold text-zinc-400">
                             #{setIndex + 1}
                           </div>
                           <div className="sm:col-span-2">
@@ -1214,7 +1218,7 @@ export default function WorkoutHistory({
                             <button
                               type="button"
                               onClick={() => handleRemoveSetFromContentEditExercise(exercise.localId, set.localId)}
-                              className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition-colors hover:text-rose-200"
+                              className="w-full rounded-lg border border-rose-500/25 bg-rose-500/[0.07] px-2 py-2 text-xs font-semibold text-rose-300 transition-colors hover:text-rose-200"
                             >
                               Delete
                             </button>
@@ -1239,7 +1243,7 @@ export default function WorkoutHistory({
                     <button
                       type="button"
                       onClick={() => handleAddSetToContentEditExercise(exercise.localId)}
-                      className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-[10px] font-semibold text-zinc-300 transition-all active:scale-[0.98] hover:text-zinc-50"
+                      className={liquidButtonClass({ density: 'compact', className: 'mt-3 min-h-9 px-3 text-[10px]' })}
                     >
                       Add set
                     </button>
@@ -1258,14 +1262,14 @@ export default function WorkoutHistory({
               <button
                 onClick={() => setContentEditTarget(null)}
                 disabled={contentEditBusy}
-                className="rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-3 text-xs font-semibold text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ className: 'w-full sm:w-auto' })}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmContentEdit}
                 disabled={contentEditBusy}
-                className="liquid-action-button rounded-2xl px-6 py-3 text-xs font-black italic tracking-tight text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ variant: 'action', className: 'w-full sm:w-auto' })}
               >
                 {contentEditBusy ? 'Saving...' : 'Save workout'}
               </button>

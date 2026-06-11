@@ -26,7 +26,7 @@ function SettingsSection({ label, children }: SettingsSectionProps) {
       <p className="iron-label">
         {label}
       </p>
-      <div className="mt-3 overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72">
+      <div className="mt-3 divide-y divide-white/8 border-y border-white/8">
         {children}
       </div>
     </section>
@@ -37,7 +37,7 @@ function SettingsLinkRow({ href, label, description }: SettingsLinkRowProps) {
   return (
     <Link
       href={href}
-      className="group flex min-h-16 items-center justify-between gap-4 border-b border-white/8 px-4 py-4 transition-colors last:border-b-0 hover:bg-white/[0.045] hover:text-zinc-100 sm:px-5"
+      className="group flex min-h-16 items-center justify-between gap-4 px-1 py-4 transition-colors hover:text-zinc-100 sm:px-0"
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold tracking-tight text-zinc-100">{label}</p>
@@ -71,7 +71,7 @@ export default function ProfileSettingsPage() {
       </header>
 
       <SettingsSection label="Preferences">
-        <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+        <div className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="liquid-icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
@@ -107,7 +107,7 @@ export default function ProfileSettingsPage() {
       </SettingsSection>
 
       <SettingsSection label="Account">
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 py-4">
           <div className="flex min-w-0 items-start gap-3">
             <div className="liquid-icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
               <ShieldCheck className="h-5 w-5 text-zinc-300" />

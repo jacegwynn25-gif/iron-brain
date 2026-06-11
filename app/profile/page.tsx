@@ -237,7 +237,7 @@ export default function ProfilePage() {
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
-            className="group flex w-full items-center justify-between gap-4 rounded-[1rem] border border-white/8 bg-zinc-950/72 px-4 py-3 text-left text-zinc-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
+            className="group flex w-full items-center justify-between gap-4 border-y border-white/8 py-4 text-left text-zinc-100 transition-colors hover:text-white"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
@@ -254,14 +254,14 @@ export default function ProfilePage() {
 
       <section className="stagger-item space-y-3 px-1">
         <h2 className="iron-display text-xl text-zinc-100">Preferences</h2>
-        <div className="overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72 divide-y divide-white/8">
+        <div className="divide-y divide-white/8 border-y border-white/8">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.path}
                 onClick={() => router.push(item.path)}
-                className="flex w-full items-center justify-between p-4 transition-all hover:bg-white/[0.045] active:bg-white/[0.07] sm:p-5"
+                className="flex w-full items-center justify-between py-4 transition-all hover:text-white active:bg-white/[0.035] sm:py-5"
               >
                 <div className="flex items-center gap-3">
                   <Icon className="h-5 w-5 text-zinc-400" />
@@ -276,7 +276,7 @@ export default function ProfilePage() {
 
       {user ? (
         <section className="stagger-item space-y-3 px-1">
-          <div className="border-y border-white/8 py-3">
+          <div className="border-y border-white/8 py-4">
             <div className="flex items-center gap-2 text-sm text-zinc-400">
               <User className="w-4 h-4" />
               <span>Signed in as {user.email}</span>
@@ -295,7 +295,7 @@ export default function ProfilePage() {
 
               }
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-rose-500/30 bg-rose-500/[0.08] p-4 font-medium text-rose-300 transition-all hover:bg-rose-500/10 active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-rose-400/25 bg-rose-500/[0.055] p-4 font-medium text-rose-300 transition-all hover:bg-rose-500/[0.08] active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5" />
             Sign out

@@ -95,6 +95,11 @@ async function processCheckoutSessionCompleted(
 }
 
 export async function POST(request: NextRequest) {
+  const sig = request.headers.get('stripe-signature');
+  if (!sig) {
+    return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 });
+  }
+
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
@@ -104,7 +109,6 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.text();
-  const sig = request.headers.get('stripe-signature')!;
 
   let event: Stripe.Event;
 

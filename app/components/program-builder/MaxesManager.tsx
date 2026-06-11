@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Search, Trash2, AlertCircle, TrendingUp, Calendar, Pencil, X } from 'lucide-react';
+import { Plus, Search, Trash2, AlertCircle, Calendar, Pencil, X, MoreHorizontal } from 'lucide-react';
 import { getUserMaxes, saveUserMax, deleteUserMax, isMaxStale } from '../../lib/maxes/maxes-service';
 import { useDialog } from '@/app/providers/DialogProvider';
 import type { UserMax } from '../../lib/types';
 import ExercisePicker from './ExercisePicker';
 import type { Exercise, CustomExercise } from '../../lib/types';
 import { useBodyScrollLock } from '../../lib/hooks/useBodyScrollLock';
-import { liquidButtonClass } from '../ui/liquid';
+import { LiquidActionMenu, LiquidMenuRow, liquidButtonClass } from '../ui/liquid';
 
 type ExerciseOption = {
   id: string;
@@ -153,11 +153,11 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-col gap-4 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-4">
         <div className="min-w-0">
-          <h2 className="text-2xl font-black italic tracking-tight text-zinc-100 sm:text-3xl">
-            Max table
-          </h2>
+          <p className="text-sm font-semibold text-zinc-400">
+            {loading ? 'Loading' : `${maxes.length} ${maxes.length === 1 ? 'lift' : 'lifts'}`}
+          </p>
         </div>
         <button
           type="button"
@@ -185,20 +185,19 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
       </div>
 
       {loading ? (
-        <div className="animate-pulse rounded-[1rem] border border-white/8 bg-zinc-950/72 p-5 sm:p-6">
+        <div className="animate-pulse border-y border-white/8 py-5">
           <div className="h-4 w-40 rounded bg-zinc-800" />
           <div className="mt-4 h-3 w-64 max-w-full rounded bg-zinc-900" />
         </div>
       ) : filteredMaxes.length === 0 ? (
-        <div className="rounded-[1rem] border border-white/8 bg-zinc-950/72 px-5 py-10 text-center sm:px-8">
-          <TrendingUp className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
+        <div className="border-y border-white/8 py-8">
           <h3 className="text-lg font-black italic tracking-tight text-zinc-100">
             {searchTerm ? 'No matches' : 'No maxes tracked'}
           </h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
+          <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
             {searchTerm
               ? 'No maxes found matching your search'
-              : 'No 1RMs tracked yet. Add your first max to enable percentage-based training.'}
+              : 'Add your first max to enable percentage-based training.'}
           </p>
           {!searchTerm && (
             <button
@@ -212,7 +211,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[1rem] border border-white/8 bg-zinc-950/72">
+        <div className="divide-y divide-white/8 border-y border-white/8">
           {filteredMaxes.map((max) => {
             const stale = isMaxStale(max);
             const testDate = new Date(max.testedAt).toLocaleDateString();
@@ -220,7 +219,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
             return (
               <div
                 key={max.id}
-                className="border-b border-white/8 p-4 last:border-b-0 sm:p-5"
+                className="py-4 sm:py-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -249,11 +248,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                         <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-600">
                           Source
                         </p>
-                        <p className={`mt-1 text-xs font-black uppercase tracking-[0.16em] ${max.estimatedOrTested === 'tested'
-                          ? 'text-emerald-500'
-                          : 'text-sky-300'
-                          }`}
-                        >
+                        <p className="mt-1 text-xs font-bold text-zinc-400">
                           {max.estimatedOrTested}
                         </p>
                       </div>
@@ -270,24 +265,26 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      type="button"
+                  <LiquidActionMenu
+                    label={`Max actions for ${max.exerciseName}`}
+                    trigger={
+                      <span className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-100">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </span>
+                    }
+                  >
+                    <LiquidMenuRow
+                      label="Edit"
+                      icon={<Pencil className="h-3.5 w-3.5" />}
                       onClick={() => handleOpenEditModal(max)}
-                      aria-label={`Edit ${max.exerciseName}`}
-                      className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:text-zinc-200"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <LiquidMenuRow
+                      label="Delete"
+                      icon={<Trash2 className="h-3.5 w-3.5" />}
+                      danger
                       onClick={() => handleDeleteMax(max.id)}
-                      aria-label={`Delete ${max.exerciseName}`}
-                      className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-lg text-rose-400 transition-colors hover:text-rose-200"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                    />
+                  </LiquidActionMenu>
                 </div>
               </div>
             );
@@ -297,14 +294,14 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[110] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+4.75rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]">
+        <div className="fixed inset-0 z-[260] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+7rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]">
           <button
             type="button"
             aria-label="Close max editor"
             className="absolute inset-0 cursor-default"
             onClick={handleCloseModal}
           />
-          <div className="liquid-sheet-panel relative w-full max-w-lg overflow-hidden rounded-[1.2rem] p-0">
+          <div className="liquid-sheet-panel liquid-form-sheet relative w-full max-w-lg overflow-hidden rounded-[1.2rem] p-0">
             <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4 sm:p-5">
               <h3 className="text-xl font-black italic tracking-tight text-zinc-100 sm:text-2xl">
                 {editingMax ? 'Edit 1RM' : 'Add 1RM'}
@@ -319,7 +316,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="max-h-[58dvh] space-y-4 overflow-y-auto p-4 sm:p-5">
+            <div className="max-h-[52dvh] space-y-4 overflow-y-auto p-4 sm:max-h-[58dvh] sm:p-5">
               {/* Exercise Selection */}
               <div>
                 <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
@@ -413,7 +410,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 border-t border-white/8 bg-black/10 p-3 sm:p-4">
+            <div className="flex gap-3 border-t border-white/8 p-3 sm:p-4">
               <button
                 type="button"
                 onClick={handleCloseModal}

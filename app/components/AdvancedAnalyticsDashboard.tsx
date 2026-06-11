@@ -157,8 +157,8 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'rounded-[1rem] border border-white/8 bg-zinc-950/72 p-4 shadow-[0_20px_70px_-48px_rgba(0,0,0,0.95)] sm:p-5';
-const SUBSECTION_CARD_CLASS = 'rounded-xl border border-white/8 bg-white/[0.035] p-3.5';
+const SECTION_CLASS = 'border-y border-white/8 py-4 sm:py-5';
+const SUBSECTION_CARD_CLASS = 'border-y border-white/8 px-1.5 py-3.5';
 const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
 const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500';
 
@@ -912,13 +912,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const fitnessFatigueDelta = analytics.fitnessFatigue
     ? analytics.fitnessFatigue.currentFitness - analytics.fitnessFatigue.currentFatigue
     : null;
-  const readinessSourceLabel = readiness?.source === 'manual'
-    ? 'check-in + training'
-    : readiness?.source === 'training'
-      ? 'training only'
-      : readiness?.source === 'baseline'
-        ? 'baseline'
-        : 'model fallback';
   const trainingBalanceLabel = readinessLoading && !readiness ? 'syncing' : readinessStatus;
   const trainingBalanceSummary = readiness?.reason
     ?? (analytics.fitnessFatigue && fitnessFatigueDelta != null
@@ -1016,7 +1009,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             </Link>
           )}
           {cloudSyncing && (
-            <div className="mb-4 rounded-lg border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-4 border-y border-white/8 py-2 text-xs text-zinc-500">
               Syncing...
             </div>
           )}
@@ -1102,18 +1095,18 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <p className="text-sm text-zinc-400">
                 {trainingBalanceSummary}
               </p>
-              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                Source: {readinessSourceLabel}. Daily Check-In stays optional.
-              </p>
               {(readiness?.explanation || analytics.explanations?.trainingBalance) && (
-                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                <details className="mt-3 border-t border-white/8 pt-3">
+                  <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Details
+                  </summary>
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                     {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.confidence} confidence / {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.dataSufficiency} data
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                     {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.reason} {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.nextAction}
                   </p>
-                </div>
+                </details>
               )}
               {analytics.fitnessFatigue && (
                 <div className="mt-4 space-y-3">
@@ -1132,9 +1125,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
                     </div>
-                  </div>
-                  <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
-                    50 is neutral. Above 50 means fitness leads; below 50 means fatigue leads.
                   </div>
                 </div>
               )}
@@ -1170,18 +1160,18 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 {analytics.acwr.recommendation}
               </p>
               {analytics.explanations?.loadPressure && (
-                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                <details className="mt-3 border-t border-white/8 pt-3">
+                  <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Details
+                  </summary>
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                     {analytics.explanations.loadPressure.confidence} confidence / {analytics.explanations.loadPressure.dataSufficiency} data
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                     {analytics.explanations.loadPressure.reason} {analytics.explanations.loadPressure.nextAction}
                   </p>
-                </div>
+                </details>
               )}
-              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                Effort-weighted load. Baseline confidence: {analytics.acwr.baselineConfidence}.
-              </p>
             </div>
           )}
 
@@ -1221,13 +1211,13 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                     </div>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
                       Warmups: {analytics.dataAudit.excludedWarmupSets}
                     </p>
-                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
                       Incomplete: {analytics.dataAudit.excludedIncompleteSets}
                     </p>
-                    <p className="rounded-lg border border-white/8 bg-white/[0.035] px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
                       Invalid: {analytics.dataAudit.excludedInvalidSets}
                     </p>
                   </div>
@@ -1424,7 +1414,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               Uses normal Epley when RPE is missing; adjusts for reps in reserve when actual RPE is logged.
             </p>
             {strengthDataQualityNote && (
-              <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+              <div className="mb-4 border-y border-amber-400/25 py-2 text-xs text-amber-200">
                 {strengthDataQualityNote}
               </div>
             )}
@@ -1565,14 +1555,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           )}
 
           {/* Tips */}
-          <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-4">
-            <h3 className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">METRIC NOTES</h3>
-            <ul className="text-xs text-zinc-400 space-y-2">
+          <details className="border-y border-white/8 py-4">
+            <summary className="cursor-pointer text-sm font-black italic tracking-tight text-zinc-100">Metric notes</summary>
+            <ul className="mt-3 space-y-2 text-xs text-zinc-400">
               <li><span className="text-zinc-200">Training Balance</span> - 50 is neutral; above means fitness leads, below means fatigue leads</li>
               <li><span className="text-zinc-200">Load Pressure</span> - Compares effort-weighted 7-day load to your recent weekly baseline</li>
               <li><span className="text-zinc-200">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
             </ul>
-          </div>
+          </details>
         </div>
       )}
     </div>
