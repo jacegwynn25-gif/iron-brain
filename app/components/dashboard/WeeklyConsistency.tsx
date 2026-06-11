@@ -41,7 +41,7 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
 
     if (loading) {
         return (
-            <div className={`${compact ? 'px-1 py-2' : 'border-y border-white/8 py-4'} animate-pulse`}>
+            <div className={`${compact ? 'px-1 py-1' : 'border-y border-white/8 py-4'} animate-pulse`}>
                 <div className="flex justify-between gap-2">
                     {Array.from({ length: 14 }).map((_, i) => (
                         <div key={i} className={`flex flex-col items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
@@ -55,7 +55,7 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
     }
 
     return (
-        <div className={`overflow-hidden ${compact ? 'px-1 py-2' : 'border-y border-white/8 py-4 sm:py-5'}`}>
+        <div className={`overflow-hidden ${compact ? 'px-1 py-1' : 'border-y border-white/8 py-4 sm:py-5'}`}>
             {!compact && (
                 <div className="mb-3 flex items-center justify-between sm:mb-5">
                     <div className="flex items-center gap-2">
@@ -68,18 +68,18 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
 
             <div className={`flex items-end justify-between ${compact ? 'gap-0.5' : 'gap-0.5 sm:gap-2'}`}>
                 {days.map((day) => (
-                    <div key={day.iso} className={`flex flex-1 flex-col items-center ${compact ? 'gap-1.5' : 'gap-2 sm:gap-3'}`}>
+                    <div key={day.iso} className={`flex flex-1 flex-col items-center ${compact ? 'gap-1' : 'gap-2 sm:gap-3'}`}>
                         <div
-                            className={`relative rounded-full transition-all duration-500 ${compact ? 'h-2 w-2' : 'h-2 w-2 sm:h-2.5 sm:w-2.5'} ${day.hasWorkout
+                            className={`relative rounded-full transition-all duration-500 ${compact ? 'h-1.5 w-1.5' : 'h-2 w-2 sm:h-2.5 sm:w-2.5'} ${day.hasWorkout
                                 ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
                                 : 'bg-zinc-800'
                                 }`}
                         >
                             {day.isToday && (
-                                <div className="absolute -inset-1 animate-ping rounded-full border border-emerald-500/20 sm:-inset-1.5" />
+                                <div className="absolute -inset-0.5 animate-ping rounded-full border border-emerald-500/20 sm:-inset-1.5" />
                             )}
                         </div>
-                        <span className={`${compact ? 'text-[7px]' : 'text-[8px] sm:text-[10px]'} font-bold uppercase ${day.isToday ? 'text-zinc-100' : 'text-zinc-500'}`}>
+                        <span className={`${compact ? 'text-[7px] leading-none' : 'text-[8px] sm:text-[10px]'} font-bold uppercase ${day.isToday ? 'text-zinc-100' : 'text-zinc-500'}`}>
                             {day.dayName}
                         </span>
                     </div>

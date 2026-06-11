@@ -66,7 +66,7 @@ export default function WorkoutMiniBar() {
     const weekLabel = snapshot.meta.weekNumber ? `W${snapshot.meta.weekNumber}` : null;
 
     return (
-        <div className="liquid-sheet-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-[69] mx-auto flex max-w-2xl items-center gap-2 p-1.5">
+        <div className="liquid-sheet-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.35rem)] z-[69] mx-auto flex max-w-2xl items-center gap-2 p-1.5">
             <button
                 type="button"
                 onClick={() => router.push('/workout/new')}

@@ -228,7 +228,9 @@ async function installWorkoutQaBootstrap(page) {
   await page.getByRole('button', { name: /ADD \d+ SET/i }).click();
   await page.getByText(/How many sets\?/i).waitFor({ state: 'hidden', timeout: 10000 });
   await page.getByText(/Bicep Curl/i).first().tap({ timeout: 10000 });
-  await expectVisible(page.getByRole('button', { name: /Skip Set/i }), 'Skip set button visible');
+  await expectVisible(page.getByRole('button', { name: /Set actions/i }), 'Set actions button visible');
+  await page.getByRole('button', { name: /Set actions/i }).click();
+  await expectVisible(page.getByRole('button', { name: /Skip Set/i }), 'Skip set action visible');
   await page.getByRole('button', { name: /Skip Set/i }).click();
   await expectVisible(page.getByRole('button', { name: /Skip Rest/i }), 'Rest timer shown after skipped set');
   await page.getByRole('button', { name: /Skip Rest/i }).click();
