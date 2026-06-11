@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
-  Battery,
   CalendarDays,
   Dumbbell,
+  HeartPulse,
   User,
   Shield,
   TrendingUp,
@@ -230,14 +230,9 @@ function RankDecal({ rank, tone = 'amber' }: { rank: number; tone?: Tone }) {
 function RecoveryMeter({ score }: { score: number }) {
   const tone: Tone = score >= 8 ? 'emerald' : score >= 6 ? 'amber' : 'rose';
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-8 w-1.5 overflow-hidden rounded-sm bg-zinc-800">
-        <div
-          className={`absolute bottom-0 left-0 right-0 ${toneBgClass[tone]}`}
-          style={{ height: `${Math.min(100, Math.max(0, score * 10))}%` }}
-        />
-      </div>
-      <span className={`text-sm font-black italic ${toneTextClass[tone]}`}>
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.035] px-2 py-1">
+      <span className={`h-1.5 w-1.5 rounded-full ${toneBgClass[tone]}`} />
+      <span className={`text-xs font-black italic ${toneTextClass[tone]}`}>
         {score.toFixed(1)}
       </span>
     </div>
@@ -908,7 +903,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       : readinessStatus === 'moderate'
         ? 'amber'
         : 'rose';
-  const readinessTitle = 'TRAINING ESTIMATE';
+  const readinessTitle = readiness ? 'Recovery signal' : 'Session signal';
   const fitnessFatigueDelta = analytics.fitnessFatigue
     ? analytics.fitnessFatigue.currentFitness - analytics.fitnessFatigue.currentFatigue
     : null;
@@ -921,10 +916,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           ? `Training balance: fatigue is ${Math.round(Math.abs(fitnessFatigueDelta))} points ahead.`
           : `Training balance is near neutral (${Math.round(fitnessFatigueDelta)}).`
       : readinessStatus === 'excellent' || readinessStatus === 'good'
-        ? 'Training estimate supports a normal session.'
+        ? 'Normal session is reasonable.'
         : readinessStatus === 'moderate'
-          ? 'Training estimate supports conservative load jumps.'
-          : 'Training estimate supports a lighter session.');
+          ? 'Keep load jumps conservative.'
+          : 'A lighter session is probably smarter.');
   const dataAuditSourceLabel = workoutDataError
     ? 'Shared workout data fallback'
     : workoutSyncing
@@ -1064,7 +1059,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           ...(FEATURES.adherenceAnalytics
             ? [{ id: 'adherence' as ViewType, label: 'Plan', Icon: CalendarDays }]
             : []),
-          { id: 'recovery' as ViewType, label: 'Recovery', Icon: Battery },
+          { id: 'recovery' as ViewType, label: 'Recovery', Icon: HeartPulse },
           { id: 'strength' as ViewType, label: 'Lifts', Icon: Dumbbell },
           { id: 'profile' as ViewType, label: 'Profile', Icon: User }
         ]).map(({ id, label, Icon }) => (
@@ -1088,7 +1083,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={SECTION_TITLE_CLASS}>{readinessTitle}</h2>
-                <StatusReadout label="Signal" value={trainingBalanceLabel} tone={readinessTone} />
+                <StatusReadout value={trainingBalanceLabel} tone={readinessTone} />
               </div>
               <div className="mb-2 text-6xl font-black italic tracking-tight text-white">
                 {primaryReadinessScore}
@@ -1099,7 +1094,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               {(readiness?.explanation || analytics.explanations?.trainingBalance) && (
                 <details className="mt-3 border-t border-white/8 pt-3">
                   <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    Details
+                    Method
                   </summary>
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                     {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.confidence} confidence / {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.dataSufficiency} data
@@ -1259,7 +1254,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           {analytics.recoveryProfiles && analytics.recoveryProfiles.length > 0 && (
             <div className={SECTION_CLASS}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className={SECTION_TITLE_CLASS}>Muscle recovery</h2>
+                <div className="flex items-center gap-2">
+                  <HeartPulse className="h-5 w-5 text-emerald-400" />
+                  <h2 className={SECTION_TITLE_CLASS}>Muscle recovery</h2>
+                </div>
                 <button
                   onClick={() => selectInsightsView('recovery')}
                   className="text-xs text-emerald-300 hover:text-emerald-200"
