@@ -71,7 +71,7 @@ export default function FancySelect({
           if (disabled) return;
           setOpen((prev) => !prev);
         }}
-        className={`flex w-full items-center justify-between gap-2 ${buttonClassName ?? ''} ${
+        className={`liquid-select-trigger flex w-full items-center justify-between gap-2 ${buttonClassName ?? ''} ${
           disabled ? 'cursor-not-allowed opacity-60' : ''
         }`}
       >
@@ -99,8 +99,8 @@ export default function FancySelect({
                   setOpen(false);
                   requestAnimationFrame(() => buttonRef.current?.focus());
                 }}
-                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  isSelected ? 'bg-emerald-500/15 text-emerald-200' : 'text-zinc-200 hover:bg-zinc-900/70'
+                className={`liquid-menu-row min-h-10 w-full px-2.5 py-0 text-left text-sm ${
+                  isSelected ? 'text-emerald-200' : 'text-zinc-200'
                 } ${optionClassName ?? ''}`}
               >
                 <span className="truncate">{option.label}</span>

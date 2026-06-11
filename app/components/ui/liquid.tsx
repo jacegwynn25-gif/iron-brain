@@ -40,7 +40,7 @@ export function liquidButtonClass({
   className?: string;
 } = {}): string {
   return cn(
-    'inline-flex items-center justify-center gap-2 rounded-[1.05rem] tracking-normal transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55',
+    'liquid-touch-target inline-flex items-center justify-center gap-2 rounded-[1.05rem] tracking-normal transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55',
     density === 'compact' ? 'min-h-10 px-3 text-xs' : 'min-h-12 px-4 text-sm',
     variant === 'action' &&
       'liquid-action-button font-black italic tracking-tight text-zinc-950',

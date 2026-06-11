@@ -196,6 +196,13 @@ const PRESCRIPTION_LABELS: Record<NonNullable<SetTemplate['prescriptionMethod']>
   time_based: 'Time',
 };
 
+const BUILDER_LINE_INPUT_CLASS =
+  'w-full border-b border-white/10 bg-transparent px-0 py-2 text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 transition-colors focus:border-white/20 focus:outline-none';
+const BUILDER_LINE_SELECT_CLASS =
+  'w-full border-b border-white/10 px-0 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:border-white/20';
+const BUILDER_STATIC_LINE_CLASS =
+  'border-b border-white/10 px-0 py-2 text-sm font-semibold text-zinc-300';
+
 const CUSTOM_EXERCISE_EQUIPMENT_OPTIONS: CustomExercise['equipment'][] = [
   'barbell',
   'dumbbell',
@@ -777,7 +784,6 @@ export default function ProgramsPage() {
   );
   const [editorSetFocus, setEditorSetFocus] = useState<EditorSetFocus>(null);
   const [editorDetailMode, setEditorDetailMode] = useState<'simple' | 'advanced'>('simple');
-  const [editorJumpPicker, setEditorJumpPicker] = useState<'week' | 'session' | null>(null);
   const [weekCountInput, setWeekCountInput] = useState('');
   const [daysPerWeekInput, setDaysPerWeekInput] = useState('');
   const [weekCountFocused, setWeekCountFocused] = useState(false);
@@ -918,7 +924,7 @@ export default function ProgramsPage() {
   const hasEditorSetFocus = editorSetFocus != null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
-  const hasProgramBuilderOverlay = Boolean((editorMode && draft) || editorJumpPicker || exercisePickerOpen);
+  const hasProgramBuilderOverlay = Boolean((editorMode && draft) || exercisePickerOpen);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1030,7 +1036,6 @@ export default function ProgramsPage() {
     setActiveDayIndex(0);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
-    setEditorJumpPicker(null);
   };
 
   const openEditEditor = (program: ProgramTemplate) => {
@@ -1053,7 +1058,6 @@ export default function ProgramsPage() {
     setActiveDayIndex(0);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
-    setEditorJumpPicker(null);
   };
 
   const openTuneUpEditor = (program: ProgramTemplate, recommendation: TrainingRecommendation) => {
@@ -1077,7 +1081,6 @@ export default function ProgramsPage() {
     setActiveDayIndex(0);
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
-    setEditorJumpPicker(null);
   };
 
   const dismissTuneUp = (key: string) => {
@@ -1106,7 +1109,6 @@ export default function ProgramsPage() {
     resetCustomExerciseBuilder();
     setEditorSetFocus(null);
     setEditorDetailMode('simple');
-    setEditorJumpPicker(null);
   };
 
   const closeEditor = async () => {
@@ -1130,14 +1132,12 @@ export default function ProgramsPage() {
     updateDraft((current) => resizeProgramStructure(current, nextWeekCount, current.daysPerWeek ?? 4));
     setActiveWeekIndex((currentIndex) => Math.max(0, Math.min(nextWeekCount - 1, currentIndex)));
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
   };
 
   const updateDraftDaysPerWeek = (nextDaysPerWeek: number) => {
     updateDraft((current) => resizeProgramStructure(current, current.weekCount ?? current.weeks.length, nextDaysPerWeek));
     setActiveDayIndex((currentIndex) => Math.max(0, Math.min(nextDaysPerWeek - 1, currentIndex)));
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
   };
 
   const selectEditorWeek = (index: number) => {
@@ -1148,7 +1148,6 @@ export default function ProgramsPage() {
     setActiveWeekIndex(clampedWeek);
     setActiveDayIndex((current) => Math.max(0, Math.min(nextDayLimit, current)));
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
   };
 
   const selectEditorSession = (index: number) => {
@@ -1156,7 +1155,6 @@ export default function ProgramsPage() {
     const clampedDay = Math.max(0, Math.min(currentWeek.days.length - 1, index));
     setActiveDayIndex(clampedDay);
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
   };
 
   const stepEditorWeek = (delta: number) => {
@@ -1241,7 +1239,6 @@ export default function ProgramsPage() {
     setWeekCountInput(String(nextWeeks.length));
     setActiveWeekIndex(sourceWeekIndex + 1);
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
     setEditorError(null);
   };
 
@@ -1277,7 +1274,6 @@ export default function ProgramsPage() {
     }
 
     setEditorSetFocus(null);
-    setEditorJumpPicker(null);
     setEditorError(null);
   };
 
@@ -2013,7 +2009,7 @@ export default function ProgramsPage() {
                     rounds: value == null ? 1 : value,
                   })
                 }
-                className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
               />
             </div>
             <div>
@@ -2030,7 +2026,7 @@ export default function ProgramsPage() {
                     restAfterRoundSeconds: value == null ? undefined : value,
                   })
                 }
-                className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
               />
             </div>
             {editorDetailMode === 'advanced' && (
@@ -2048,7 +2044,7 @@ export default function ProgramsPage() {
                       transitionSeconds: value == null ? undefined : value,
                     })
                   }
-                  className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                  className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                 />
               </div>
             )}
@@ -2103,7 +2099,7 @@ export default function ProgramsPage() {
                           prescribedReps: event.target.value,
                         }))
                       }
-                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                      className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                     />
                   </div>
 
@@ -2119,7 +2115,7 @@ export default function ProgramsPage() {
                           applySetTargetInput(current, event.target.value)
                         )
                       }
-                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                      className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                     />
                   </div>
 
@@ -2138,7 +2134,7 @@ export default function ProgramsPage() {
                           restSeconds: value == null ? undefined : value,
                         }))
                       }
-                      className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                      className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                     />
                   </div>
 
@@ -2172,7 +2168,7 @@ export default function ProgramsPage() {
                             })
                           }
                           ariaLabel="Prescription method"
-                          buttonClassName="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                          buttonClassName={`mt-1 ${BUILDER_LINE_SELECT_CLASS}`}
                           listClassName="max-h-56 overflow-y-auto"
                         />
                       </div>
@@ -2197,7 +2193,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             ariaLabel="Set style"
-                            buttonClassName="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                            buttonClassName={`mt-1 ${BUILDER_LINE_SELECT_CLASS}`}
                             listClassName="max-h-56 overflow-y-auto"
                           />
                         </div>
@@ -2208,7 +2204,7 @@ export default function ProgramsPage() {
                           <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
                             Group
                           </label>
-                          <div className="liquid-field mt-1 px-2.5 py-2 text-xs font-semibold text-zinc-200">
+                          <div className={`mt-1 text-xs ${BUILDER_STATIC_LINE_CLASS}`}>
                             Superset {slotLabel ?? ''}
                           </div>
                         </div>
@@ -2227,7 +2223,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="3-1-1-0"
-                          className="liquid-field mt-1 w-full px-2.5 py-2 text-sm placeholder:text-zinc-600"
+                          className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                         />
                       </div>
 
@@ -2252,7 +2248,7 @@ export default function ProgramsPage() {
                                 })
                               }
                               placeholder="2,2,2"
-                              className="liquid-field mt-1 w-full px-2.5 py-2 text-sm placeholder:text-zinc-600"
+                              className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                             />
                           </div>
                           <div>
@@ -2270,7 +2266,7 @@ export default function ProgramsPage() {
                                   clusterRestSeconds: value == null ? undefined : value,
                                 }))
                               }
-                              className="liquid-field mt-1 w-full px-2.5 py-2 text-sm"
+                              className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                             />
                           </div>
                         </>
@@ -2331,7 +2327,7 @@ export default function ProgramsPage() {
 
           {workspaceView === 'builder' && (
             <>
-              <div className="liquid-field mt-5 flex items-center gap-3 px-3 py-2.5">
+              <div className="mt-5 flex items-center gap-3 border-b border-white/10 px-0 py-2.5">
                 <Search className="h-4 w-4 text-zinc-500" />
                 <input
                   value={query}
@@ -2626,7 +2622,7 @@ export default function ProgramsPage() {
                               updateDraftWeekCount(clamped);
                             }
                           }}
-                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm"
+                          className="mt-2 w-full border-b border-white/10 bg-transparent px-0 py-2.5 text-sm font-semibold text-zinc-100 transition-colors focus:border-white/20 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -2667,7 +2663,7 @@ export default function ProgramsPage() {
                               updateDraftDaysPerWeek(clamped);
                             }
                           }}
-                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm"
+                          className="mt-2 w-full border-b border-white/10 bg-transparent px-0 py-2.5 text-sm font-semibold text-zinc-100 transition-colors focus:border-white/20 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -2685,7 +2681,7 @@ export default function ProgramsPage() {
                           updateDraft((current) => ({ ...current, goal: value as GoalOption }))
                         }
                         ariaLabel="Program goal"
-                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
+                        buttonClassName="border-b border-white/10 px-0 py-2.5 text-xs font-semibold text-zinc-100 transition-colors hover:border-white/20"
                       />
                       <FancySelect
                         value={draft.experienceLevel ?? 'intermediate'}
@@ -2700,7 +2696,7 @@ export default function ProgramsPage() {
                           }))
                         }
                         ariaLabel="Experience level"
-                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
+                        buttonClassName="border-b border-white/10 px-0 py-2.5 text-xs font-semibold text-zinc-100 transition-colors hover:border-white/20"
                       />
                       <FancySelect
                         value={draft.intensityMethod ?? 'rpe'}
@@ -2715,7 +2711,7 @@ export default function ProgramsPage() {
                           }))
                         }
                         ariaLabel="Intensity method"
-                        buttonClassName="liquid-field px-3 py-2.5 text-xs font-semibold text-zinc-100"
+                        buttonClassName="border-b border-white/10 px-0 py-2.5 text-xs font-semibold text-zinc-100 transition-colors hover:border-white/20"
                       />
                     </div>
                   </div>
@@ -2734,16 +2730,16 @@ export default function ProgramsPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <LiquidActionMenu
-                      label="Choose week"
-                      align="start"
-                      width={320}
-                      className="flex-1"
-                      trigger={
-                        <span className="liquid-field flex w-full items-center justify-center px-3 py-2.5 text-center text-sm font-semibold text-zinc-100">
-                          Week {activeWeekIndex + 1}
-                        </span>
-                      }
+                      <LiquidActionMenu
+                        label="Choose week"
+                        align="start"
+                        width={320}
+                        className="group flex-1"
+                        trigger={
+                          <span className="flex w-full items-center justify-center border-y border-white/8 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100 transition-colors group-hover:border-white/14">
+                            Week {activeWeekIndex + 1}
+                          </span>
+                        }
                     >
                       {draft.weeks.map((week, index) => {
                         const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
@@ -2812,9 +2808,9 @@ export default function ProgramsPage() {
                         label="Choose session"
                         align="start"
                         width={320}
-                        className="flex-1"
+                        className="group flex-1"
                         trigger={
-                          <span className="liquid-field flex w-full items-center justify-center px-3 py-2.5 text-center text-sm font-semibold text-zinc-100">
+                          <span className="flex w-full items-center justify-center border-y border-white/8 px-3 py-2.5 text-center text-sm font-semibold text-zinc-100 transition-colors group-hover:border-white/14">
                             {currentDay?.name?.trim() || `Day ${activeDayIndex + 1}`}
                           </span>
                         }
@@ -2993,96 +2989,10 @@ export default function ProgramsPage() {
       }
 
       {
-        editorMode && draft && editorJumpPicker && (
-          <div className="fixed inset-0 z-[135] bg-transparent">
-            <button
-              type="button"
-              aria-label="Close picker"
-              onClick={() => setEditorJumpPicker(null)}
-              className="absolute inset-0"
-            />
-            <div className="liquid-sheet-panel absolute inset-x-3 top-[calc(env(safe-area-inset-top)+5rem)] mx-auto max-h-[68dvh] max-w-md overflow-hidden rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:w-96">
-              <div className="mx-auto w-full max-w-5xl">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400">
-                    {editorJumpPicker === 'week' ? 'Choose week' : 'Choose session'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setEditorJumpPicker(null)}
-                    className="rounded-full p-2 text-zinc-500"
-                    aria-label="Close jump picker"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="max-h-[50dvh] overflow-y-auto space-y-1 pr-1" data-swipe-ignore="true">
-                  {editorJumpPicker === 'week' &&
-                    draft.weeks.map((week, index) => {
-                      const weekSetCount = week.days.reduce((count, day) => count + countDaySets(day), 0);
-                      const isActive = index === activeWeekIndex;
-                      return (
-                        <div key={`jump-week-${week.weekNumber}`} className="flex items-stretch gap-2">
-                          <button
-                            type="button"
-                            onClick={() => selectEditorWeek(index)}
-                            className={`flex-1 rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                              ? 'bg-white/[0.09] text-zinc-50'
-                              : 'border border-white/8 bg-white/[0.025] text-zinc-200 hover:border-white/14'
-                              }`}
-                          >
-                            <p className="text-sm font-bold">Week {index + 1}</p>
-                            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                              {week.days.length} sessions • {weekSetCount} sets
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDuplicateWeek(index)}
-                            aria-label={`Duplicate Week ${index + 1}`}
-                            title="Duplicate Week"
-                            className="liquid-icon-button flex w-14 shrink-0 items-center justify-center rounded-xl text-zinc-300"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    })}
-
-                  {editorJumpPicker === 'session' &&
-                    (currentWeek?.days ?? []).map((day, index) => {
-                      const isActive = index === activeDayIndex;
-                      const dayLabel = day.name?.trim() || `Session ${index + 1}`;
-                      return (
-                        <button
-                          key={`jump-session-${index}`}
-                          type="button"
-                          onClick={() => selectEditorSession(index)}
-                          className={`w-full rounded-xl px-3 py-3 text-left transition-colors ${isActive
-                            ? 'bg-white/[0.09] text-zinc-50'
-                            : 'border border-white/8 bg-white/[0.025] text-zinc-200 hover:border-white/14'
-                            }`}
-                        >
-                          <p className="text-sm font-bold">Session {index + 1}</p>
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                            {dayLabel} • {countDaySets(day)} sets
-                          </p>
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {
         exercisePickerOpen && (
           <div className="fixed inset-0 z-[140] bg-transparent">
             <div
-              className="liquid-sheet-panel absolute inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto max-h-[82dvh] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:w-[32rem]"
+              className="liquid-sheet-panel fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto h-[calc(100dvh-env(safe-area-inset-top)-5.25rem)] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:h-auto sm:max-h-[82dvh] sm:w-[32rem]"
               data-program-exercise-picker-sheet="true"
               data-swipe-ignore="true"
             >
@@ -3106,7 +3016,7 @@ export default function ProgramsPage() {
                   </button>
                 </div>
 
-                <div className="liquid-field mb-3 flex items-center gap-2 px-3 py-2">
+                <div className="mb-3 flex items-center gap-2 border-b border-white/10 px-0 py-2.5">
                   <Search className="h-4 w-4 text-zinc-500" />
                   <input
                     autoFocus
@@ -3165,7 +3075,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="e.g. Incline Dumbbell Press"
-                          className="liquid-field mt-1 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
+                          className={`mt-1 ${BUILDER_LINE_INPUT_CLASS}`}
                         />
                       </div>
 
@@ -3186,7 +3096,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           ariaLabel="Custom exercise equipment"
-                          buttonClassName="liquid-field mt-1 w-full px-3 py-2.5 text-sm"
+                          buttonClassName={`mt-1 ${BUILDER_LINE_SELECT_CLASS}`}
                           listClassName="max-h-56 overflow-y-auto"
                         />
                       </div>
@@ -3248,7 +3158,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="Add custom muscle names"
-                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
+                          className={`mt-2 ${BUILDER_LINE_INPUT_CLASS}`}
                         />
                         <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
                           {customExercisePrimaryMuscles.length > 0
@@ -3286,7 +3196,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             ariaLabel="Custom exercise movement pattern"
-                            buttonClassName="liquid-field mt-1 w-full px-3 py-2.5 text-sm"
+                            buttonClassName={`mt-1 ${BUILDER_LINE_SELECT_CLASS}`}
                             listClassName="max-h-56 overflow-y-auto"
                           />
                         </div>
@@ -3322,7 +3232,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             placeholder="Add custom secondary muscles"
-                            className="liquid-field mt-2 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
+                            className={`mt-2 ${BUILDER_LINE_INPUT_CLASS}`}
                           />
                         </div>
                       </div>
