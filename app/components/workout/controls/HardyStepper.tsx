@@ -147,7 +147,7 @@ export default function HardyStepper({
 
   const centerClasses = 'hover:opacity-90';
   const containerClasses = isVertical ? 'flex w-full flex-col gap-1.5 select-none touch-none' : 'flex w-full items-center gap-3 select-none touch-none';
-  const buttonBaseClasses = 'bg-zinc-900/80 text-zinc-400 active:scale-95 active:bg-zinc-800 transition-colors select-none touch-none';
+  const buttonBaseClasses = 'liquid-control-button bg-white/[0.025] text-zinc-300 active:scale-95 transition-colors select-none touch-none';
   const horizontalButtonClasses = `h-14 w-14 shrink-0 rounded-full ${buttonBaseClasses}`;
   const verticalButtonClasses = `h-12 w-full rounded-full ${buttonBaseClasses}`;
   const valueButtonClasses = `text-center transition-colors ${centerClasses} ${
@@ -167,7 +167,7 @@ export default function HardyStepper({
           >
             <div>
               <p className={valueTextClasses}>{formatValue(value, step)}</p>
-              <p className="text-zinc-500 text-xs uppercase tracking-[0.18em]">{label}</p>
+              <p className="text-xs font-semibold text-zinc-500">{label}</p>
             </div>
           </button>
 
@@ -231,7 +231,7 @@ export default function HardyStepper({
           >
             <div>
               <p className={valueTextClasses}>{formatValue(value, step)}</p>
-              <p className="text-zinc-500 text-xs uppercase tracking-[0.18em]">{label}</p>
+              <p className="text-xs font-semibold text-zinc-500">{label}</p>
             </div>
           </button>
 

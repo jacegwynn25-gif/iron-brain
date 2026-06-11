@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -193,8 +194,17 @@ export function LiquidSegmentedControl<T extends string>({
   onChange: (value: T) => void;
   className?: string;
 }) {
+  const activeIndex = Math.max(0, options.findIndex((option) => option.value === value));
+
   return (
-    <div className={cn('liquid-segmented grid gap-1 p-1', className)}>
+    <div
+      className={cn('liquid-segmented grid gap-1 p-1', className)}
+      style={{
+        '--segment-count': options.length,
+        '--segment-index': activeIndex,
+      } as CSSProperties}
+    >
+      <span className="liquid-segmented-indicator" aria-hidden="true" />
       {options.map((option) => (
         <button
           key={option.value}
@@ -269,14 +279,13 @@ export function LiquidActionMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const updatePosition = useCallback(() => {
+  const resolvePosition = useCallback((measuredHeight = 320): CSSProperties | null => {
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (!rect) return null;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const margin = 12;
     const gap = 8;
-    const measuredHeight = menuRef.current?.getBoundingClientRect().height || menuRef.current?.scrollHeight || 360;
     const menuHeight = Math.min(measuredHeight, viewportHeight - margin * 2);
     const belowTop = rect.bottom + gap;
     const aboveTop = rect.top - menuHeight - gap;
@@ -285,7 +294,7 @@ export function LiquidActionMenu({
       align === 'end'
         ? clamp(rect.right - width, margin, viewportWidth - width - margin)
         : clamp(rect.left, margin, viewportWidth - width - margin);
-    setStyle({
+    return {
       left,
       top: placeAbove ? aboveTop : belowTop,
       width: Math.min(width, viewportWidth - margin * 2),
@@ -293,12 +302,32 @@ export function LiquidActionMenu({
       transformOrigin: align === 'end'
         ? `calc(100% - 1.4rem) ${placeAbove ? 'calc(100% + 0.35rem)' : '-0.35rem'}`
         : `1.4rem ${placeAbove ? 'calc(100% + 0.35rem)' : '-0.35rem'}`,
-    });
+    };
   }, [align, width]);
+
+  const updatePosition = useCallback(() => {
+    const measuredHeight = menuRef.current?.scrollHeight || menuRef.current?.getBoundingClientRect().height || 320;
+    const nextStyle = resolvePosition(measuredHeight);
+    if (nextStyle) setStyle(nextStyle);
+  }, [resolvePosition]);
+
+  const toggleOpen = useCallback(() => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const nextStyle = resolvePosition();
+    if (nextStyle) setStyle(nextStyle);
+    setOpen(true);
+  }, [open, resolvePosition]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (!open) return;
-    updatePosition();
     let frame = 0;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
@@ -328,10 +357,10 @@ export function LiquidActionMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          'inline-flex items-center justify-center rounded-[1.05rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45',
+          'liquid-action-menu-trigger inline-flex items-center justify-center rounded-[1.05rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45',
           className
         )}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggleOpen}
       >
         {trigger}
       </button>
