@@ -95,23 +95,23 @@ export default function UpgradePage() {
       </header>
 
       {error && (
-        <div className="mx-1 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-center text-sm text-rose-300 sm:mx-0">
+        <div className="mx-1 border-y border-rose-400/25 py-4 text-center text-sm text-rose-300 sm:mx-0">
           {error}
         </div>
       )}
 
       <section className="px-1">
-        <div className="rounded-[1.35rem] border border-amber-300/70 bg-amber-400 p-5 text-zinc-950 shadow-[0_26px_70px_-36px_rgba(251,191,36,1)] sm:rounded-[1.5rem] sm:p-8">
+        <div className="border-y border-white/8 py-5 sm:py-8">
           <div className="relative flex flex-col gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
-              <HeartHandshake className="h-5 w-5 text-zinc-950" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950/80">
+              <HeartHandshake className="h-5 w-5 text-emerald-400" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                 Optional Support
               </span>
             </div>
             <div>
-              <h2 className="text-2xl font-black italic tracking-tight sm:text-3xl">SUPPORT IRON BRAIN</h2>
-              <p className="mt-1 text-sm font-medium text-zinc-900/70">
+              <h2 className="text-2xl font-black italic tracking-tight text-zinc-100 sm:text-3xl">Support Iron Brain</h2>
+              <p className="mt-1 text-sm font-medium text-zinc-500">
                 Completely optional. No features are locked behind this.
               </p>
             </div>
@@ -125,8 +125,8 @@ export default function UpgradePage() {
                     type="button"
                     onClick={() => setAmountInput(formatAmountInput(amount))}
                     className={`min-h-10 rounded-xl border text-sm font-black transition-colors ${selected
-                      ? 'border-zinc-950 bg-zinc-950 text-amber-300'
-                      : 'border-zinc-950/20 bg-zinc-950/5 text-zinc-950 hover:bg-zinc-950/10'
+                      ? 'border-emerald-500 bg-emerald-500 text-zinc-950'
+                      : 'border-white/8 bg-white/[0.035] text-zinc-300 hover:border-white/14 hover:text-zinc-100'
                       }`}
                   >
                     ${amount}
@@ -136,29 +136,29 @@ export default function UpgradePage() {
             </div>
 
             <label className="block">
-              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-950/70">
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
                 Custom Amount
               </span>
-              <div className="mt-2 flex items-center rounded-2xl border border-zinc-950/25 bg-zinc-950/10 px-4">
-                <span className="text-2xl font-black text-zinc-950/70">$</span>
+              <div className="liquid-field mt-2 flex items-center px-4">
+                <span className="text-2xl font-black text-zinc-500">$</span>
                 <input
                   value={amountInput}
                   onChange={(event) => setAmountInput(event.target.value)}
                   inputMode="decimal"
                   aria-label="Support amount"
-                  className="min-h-14 w-full bg-transparent px-2 text-3xl font-black tracking-tight text-zinc-950 outline-none placeholder:text-zinc-950/30 sm:min-h-16 sm:text-4xl"
+                  className="min-h-14 w-full bg-transparent px-2 text-3xl font-black tracking-tight text-zinc-100 outline-none placeholder:text-zinc-700 sm:min-h-16 sm:text-4xl"
                   placeholder="10"
                 />
               </div>
-              <span className="mt-2 block text-xs font-semibold text-zinc-900/65">
+              <span className="mt-2 block text-xs font-semibold text-zinc-500">
                 Choose any amount from $1 to $500.
               </span>
             </label>
 
             <ul className="space-y-2">
               {supportNotes.map((note) => (
-                <li key={note} className="flex items-center gap-2 text-sm font-medium text-zinc-950/85">
-                  <Check className="h-4 w-4 text-zinc-950" />
+                <li key={note} className="flex items-center gap-2 text-sm font-medium text-zinc-400">
+                  <Check className="h-4 w-4 text-emerald-400" />
                   {note}
                 </li>
               ))}
@@ -167,14 +167,14 @@ export default function UpgradePage() {
               type="button"
               onClick={handleSupportCheckout}
               disabled={loading || !amountIsValid}
-              className="group mt-auto flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 py-3 text-sm font-black italic tracking-tight text-amber-300 transition-colors hover:bg-zinc-900 active:bg-black disabled:opacity-60 sm:min-h-12 sm:py-3.5"
+              className="liquid-action-button group mt-auto flex min-h-11 w-full items-center justify-center gap-2 rounded-[1.05rem] py-3 text-sm font-black italic tracking-tight text-zinc-950 transition-colors disabled:opacity-60 sm:min-h-12 sm:py-3.5"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
                   Support Iron Brain
-                  <ArrowRight className="h-4 w-4 text-amber-300/70 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="h-4 w-4 text-zinc-950/60 transition-transform group-hover:translate-x-1" />
                 </>
               )}
             </button>

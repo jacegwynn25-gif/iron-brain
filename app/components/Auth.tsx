@@ -96,11 +96,11 @@ export function AuthModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07080b]/90 p-4 backdrop-blur-xl">
-      <div className="relative w-full max-w-md overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950/95 p-5 text-white shadow-[0_28px_90px_rgba(0,0,0,0.68)] sm:p-7">
+      <div className="liquid-sheet-panel relative w-full max-w-md overflow-hidden p-5 text-white sm:p-7">
         {onClose && !hideClose && (
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-black/30 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+            className="liquid-icon-button absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-white"
             aria-label="Close sign in"
           >
             <X className="h-5 w-5" />
@@ -113,7 +113,7 @@ export function AuthModal({
             alt=""
             width={56}
             height={56}
-            className="h-14 w-14 shrink-0 rounded-[1.05rem] border border-zinc-800 bg-black object-cover"
+            className="h-14 w-14 shrink-0 rounded-[1.05rem] object-cover"
           />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-emerald-300">
@@ -133,9 +133,9 @@ export function AuthModal({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={loading || googleLoading}
-          className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-[1.1rem] border border-zinc-700 bg-zinc-100 px-6 text-sm font-black italic uppercase tracking-tight text-zinc-950 transition-colors hover:bg-white active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-[1.05rem] border border-white/10 bg-white/[0.08] px-6 text-sm font-black italic tracking-tight text-zinc-100 transition-colors hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-950 text-xs font-black not-italic text-white">
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-100 text-xs font-black not-italic text-zinc-950">
             G
           </span>
           {googleLoading ? 'CONNECTING...' : 'CONTINUE WITH GOOGLE'}
@@ -158,7 +158,7 @@ export function AuthModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 min-h-12 w-full rounded-xl border border-zinc-800 bg-black/40 px-4 text-base text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/70 focus:bg-black/55"
+              className="liquid-field mt-2 min-h-12 w-full px-4 text-base text-white placeholder:text-zinc-600"
               placeholder="you@example.com"
               autoComplete="email"
               required
@@ -173,7 +173,7 @@ export function AuthModal({
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-2 min-h-12 w-full rounded-xl border border-zinc-800 bg-black/40 px-4 text-base text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/70 focus:bg-black/55"
+              className="liquid-field mt-2 min-h-12 w-full px-4 text-base text-white placeholder:text-zinc-600"
               placeholder="Minimum 6 characters"
               autoComplete={isSignIn ? 'current-password' : 'new-password'}
               required
@@ -194,14 +194,14 @@ export function AuthModal({
           <button
             type="submit"
             disabled={loading}
-            className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] bg-emerald-400 px-6 text-sm font-black italic uppercase tracking-tight text-zinc-950 shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="liquid-action-button group flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.05rem] px-6 text-sm font-black italic tracking-tight text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>{loading ? 'WORKING...' : isSignIn ? 'SIGN IN' : 'CREATE ACCOUNT'}</span>
             {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
           </button>
         </form>
 
-        <div className="mt-5 border-t border-zinc-900 pt-5 text-center">
+        <div className="mt-5 border-t border-white/8 pt-5 text-center">
           <button
             onClick={switchMode}
             className="text-sm font-bold text-zinc-400 transition-colors hover:text-zinc-100"

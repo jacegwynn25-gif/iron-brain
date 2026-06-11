@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, RefreshCw, WifiOff, X } from 'lucide-react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, RefreshCw, X } from 'lucide-react';
 
 interface AppResilienceStatusProps {
   currentVersion: string;
@@ -16,33 +16,18 @@ interface SyncQueueDetail {
   failed?: number;
 }
 
-const QUEUE_KEY_PREFIX = 'iron_brain_sync_queue';
+type SyncQueueWindow = Window & {
+  __ironBrainSyncQueueEvents?: SyncQueueDetail[];
+  __ironBrainSyncQueueReady?: boolean;
+};
+
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const DISMISSED_VERSION_KEY = 'iron_brain_dismissed_app_version';
-
-function readQueuedOperationCount(): number {
-  if (typeof window === 'undefined') return 0;
-
-  let total = 0;
-  try {
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index);
-      if (!key || !key.startsWith(QUEUE_KEY_PREFIX)) continue;
-      const parsed = JSON.parse(localStorage.getItem(key) ?? '[]');
-      if (Array.isArray(parsed)) total += parsed.length;
-    }
-  } catch {
-    return 0;
-  }
-
-  return total;
-}
 
 export default function AppResilienceStatus({ currentVersion }: AppResilienceStatusProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [remoteVersion, setRemoteVersion] = useState<string | null>(null);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
-  const [queuedOperations, setQueuedOperations] = useState(0);
   const [syncNotice, setSyncNotice] = useState<SyncQueueDetail | null>(null);
   const syncNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,27 +46,32 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const syncBrowserState = () => {
-      setIsOnline(navigator.onLine);
-      setQueuedOperations(readQueuedOperationCount());
+    const syncBrowserState = (online = navigator.onLine) => {
+      setIsOnline(online);
     };
 
     const handleOnline = () => {
-      syncBrowserState();
+      syncBrowserState(true);
       void checkVersion();
     };
 
-    const handleSyncQueue = (event: Event) => {
-      const detail = (event as CustomEvent<SyncQueueDetail>).detail ?? {};
-      setQueuedOperations(readQueuedOperationCount());
+    const handleOffline = () => {
+      syncBrowserState(false);
+    };
+
+    const showSyncNotice = (detail: SyncQueueDetail) => {
       if ((detail.processed ?? 0) > 0) {
         setSyncNotice(detail);
         if (syncNoticeTimerRef.current) clearTimeout(syncNoticeTimerRef.current);
         syncNoticeTimerRef.current = setTimeout(() => setSyncNotice(null), 5200);
       }
+    };
+
+    const handleSyncQueue = (event: Event) => {
+      showSyncNotice((event as CustomEvent<SyncQueueDetail>).detail ?? {});
     };
 
     const handleVisibilityChange = () => {
@@ -93,23 +83,31 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
 
     syncBrowserState();
     setDismissedVersion(localStorage.getItem(DISMISSED_VERSION_KEY));
+    const syncWindow = window as SyncQueueWindow;
+    const queuedSyncEvents = syncWindow.__ironBrainSyncQueueEvents ?? [];
+    syncWindow.__ironBrainSyncQueueEvents = [];
+    syncWindow.__ironBrainSyncQueueReady = true;
+    queuedSyncEvents.forEach(showSyncNotice);
     void checkVersion();
 
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', syncBrowserState);
+    window.addEventListener('offline', handleOffline);
     window.addEventListener('focus', checkVersion);
     window.addEventListener('iron-brain:sync-queue', handleSyncQueue);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const interval = window.setInterval(checkVersion, CHECK_INTERVAL_MS);
+    const browserStateInterval = window.setInterval(syncBrowserState, 1000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', syncBrowserState);
+      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('focus', checkVersion);
       window.removeEventListener('iron-brain:sync-queue', handleSyncQueue);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      (window as SyncQueueWindow).__ironBrainSyncQueueReady = false;
       window.clearInterval(interval);
+      window.clearInterval(browserStateInterval);
       if (syncNoticeTimerRef.current) clearTimeout(syncNoticeTimerRef.current);
     };
   }, [checkVersion]);
@@ -121,22 +119,6 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
     isOnline;
 
   const status = useMemo(() => {
-    if (!isOnline) {
-      return {
-        key: 'offline',
-        icon: WifiOff,
-        label: 'Offline Mode',
-        title: 'Saving locally',
-        body:
-          queuedOperations > 0
-            ? `${queuedOperations} change${queuedOperations === 1 ? '' : 's'} waiting to sync when you are back online.`
-            : 'Workout changes stay on this device until connection returns.',
-        tone: 'border-amber-400/35 bg-zinc-950/95 text-amber-200',
-        action: null,
-        dismissible: false,
-      };
-    }
-
     if (updateAvailable && remoteVersion) {
       return {
         key: 'update',
@@ -144,7 +126,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
         label: 'App Update',
         title: 'Refresh when free',
         body: 'A newer version is ready. Active workouts stay saved locally.',
-        tone: 'border-emerald-400/30 bg-zinc-950/95 text-emerald-200',
+        tone: 'text-emerald-200',
         action: 'refresh' as const,
         dismissible: true,
       };
@@ -162,14 +144,14 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
           failed > 0
             ? `${processed} saved. ${failed} still retrying in the background.`
             : `${processed} queued change${processed === 1 ? '' : 's'} saved to cloud.`,
-        tone: failed > 0 ? 'border-amber-400/35 bg-zinc-950/95 text-amber-200' : 'border-emerald-400/25 bg-zinc-950/95 text-emerald-200',
+        tone: failed > 0 ? 'text-amber-200' : 'text-emerald-200',
         action: null,
         dismissible: true,
       };
     }
 
     return null;
-  }, [isOnline, queuedOperations, remoteVersion, syncNotice, updateAvailable]);
+  }, [remoteVersion, syncNotice, updateAvailable]);
 
   if (!status) return null;
 
@@ -178,7 +160,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
   return (
     <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[95] flex justify-center">
       <div
-        className={`pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[1.1rem] border px-3 py-2.5 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl ${status.tone}`}
+        className={`liquid-sheet-panel pointer-events-auto flex w-full max-w-md items-center gap-3 px-3 py-2.5 ${status.tone}`}
         role="status"
         aria-live="polite"
         data-testid={`app-resilience-${status.key}`}
@@ -204,7 +186,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
               onClick={() => {
                 window.location.reload();
               }}
-              className="rounded-lg bg-emerald-300 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-950 active:bg-emerald-400"
+              className="liquid-action-button rounded-lg px-2.5 py-2 text-[10px] font-black italic tracking-tight text-zinc-950"
             >
               Refresh
             </button>
@@ -214,7 +196,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
                 setDismissedVersion(remoteVersion);
                 if (remoteVersion) localStorage.setItem(DISMISSED_VERSION_KEY, remoteVersion);
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+              className="liquid-icon-button flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200"
               aria-label="Dismiss update notice"
             >
               <X className="h-4 w-4" />
@@ -224,7 +206,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
           <button
             type="button"
             onClick={() => setSyncNotice(null)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+            className="liquid-icon-button flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200"
             aria-label="Dismiss status"
           >
             <X className="h-4 w-4" />

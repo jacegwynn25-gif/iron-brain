@@ -145,16 +145,16 @@ export default function CreateExerciseModal({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl">
+      <div className="liquid-sheet-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-900 bg-zinc-950 p-5 sm:p-6">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#0b0d12]/85 p-5 backdrop-blur-xl sm:p-6">
           <h2 className="text-2xl font-black italic tracking-tight text-zinc-100">
             CREATE EXERCISE
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 text-zinc-500 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
+            className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-100"
           >
             <X className="h-5 w-5" />
           </button>
@@ -173,7 +173,7 @@ export default function CreateExerciseModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cable Fly"
               required
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+              className="liquid-field w-full px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600"
             />
           </div>
 
@@ -193,8 +193,8 @@ export default function CreateExerciseModal({
                   }}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold capitalize transition-colors ${
                     equipment === eq
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                      ? 'border border-emerald-500 bg-emerald-500 text-zinc-950'
+                      : 'border border-white/8 bg-white/[0.035] text-zinc-400 hover:border-white/14 hover:text-zinc-100'
                   }`}
                 >
                   {eq}
@@ -219,8 +219,8 @@ export default function CreateExerciseModal({
                   }}
                   className={`flex-1 rounded-lg px-4 py-2 font-semibold capitalize transition-colors ${
                     exerciseType === type
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                      ? 'border border-emerald-500 bg-emerald-500 text-zinc-950'
+                      : 'border border-white/8 bg-white/[0.035] text-zinc-400 hover:border-white/14 hover:text-zinc-100'
                   }`}
                 >
                   {type}
@@ -242,8 +242,8 @@ export default function CreateExerciseModal({
                   onClick={() => toggleMuscle(muscle, true)}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     primaryMuscles.includes(muscle)
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                      ? 'border border-emerald-500 bg-emerald-500 text-zinc-950'
+                      : 'border border-white/8 bg-white/[0.035] text-zinc-400 hover:border-white/14 hover:text-zinc-100'
                   }`}
                 >
                   {muscle}
@@ -265,8 +265,8 @@ export default function CreateExerciseModal({
                   onClick={() => toggleMuscle(muscle, false)}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                     secondaryMuscles.includes(muscle)
-                      ? 'bg-emerald-400 text-zinc-950'
-                      : 'border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                      ? 'border border-emerald-500 bg-emerald-500 text-zinc-950'
+                      : 'border border-white/8 bg-white/[0.035] text-zinc-400 hover:border-white/14 hover:text-zinc-100'
                   }`}
                 >
                   {muscle}
@@ -286,7 +286,7 @@ export default function CreateExerciseModal({
                 setManualFields((prev) => ({ ...prev, movementPattern: true }));
                 setMovementPattern(e.target.value as CustomExercise['movementPattern']);
               }}
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+              className="liquid-field w-full px-4 py-2.5 text-sm text-zinc-100"
             >
               <option value="">None</option>
               <option value="push">Push</option>
@@ -313,7 +313,7 @@ export default function CreateExerciseModal({
               }}
               min="0"
               step="15"
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+              className="liquid-field w-full px-4 py-2.5 text-sm text-zinc-100"
             />
           </div>
 
@@ -322,14 +322,14 @@ export default function CreateExerciseModal({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-12 flex-1 rounded-xl border border-zinc-800 px-5 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-zinc-100"
+              className="liquid-icon-button min-h-12 flex-1 rounded-[1.05rem] px-5 text-[11px] font-black italic tracking-tight text-zinc-300 transition-colors hover:text-zinc-100"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !name.trim() || primaryMuscles.length === 0}
-              className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-5 text-[11px] font-black uppercase tracking-[0.18em] text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="liquid-action-button min-h-12 flex-1 rounded-[1.05rem] px-5 text-[11px] font-black italic tracking-tight text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create & Add'}
             </button>

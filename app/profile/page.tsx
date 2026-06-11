@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../lib/supabase/auth-context';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
 import { useDialog } from '@/app/providers/DialogProvider';
+import { liquidButtonClass } from '../components/ui/liquid';
 
 import type {
   WorkoutSession,
@@ -193,8 +194,8 @@ export default function ProfilePage() {
   }, [workoutHistory]);
 
   const menuItems = [
-    { icon: Sparkles, label: 'Coach Export', path: '/profile/coach' },
-    { icon: Scale, label: '1RMs & Maxes', path: '/profile/maxes' },
+    { icon: Sparkles, label: 'Coach export', path: '/profile/coach' },
+    { icon: Scale, label: '1RMs & maxes', path: '/profile/maxes' },
     { icon: Settings, label: 'Settings', path: '/profile/settings' },
   ];
 
@@ -202,33 +203,33 @@ export default function ProfilePage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item px-1">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <User className="w-8 h-8 text-white" />
+          <div className="liquid-icon-button flex h-16 w-16 items-center justify-center rounded-full">
+            <User className="h-8 w-8 text-zinc-300" />
           </div>
           <div className="space-y-0.5 sm:space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.4em]">Profile</p>
-            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">
-              {(user?.email?.split('@')[0] || 'Guest User').toUpperCase()}
+            <p className="iron-label">Profile</p>
+            <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">
+              {user?.email?.split('@')[0] || 'Guest user'}
             </h1>
             <p className="text-[10px] text-zinc-500 sm:text-xs">
-              {user?.email || 'Offline Mode'}
+              {user?.email || 'Offline mode'}
             </p>
           </div>
         </div>
       </header>
 
-      <section className="stagger-item grid grid-cols-3 gap-2.5 px-1 sm:gap-4">
-        <div className="surface-card p-4 sm:p-5 text-center">
-          <div className="text-2xl font-black text-white">{workoutHistory.length}</div>
-          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">Workouts</div>
+      <section className="stagger-item grid grid-cols-3 gap-2.5 border-y border-white/8 px-1 py-4 sm:gap-4">
+        <div>
+          <div className="iron-display text-2xl text-white">{workoutHistory.length}</div>
+          <div className="text-xs text-zinc-500">Workouts</div>
         </div>
-        <div className="surface-card p-4 sm:p-5 text-center">
-          <div className="text-2xl font-black text-white">{weeklyStreak}</div>
-          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">Week Streak</div>
+        <div>
+          <div className="iron-display text-2xl text-white">{weeklyStreak}</div>
+          <div className="text-xs text-zinc-500">Week streak</div>
         </div>
-        <div className="surface-card p-4 sm:p-5 text-center">
-          <div className="text-2xl font-black text-white">{prCount}</div>
-          <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px]">PRs</div>
+        <div>
+          <div className="iron-display text-2xl text-white">{prCount}</div>
+          <div className="text-xs text-zinc-500">PRs</div>
         </div>
       </section>
 
@@ -236,38 +237,37 @@ export default function ProfilePage() {
         <section className="stagger-item px-1">
           <button
             onClick={() => router.push('/upgrade')}
-            className="group flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-amber-300/70 bg-amber-400 px-4 py-3 text-left text-zinc-950 shadow-[0_18px_50px_-28px_rgba(251,191,36,0.95)] transition-colors hover:bg-amber-300 active:bg-amber-500"
+            className="group flex w-full items-center justify-between gap-4 border-y border-white/8 py-4 text-left text-zinc-100 transition-colors hover:text-white"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-950/15 ring-1 ring-zinc-950/15">
-                <Sparkles className="h-4 w-4 text-zinc-950" />
+              <div className="liquid-icon-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+                <Sparkles className="h-4 w-4 text-zinc-300" />
               </div>
               <div className="min-w-0">
-                <span className="text-base font-black italic tracking-tight">SUPPORT IRON BRAIN</span>
+                <span className="text-base font-medium tracking-tight">Support Iron Brain</span>
               </div>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-950 transition-transform group-hover:translate-x-0.5" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:translate-x-0.5" />
           </button>
         </section>
       )}
 
       <section className="stagger-item space-y-3 px-1">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Configuration</p>
-        <h2 className="text-xl font-black italic text-zinc-100">PREFERENCES</h2>
-        <div className="space-y-2">
+        <h2 className="iron-display text-xl text-zinc-100">Preferences</h2>
+        <div className="divide-y divide-white/8 border-y border-white/8">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.path}
                 onClick={() => router.push(item.path)}
-                className="surface-card w-full flex items-center justify-between p-4 sm:p-5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 active:scale-[0.98]"
+                className="flex w-full items-center justify-between py-4 transition-all hover:text-white active:bg-white/[0.035] sm:py-5"
               >
                 <div className="flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-emerald-400" />
-                  <span className="text-sm font-black italic text-zinc-100">{item.label}</span>
+                  <Icon className="h-5 w-5 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-100">{item.label}</span>
                 </div>
-                <ChevronRight className="w-5 h-5 text-zinc-500" />
+                <ChevronRight className="h-5 w-5 text-zinc-500" />
               </button>
             );
           })}
@@ -276,8 +276,8 @@ export default function ProfilePage() {
 
       {user ? (
         <section className="stagger-item space-y-3 px-1">
-          <div className="surface-card p-4 border-emerald-500/20">
-            <div className="flex items-center gap-2 text-emerald-300 text-sm font-medium">
+          <div className="border-y border-white/8 py-4">
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
               <User className="w-4 h-4" />
               <span>Signed in as {user.email}</span>
             </div>
@@ -295,25 +295,23 @@ export default function ProfilePage() {
 
               }
             }}
-            className="w-full surface-card p-4 flex items-center justify-center gap-2 text-rose-300 font-black italic border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-rose-400/25 bg-rose-500/[0.055] p-4 font-medium text-rose-300 transition-all hover:bg-rose-500/[0.08] active:scale-[0.98]"
           >
             <LogOut className="w-5 h-5" />
-            SIGN OUT
+            Sign out
           </button>
         </section>
       ) : (
         <section className="stagger-item space-y-3 px-1">
-          <div className="surface-card p-4 border-blue-500/20">
-            <div className="text-sm text-blue-300">
-              <strong>Guest Mode</strong> — Your data is stored locally on this device. Sign in to sync across devices and backup to the cloud.
-            </div>
-          </div>
           <button
             onClick={() => router.push(buildLoginUrl(getReturnToFromLocation()))}
-            className="w-full group relative overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-4 flex items-center justify-center gap-2 text-white font-black italic shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className={liquidButtonClass({
+              variant: 'action',
+              className: 'w-full rounded-[1rem] p-4',
+            })}
           >
             <User className="w-5 h-5" />
-            SIGN IN / CREATE ACCOUNT
+            Sign in
           </button>
         </section>
       )}

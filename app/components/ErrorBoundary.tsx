@@ -2,6 +2,8 @@
 
 import React from 'react';
 
+import { liquidButtonClass } from './ui/liquid';
+
 interface ErrorBoundaryProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -50,8 +52,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
       // Default fallback UI
       return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-red-500/50 rounded-lg p-6 max-w-lg w-full">
+        <div className="app-gradient flex min-h-screen items-center justify-center p-4">
+          <div className="liquid-sheet-panel w-full max-w-lg rounded-[1.2rem] border border-red-500/25 p-6">
             <div className="flex items-start gap-3 mb-4">
               <svg
                 className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5"
@@ -89,13 +91,21 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 btn-primary text-white px-4 py-2 rounded-xl transition-all"
+                className={liquidButtonClass({
+                  variant: 'action',
+                  density: 'compact',
+                  className: 'flex-1 rounded-xl px-4 py-2',
+                })}
               >
                 Try Again
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 btn-secondary text-white px-4 py-2 rounded-xl transition-all"
+                className={liquidButtonClass({
+                  variant: 'neutral',
+                  density: 'compact',
+                  className: 'flex-1 rounded-xl px-4 py-2',
+                })}
               >
                 Reload Page
               </button>

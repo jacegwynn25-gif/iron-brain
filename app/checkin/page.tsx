@@ -19,7 +19,11 @@ export default function CheckInPage() {
         <div className="animate-pulse space-y-4 px-1">
           <div className="h-8 w-48 rounded-lg bg-zinc-800" />
           <div className="h-4 w-32 rounded bg-zinc-800" />
-          <div className="h-64 rounded-2xl bg-zinc-800" />
+          <div className="border-y border-white/8 py-12">
+            <div className="h-4 w-3/4 rounded bg-zinc-800" />
+            <div className="mt-5 h-12 rounded-xl bg-zinc-800" />
+            <div className="mt-3 h-12 rounded-xl bg-zinc-800" />
+          </div>
         </div>
       </div>
     );
@@ -28,7 +32,7 @@ export default function CheckInPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10">
       <header className="stagger-item px-1">
-        <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">CHECK-IN</h1>
+        <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Check-in</h1>
         <p className="mt-1 text-xs text-zinc-500">Log recovery context for today.</p>
       </header>
       <section className="stagger-item px-1">

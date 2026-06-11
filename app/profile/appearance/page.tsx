@@ -15,15 +15,16 @@ export default function ProfileAppearancePage() {
           <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">Visual preferences and display modes.</p>
         </div>
         <button
+          type="button"
+          aria-label="Back to profile"
           onClick={() => router.push('/profile')}
-          className="surface-card inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-200 transition-all hover:border-zinc-700 hover:bg-zinc-900/50"
+          className="liquid-icon-button inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-100"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
         </button>
       </header>
       <section className="stagger-item px-1">
-        <div className="surface-card p-6 text-sm text-zinc-400">Coming soon.</div>
+        <div className="border-y border-white/8 py-5 text-sm text-zinc-500">Coming soon.</div>
       </section>
     </div>
   );

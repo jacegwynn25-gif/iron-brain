@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowRight,
   BarChart3,
   Battery,
   CalendarDays,
@@ -155,29 +157,29 @@ const resolveInitialView = (value?: string): ViewType => {
   return resolved;
 };
 
-const SECTION_CLASS = 'rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 sm:p-5';
-const SUBSECTION_CARD_CLASS = 'rounded-xl border border-zinc-900 bg-zinc-950/70 p-3.5';
+const SECTION_CLASS = 'border-y border-white/8 py-4 sm:py-5';
+const SUBSECTION_CARD_CLASS = 'border-y border-white/8 px-1.5 py-3.5';
 const SECTION_TITLE_CLASS = 'text-lg font-black italic tracking-tight text-zinc-100 sm:text-xl';
-const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500';
+const METRIC_LABEL_CLASS = 'text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-500';
 
 type Tone = 'emerald' | 'amber' | 'rose' | 'zinc';
 
 const toneTextClass: Record<Tone, string> = {
-  emerald: 'text-emerald-300',
+  emerald: 'text-emerald-500',
   amber: 'text-amber-300',
   rose: 'text-rose-300',
   zinc: 'text-zinc-400',
 };
 
 const toneBgClass: Record<Tone, string> = {
-  emerald: 'bg-emerald-400',
+  emerald: 'bg-emerald-500',
   amber: 'bg-amber-400',
   rose: 'bg-rose-400',
   zinc: 'bg-zinc-500',
 };
 
 const toneBorderClass: Record<Tone, string> = {
-  emerald: 'border-emerald-400/45',
+  emerald: 'border-emerald-500/45',
   amber: 'border-amber-400/45',
   rose: 'border-rose-400/45',
   zinc: 'border-zinc-700',
@@ -293,6 +295,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const [analytics, setAnalytics] = useState<AnalyticsData>({});
   const [loading, setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<ViewType>(() => resolveInitialView(initialView));
+  const [showDataAudit, setShowDataAudit] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<WorkoutSession[]>([]);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [loadingRecovery, setLoadingRecovery] = useState(false);
@@ -909,13 +912,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
   const fitnessFatigueDelta = analytics.fitnessFatigue
     ? analytics.fitnessFatigue.currentFitness - analytics.fitnessFatigue.currentFatigue
     : null;
-  const readinessSourceLabel = readiness?.source === 'manual'
-    ? 'check-in + training'
-    : readiness?.source === 'training'
-      ? 'training only'
-      : readiness?.source === 'baseline'
-        ? 'baseline'
-        : 'model fallback';
   const trainingBalanceLabel = readinessLoading && !readiness ? 'syncing' : readinessStatus;
   const trainingBalanceSummary = readiness?.reason
     ?? (analytics.fitnessFatigue && fitnessFatigueDelta != null
@@ -975,10 +971,10 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="flex min-h-dvh items-center justify-center pb-24 p-6">
         <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+          <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-white/8 bg-white/[0.035]">
             <BarChart3 className="h-7 w-7 text-emerald-300" />
           </div>
-          <div className="text-xl font-black italic tracking-tight text-white">LOADING INSIGHTS</div>
+          <div className="iron-display text-xl text-white">Loading insights</div>
           <div className="text-xs text-zinc-500">Calculating your stats</div>
         </div>
       </div>
@@ -990,11 +986,11 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10 px-1">
         <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035]">
             <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
           <h2 className="mb-2 text-xl font-black italic tracking-tight text-white">
-            {awaitingSync ? 'SYNCING WORKOUTS...' : 'NOT ENOUGH DATA YET'}
+            {awaitingSync ? 'Syncing workouts...' : 'Not enough data yet'}
           </h2>
           <p className="mb-6 text-[10px] text-zinc-500 sm:text-xs">
             {awaitingSync
@@ -1003,8 +999,17 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 ? 'Complete a workout or schedule sessions in Programs to unlock full Insights.'
                 : 'Complete a workout to unlock Insights.'}
           </p>
+          {!awaitingSync && (
+            <Link
+              href="/start"
+              className="liquid-action-button inline-flex min-h-11 items-center gap-2 rounded-[1rem] px-4 text-xs font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
+            >
+              <span>Start workout</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
           {cloudSyncing && (
-            <div className="mb-4 rounded-lg border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-400">
+            <div className="mb-4 border-y border-white/8 py-2 text-xs text-zinc-500">
               Syncing...
             </div>
           )}
@@ -1019,28 +1024,28 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
       <header className="stagger-item px-1">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5 sm:space-y-1">
-            <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">INSIGHTS</h1>
+            <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Insights</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {cloudSyncing && (
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">
                 Syncing...
               </span>
             )}
-            <div className="grid min-h-10 grid-cols-2 rounded-xl border border-zinc-800 bg-zinc-950 p-1 text-xs font-bold">
+            <div className="liquid-segmented grid min-h-10 grid-cols-2 gap-1 p-1 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => unitSystem !== 'imperial' && setUnitSystem('imperial')}
-                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'imperial' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
-                  }`}
+                data-active={unitSystem === 'imperial' ? 'true' : 'false'}
+                className="liquid-segmented-item px-3"
               >
                 lbs
               </button>
               <button
                 type="button"
                 onClick={() => unitSystem !== 'metric' && setUnitSystem('metric')}
-                className={`rounded-lg px-3 uppercase tracking-[0.12em] transition-colors ${unitSystem === 'metric' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'
-                  }`}
+                data-active={unitSystem === 'metric' ? 'true' : 'false'}
+                className="liquid-segmented-item px-3"
               >
                 kg
               </button>
@@ -1051,7 +1056,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
 
       {/* Navigation Tabs */}
       <div
-        className={`stagger-item mb-6 grid gap-1 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-1 ${FEATURES.adherenceAnalytics ? 'grid-cols-5' : 'grid-cols-4'}`}
+        className={`liquid-segmented stagger-item mb-6 grid gap-1 p-1 ${FEATURES.adherenceAnalytics ? 'grid-cols-5' : 'grid-cols-4'}`}
       >
         {([
           { id: 'overview' as ViewType, label: 'Overview', Icon: BarChart3 },
@@ -1065,10 +1070,8 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           <button
             key={id}
             onClick={() => selectInsightsView(id)}
-            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-black uppercase tracking-[0.08em] transition-colors sm:min-h-11 sm:flex-row sm:gap-2 sm:text-[11px] sm:tracking-[0.14em] ${selectedView === id
-              ? 'bg-zinc-800 text-zinc-100'
-              : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200'
-              }`}
+            data-active={selectedView === id ? 'true' : 'false'}
+            className="liquid-segmented-item flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[9px] font-black uppercase tracking-[0.08em] sm:min-h-11 sm:flex-row sm:gap-2 sm:text-[11px] sm:tracking-[0.12em]"
           >
             <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
             <span className="min-w-0 truncate">{label}</span>
@@ -1092,18 +1095,18 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               <p className="text-sm text-zinc-400">
                 {trainingBalanceSummary}
               </p>
-              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                Source: {readinessSourceLabel}. Daily Check-In stays optional.
-              </p>
               {(readiness?.explanation || analytics.explanations?.trainingBalance) && (
-                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                <details className="mt-3 border-t border-white/8 pt-3">
+                  <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Details
+                  </summary>
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                     {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.confidence} confidence / {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.dataSufficiency} data
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                     {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.reason} {(readiness?.explanation ?? analytics.explanations?.trainingBalance)?.nextAction}
                   </p>
-                </div>
+                </details>
               )}
               {analytics.fitnessFatigue && (
                 <div className="mt-4 space-y-3">
@@ -1122,9 +1125,6 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                       </div>
                       <div className="text-[10px] text-zinc-500 mt-1">Accumulated strain</div>
                     </div>
-                  </div>
-                  <div className="rounded-lg border border-zinc-900 bg-zinc-950/40 p-2 text-center text-[10px] text-zinc-500">
-                    50 is neutral. Above 50 means fitness leads; below 50 means fatigue leads.
                   </div>
                 </div>
               )}
@@ -1160,78 +1160,96 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
                 {analytics.acwr.recommendation}
               </p>
               {analytics.explanations?.loadPressure && (
-                <div className="mt-3 rounded-lg border border-zinc-900 bg-zinc-950/45 p-3">
+                <details className="mt-3 border-t border-white/8 pt-3">
+                  <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Details
+                  </summary>
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                     {analytics.explanations.loadPressure.confidence} confidence / {analytics.explanations.loadPressure.dataSufficiency} data
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                     {analytics.explanations.loadPressure.reason} {analytics.explanations.loadPressure.nextAction}
                   </p>
-                </div>
+                </details>
               )}
-              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-zinc-600">
-                Effort-weighted load. Baseline confidence: {analytics.acwr.baselineConfidence}.
-              </p>
             </div>
           )}
 
           {analytics.dataAudit && (
             <div className={SECTION_CLASS}>
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className={SECTION_TITLE_CLASS}>DATA AUDIT</h2>
-                <StatusReadout label="Source" value={workoutSyncing ? 'Syncing' : 'Current'} tone={workoutDataError ? 'amber' : 'zinc'} />
+                <h2 className={SECTION_TITLE_CLASS}>Data audit</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowDataAudit((current) => !current)}
+                  className="liquid-icon-button min-h-9 rounded-full px-3 text-xs font-semibold text-zinc-300"
+                  aria-expanded={showDataAudit}
+                >
+                  {showDataAudit ? 'Hide' : 'Show'}
+                </button>
               </div>
-              <p className="mb-3 text-xs leading-relaxed text-zinc-400">
-                {dataAuditSourceLabel}. Metrics use completed, non-warmup raw set rows only.
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Raw Sets</p>
-                  <p className="mt-1 text-2xl font-black italic text-white">{analytics.dataAudit.totalSets}</p>
-                </div>
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Included</p>
-                  <p className="mt-1 text-2xl font-black italic text-emerald-300">{analytics.dataAudit.includedSets}</p>
-                </div>
-                <div className={SUBSECTION_CARD_CLASS}>
-                  <p className={METRIC_LABEL_CLASS}>Excluded</p>
-                  <p className="mt-1 text-2xl font-black italic text-amber-300">{analytics.dataAudit.excludedSets}</p>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Warmups: {analytics.dataAudit.excludedWarmupSets}
-                </p>
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Incomplete: {analytics.dataAudit.excludedIncompleteSets}
-                </p>
-                <p className="rounded-lg border border-zinc-900 bg-zinc-950/45 px-3 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
-                  Invalid: {analytics.dataAudit.excludedInvalidSets}
-                </p>
-              </div>
-              {analytics.dataAudit.topVolumeContributors.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className={METRIC_LABEL_CLASS}>Top raw set contributors</p>
-                  {analytics.dataAudit.topVolumeContributors.slice(0, 3).map((set, index) => (
-                    <div
-                      key={`${set.exerciseKey}-${set.date ?? 'unknown'}-${index}`}
-                      className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-3`}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-zinc-100">{set.exerciseName}</p>
-                        <p className="mt-0.5 text-[11px] text-zinc-500">
-                          {set.rawWeight}{set.rawWeightUnit} x {set.reps}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-black text-emerald-300">
-                          {set.volumeLoad.toLocaleString()} {weightUnit}
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-zinc-500">e1RM {set.estimated1RM}{weightUnit}</p>
-                      </div>
+              {showDataAudit ? (
+                <>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs leading-relaxed text-zinc-400">
+                      {dataAuditSourceLabel}. Metrics use completed, non-warmup raw set rows only.
+                    </p>
+                    <StatusReadout label="Source" value={workoutSyncing ? 'Syncing' : 'Current'} tone={workoutDataError ? 'amber' : 'zinc'} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Raw Sets</p>
+                      <p className="mt-1 text-2xl font-black italic text-white">{analytics.dataAudit.totalSets}</p>
                     </div>
-                  ))}
-                </div>
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Included</p>
+                      <p className="mt-1 text-2xl font-black italic text-emerald-500">{analytics.dataAudit.includedSets}</p>
+                    </div>
+                    <div className={SUBSECTION_CARD_CLASS}>
+                      <p className={METRIC_LABEL_CLASS}>Excluded</p>
+                      <p className="mt-1 text-2xl font-black italic text-amber-300">{analytics.dataAudit.excludedSets}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Warmups: {analytics.dataAudit.excludedWarmupSets}
+                    </p>
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Incomplete: {analytics.dataAudit.excludedIncompleteSets}
+                    </p>
+                    <p className="border-y border-white/8 py-2 text-[10px] uppercase tracking-[0.13em] text-zinc-500">
+                      Invalid: {analytics.dataAudit.excludedInvalidSets}
+                    </p>
+                  </div>
+                  {analytics.dataAudit.topVolumeContributors.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className={METRIC_LABEL_CLASS}>Top raw set contributors</p>
+                      {analytics.dataAudit.topVolumeContributors.slice(0, 3).map((set, index) => (
+                        <div
+                          key={`${set.exerciseKey}-${set.date ?? 'unknown'}-${index}`}
+                          className={`${SUBSECTION_CARD_CLASS} flex items-center justify-between gap-3`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-zinc-100">{set.exerciseName}</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">
+                              {set.rawWeight}{set.rawWeightUnit} x {set.reps}{set.rpe ? ` @ RPE ${set.rpe}` : ''}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-xs font-black text-emerald-500">
+                              {set.volumeLoad.toLocaleString()} {weightUnit}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-zinc-500">e1RM {set.estimated1RM}{weightUnit}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  {analytics.dataAudit.includedSets} usable sets from {analytics.dataAudit.totalSets} logged sets.
+                </p>
               )}
             </div>
           )}
@@ -1396,7 +1414,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
               Uses normal Epley when RPE is missing; adjusts for reps in reserve when actual RPE is logged.
             </p>
             {strengthDataQualityNote && (
-              <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+              <div className="mb-4 border-y border-amber-400/25 py-2 text-xs text-amber-200">
                 {strengthDataQualityNote}
               </div>
             )}
@@ -1537,14 +1555,14 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
           )}
 
           {/* Tips */}
-          <div className="rounded-xl border border-zinc-900 bg-zinc-950/55 p-4">
-            <h3 className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">METRIC NOTES</h3>
-            <ul className="text-xs text-zinc-400 space-y-2">
+          <details className="border-y border-white/8 py-4">
+            <summary className="cursor-pointer text-sm font-black italic tracking-tight text-zinc-100">Metric notes</summary>
+            <ul className="mt-3 space-y-2 text-xs text-zinc-400">
               <li><span className="text-zinc-200">Training Balance</span> - 50 is neutral; above means fitness leads, below means fatigue leads</li>
               <li><span className="text-zinc-200">Load Pressure</span> - Compares effort-weighted 7-day load to your recent weekly baseline</li>
               <li><span className="text-zinc-200">1RM Estimates</span> - Adjusted for RPE (effort level)</li>
             </ul>
-          </div>
+          </details>
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   Clock3,
@@ -10,10 +11,12 @@ import {
   Edit3,
   Flame,
   History,
+  MoreHorizontal,
   Trash2,
   Trophy,
   TrendingUp,
 } from 'lucide-react';
+import { LiquidActionMenu, LiquidMenuRow, liquidButtonClass } from './ui/liquid';
 import { WorkoutSession, SetLog, CustomExercise, WeightUnit } from '../lib/types';
 import { defaultExercises } from '../lib/programs';
 import { storage } from '../lib/storage';
@@ -94,7 +97,7 @@ export default function WorkoutHistory({
   const [contentEditError, setContentEditError] = useState<string | null>(null);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const isAnyModalOpen = Boolean(deleteTarget || contentEditTarget);
-  useBodyScrollLock(isAnyModalOpen, 'history-modal');
+  useBodyScrollLock(isAnyModalOpen, 'history-modal', { hideBottomNav: false });
 
   useEffect(() => {
     let isMounted = true;
@@ -358,7 +361,7 @@ export default function WorkoutHistory({
     if (session.programId) {
       return programName || 'Program session';
     }
-    return 'Quick log';
+    return 'Freestyle';
   };
 
   const formatSessionDate = (session: WorkoutSession) =>
@@ -682,19 +685,17 @@ export default function WorkoutHistory({
 
   if (sortedHistory.length === 0) {
     return (
-      <div className="py-16 text-center">
-        <History className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-        <h3 className="mb-2 text-2xl font-black text-white">
-          No Workouts Yet
+      <div className="py-14 text-center">
+        <History className="mx-auto mb-4 h-11 w-11 text-zinc-600" />
+        <h3 className="iron-display mb-2 text-2xl text-white">
+          No workouts yet
         </h3>
-        <p className="text-sm text-zinc-500">
-          Complete your first workout to see it here with detailed analytics and PR tracking.
-        </p>
         <button
           onClick={() => router.push('/start')}
-          className="mt-6 rounded-2xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+          className="liquid-action-button mt-6 inline-flex min-h-11 items-center gap-2 rounded-[1rem] px-4 text-xs font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
         >
-          Start a Workout
+          <span>Start workout</span>
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     );
@@ -704,7 +705,7 @@ export default function WorkoutHistory({
     <>
       <div className="space-y-6">
         {!compactHeader && (
-          <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-white/8 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
                 Session Totals
@@ -715,7 +716,7 @@ export default function WorkoutHistory({
               </p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+              <p className="text-3xl font-black text-zinc-100">
                 {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
               </p>
               <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
@@ -725,7 +726,7 @@ export default function WorkoutHistory({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="divide-y divide-white/8 border-y border-white/8">
           {sortedHistory.map((session, sessionIdx) => {
             const sessionKey = normalizeSessionKey(session.id);
             const isExpanded = expandedSessions.has(sessionKey);
@@ -741,11 +742,10 @@ export default function WorkoutHistory({
             return (
               <article
                 key={sessionKey}
-                className="stagger-item overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 shadow-[0_24px_54px_rgba(0,0,0,0.35)]"
+                className="stagger-item scroll-mt-24"
                 style={{ animationDelay: `${sessionIdx * 50}ms` }}
               >
-                {/* Session Header */}
-                <div className="p-4 sm:p-5">
+                <div className="py-4 sm:py-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <button
                       type="button"
@@ -754,8 +754,8 @@ export default function WorkoutHistory({
                       aria-expanded={isExpanded}
                       aria-controls={`history-details-${sessionKey}`}
                     >
-                      <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                        <Dumbbell className="h-3.5 w-3.5 text-emerald-300" />
+                      <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                        <Dumbbell className="h-3.5 w-3.5 text-emerald-500" />
                         <span className="min-w-0 truncate">{sourceLabel}</span>
                       </div>
                       <h3 className="text-xl font-black italic leading-tight tracking-tight text-zinc-100 sm:text-2xl">
@@ -775,28 +775,31 @@ export default function WorkoutHistory({
                     </button>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openContentEditSession(session)}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/70 px-3 text-xs font-black uppercase tracking-[0.14em] text-zinc-200 transition-colors hover:border-emerald-400/40 hover:text-emerald-200 active:scale-[0.98]"
-                        title="Edit workout"
+                      <LiquidActionMenu
+                        label={`Workout actions for ${session.dayName || 'Workout'}`}
+                        className="rounded-full"
+                        trigger={
+                          <span className="liquid-icon-button flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition-colors hover:text-zinc-50">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </span>
+                        }
                       >
-                        <Edit3 className="h-4 w-4" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteSession(session.id)}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-rose-300 transition-colors hover:border-rose-400/40 hover:text-rose-200 active:scale-[0.98]"
-                        title="Delete workout"
-                        aria-label="Delete workout"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        <LiquidMenuRow
+                          icon={<Edit3 className="h-4 w-4" />}
+                          label="Edit workout"
+                          onClick={() => openContentEditSession(session)}
+                        />
+                        <LiquidMenuRow
+                          icon={<Trash2 className="h-4 w-4" />}
+                          label="Move to trash"
+                          danger
+                          onClick={() => deleteSession(session.id)}
+                        />
+                      </LiquidActionMenu>
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-4 divide-x divide-zinc-900 border-y border-zinc-900 py-3">
+                  <div className="mt-4 grid grid-cols-4 divide-x divide-white/8 border-y border-white/8 py-3">
                     <div className="px-2 first:pl-0">
                       <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Exercises</p>
                       <p className="mt-1 text-xl font-black text-white">{completedExerciseCount}</p>
@@ -818,7 +821,7 @@ export default function WorkoutHistory({
                   <button
                     type="button"
                     onClick={() => toggleSession(session.id)}
-                    className="mt-3 flex min-h-11 w-full touch-manipulation items-center justify-between rounded-xl border border-zinc-900 bg-zinc-950/55 px-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-400 transition-colors hover:border-zinc-800 hover:text-zinc-100 active:scale-[0.99]"
+                    className="mt-3 flex min-h-10 w-full touch-manipulation items-center justify-between border-t border-white/8 pt-3 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-100 active:scale-[0.99]"
                     aria-expanded={isExpanded}
                     aria-controls={`history-details-${sessionKey}`}
                   >
@@ -832,7 +835,7 @@ export default function WorkoutHistory({
                   <div
                     id={`history-details-${sessionKey}`}
                     data-testid="history-session-details"
-                    className="border-t border-zinc-900 px-4 pb-5 pt-5 sm:px-5"
+                    className="border-t border-white/8 pb-5 pt-5"
                   >
                     <div className="space-y-6">
                       {exerciseIds.map((exerciseId, exIdx) => {
@@ -857,7 +860,7 @@ export default function WorkoutHistory({
                         return (
                           <div
                             key={exerciseId}
-                            className="border-b border-zinc-900/50 pb-6"
+                            className="border-b border-white/8 pb-6 last:border-b-0 last:pb-0"
                             style={{ animationDelay: `${exIdx * 100}ms` }}
                           >
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -888,7 +891,7 @@ export default function WorkoutHistory({
                                 return (
                                   <div
                                     key={`${exerciseId}-${set.setIndex}-${idx}-${set.timestamp || idx}`}
-                                    className="group flex flex-col gap-3 border-b border-zinc-900 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                    className="group flex flex-col gap-3 border-b border-white/8 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                                   >
                                     <div className="flex min-w-0 flex-1 items-center gap-4">
                                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-zinc-200">
@@ -917,7 +920,7 @@ export default function WorkoutHistory({
 
                                     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                                       {set.e1rm && (
-                                        <span className="text-xs font-semibold text-sky-300">
+                                        <span className="text-xs font-semibold text-zinc-300">
                                           {displayE1RM != null && Number.isFinite(displayE1RM)
                                             ? `${Math.round(displayE1RM)} e1RM`
                                             : 'E1RM'}
@@ -943,7 +946,7 @@ export default function WorkoutHistory({
                     </div>
 
                     {session.notes && (
-                      <div className="mt-4 border-t border-zinc-900 pt-4">
+                      <div className="mt-4 border-t border-white/8 pt-4">
                         <p className="text-sm font-medium text-zinc-400">
                           Notes: {session.notes}
                         </p>
@@ -958,21 +961,17 @@ export default function WorkoutHistory({
       </div>
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
           data-swipe-scope="local"
         >
-          <div className="w-full max-w-lg max-h-[calc(100dvh-0.5rem)] overflow-y-auto rounded-t-3xl border border-zinc-800 bg-zinc-950/90 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
-            <div className="p-6 sm:p-8 text-white">
-              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-rose-300">
-                Confirm Delete
-              </p>
-              <h3 className="mt-2 text-2xl font-black italic tracking-tight sm:text-3xl">MOVE WORKOUT TO TRASH?</h3>
-              <p className="mt-2 text-sm text-zinc-400">
+          <div className="liquid-sheet-panel liquid-form-sheet w-full max-w-sm overflow-hidden rounded-[1.2rem] p-0">
+            <div className="p-4 text-white">
+              <h3 className="text-lg font-black italic tracking-tight">Move workout to trash?</h3>
+              <p className="mt-1 text-sm text-zinc-400">
                 You can restore it from Data / Recently Deleted within 30 days.
               </p>
 
-              <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-zinc-500">Workout</p>
+              <div className="mt-4 border-y border-white/8 py-3">
                 <p className="mt-1 text-lg font-black italic tracking-tight">{deleteTarget.dayName || 'Workout'}</p>
                 <p className="text-sm text-zinc-500">
                   {deleteTarget.programName || 'Custom'} • {parseLocalDate(deleteTarget.date).toLocaleDateString()}
@@ -985,20 +984,20 @@ export default function WorkoutHistory({
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:p-6">
+            <div className="flex flex-col gap-2 border-t border-white/8 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end">
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteBusy}
-                className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-black italic uppercase tracking-tight text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ density: 'compact', className: 'w-full sm:w-auto' })}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleteBusy}
-                className="rounded-xl bg-rose-400 px-6 py-3 text-xs font-black italic uppercase tracking-tight text-zinc-950 shadow-lg shadow-rose-500/15 transition-colors hover:bg-rose-300 active:bg-rose-500 disabled:opacity-50"
+                className={liquidButtonClass({ variant: 'danger', density: 'compact', className: 'w-full sm:w-auto' })}
               >
-                {deleteBusy ? 'MOVING...' : 'MOVE TO TRASH'}
+                {deleteBusy ? 'Moving...' : 'Move to trash'}
               </button>
             </div>
           </div>
@@ -1006,18 +1005,12 @@ export default function WorkoutHistory({
       )}
       {contentEditTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 backdrop-blur-md sm:items-center sm:px-4"
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+2rem)]"
           data-swipe-scope="local"
         >
-          <div className="flex w-full max-w-5xl max-h-[100dvh] flex-col overflow-hidden rounded-t-3xl border border-zinc-800 bg-zinc-950/95 shadow-[0_30px_80px_rgba(0,0,0,0.6)] sm:max-h-[90dvh] sm:rounded-3xl">
-            <div className="flex-1 overflow-y-auto overscroll-contain p-6 pb-8 text-white sm:p-8">
-              <p className="mb-4 text-[10px] font-mono uppercase tracking-[0.35em] text-emerald-300">
-                Workout Editor
-              </p>
-              <h3 className="text-2xl font-black sm:text-3xl">Edit workout</h3>
-              <p className="mt-2 text-sm text-zinc-400">
-                Update the session details, exercises, and set values in one place.
-              </p>
+          <div className="liquid-sheet-panel liquid-form-sheet flex w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[1.2rem] p-0 sm:max-h-[90dvh]">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-6 text-white sm:p-6">
+              <h3 className="text-2xl font-black italic tracking-tight sm:text-3xl">Edit workout</h3>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
@@ -1028,7 +1021,7 @@ export default function WorkoutHistory({
                     type="text"
                     value={contentWorkoutName}
                     onChange={(e) => setContentWorkoutName(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                   />
                 </div>
 
@@ -1040,7 +1033,7 @@ export default function WorkoutHistory({
                     type="date"
                     value={editDate}
                     onChange={e => setEditDate(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                   />
                 </div>
 
@@ -1052,7 +1045,7 @@ export default function WorkoutHistory({
                     type="time"
                     value={editStartTime}
                     onChange={e => setEditStartTime(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                   />
                 </div>
 
@@ -1066,7 +1059,7 @@ export default function WorkoutHistory({
                     step="1"
                     value={editDuration}
                     onChange={e => setEditDuration(e.target.value)}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                     placeholder="Minutes"
                   />
                 </div>
@@ -1075,7 +1068,7 @@ export default function WorkoutHistory({
                   <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
                     Ends
                   </label>
-                  <div className="flex min-h-12 items-center rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 text-sm font-semibold text-zinc-300">
+                  <div className="liquid-field flex min-h-12 items-center px-4 text-sm font-semibold text-zinc-300">
                     {editEndTimeLabel ?? '-'}
                   </div>
                 </div>
@@ -1090,12 +1083,12 @@ export default function WorkoutHistory({
                       placeholder="Exercise name"
                       value={contentNewExerciseName}
                       onChange={(e) => setContentNewExerciseName(e.target.value)}
-                      className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                     />
                     <button
                       type="button"
                       onClick={handleAddExerciseToContentEdit}
-                      className="rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-all active:scale-[0.98]"
+                      className="liquid-action-button rounded-2xl px-4 py-3 text-xs font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98]"
                     >
                       Add
                     </button>
@@ -1110,34 +1103,34 @@ export default function WorkoutHistory({
                     value={contentWorkoutNotes}
                     onChange={(e) => setContentWorkoutNotes(e.target.value)}
                     rows={3}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm font-semibold text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="liquid-field w-full px-4 py-3 text-sm font-semibold"
                   />
                 </div>
               </div>
 
               <div className="mt-6 space-y-5">
                 {contentExercises.map((exercise) => (
-                  <div key={exercise.localId} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                  <div key={exercise.localId} className="border-y border-white/8 py-4">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <div>
                         <p className="text-lg font-bold text-white">{exercise.exerciseName}</p>
-                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+                        <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-zinc-500">
                           {exercise.exerciseId}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveExerciseFromContentEdit(exercise.localId)}
-                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-300 transition-all active:scale-[0.98]"
+                        className={liquidButtonClass({ variant: 'danger', density: 'compact', className: 'min-h-9 px-3 text-[10px]' })}
                       >
                         Remove
                       </button>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="divide-y divide-white/8 border-y border-white/8">
                       {exercise.sets.map((set, setIndex) => (
-                        <div key={set.localId} className="grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 sm:grid-cols-12">
-                          <div className="sm:col-span-1 flex items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-zinc-300">
+                        <div key={set.localId} className="grid gap-2 py-3 sm:grid-cols-12">
+                          <div className="sm:col-span-1 flex items-center justify-center text-xs font-bold text-zinc-400">
                             #{setIndex + 1}
                           </div>
                           <div className="sm:col-span-2">
@@ -1152,7 +1145,7 @@ export default function WorkoutHistory({
                               onChange={(e) =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'actualWeight', e.target.value)
                               }
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                              className="liquid-field w-full px-2 py-2 text-sm"
                             />
                           </div>
                           <div className="sm:col-span-1">
@@ -1164,7 +1157,7 @@ export default function WorkoutHistory({
                               onChange={(e) =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'weightUnit', e.target.value)
                               }
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                              className="liquid-field w-full px-2 py-2 text-sm"
                             >
                               <option value="lbs">lbs</option>
                               <option value="kg">kg</option>
@@ -1182,7 +1175,7 @@ export default function WorkoutHistory({
                               onChange={(e) =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'actualReps', e.target.value)
                               }
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                              className="liquid-field w-full px-2 py-2 text-sm"
                             />
                           </div>
                           <div className="sm:col-span-2">
@@ -1198,7 +1191,7 @@ export default function WorkoutHistory({
                               onChange={(e) =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'actualRPE', e.target.value)
                               }
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                              className="liquid-field w-full px-2 py-2 text-sm"
                             />
                           </div>
                           <div className="sm:col-span-2">
@@ -1210,9 +1203,9 @@ export default function WorkoutHistory({
                               onClick={() =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'completed', !set.completed)
                               }
-                              className={`w-full rounded-lg border px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] transition-colors ${set.completed
-                                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                                : 'border-zinc-800 bg-zinc-900/70 text-zinc-400'
+                              className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${set.completed
+                                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-500'
+                                : 'border-white/8 bg-white/[0.04] text-zinc-400'
                                 }`}
                             >
                               {set.completed ? 'Yes' : 'No'}
@@ -1225,7 +1218,7 @@ export default function WorkoutHistory({
                             <button
                               type="button"
                               onClick={() => handleRemoveSetFromContentEditExercise(exercise.localId, set.localId)}
-                              className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-bold uppercase tracking-[0.2em] text-rose-300 transition-colors hover:text-rose-200"
+                              className="w-full rounded-lg border border-rose-500/25 bg-rose-500/[0.07] px-2 py-2 text-xs font-semibold text-rose-300 transition-colors hover:text-rose-200"
                             >
                               Delete
                             </button>
@@ -1240,7 +1233,7 @@ export default function WorkoutHistory({
                               onChange={(e) =>
                                 handleContentSetFieldChange(exercise.localId, set.localId, 'notes', e.target.value)
                               }
-                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                              className="liquid-field w-full px-3 py-2 text-sm"
                             />
                           </div>
                         </div>
@@ -1250,9 +1243,9 @@ export default function WorkoutHistory({
                     <button
                       type="button"
                       onClick={() => handleAddSetToContentEditExercise(exercise.localId)}
-                      className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 transition-all active:scale-[0.98]"
+                      className={liquidButtonClass({ density: 'compact', className: 'mt-3 min-h-9 px-3 text-[10px]' })}
                     >
-                      Add Set
+                      Add set
                     </button>
                   </div>
                 ))}
@@ -1265,20 +1258,20 @@ export default function WorkoutHistory({
               )}
             </div>
 
-            <div className="shrink-0 flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900/40 p-6 pb-[calc(env(safe-area-inset-bottom)+1.2rem)] sm:flex-row sm:justify-end sm:p-6">
+            <div className="shrink-0 flex flex-col gap-3 border-t border-white/8 bg-black/10 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:flex-row sm:justify-end">
               <button
                 onClick={() => setContentEditTarget(null)}
                 disabled={contentEditBusy}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.3em] text-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ className: 'w-full sm:w-auto' })}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmContentEdit}
                 disabled={contentEditBusy}
-                className="rounded-2xl bg-emerald-500 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                className={liquidButtonClass({ variant: 'action', className: 'w-full sm:w-auto' })}
               >
-                {contentEditBusy ? 'Saving...' : 'Save Workout'}
+                {contentEditBusy ? 'Saving...' : 'Save workout'}
               </button>
             </div>
           </div>

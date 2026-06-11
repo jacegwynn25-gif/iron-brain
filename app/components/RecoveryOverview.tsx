@@ -64,7 +64,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Loading</span>
         </div>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="animate-pulse rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4">
+          <div key={i} className="animate-pulse border-y border-white/8 py-4">
             <div className="mb-3 h-5 w-1/3 rounded bg-zinc-800" />
             <div className="h-3 w-full rounded bg-zinc-800" />
           </div>
@@ -75,8 +75,8 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
 
   if (profiles.length === 0) {
     return (
-      <div className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-8 text-center">
-        <div className="mb-2 text-xl font-black italic tracking-tight text-zinc-100">NO RECOVERY DATA</div>
+      <div className="border-y border-white/8 py-8 text-center">
+        <div className="mb-2 text-xl font-black italic tracking-tight text-zinc-100">No recovery data</div>
         <div className="text-sm text-zinc-500">Complete a workout to start tracking muscle recovery.</div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="divide-y divide-white/8 border-y border-white/8">
         {sortedProfiles.map((profile) => {
           const tone = getRecoveryTone(profile.readinessScore);
           const status = getRecoveryStatus(profile.readinessScore);
@@ -105,7 +105,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
           return (
             <div
               key={profile.muscleGroup}
-              className="rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4 transition-colors hover:border-zinc-800"
+              className="py-4 transition-colors"
             >
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
@@ -153,7 +153,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
               </div>
 
               {needsLoadManagement && (
-                <div className="mt-3 border-t border-zinc-900 pt-3">
+                <div className="mt-3 border-t border-white/8 pt-3">
                   <div className="flex items-center gap-2 text-xs text-amber-200">
                     <Shield className="h-4 w-4" />
                     <span>Use a lighter variant or train another area.</span>
@@ -165,9 +165,9 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
         })}
       </div>
 
-      <div className="mt-6 rounded-[1.25rem] border border-zinc-900 bg-zinc-950/60 p-4">
-        <div className="mb-3 text-sm font-black italic tracking-tight text-zinc-100">READINESS SCALE</div>
-        <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+      <details className="mt-6 border-y border-white/8 py-4">
+        <summary className="cursor-pointer text-sm font-black italic tracking-tight text-zinc-100">Readiness scale</summary>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
           {READINESS_SCALE.map(({ tone, range, label }) => (
             <div key={`${range}-${label}`} className="flex items-center gap-2">
               <div className={`h-3 w-1.5 rounded-sm ${toneBgClass[tone]}`} />
@@ -175,7 +175,7 @@ export default function RecoveryOverview({ profiles, loading }: RecoveryOverview
             </div>
           ))}
         </div>
-      </div>
+      </details>
     </div>
   );
 }

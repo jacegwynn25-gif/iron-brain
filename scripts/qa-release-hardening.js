@@ -437,19 +437,16 @@ async function checkStartPageLaunchpad(browser) {
 
   await page.goto(`${BASE_URL}/start`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: /START SESSION/i }).waitFor({ state: 'visible', timeout: 30000 });
-  await page.getByText(/START PROGRAM SESSION/i).waitFor({ state: 'visible', timeout: 30000 });
-  await page.getByText(/QUICK LOG/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/START TRAINING/i).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByText(/FREESTYLE/i).waitFor({ state: 'visible', timeout: 30000 });
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
-    const controls = Array.from(document.querySelectorAll('button'))
-      .filter((button) => {
-        const label = button.textContent ?? '';
-        return /DAY|PROGRAM|EMPTY/i.test(label) && !/START/i.test(label);
-      })
+    const controls = Array.from(document.querySelectorAll('.liquid-control-button'))
       .map((button) => {
         const rect = button.getBoundingClientRect();
         return {
+          ariaLabel: button.getAttribute('aria-label'),
           text: button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
           top: rect.top,
           width: rect.width,
@@ -461,7 +458,9 @@ async function checkStartPageLaunchpad(browser) {
       viewportWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       hasOldLabels: /Gym Floor|Current Program|Recent Programs|QUICK START/.test(text),
-      hasQuickLog: /QUICK LOG/.test(text),
+      hasStaleSelect: /\bSelect\b/.test(text),
+      hasFreestyle: /Freestyle/i.test(text),
+      hasOnDeck: /On deck/i.test(text),
       controls,
     };
   });
@@ -472,8 +471,14 @@ async function checkStartPageLaunchpad(browser) {
   if (report.hasOldLabels) {
     throw new Error('Start page still exposes removed filler labels');
   }
-  if (!report.hasQuickLog) {
-    throw new Error('Start page quick-log action is missing or clipped');
+  if (report.hasStaleSelect) {
+    throw new Error('Start page still shows stale Select copy after a program is selected');
+  }
+  if (!report.hasFreestyle) {
+    throw new Error('Start page freestyle action is missing or clipped');
+  }
+  if (!report.hasOnDeck) {
+    throw new Error('Start page does not show the selected session movement preview');
   }
   if (report.controls.length < 3) {
     throw new Error(`Start page expected 3 compact launch controls, found ${report.controls.length}`);
@@ -487,13 +492,13 @@ async function checkStartPageLaunchpad(browser) {
     throw new Error(`Start page launch controls are undersized: ${JSON.stringify(undersized)}`);
   }
 
-  await page.getByRole('button', { name: /QUICK LOG/i }).tap({ timeout: 30000 });
+  await page.getByRole('button', { name: /FREESTYLE/i }).tap({ timeout: 30000 });
   await page.getByTestId('quick-log-confirm').waitFor({ state: 'visible', timeout: 5000 });
   await page.getByTestId('quick-log-confirm-start').tap({ timeout: 30000 });
   await page.waitForURL(/\/workout\/new\?type=empty/, { timeout: 60000 });
 
   await page.close();
-  console.log('✅ start page launchpad is compact, aligned, confirms quick log, and free of old filler labels');
+  console.log('✅ start page launchpad is compact, aligned, confirms freestyle, and free of old filler labels');
 }
 
 async function checkProgramsNoFalseReadinessTuneUp(browser) {
@@ -626,7 +631,12 @@ async function checkBottomNavTapTargets(browser) {
       if (node instanceof HTMLElement) node.style.pointerEvents = 'none';
     });
 
-    return Array.from(document.querySelectorAll('[data-nav-item]')).map((node) => {
+    return Array.from(document.querySelectorAll('.app-bottom-nav [data-nav-item]'))
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((node) => {
       const link = node;
       const rect = link.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
@@ -656,7 +666,14 @@ async function checkBottomNavTapTargets(browser) {
   ];
 
   for (const [item, route] of routes) {
-    await page.locator(`[data-nav-item="${item}"]`).tap({ timeout: 5000 });
+    const directTarget = page.locator(`.app-bottom-nav [data-nav-item="${item}"]:visible`).first();
+    if (await directTarget.count()) {
+      await directTarget.tap({ timeout: 5000 });
+    } else {
+      await page.locator('.app-bottom-nav [data-nav-item="more"]:visible').tap({ timeout: 5000 });
+      await page.locator('.app-bottom-nav [role="menu"]').waitFor({ state: 'visible', timeout: 5000 });
+      await page.locator(`.app-bottom-nav [data-nav-item="menu-${item}"]:visible`).tap({ timeout: 5000 });
+    }
     await page.waitForURL((url) => url.pathname === route, { timeout: 60000 });
     await page.locator('.app-bottom-nav').waitFor({ state: 'visible', timeout: 30000 });
   }

@@ -191,7 +191,7 @@ export default function RestTimer({
 
         {showUpNext && smartRecommendation && (
           <div
-            className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-left"
+            className="liquid-sheet-panel w-full max-w-sm px-4 py-3 text-left"
             data-testid="smart-rest-target"
           >
             <div className="flex items-start justify-between gap-3">

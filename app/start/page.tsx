@@ -2,16 +2,63 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BookOpen, ChevronDown, ChevronRight, ChevronUp, Play, RotateCcw } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ChevronRight, ChevronUp, Play, RotateCcw } from 'lucide-react';
 import { getProgramProgress, resolveProgramDay, type ProgramProgress } from '../lib/programs/progress';
+import { buildExerciseCatalog, resolveExerciseDisplayName } from '../lib/exercises/catalog';
 import { useAuth } from '../lib/supabase/auth-context';
 import { useProgramContext } from '../providers/ProgramProvider';
 import QuickLogConfirm from '../components/workout/QuickLogConfirm';
+import { liquidButtonClass } from '../components/ui/liquid';
+import type { DayTemplate } from '../lib/types';
 
 type RecentProgram = {
   id: string;
   name: string;
 };
+
+type MovementPreview = {
+  id: string;
+  name: string;
+  setCount: number;
+  slot?: string;
+};
+
+const startExerciseCatalog = buildExerciseCatalog();
+
+function resolvePreviewExerciseName(exerciseId: string): string {
+  return resolveExerciseDisplayName(exerciseId, { catalog: startExerciseCatalog });
+}
+
+function getMovementPreview(day: DayTemplate | null | undefined): MovementPreview[] {
+  if (!day) return [];
+
+  if (day.blocks && day.blocks.length > 0) {
+    return day.blocks.flatMap((block) =>
+      block.exercises.map((exercise) => ({
+        id: exercise.id || exercise.exerciseId,
+        name: resolvePreviewExerciseName(exercise.exerciseId),
+        setCount: exercise.sets.length,
+        slot: block.type === 'superset' ? exercise.slot : undefined,
+      }))
+    );
+  }
+
+  const grouped = new Map<string, MovementPreview>();
+  day.sets?.forEach((set) => {
+    const existing = grouped.get(set.exerciseId);
+    if (existing) {
+      existing.setCount += 1;
+      return;
+    }
+    grouped.set(set.exerciseId, {
+      id: set.exerciseId,
+      name: resolvePreviewExerciseName(set.exerciseId),
+      setCount: 1,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
 
 export default function StartWorkoutPage() {
   const router = useRouter();
@@ -57,11 +104,6 @@ export default function StartWorkoutPage() {
       .slice(0, 8);
   }, [allPrograms]);
 
-  const alternatePrograms = useMemo(
-    () => availablePrograms.filter((program) => program.id !== selectedProgram?.id),
-    [availablePrograms, selectedProgram?.id]
-  );
-
   const selectedDayStats = useMemo(() => {
     const day = selectedProgramDay?.day;
     if (!day) return { movementCount: 0, setCount: 0 };
@@ -73,22 +115,33 @@ export default function StartWorkoutPage() {
         0
       ) ?? 0;
     const legacySetCount = day.sets?.length ?? 0;
+    const legacyMovementCount = new Set((day.sets ?? []).map((set) => set.exerciseId).filter(Boolean)).size;
 
     return {
-      movementCount: blockMovementCount || (legacySetCount > 0 ? 1 : 0),
+      movementCount: blockMovementCount || legacyMovementCount || (legacySetCount > 0 ? 1 : 0),
       setCount: blockSetCount || legacySetCount,
     };
   }, [selectedProgramDay]);
 
+  const movementPreview = useMemo(
+    () => getMovementPreview(selectedProgramDay?.day),
+    [selectedProgramDay?.day]
+  );
+  const visibleMovementPreview = movementPreview.slice(0, 6);
+  const hiddenMovementCount = Math.max(0, movementPreview.length - visibleMovementPreview.length);
+
   const nextSessionTitle = loading
-    ? 'Loading Programs...'
-    : selectedProgram?.name ?? 'No Program Selected';
+    ? 'Loading programs...'
+    : selectedProgram?.name ?? 'No program selected';
   const nextSessionSubtitle = selectedProgramDay?.day
     ? `${selectedProgramDay.day.dayOfWeek} / ${selectedProgramDay.day.name}`
-    : selectedProgram
-      ? 'Choose a training day or start from the saved plan.'
-      : 'Start empty, or pick a program first.';
-  const primaryActionLabel = selectedProgram ? 'START PROGRAM SESSION' : 'START SESSION';
+    : null;
+  const primaryActionLabel = 'Start training';
+  const dayControlText = selectedProgramDay?.day
+    ? `Week ${selectedProgramDay.weekNumber} / ${selectedProgramDay.day.dayOfWeek}`
+    : 'Choose day';
+  const programControlText = selectedProgram?.name ?? (availablePrograms.length > 0 ? 'Program' : 'Programs');
+  const programControlLabel = selectedProgram ? `Change program, ${selectedProgram.name}` : 'Choose program';
 
   const handleStartSession = () => {
     if (selectedProgram?.id && effectiveProgress) {
@@ -123,74 +176,61 @@ export default function StartWorkoutPage() {
       />
       <header className="stagger-item flex items-center justify-between gap-4 px-1">
         <div className="space-y-0.5 sm:space-y-1">
-          <h1 className="text-3xl font-black italic tracking-tight text-zinc-100 sm:text-4xl">START SESSION</h1>
+          <h1 className="iron-display text-3xl text-zinc-100 sm:text-4xl">Start session</h1>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-400/20 bg-emerald-400/10 sm:h-10 sm:w-10">
-          <Play className="h-4.5 w-4.5 text-emerald-300 sm:h-5 sm:w-5" />
+        <div className="liquid-icon-button flex h-9 w-9 items-center justify-center rounded-full sm:h-10 sm:w-10">
+          <Play className="h-4.5 w-4.5 text-zinc-400 sm:h-5 sm:w-5" />
         </div>
       </header>
 
-      <section className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="border-b border-zinc-900/80 p-4 sm:p-5">
+      <section className="stagger-item mx-1 border-y border-white/8 py-4 sm:py-5">
+        <div className="border-b border-white/8 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-[0.28em] text-emerald-400/80">Next Up</p>
-              <h2 className="mt-1 truncate text-xl font-black italic leading-tight text-zinc-100 sm:text-2xl">
+              <h2 className="iron-display truncate text-xl leading-tight text-zinc-100 sm:text-2xl">
                 {nextSessionTitle}
               </h2>
-              {!loading && (
-                <p className="mt-1 max-w-xl truncate text-xs font-medium text-zinc-500 sm:text-sm">
+              {!loading && nextSessionSubtitle && (
+                <p className="mt-1 max-w-xl truncate text-xs text-zinc-500 sm:text-sm">
                   {nextSessionSubtitle}
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => router.push('/programs')}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
-              aria-label="Open programs"
-            >
-              <BookOpen className="h-4 w-4" />
-            </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 divide-x divide-zinc-900 rounded-xl border border-zinc-900 bg-zinc-950/70">
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Cycle</p>
-              <p className="mt-0.5 text-sm font-black italic text-zinc-100">
-                {selectedProgramDay ? selectedProgramDay.cycleNumber : '--'}
-              </p>
+          {selectedProgramDay && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
+              <>
+                <span>Cycle {selectedProgramDay.cycleNumber}</span>
+                <span>Week {selectedProgramDay.weekNumber}</span>
+                <span>{selectedDayStats.setCount} sets</span>
+              </>
             </div>
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Week</p>
-              <p className="mt-0.5 text-sm font-black italic text-zinc-100">
-                {selectedProgramDay ? selectedProgramDay.weekNumber : '--'}
-              </p>
-            </div>
-            <div className="px-3 py-2.5">
-              <p className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Work</p>
-              <p className="mt-0.5 truncate text-sm font-black italic text-zinc-100">
-                {selectedDayStats.setCount > 0 ? `${selectedDayStats.setCount} SETS` : '--'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="space-y-3 p-4 sm:p-5">
+        <div className="space-y-3 pt-4">
           <button
             type="button"
             onClick={handleStartSession}
             disabled={loading}
-            className="group relative flex min-h-14 w-full items-center justify-between overflow-hidden rounded-[1.1rem] bg-gradient-to-br from-emerald-500 to-teal-600 px-5 py-4 text-left shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-wait disabled:opacity-60 sm:rounded-[1.35rem] sm:px-6"
+            className={liquidButtonClass({
+              variant: 'action',
+              className: 'min-h-14 w-full justify-between px-5 text-left sm:px-6',
+            })}
           >
-            <span className="relative z-10 text-sm font-black italic tracking-tight text-white sm:text-base">
-              {loading ? 'LOADING PROGRAMS' : primaryActionLabel}
+            <span>
+              {loading ? 'Loading programs' : primaryActionLabel}
             </span>
-            <ArrowRight className="relative z-10 h-5 w-5 text-white/55 transition-transform group-hover:translate-x-1" />
-            <div className="absolute -bottom-8 -right-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+            <ArrowRight className="h-5 w-5" />
           </button>
 
-          <div className={`grid gap-2.5 ${selectedProgram && selectedProgramDay?.day ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div
+            className={`liquid-control-strip grid gap-1 p-1 ${selectedProgram && selectedProgramDay?.day
+              ? 'grid-cols-[1fr_1.12fr_1fr]'
+              : 'grid-cols-2'
+            }`}
+          >
             {selectedProgram && selectedProgramDay?.day && (
               <button
                 type="button"
@@ -198,14 +238,12 @@ export default function StartWorkoutPage() {
                   setDayPickerOpen((prev) => !prev);
                   setProgramPickerOpen(false);
                 }}
+                aria-label={overrideProgress ? `Custom day, ${dayControlText}` : `Training day, ${dayControlText}`}
                 aria-expanded={dayPickerOpen}
-                className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+                className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
               >
-                <span className="min-w-0">
-                  <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Day</span>
-                  <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">
-                    {overrideProgress ? 'CUSTOM' : selectedProgramDay.day.dayOfWeek}
-                  </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {overrideProgress ? 'Custom day' : dayControlText}
                 </span>
                 {dayPickerOpen ? (
                   <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
@@ -221,13 +259,11 @@ export default function StartWorkoutPage() {
                 setProgramPickerOpen((prev) => !prev);
                 setDayPickerOpen(false);
               }}
+              aria-label={programControlLabel}
               aria-expanded={programPickerOpen}
-              className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
             >
-              <span className="min-w-0">
-                <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Program</span>
-                <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">SELECT</span>
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{programControlText}</span>
               {programPickerOpen ? (
                 <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
               ) : (
@@ -237,13 +273,11 @@ export default function StartWorkoutPage() {
 
             <button
               type="button"
+              aria-label="Start freestyle session"
               onClick={() => setQuickLogConfirmOpen(true)}
-              className="flex min-h-12 items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/70 px-2.5 py-2.5 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70 sm:px-3"
+              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
             >
-              <span className="min-w-0">
-                <span className="block text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600">Empty</span>
-                <span className="mt-0.5 block truncate text-xs font-black italic text-zinc-100">QUICK LOG</span>
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">Freestyle</span>
               <RotateCcw className="hidden h-4 w-4 shrink-0 text-zinc-100/40 sm:block" />
             </button>
           </div>
@@ -255,17 +289,17 @@ export default function StartWorkoutPage() {
                 setOverrideProgress(null);
                 setDayPickerOpen(false);
               }}
-              className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-400"
+              className="text-xs font-semibold text-zinc-600 transition-colors hover:text-zinc-400"
             >
-              Reset to next scheduled day
+              Reset to scheduled day
             </button>
           )}
 
           {selectedProgram && dayPickerOpen && (
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/95 p-3">
+            <div className="liquid-menu max-h-72 overflow-y-auto p-3">
               {selectedProgram.weeks.map((week, wIdx) => (
                 <div key={wIdx} className="mb-3 last:mb-0">
-                  <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.28em] text-zinc-600">
+                  <p className="mb-1.5 px-1 text-[11px] font-semibold text-zinc-500">
                     Week {week.weekNumber}
                   </p>
                   <div className="grid gap-1">
@@ -294,16 +328,16 @@ export default function StartWorkoutPage() {
                             setDayPickerOpen(false);
                           }}
                           className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${isHighlighted
-                            ? 'border border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                            ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-200'
                             : 'border border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                             }`}
                         >
-                          <span className="w-8 shrink-0 text-[10px] font-black italic text-zinc-500">
+                          <span className="w-8 shrink-0 text-xs font-black italic text-zinc-500">
                             {day.dayOfWeek}
                           </span>
                           <span className="min-w-0 flex-1 truncate text-xs font-semibold">{day.name}</span>
                           {isAutoDay && (
-                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                            <span className="shrink-0 text-[11px] font-semibold text-emerald-500">
                               Next
                             </span>
                           )}
@@ -317,24 +351,39 @@ export default function StartWorkoutPage() {
           )}
 
           {programPickerOpen && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950/95 p-3">
-              {alternatePrograms.length > 0 ? (
+            <div className="liquid-menu p-3">
+              {availablePrograms.length > 0 ? (
                 <div className="grid gap-1">
-                  {alternatePrograms.map((program) => (
-                    <button
-                      key={program.id}
-                      type="button"
-                      onClick={() => handleProgramSelect(program.id)}
-                      className="group flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-emerald-400/25 hover:bg-emerald-400/10"
-                    >
-                      <span className="min-w-0 flex-1 break-words text-xs font-bold leading-snug text-zinc-200">
-                        {program.name}
-                      </span>
-                      <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-600 group-hover:text-emerald-400">
-                        Use
-                      </span>
-                    </button>
-                  ))}
+                  {availablePrograms.map((program) => {
+                    const isActive = program.id === selectedProgram?.id;
+
+                    return (
+                      <button
+                        key={program.id}
+                        type="button"
+                        onClick={() => {
+                          if (isActive) {
+                            setProgramPickerOpen(false);
+                            return;
+                          }
+                          handleProgramSelect(program.id);
+                        }}
+                        className={`group flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${isActive
+                          ? 'border-white/12 bg-white/[0.075] text-zinc-50'
+                          : 'border-transparent text-zinc-300 hover:border-white/10 hover:bg-white/[0.055] hover:text-zinc-50'
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1 break-words text-xs font-bold leading-snug">
+                          {program.name}
+                        </span>
+                        {isActive ? (
+                          <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors group-hover:text-zinc-300" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <button
@@ -342,14 +391,76 @@ export default function StartWorkoutPage() {
                   onClick={() => router.push('/programs')}
                   className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-zinc-900"
                 >
-                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">Build or pick a program</span>
+                  <span className="text-xs font-semibold text-zinc-400">Build or pick a program</span>
                   <ChevronRight className="h-4 w-4 text-zinc-600" />
                 </button>
               )}
             </div>
           )}
+
+          {visibleMovementPreview.length > 0 && (
+            <div className="border-t border-white/8 pt-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-zinc-200">On deck</p>
+                <span className="shrink-0 text-xs text-zinc-500">
+                  {movementPreview.length} {movementPreview.length === 1 ? 'movement' : 'movements'}
+                </span>
+              </div>
+              <div className="mt-2 divide-y divide-white/[0.055]">
+                {visibleMovementPreview.map((movement, index) => (
+                  <div key={`${movement.id}-${index}`} className="flex min-h-11 items-center gap-3 py-2">
+                    <span className="w-5 shrink-0 text-xs font-black italic text-zinc-600">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">
+                      {movement.name}
+                    </span>
+                    {movement.slot && (
+                      <span className="shrink-0 text-xs font-semibold text-zinc-500">{movement.slot}</span>
+                    )}
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      {movement.setCount} {movement.setCount === 1 ? 'set' : 'sets'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {hiddenMovementCount > 0 && (
+                <p className="pt-2 text-xs text-zinc-500">+{hiddenMovementCount} more</p>
+              )}
+            </div>
+          )}
         </div>
       </section>
+
+      {!selectedProgram && !loading && availablePrograms.length > 0 && (
+        <section className="stagger-item mx-1 border-t border-white/8 pt-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-zinc-200">Programs</h2>
+            <button
+              type="button"
+              onClick={() => router.push('/programs')}
+              className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              Manage
+            </button>
+          </div>
+          <div className="divide-y divide-white/[0.055]">
+            {availablePrograms.slice(0, 5).map((program) => (
+              <button
+                key={program.id}
+                type="button"
+                onClick={() => handleProgramSelect(program.id)}
+                className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-white"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
+                  {program.name}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

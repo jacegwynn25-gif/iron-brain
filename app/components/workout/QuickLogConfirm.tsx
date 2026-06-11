@@ -2,6 +2,7 @@
 
 import { Zap, X } from 'lucide-react';
 import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
+import { liquidButtonClass } from '@/app/components/ui/liquid';
 
 interface QuickLogConfirmProps {
   isOpen: boolean;
@@ -10,58 +11,56 @@ interface QuickLogConfirmProps {
 }
 
 export default function QuickLogConfirm({ isOpen, onClose, onConfirm }: QuickLogConfirmProps) {
-  useBodyScrollLock(isOpen, 'quick-log-confirm');
+  useBodyScrollLock(isOpen, 'quick-log-confirm', { hideBottomNav: false });
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-end justify-center bg-black/90 px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-[220] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5.15rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
       data-testid="quick-log-confirm"
     >
       <button
         type="button"
-        aria-label="Close quick log confirmation"
+        aria-label="Close freestyle confirmation"
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-sm overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950 shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
-        <div className="flex items-start justify-between gap-4 p-5">
+      <div className="liquid-sheet-panel relative w-full max-w-xs overflow-hidden rounded-[1.2rem] p-0">
+        <div className="flex items-start justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.26em] text-emerald-300">
-              Quick Log
-            </p>
-            <h2 className="mt-1 text-2xl font-black italic leading-none tracking-tight text-white">
-              START EMPTY SESSION?
+            <h2 className="text-sm font-semibold tracking-tight text-white">
+              Freestyle
             </h2>
-            <p className="mt-2 text-sm leading-snug text-zinc-400">
-              Use this when you want a blank workout and will add movements yourself.
-            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:text-zinc-200"
+            className="liquid-icon-button flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-200"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="grid gap-2 border-t border-zinc-900 bg-zinc-900/35 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+        <div className="grid gap-2 border-t border-white/8 p-2.5 pb-[calc(env(safe-area-inset-bottom)+0.625rem)]">
           <button
             type="button"
             onClick={onConfirm}
             data-testid="quick-log-confirm-start"
-            className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-950 active:bg-emerald-500"
+            className={liquidButtonClass({
+              variant: 'action',
+              density: 'compact',
+              className: 'min-h-11 w-full rounded-xl',
+            })}
           >
             <Zap className="h-4 w-4" strokeWidth={3} />
-            Start Quick Log
+            Start freestyle
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-12 rounded-xl border border-zinc-800 bg-zinc-950/70 px-4 text-xs font-black uppercase tracking-[0.18em] text-zinc-400 active:bg-zinc-900"
+            className="min-h-11 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-semibold text-zinc-400 active:bg-white/[0.08]"
           >
-            Not Now
+            Not now
           </button>
         </div>
       </div>

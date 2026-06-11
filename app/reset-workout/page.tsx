@@ -96,13 +96,13 @@ export default function ResetWorkoutPage() {
         <div className="grid gap-2">
           <Link
             href="/"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-400 px-5 text-xs font-black uppercase tracking-[0.22em] text-zinc-950"
+            className="liquid-action-button inline-flex min-h-12 items-center justify-center rounded-[1.05rem] px-5 text-xs font-black italic tracking-tight text-zinc-950"
           >
             Go Home
           </Link>
           <Link
             href="/reset-workout?hard=1"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 px-5 text-xs font-black uppercase tracking-[0.18em] text-zinc-300"
+            className="liquid-icon-button inline-flex min-h-12 items-center justify-center rounded-[1.05rem] px-5 text-xs font-black italic tracking-tight text-zinc-300"
           >
             Hard Reset App Cache
           </Link>

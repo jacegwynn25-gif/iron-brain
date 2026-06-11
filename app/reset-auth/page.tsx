@@ -101,18 +101,18 @@ export default function ResetAuthPage() {
   return (
     <div className="min-h-screen app-gradient safe-top">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-2xl">
+        <header className="px-1">
           <p className="section-label">System Reset</p>
-          <h1 className="mt-3 text-3xl font-black text-white">Emergency Auth Reset</h1>
-          <p className="mt-2 text-sm text-zinc-400">
+          <h1 className="mt-3 text-3xl font-black italic tracking-tight text-white">AUTH RESET</h1>
+          <p className="mt-2 max-w-xl text-sm text-zinc-400">
             Use this if your app is stuck or will not let you sign in or out.
           </p>
         </header>
 
         <section className="space-y-6">
-          <div className="surface-panel rounded-2xl p-6">
+          <div className="border-y border-white/8 py-5">
             <div className="mb-4 flex items-center gap-3">
-              <div className="h-3 w-3 rounded-full bg-purple-500 animate-pulse"></div>
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
               <p className="text-lg font-semibold text-white">{status}</p>
             </div>
 
@@ -134,7 +134,7 @@ export default function ResetAuthPage() {
             )}
 
             {logs.length > 0 && (
-              <div className="rounded-xl bg-black/40 p-4 font-mono text-xs">
+              <div className="border-y border-white/8 py-4 font-mono text-xs">
                 {logs.map((log, i) => (
                   <div key={i} className="text-zinc-300">
                     {log}
@@ -148,7 +148,7 @@ export default function ResetAuthPage() {
             <button
               onClick={performReset}
               disabled={logs.length > 0}
-              className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 font-bold text-white shadow-lg hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              className="flex-1 rounded-full border border-rose-400/30 bg-rose-500/14 px-6 py-4 font-bold text-rose-100 transition-all hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
             >
               {logs.length > 0 ? 'Resetting...' : 'Reset Auth State'}
             </button>
@@ -156,22 +156,22 @@ export default function ResetAuthPage() {
             <button
               onClick={() => router.push('/')}
               disabled={logs.length > 0}
-              className="rounded-xl border border-white/20 bg-white/10 px-6 py-4 font-semibold text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              className="liquid-icon-button rounded-full px-6 py-4 font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
             >
               Cancel
             </button>
           </div>
 
-          <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
-            <p className="text-sm text-blue-300 mb-2 font-semibold">💡 When to use this:</p>
-            <ul className="ml-4 list-disc space-y-1 text-xs text-blue-200">
+          <details className="border-y border-white/8 py-4">
+            <summary className="cursor-pointer text-sm font-semibold text-zinc-200">When to use this</summary>
+            <ul className="ml-4 mt-3 list-disc space-y-1 text-xs text-zinc-400">
               <li>App is stuck on loading screen forever</li>
               <li>Sign out button does not work</li>
               <li>Cannot save workouts or data</li>
               <li>Getting timeout errors everywhere</li>
               <li>After updating auth code and need fresh start</li>
             </ul>
-          </div>
+          </details>
 
           <div className="text-center text-xs text-zinc-500">
             To use this page, navigate to: <code className="bg-white/10 px-2 py-1 rounded">/reset-auth</code>

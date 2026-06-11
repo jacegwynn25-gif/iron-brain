@@ -363,8 +363,8 @@ export default function ProgramsCalendarView({ programs }: ProgramsCalendarViewP
                   onClick={() => setSelectedDate(isoDate)}
                   className={`min-h-[96px] rounded-xl border p-2 text-left transition-colors ${
                     isSelected
-                      ? 'border-cyan-500/45 bg-cyan-500/10'
-                      : 'border-zinc-800 bg-zinc-950/60'
+                      ? 'border-emerald-500/45 bg-emerald-500/10'
+                      : 'border-white/8 bg-white/[0.035]'
                   }`}
                 >
                   <p className="text-xs font-bold text-zinc-200">{date.getDate()}</p>

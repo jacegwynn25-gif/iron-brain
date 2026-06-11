@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { liquidButtonClass } from './liquid';
 
 interface CustomDialogProps {
     isOpen: boolean;
@@ -37,7 +38,7 @@ export default function CustomDialog({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={type === 'confirm' ? undefined : onClose}
-                        className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
+                        className="absolute inset-0 bg-transparent"
                     />
 
                     <motion.div
@@ -45,19 +46,19 @@ export default function CustomDialog({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-                        className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/80 p-6 shadow-2xl backdrop-blur-2xl"
+                        className="liquid-sheet-panel relative w-full max-w-sm overflow-hidden rounded-[1.2rem] p-6"
                     >
                         <div className="flex flex-col items-center text-center">
-                            <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${variant === 'danger' ? 'bg-rose-500/20 text-rose-400' : 'bg-purple-500/20 text-purple-400'
+                            <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-full border ${variant === 'danger' ? 'border-rose-400/30 text-rose-300' : 'border-emerald-400/30 text-emerald-300'
                                 }`}>
                                 {variant === 'danger' ? (
-                                    <AlertCircle className="h-8 w-8" />
+                                    <AlertCircle className="h-6 w-6" />
                                 ) : (
-                                    <CheckCircle2 className="h-8 w-8" />
+                                    <CheckCircle2 className="h-6 w-6" />
                                 )}
                             </div>
 
-                            <h3 className="mb-2 text-xl font-bold text-white">{title}</h3>
+                            <h3 className="mb-2 text-lg font-black italic tracking-tight text-white">{title}</h3>
                             <p className="mb-8 text-sm leading-relaxed text-zinc-400">
                                 {message}
                             </p>
@@ -66,10 +67,10 @@ export default function CustomDialog({
                                 <button
                                     type="button"
                                     onClick={onConfirm}
-                                    className={`w-full rounded-2xl py-4 text-xs font-black uppercase tracking-[0.3em] transition-all active:scale-[0.98] ${variant === 'danger'
-                                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-400'
-                                            : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20 hover:brightness-110'
-                                        }`}
+                                    className={liquidButtonClass({
+                                        variant: variant === 'danger' ? 'danger' : 'action',
+                                        className: 'w-full rounded-xl py-4 text-xs',
+                                    })}
                                 >
                                     {confirmLabel}
                                 </button>
@@ -78,7 +79,7 @@ export default function CustomDialog({
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="w-full rounded-2xl bg-zinc-800/50 py-4 text-xs font-bold uppercase tracking-[0.3em] text-zinc-400 transition-all hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
+                                        className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-4 text-xs font-semibold text-zinc-300 transition-all hover:bg-white/[0.075] hover:text-zinc-100 active:scale-[0.98]"
                                     >
                                         {cancelLabel}
                                     </button>

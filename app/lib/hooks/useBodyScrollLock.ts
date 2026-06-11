@@ -12,6 +12,10 @@ type ScrollSnapshot = {
   htmlOverflow: string;
 };
 
+type BodyScrollLockOptions = {
+  hideBottomNav?: boolean;
+};
+
 const activeLockOwners = new Set<string>();
 let snapshot: ScrollSnapshot | null = null;
 
@@ -35,7 +39,7 @@ function captureSnapshot(): ScrollSnapshot {
   };
 }
 
-function applyLockedStyles(nextSnapshot: ScrollSnapshot): void {
+function applyLockedStyles(nextSnapshot: ScrollSnapshot, options: BodyScrollLockOptions): void {
   const body = document.body;
   const html = document.documentElement;
 
@@ -48,7 +52,9 @@ function applyLockedStyles(nextSnapshot: ScrollSnapshot): void {
   html.style.overflow = 'hidden';
 
   body.setAttribute('data-scroll-lock-active', 'true');
-  body.setAttribute('data-hide-bottom-nav', 'true');
+  if (options.hideBottomNav !== false) {
+    body.setAttribute('data-hide-bottom-nav', 'true');
+  }
 }
 
 function restoreFromSnapshot(current: ScrollSnapshot): void {
@@ -126,7 +132,7 @@ function createOwnerId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function lockBodyScroll(ownerId: string): void {
+export function lockBodyScroll(ownerId: string, options: BodyScrollLockOptions = {}): void {
   if (!canUseDom()) return;
 
   if (activeLockOwners.has(ownerId)) {
@@ -137,7 +143,7 @@ export function lockBodyScroll(ownerId: string): void {
 
   if (activeLockOwners.size === 1) {
     snapshot = captureSnapshot();
-    applyLockedStyles(snapshot);
+    applyLockedStyles(snapshot, options);
   }
 }
 
@@ -161,13 +167,18 @@ export function restoreLeakedBodyScrollLock(): void {
   restoreLockIfIdle();
 }
 
-export function useBodyScrollLock(locked: boolean, ownerPrefix = 'scroll-lock'): void {
+export function useBodyScrollLock(
+  locked: boolean,
+  ownerPrefix = 'scroll-lock',
+  options: BodyScrollLockOptions = {}
+): void {
   const ownerIdRef = useRef<string>(createOwnerId(ownerPrefix));
+  const hideBottomNav = options.hideBottomNav ?? true;
 
   useEffect(() => {
     const ownerId = ownerIdRef.current;
     if (locked) {
-      lockBodyScroll(ownerId);
+      lockBodyScroll(ownerId, { hideBottomNav });
       return () => {
         unlockBodyScroll(ownerId);
       };
@@ -175,7 +186,7 @@ export function useBodyScrollLock(locked: boolean, ownerPrefix = 'scroll-lock'):
 
     unlockBodyScroll(ownerId);
     return undefined;
-  }, [locked]);
+  }, [hideBottomNav, locked]);
 
   useEffect(() => {
     const ownerId = ownerIdRef.current;

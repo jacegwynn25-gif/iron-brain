@@ -40,7 +40,7 @@ function CopyBlock({
   copied: boolean;
 }) {
   return (
-    <section className="surface-card space-y-3 p-4 sm:p-5">
+    <section className="space-y-3 border-y border-white/8 py-4 sm:py-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-black italic text-zinc-100">{title}</h2>
@@ -49,13 +49,13 @@ function CopyBlock({
         <button
           type="button"
           onClick={onCopy}
-          className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+          className="liquid-icon-button inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:text-zinc-100"
         >
           {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="max-h-[28rem] overflow-auto rounded-2xl border border-zinc-900 bg-zinc-950/80 p-4 text-[11px] leading-5 text-zinc-300 whitespace-pre-wrap">
+      <pre className="max-h-[28rem] overflow-auto border-y border-white/8 py-4 text-[11px] leading-5 text-zinc-300 whitespace-pre-wrap">
         {body}
       </pre>
     </section>
@@ -239,30 +239,30 @@ export default function CoachExportPage() {
       </header>
 
       {loading && (
-        <section className="surface-card mx-1 p-5">
+        <section className="mx-1 border-y border-white/8 py-5">
           <p className="text-sm text-zinc-300">Assembling coach context from profile, workouts, recovery data, and exercise history…</p>
         </section>
       )}
 
       {!loading && bundle && (
         <>
-          <section className="grid gap-3 px-1 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="surface-card p-4 sm:p-5">
+          <section className="grid gap-3 border-y border-white/8 py-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Athlete</div>
               <div className="mt-2 text-xl font-black italic text-zinc-100">{bundle.athleteName}</div>
               <div className="mt-1 text-xs text-zinc-500">{bundle.goalLabel} • {bundle.experienceLabel}</div>
             </div>
-            <div className="surface-card p-4 sm:p-5">
+            <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Current Program</div>
               <div className="mt-2 text-xl font-black italic text-zinc-100">{bundle.currentProgramLabel}</div>
               <div className="mt-1 text-xs text-zinc-500">{bundle.scheduleLabel}</div>
             </div>
-            <div className="surface-card p-4 sm:p-5">
+            <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Workout Data</div>
               <div className="mt-2 text-xl font-black italic text-zinc-100">{bundle.workoutsWithSets}</div>
               <div className="mt-1 text-xs text-zinc-500">sessions with set-level logs</div>
             </div>
-            <div className="surface-card p-4 sm:p-5">
+            <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Exercise Library</div>
               <div className="mt-2 text-xl font-black italic text-zinc-100">{bundle.customExerciseCount}</div>
               <div className="mt-1 text-xs text-zinc-500">{bundle.equipmentLabel}</div>
@@ -271,32 +271,32 @@ export default function CoachExportPage() {
 
           {(bundle.missingFields.length > 0 || bundle.dataWarnings.length > 0) && (
             <section className="grid gap-3 px-1 lg:grid-cols-2">
-              <div className="surface-card p-4 sm:p-5">
+              <div className="border-y border-white/8 py-4 sm:py-5">
                 <div className="flex items-center gap-2">
                   <Clipboard className="h-4.5 w-4.5 text-amber-300" />
                   <h2 className="text-sm font-black italic text-zinc-100">Still Missing</h2>
                 </div>
                 <div className="mt-3 space-y-2">
                   {bundle.missingFields.map((item) => (
-                    <div key={item} className="rounded-2xl border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300">
+                    <div key={item} className="border-t border-white/8 py-2 text-xs text-zinc-300">
                       {item}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="surface-card p-4 sm:p-5">
+              <div className="border-y border-white/8 py-4 sm:py-5">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4.5 w-4.5 text-rose-300" />
                   <h2 className="text-sm font-black italic text-zinc-100">Data Warnings</h2>
                 </div>
                 <div className="mt-3 space-y-2">
                   {bundle.dataWarnings.length > 0 ? bundle.dataWarnings.map((item) => (
-                    <div key={item} className="rounded-2xl border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300">
+                    <div key={item} className="border-t border-white/8 py-2 text-xs text-zinc-300">
                       {item}
                     </div>
                   )) : (
-                    <div className="rounded-2xl border border-zinc-900 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-300">
+                    <div className="border-t border-white/8 py-2 text-xs text-zinc-300">
                       No data-quality warnings detected.
                     </div>
                   )}
@@ -349,7 +349,7 @@ export default function CoachExportPage() {
       )}
 
       {error && !loading && (
-        <section className="surface-card mx-1 p-5">
+        <section className="mx-1 border-y border-white/8 py-5">
           <div className="flex items-center gap-2 text-rose-300">
             <AlertTriangle className="h-4.5 w-4.5" />
             <p className="text-sm font-semibold">Failed to load coach export data</p>
@@ -359,7 +359,7 @@ export default function CoachExportPage() {
       )}
 
       <section className="grid gap-3 px-1 sm:grid-cols-2">
-        <div className="surface-card p-4 sm:p-5">
+        <div className="border-y border-white/8 py-4 sm:py-5">
           <div className="flex items-center gap-2">
             <FileText className="h-4.5 w-4.5 text-emerald-300" />
             <h2 className="text-sm font-black italic text-zinc-100">What This Solves</h2>
@@ -368,7 +368,7 @@ export default function CoachExportPage() {
             The X workflow assumes you manually retype everything into an external chat. This export uses the actual Iron Brain account data you already logged, so you only need to answer the gaps instead of rebuilding your profile from scratch.
           </p>
         </div>
-        <div className="surface-card p-4 sm:p-5">
+        <div className="border-y border-white/8 py-4 sm:py-5">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-4.5 w-4.5 text-emerald-300" />
             <h2 className="text-sm font-black italic text-zinc-100">Current Limitation</h2>
