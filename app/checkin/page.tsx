@@ -19,7 +19,11 @@ export default function CheckInPage() {
         <div className="animate-pulse space-y-4 px-1">
           <div className="h-8 w-48 rounded-lg bg-zinc-800" />
           <div className="h-4 w-32 rounded bg-zinc-800" />
-          <div className="h-64 rounded-2xl bg-zinc-800" />
+          <div className="border-y border-white/8 py-12">
+            <div className="h-4 w-3/4 rounded bg-zinc-800" />
+            <div className="mt-5 h-12 rounded-xl bg-zinc-800" />
+            <div className="mt-3 h-12 rounded-xl bg-zinc-800" />
+          </div>
         </div>
       </div>
     );

@@ -148,7 +148,7 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute max-w-xs rounded-2xl border border-emerald-500/20 bg-zinc-950/95 p-4 text-white shadow-2xl backdrop-blur pointer-events-auto"
+        className="liquid-sheet-panel pointer-events-auto absolute max-w-xs p-4 text-white"
         style={{
           left,
           top,
@@ -156,7 +156,7 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
       >
         <button
           onClick={handleSkip}
-          className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-200"
+          className="absolute right-2 top-2 text-zinc-500 hover:text-zinc-200"
         >
           <X className="w-5 h-5" />
         </button>

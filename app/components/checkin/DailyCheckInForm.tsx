@@ -55,7 +55,7 @@ const CALORIE_OPTIONS: CalorieBalance[] = ['deficit', 'maintenance', 'surplus'];
 const MEAL_TIMING_OPTIONS: MealTiming[] = ['poor', 'fair', 'good'];
 
 const inputClass =
-  'h-12 min-w-0 w-full max-w-full rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 text-sm font-semibold text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-400/50 focus:bg-zinc-900';
+  'liquid-field h-12 min-w-0 w-full max-w-full px-4 text-sm font-semibold text-zinc-100 placeholder:text-zinc-600';
 
 function titleize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -81,10 +81,10 @@ function getFuelScore(data: CheckInData) {
 
 function CheckInSection({ icon, eyebrow, title, aside, children }: CheckInSectionProps) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/65 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:p-5">
+    <section className="min-w-0 border-y border-white/8 py-5">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/80 text-emerald-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center text-emerald-400">
             {icon}
           </div>
           <div className="min-w-0">
@@ -170,8 +170,8 @@ function OptionGroup<T extends string>({
               type="button"
               onClick={() => onChange(option)}
               className={`min-h-11 min-w-0 rounded-xl border px-2 text-[11px] font-bold uppercase tracking-[0.04em] transition-colors sm:px-3 sm:text-xs sm:tracking-[0.1em] ${active
-                ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
-                : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+                ? 'border-emerald-500 bg-emerald-500 text-zinc-950'
+                : 'border-white/8 bg-white/[0.035] text-zinc-400 hover:border-white/14 hover:text-zinc-100'
                 }`}
             >
               {titleize(option)}
@@ -199,7 +199,7 @@ function RangeField({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+    <div className="min-w-0 border-y border-white/8 py-3">
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="min-w-0 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500 sm:tracking-[0.18em]">{label}</p>
         <p className="text-xl font-black italic text-zinc-100">{value}</p>
@@ -332,8 +332,8 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
 
   if (success) {
     return (
-      <div className="mx-auto max-w-xl rounded-[1.5rem] border border-emerald-400/30 bg-emerald-400/10 px-5 py-10 text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-400 text-zinc-950">
+      <div className="mx-auto max-w-xl border-y border-emerald-400/25 px-5 py-10 text-center">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-zinc-950">
           <Check className="h-7 w-7" strokeWidth={3} />
         </div>
         <h2 className="text-2xl font-black italic tracking-tight text-zinc-100">CHECK-IN SAVED</h2>
@@ -344,10 +344,10 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
-      <section className="min-w-0 overflow-hidden rounded-[1.25rem] border border-zinc-900 bg-zinc-950/70 p-4 sm:p-5">
+      <section className="min-w-0 border-y border-white/8 py-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-zinc-950">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-zinc-950">
               <CalendarDays className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -370,7 +370,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
       </section>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="border-y border-rose-400/25 py-3 text-sm text-rose-200">
           {error}
         </div>
       )}
@@ -408,7 +408,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
       <button
         type="button"
         onClick={() => setShowAdvanced((value) => !value)}
-        className="flex min-h-11 w-full items-center justify-between rounded-[1rem] border border-zinc-900 bg-zinc-950/65 px-4 text-left text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:border-zinc-800 hover:bg-zinc-900/55"
+        className="liquid-icon-button flex min-h-11 w-full items-center justify-between rounded-[1rem] px-4 text-left text-[11px] font-black uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:text-zinc-100"
         aria-expanded={showAdvanced}
       >
         <span>Advanced details</span>
@@ -510,7 +510,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
+              <div className="flex min-w-0 items-center gap-3 border-y border-white/8 py-3">
                 <Activity className="h-4 w-4 shrink-0 text-rose-300" />
                 <NumberField
                   label="Resting heart rate"
@@ -522,8 +522,8 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
                   onChange={(restingHeartRate) => setFormData({ ...formData, restingHeartRate })}
                 />
               </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-900 bg-zinc-950/55 p-3">
-                <Clock3 className="h-4 w-4 shrink-0 text-sky-300" />
+              <div className="flex min-w-0 items-center gap-3 border-y border-white/8 py-3">
+                <Clock3 className="h-4 w-4 shrink-0 text-emerald-300" />
                 <NumberField
                   label="HRV"
                   min={0}
@@ -542,7 +542,7 @@ export default function DailyCheckInForm({ onComplete }: DailyCheckInFormProps) 
       <button
         type="submit"
         disabled={loading}
-        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[1.25rem] bg-emerald-400 px-6 text-sm font-black italic tracking-tight text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className="liquid-action-button flex min-h-14 w-full items-center justify-center gap-2 rounded-[1.05rem] px-6 text-sm font-black italic tracking-tight text-zinc-950 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Save className="h-4 w-4" />
         {loading ? 'SAVING...' : 'SAVE CHECK-IN'}

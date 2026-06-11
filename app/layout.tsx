@@ -103,7 +103,7 @@ export default function RootLayout({
           role="status"
           aria-live="polite"
         >
-          <div className="flex w-full max-w-md items-center gap-3 rounded-[1.1rem] border border-amber-400/35 bg-zinc-950/95 px-3 py-2.5 text-amber-200 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="liquid-sheet-panel flex w-full max-w-md items-center gap-3 px-3 py-2.5 text-amber-200">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
               !
             </span>

@@ -126,7 +126,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
         label: 'App Update',
         title: 'Refresh when free',
         body: 'A newer version is ready. Active workouts stay saved locally.',
-        tone: 'border-emerald-400/30 bg-zinc-950/95 text-emerald-200',
+        tone: 'text-emerald-200',
         action: 'refresh' as const,
         dismissible: true,
       };
@@ -144,7 +144,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
           failed > 0
             ? `${processed} saved. ${failed} still retrying in the background.`
             : `${processed} queued change${processed === 1 ? '' : 's'} saved to cloud.`,
-        tone: failed > 0 ? 'border-amber-400/35 bg-zinc-950/95 text-amber-200' : 'border-emerald-400/25 bg-zinc-950/95 text-emerald-200',
+        tone: failed > 0 ? 'text-amber-200' : 'text-emerald-200',
         action: null,
         dismissible: true,
       };
@@ -160,7 +160,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
   return (
     <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[95] flex justify-center">
       <div
-        className={`pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[1.1rem] border px-3 py-2.5 shadow-[0_24px_70px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl ${status.tone}`}
+        className={`liquid-sheet-panel pointer-events-auto flex w-full max-w-md items-center gap-3 px-3 py-2.5 ${status.tone}`}
         role="status"
         aria-live="polite"
         data-testid={`app-resilience-${status.key}`}
@@ -186,7 +186,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
               onClick={() => {
                 window.location.reload();
               }}
-              className="rounded-lg bg-emerald-300 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-950 active:bg-emerald-400"
+              className="liquid-action-button rounded-lg px-2.5 py-2 text-[10px] font-black italic tracking-tight text-zinc-950"
             >
               Refresh
             </button>
@@ -196,7 +196,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
                 setDismissedVersion(remoteVersion);
                 if (remoteVersion) localStorage.setItem(DISMISSED_VERSION_KEY, remoteVersion);
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+              className="liquid-icon-button flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200"
               aria-label="Dismiss update notice"
             >
               <X className="h-4 w-4" />
@@ -206,7 +206,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
           <button
             type="button"
             onClick={() => setSyncNotice(null)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+            className="liquid-icon-button flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200"
             aria-label="Dismiss status"
           >
             <X className="h-4 w-4" />

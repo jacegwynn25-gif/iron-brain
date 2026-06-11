@@ -24,10 +24,10 @@ export default function SuccessPage() {
           </div>
           <button
             onClick={() => router.push('/')}
-            className="group inline-flex items-center gap-2 rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 px-8 py-4 text-sm font-black italic text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="liquid-action-button group inline-flex items-center gap-2 rounded-[1.05rem] px-8 py-4 text-sm font-black italic text-zinc-950 transition-all active:scale-[0.98]"
           >
             GO TO DASHBOARD
-            <ArrowRight className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="h-4 w-4 text-zinc-950/60 transition-transform group-hover:translate-x-1" />
           </button>
         </div>
       ) : (
@@ -39,7 +39,7 @@ export default function SuccessPage() {
           </p>
           <button
             onClick={() => router.push('/')}
-            className="inline-flex items-center gap-2 rounded-[1.25rem] border border-zinc-700 bg-zinc-900 px-8 py-4 text-sm font-black italic text-zinc-100 transition-all hover:bg-zinc-800 active:scale-[0.98]"
+            className="liquid-icon-button inline-flex items-center gap-2 rounded-[1.05rem] px-8 py-4 text-sm font-black italic text-zinc-100 transition-all active:scale-[0.98]"
           >
             GO TO DASHBOARD
           </button>

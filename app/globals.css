@@ -188,7 +188,8 @@ nextjs-portal {
   .liquid-sheet-panel {
     transform-origin: calc(100% - 2.75rem) 1.55rem;
     background: rgba(12, 14, 18, 0.54);
-    border-color: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 1.35rem;
     box-shadow:
       0 24px 76px -44px rgba(0, 0, 0, 0.96),
       inset 0 0 0 1px rgba(255, 255, 255, 0.035);

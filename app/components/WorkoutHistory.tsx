@@ -705,7 +705,7 @@ export default function WorkoutHistory({
     <>
       <div className="space-y-6">
         {!compactHeader && (
-          <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-white/8 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-zinc-500">
                 Session Totals
@@ -716,7 +716,7 @@ export default function WorkoutHistory({
               </p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-3xl font-black bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
+              <p className="text-3xl font-black text-zinc-100">
                 {Math.round(sortedHistory.reduce((sum, s) => sum + calculateSessionStats(s).totalVolume, 0)).toLocaleString()}
               </p>
               <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-zinc-500">
@@ -920,7 +920,7 @@ export default function WorkoutHistory({
 
                                     <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                                       {set.e1rm && (
-                                        <span className="text-xs font-semibold text-sky-300">
+                                        <span className="text-xs font-semibold text-zinc-300">
                                           {displayE1RM != null && Number.isFinite(displayE1RM)
                                             ? `${Math.round(displayE1RM)} e1RM`
                                             : 'E1RM'}
@@ -946,7 +946,7 @@ export default function WorkoutHistory({
                     </div>
 
                     {session.notes && (
-                      <div className="mt-4 border-t border-zinc-900 pt-4">
+                      <div className="mt-4 border-t border-white/8 pt-4">
                         <p className="text-sm font-medium text-zinc-400">
                           Notes: {session.notes}
                         </p>

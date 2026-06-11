@@ -971,7 +971,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="flex min-h-dvh items-center justify-center pb-24 p-6">
         <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+          <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-xl border border-white/8 bg-white/[0.035]">
             <BarChart3 className="h-7 w-7 text-emerald-300" />
           </div>
           <div className="iron-display text-xl text-white">Loading insights</div>
@@ -986,7 +986,7 @@ export default function AdvancedAnalyticsDashboard({ initialView }: AdvancedAnal
     return (
       <div className="mx-auto w-full max-w-5xl space-y-6 pb-12 pt-4 sm:space-y-8 sm:pt-10 px-1">
         <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl border border-white/8 bg-white/[0.035]">
             <BarChart3 className="h-8 w-8 text-emerald-300" />
           </div>
           <h2 className="mb-2 text-xl font-black italic tracking-tight text-white">

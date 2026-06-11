@@ -322,9 +322,9 @@ export default function OnboardingPage() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-black uppercase tracking-[0.25em] transition-all ${canSubmit
-            ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400'
-            : 'border border-zinc-800 bg-zinc-950/50 text-zinc-500'
+          className={`flex w-full items-center justify-center gap-2 rounded-[1.05rem] px-6 py-4 text-sm font-black italic tracking-tight transition-all ${canSubmit
+            ? 'liquid-action-button text-zinc-950'
+            : 'border border-white/8 bg-white/[0.035] text-zinc-500'
             }`}
         >
           {isSaving ? (

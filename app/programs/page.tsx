@@ -2537,9 +2537,9 @@ export default function ProgramsPage() {
                 })}
             </section>
 
-            {error && <p className="border-t border-zinc-900 pt-4 text-xs text-rose-400">{error}</p>}
+            {error && <p className="border-t border-white/8 pt-4 text-xs text-rose-400">{error}</p>}
             {cloudSaveError && (
-              <p className="border-t border-zinc-900 pt-4 text-xs text-amber-400">{cloudSaveError}</p>
+              <p className="border-t border-white/8 pt-4 text-xs text-amber-400">{cloudSaveError}</p>
             )}
           </>
         )}
@@ -2980,7 +2980,7 @@ export default function ProgramsPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleSetSupersetSlotExercise(row.blockIndex, 'A2')}
-                                    className="w-full rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                                    className="w-full rounded-xl border border-dashed border-white/12 px-3 py-4 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
                                   >
                                     Add A2 Exercise
                                   </button>
@@ -3001,14 +3001,14 @@ export default function ProgramsPage() {
 
             {pendingExerciseUndo && (
               <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[140] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
-                <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/95 px-3 py-2.5 shadow-2xl backdrop-blur-xl">
+                <div className="liquid-sheet-panel pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-2.5">
                   <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
                     {pendingExerciseUndo.message}
                   </p>
                   <button
                     type="button"
                     onClick={handleUndoExerciseRemoval}
-                    className="inline-flex h-9 shrink-0 items-center rounded-full border border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100 transition-colors hover:border-zinc-500"
+                    className="liquid-icon-button inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-100 transition-colors"
                   >
                     Undo
                   </button>
@@ -3134,7 +3134,7 @@ export default function ProgramsPage() {
                   </button>
                 </div>
 
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                <div className="liquid-field mb-3 flex items-center gap-2 px-3 py-2">
                   <Search className="h-4 w-4 text-zinc-500" />
                   <input
                     autoFocus
@@ -3256,9 +3256,9 @@ export default function ProgramsPage() {
                                 key={`custom-primary-${muscle}`}
                                 type="button"
                                 onClick={() => toggleCustomExerciseMuscle('primaryMusclesText', muscle)}
-                                className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
-                                  ? 'border-emerald-500/45 bg-emerald-500/10 text-emerald-300'
-                                  : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                                  className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
+                                    ? 'border-emerald-500/45 bg-emerald-500/10 text-emerald-300'
+                                    : 'border-white/8 text-zinc-400 hover:border-white/14 hover:text-zinc-200'
                                   }`}
                               >
                                 {formatTokenLabel(muscle)}
@@ -3332,7 +3332,7 @@ export default function ProgramsPage() {
                                   onClick={() => toggleCustomExerciseMuscle('secondaryMusclesText', muscle)}
                                   className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${selected
                                     ? 'border-white/18 bg-white/[0.08] text-zinc-100'
-                                    : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                                    : 'border-white/8 text-zinc-400 hover:border-white/14 hover:text-zinc-200'
                                     }`}
                                 >
                                   {formatTokenLabel(muscle)}
@@ -3374,7 +3374,7 @@ export default function ProgramsPage() {
                 {!showCreateCustomExercise && (
                   <div className="max-h-[45dvh] overflow-y-auto space-y-2 pr-1" data-swipe-ignore="true">
                     {filteredExercises.length === 0 && (
-                      <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-3 py-5 text-center">
+                      <div className="border-y border-white/8 px-3 py-5 text-center">
                         <p className="text-sm text-zinc-300">No exercises found.</p>
                         <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
                           Try another search or add a custom exercise.
@@ -3386,7 +3386,7 @@ export default function ProgramsPage() {
                         key={exercise.id}
                         type="button"
                         onClick={() => applyPickedExercise(exercise.id)}
-                        className="w-full rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-3 text-left transition-colors hover:border-zinc-600"
+                        className="w-full border-t border-white/8 px-3 py-3 text-left transition-colors hover:text-zinc-100"
                       >
                         <p className="text-sm font-bold text-zinc-100">{exercise.name}</p>
                         <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">

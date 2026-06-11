@@ -107,16 +107,16 @@ export default function ExercisePicker({
   return (
     <>
       <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-        <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950 shadow-2xl">
+        <div className="liquid-sheet-panel flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-900 p-5 sm:p-6">
+          <div className="flex items-center justify-between border-b border-white/8 p-5 sm:p-6">
             <h2 className="text-2xl font-black italic tracking-tight text-zinc-100">
               SELECT EXERCISE
             </h2>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 text-zinc-500 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100"
+              className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:text-zinc-100"
             >
               <X className="h-5 w-5" />
             </button>
@@ -132,7 +132,7 @@ export default function ExercisePicker({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search exercises..."
                 autoFocus
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 py-3 pl-11 pr-4 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500/45 focus:ring-1 focus:ring-emerald-500/25"
+                className="liquid-field w-full py-3 pl-11 pr-4 text-sm text-zinc-100 placeholder:text-zinc-600"
               />
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function ExercisePicker({
               <button
                 type="button"
                 onClick={handleCreateClick}
-                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-950 transition-colors hover:bg-emerald-300 active:bg-emerald-500"
+                className="liquid-action-button flex min-h-11 w-full items-center justify-center gap-2 rounded-[1.05rem] px-4 text-[11px] font-black italic tracking-tight text-zinc-950"
               >
                 <Plus className="h-4 w-4" />
                 Create &quot;{searchTerm}&quot; as custom exercise
@@ -174,7 +174,7 @@ export default function ExercisePicker({
                         <button
                           key={exercise.id}
                           onClick={() => handleSelect(exercise)}
-                          className="w-full rounded-xl border border-zinc-900 bg-zinc-950/70 p-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+                          className="w-full border-t border-white/8 py-4 text-left transition-colors hover:text-zinc-100"
                         >
                           <div className="font-semibold text-zinc-100">
                             {exercise.name}
@@ -192,7 +192,7 @@ export default function ExercisePicker({
                   </div>
                 )}
                 {loadingCustom && customMatches.length === 0 && (
-                  <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 px-4 py-3 text-xs text-zinc-500">
+                  <div className="border-y border-white/8 py-3 text-xs text-zinc-500">
                     Loading your custom exercises...
                   </div>
                 )}
@@ -210,7 +210,7 @@ export default function ExercisePicker({
                         <button
                           key={exercise.id}
                           onClick={() => handleSelect(exercise)}
-                          className="w-full rounded-xl border border-zinc-900 bg-zinc-950/70 p-4 text-left transition-colors hover:border-zinc-700 hover:bg-zinc-900/70"
+                          className="w-full border-t border-white/8 py-4 text-left transition-colors hover:text-zinc-100"
                         >
                           <div className="font-semibold text-zinc-100">
                             {exercise.name}
