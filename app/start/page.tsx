@@ -183,8 +183,8 @@ export default function StartWorkoutPage() {
         </div>
       </header>
 
-      <section className="surface-card stagger-item mx-1 overflow-hidden">
-        <div className="border-b border-white/8 p-4 sm:p-5">
+      <section className="stagger-item mx-1 border-y border-white/8 py-4 sm:py-5">
+        <div className="border-b border-white/8 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="iron-display truncate text-xl leading-tight text-zinc-100 sm:text-2xl">
@@ -209,7 +209,7 @@ export default function StartWorkoutPage() {
           )}
         </div>
 
-        <div className="space-y-3 p-4 sm:p-5">
+        <div className="space-y-3 pt-4">
           <button
             type="button"
             onClick={handleStartSession}

@@ -1913,8 +1913,7 @@ export default function ProgramsPage() {
     return (
       <article
         key={`${block.id}-${exercise.id}-${slotLabel ?? 'single'}`}
-        className={`border-b border-white/8 py-3 ${hasFocusedSet ? 'bg-white/[0.025]' : ''
-          }`}
+        className="border-b border-white/8 py-3"
       >
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -1935,10 +1934,11 @@ export default function ProgramsPage() {
                   return { blockIndex, exerciseIndex, setIndex: 0 };
                 })
               }
-              className={`inline-flex h-10 items-center rounded-xl border px-3 text-xs font-semibold transition-colors ${hasFocusedSet
-                ? 'border-white/18 bg-white/[0.08] text-zinc-100'
-                : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:bg-white/[0.065] hover:text-zinc-100'
-                }`}
+              className={liquidButtonClass({
+                variant: hasFocusedSet ? 'elevated' : 'neutral',
+                density: 'compact',
+                className: 'h-10 rounded-full px-3',
+              })}
             >
               {hasFocusedSet ? 'Done' : 'Sets'}
             </button>
@@ -2063,10 +2063,10 @@ export default function ProgramsPage() {
         )}
 
         {hasFocusedSet && (
-          <div className="space-y-2">
+          <div className="divide-y divide-white/8 border-y border-white/8">
             {exercise.sets.map((set, setIndex) => (
-              <div key={`${exercise.id}-set-${setIndex}`} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
-                <div className="mb-2 flex items-start justify-between gap-2">
+              <div key={`${exercise.id}-set-${setIndex}`} className="py-3">
+                <div className="mb-3 flex items-start justify-between gap-2">
                   <p className="min-w-0 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
                     Set {setIndex + 1} • {getSetSummaryLine(set)}
                   </p>
@@ -2075,7 +2075,11 @@ export default function ProgramsPage() {
                       type="button"
                       onClick={() => handleRemoveSetRow(blockIndex, exerciseIndex, setIndex)}
                       disabled={exercise.sets.length <= 1}
-                      className="liquid-danger-button inline-flex h-10 items-center rounded-lg px-3 text-[10px] font-bold uppercase tracking-[0.18em] disabled:opacity-40"
+                      className={liquidButtonClass({
+                        variant: 'danger',
+                        density: 'compact',
+                        className: 'h-10 rounded-lg px-3 text-[10px] uppercase tracking-[0.18em]',
+                      })}
                       aria-label={`Remove set ${setIndex + 1}`}
                     >
                       Remove
@@ -2281,7 +2285,7 @@ export default function ProgramsPage() {
               <button
                 type="button"
                 onClick={() => handleAddSetToExercise(blockIndex, exerciseIndex)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] px-3 text-xs font-semibold text-zinc-200 transition-colors hover:bg-white/[0.065]"
+                className={liquidButtonClass({ density: 'compact', className: 'h-11 w-full rounded-xl px-3' })}
               >
                 Add Set
               </button>
@@ -2957,18 +2961,6 @@ export default function ProgramsPage() {
                         />
 
                         <div className="space-y-3">
-                          {currentDayExerciseRows.length === 0 && (
-                            <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-7 text-center">
-                              <button
-                                type="button"
-                                onClick={handleAddSingleBlock}
-                                className="text-sm font-semibold text-zinc-200 hover:text-white"
-                              >
-                                Add the first exercise
-                              </button>
-                            </div>
-                          )}
-
                           {currentDayExerciseRows.map((row) => {
                             const block = currentDayBlocks[row.blockIndex];
                             if (!block) return null;
@@ -3172,7 +3164,7 @@ export default function ProgramsPage() {
                 )}
 
                 {showCreateCustomExercise && (
-                  <div className="mb-3 space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/20 p-3">
+                  <div className="mb-3 space-y-3 border-y border-white/8 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
                         New Custom Exercise
@@ -3201,7 +3193,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="e.g. Incline Dumbbell Press"
-                          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          className="liquid-field mt-1 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
                         />
                       </div>
 
@@ -3222,7 +3214,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           ariaLabel="Custom exercise equipment"
-                          buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                          buttonClassName="liquid-field mt-1 w-full px-3 py-2.5 text-sm"
                           listClassName="max-h-56 overflow-y-auto"
                         />
                       </div>
@@ -3241,9 +3233,9 @@ export default function ProgramsPage() {
                                   exerciseType: typeOption,
                                 }))
                               }
-                              className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${customExerciseDraft.exerciseType === typeOption
-                                ? 'border-zinc-500 bg-zinc-100 text-zinc-950'
-                                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                              className={`h-10 rounded-lg border text-[11px] font-bold uppercase tracking-[0.16em] transition-colors ${customExerciseDraft.exerciseType === typeOption
+                                ? 'border-white/18 bg-white/[0.11] text-zinc-50'
+                                : 'border-white/8 text-zinc-400 hover:border-white/14 hover:text-zinc-200'
                                 }`}
                             >
                               {formatTokenLabel(typeOption)}
@@ -3284,7 +3276,7 @@ export default function ProgramsPage() {
                             }))
                           }
                           placeholder="Add custom muscle names"
-                          className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                          className="liquid-field mt-2 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
                         />
                         <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
                           {customExercisePrimaryMuscles.length > 0
@@ -3297,7 +3289,7 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => setShowCustomExerciseAdvanced((current) => !current)}
-                      className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-800 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                      className={liquidButtonClass({ density: 'compact', className: 'h-10 w-full rounded-xl px-3 text-[10px] uppercase tracking-[0.14em]' })}
                     >
                       {showCustomExerciseAdvanced ? 'Hide Advanced Details' : 'Add Movement + Muscles (Optional)'}
                     </button>
@@ -3322,7 +3314,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             ariaLabel="Custom exercise movement pattern"
-                            buttonClassName="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-600 focus:outline-none"
+                            buttonClassName="liquid-field mt-1 w-full px-3 py-2.5 text-sm"
                             listClassName="max-h-56 overflow-y-auto"
                           />
                         </div>
@@ -3358,7 +3350,7 @@ export default function ProgramsPage() {
                               }))
                             }
                             placeholder="Add custom secondary muscles"
-                            className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                            className="liquid-field mt-2 w-full px-3 py-2.5 text-sm placeholder:text-zinc-600"
                           />
                         </div>
                       </div>
