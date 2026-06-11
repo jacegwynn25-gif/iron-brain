@@ -505,7 +505,7 @@ function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
   const exact = plateLoad.delta === 0;
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3" data-testid="plate-load-result">
+    <div className="border-y border-white/8 py-3" data-testid="plate-load-result">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
@@ -534,7 +534,7 @@ function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
       <div className="mt-4 space-y-2">
         {plateLoad.platesPerSide.length > 0 ? (
           plateLoad.platesPerSide.map((plate) => (
-            <div key={plate.weight} className="flex items-center justify-between border-t border-zinc-900 pt-2">
+            <div key={plate.weight} className="flex items-center justify-between border-t border-white/8 pt-2">
               <span className="font-mono text-sm font-black text-zinc-100">
                 {formatToolWeight(plate.weight, plateLoad.unit)}
               </span>
@@ -544,7 +544,7 @@ function PlateLoadPreview({ plateLoad }: { plateLoad: PlateLoadResult }) {
             </div>
           ))
         ) : (
-          <p className="border-t border-zinc-900 pt-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <p className="border-t border-white/8 pt-3 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
             Bar only
           </p>
         )}
@@ -562,20 +562,20 @@ function WarmupPlanPreview({
 }) {
   if (warmups.length === 0) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-4 text-sm leading-6 text-zinc-400">
+      <div className="border-y border-white/8 py-4 text-sm leading-6 text-zinc-400">
         Target load is too close to the bar weight for a useful barbell warm-up ladder.
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3" data-testid="warmup-plan-result">
+    <div className="border-y border-white/8 py-3" data-testid="warmup-plan-result">
       <p className="text-[9px] font-black uppercase tracking-[0.28em] text-emerald-300">
         Warm-Up Ladder
       </p>
       <div className="mt-3 space-y-2">
         {warmups.map((set, index) => (
-          <div key={`${set.weight}-${set.reps}-${index}`} className="flex items-center justify-between border-t border-zinc-900 pt-2">
+          <div key={`${set.weight}-${set.reps}-${index}`} className="flex items-center justify-between border-t border-white/8 pt-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
               {set.label}
             </span>
@@ -2928,7 +2928,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
 
 
               <div
-                className="space-y-6 px-4"
+                className="mx-4 divide-y divide-white/8 border-y border-white/8"
               >
                 {exerciseRefs.map((entry) => {
                   const style = getExerciseStyle(entry.exercise, resolveMuscleProfile);
@@ -2938,7 +2938,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   return (
                     <div
                       key={entry.exercise.id}
-                      className="overflow-x-auto rounded-2xl shadow-[0_18px_42px_rgba(0,0,0,0.22)]"
+                      className="overflow-x-auto"
                       data-testid="logger-exercise-row"
                       style={{
                         scrollbarWidth: 'none',
@@ -2950,7 +2950,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         style={{ width: 'calc(100% + 4rem)' }}
                       >
                       <div
-                        className="shrink-0 rounded-2xl border border-zinc-900 bg-zinc-950 p-3"
+                        className="shrink-0 py-4"
                         style={{ width: 'calc(100% - 4rem)' }}
                       >
                       <div className="flex items-start gap-3">
@@ -3053,7 +3053,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                           event.stopPropagation();
                           handleRemoveExercise(entry.blockId, entry.exercise.id);
                         }}
-                        className="ml-2 flex w-14 shrink-0 items-center justify-center rounded-2xl border border-zinc-900 bg-zinc-950 text-rose-300 active:bg-rose-500/10"
+                        className="ml-2 flex w-14 shrink-0 items-center justify-center rounded-full border border-rose-400/20 bg-rose-500/[0.06] text-rose-300 active:bg-rose-500/10"
                         aria-label={`Delete ${displayName}`}
                       >
                         <Trash2 className="h-5 w-5" />
@@ -3071,7 +3071,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     setSearchQuery('');
                     setIsAddMovementOpen(true);
                   }}
-                  className="w-full py-6 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold hover:border-emerald-500 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] py-4 text-sm font-semibold text-zinc-300 transition-all hover:bg-white/[0.08] hover:text-zinc-100"
                 >
                   <Plus className="h-5 w-5" />
                   Add Exercise
@@ -3169,12 +3169,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   {(supersetSlotLabel || focusTempo || isClusterSet) && (
                     <div className="flex flex-wrap items-center gap-2">
                       {supersetSlotLabel && (
-                        <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
+                        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">
                           Superset {supersetSlotLabel}
                         </span>
                       )}
                       {focusTempo && (
-                        <span className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">
                           Tempo {focusTempo}
                         </span>
                       )}
@@ -3290,21 +3290,21 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
 
                   {focusTempo && (
-                    <div className="space-y-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-3 py-3">
+                    <div className="space-y-2 border-y border-white/8 py-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">Tempo Cue</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Tempo cue</p>
                         <button
                           type="button"
                           onClick={() => setTempoMetronomeEnabled((current) => !current)}
                           className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${tempoMetronomeEnabled
-                            ? 'bg-cyan-500/20 text-cyan-200'
-                            : 'bg-zinc-900/70 text-zinc-400 hover:text-zinc-200'
+                            ? 'border border-emerald-400/25 bg-emerald-500/[0.08] text-emerald-300'
+                            : 'border border-white/8 bg-white/[0.045] text-zinc-400 hover:text-zinc-200'
                             }`}
                         >
                           {tempoMetronomeEnabled ? 'Metronome On' : 'Metronome Off'}
                         </button>
                       </div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-300">
                         {focusTempoSteps.length > 0
                           ? `Eccentric ${focusTempoSteps[0] ?? 0} • Pause ${focusTempoSteps[1] ?? 0} • Concentric ${focusTempoSteps[2] ?? 0} • Top ${focusTempoSteps[3] ?? 0}`
                           : `Tempo ${focusTempo}`}
@@ -3323,7 +3323,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </div>
 
               <footer className="mt-3 flex w-full flex-col items-center gap-2 px-4 pb-2">
-                <div className="flex h-14 w-full items-center rounded-[1.5rem] bg-zinc-900/80 p-1.5 backdrop-blur-md">
+                <div className="liquid-control-strip flex h-14 w-full items-center rounded-[1.5rem] p-1.5">
                   <button
                     type="button"
                     onClick={() => setIsHistoryOpen(true)}
@@ -3729,12 +3729,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               <textarea
                 value={notesDraft}
                 onChange={(event) => setNotesDraft(event.target.value)}
-                className="w-full resize-none rounded-2xl bg-zinc-900 p-4 text-lg text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+                className="liquid-field w-full resize-none p-4 text-lg text-white placeholder:text-zinc-600"
                 placeholder="Grip, setup, pain, technique cues, equipment..."
                 rows={8}
               />
               {previousSetNote && (
-                <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div className="mt-4 border-y border-white/8 py-4">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Previous Note</p>
                     <button
@@ -4153,7 +4153,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       {summarySmartRecommendations.map((recommendation) => (
                         <div
                           key={recommendation.id}
-                          className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-4 py-3"
+                          className="border-y border-white/8 py-3"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <p className="text-sm font-black uppercase tracking-[0.16em] text-zinc-100">
@@ -4227,7 +4227,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-[110] border-t border-white/10 bg-zinc-950/72 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-28px_80px_-42px_rgba(0,0,0,1)] backdrop-blur-[24px] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+            <div className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[110] border-t border-white/10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-28px_80px_-42px_rgba(0,0,0,1)] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
@@ -4278,7 +4278,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 180, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-0 left-0 right-0 z-[200] border-t border-white/10 bg-zinc-950/72 pb-safe shadow-[0_-28px_80px_-40px_rgba(0,0,0,1)] backdrop-blur-[24px]"
+            className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[200] border-t border-white/10 pb-safe shadow-[0_-28px_80px_-40px_rgba(0,0,0,1)]"
           >
             <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <div className="mb-3 flex items-center justify-between">
@@ -4304,7 +4304,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     key={key}
                     type="button"
                     onClick={() => handleKeypadPress(key)}
-                    className="h-16 rounded-2xl border border-white/8 bg-white/[0.045] text-2xl font-black text-white transition-transform active:scale-[0.98]"
+                    className="h-16 rounded-2xl border border-white/8 bg-white/[0.052] text-2xl font-black text-white transition-transform hover:bg-white/[0.075] active:scale-[0.98]"
                   >
                     {key === 'del' ? 'Del' : key}
                   </button>
