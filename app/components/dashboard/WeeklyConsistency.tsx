@@ -41,7 +41,7 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
 
     if (loading) {
         return (
-            <div className={`${compact ? 'px-1 py-2' : 'surface-card p-4'} animate-pulse`}>
+            <div className={`${compact ? 'px-1 py-2' : 'border-y border-white/8 py-4'} animate-pulse`}>
                 <div className="flex justify-between gap-2">
                     {Array.from({ length: 14 }).map((_, i) => (
                         <div key={i} className={`flex flex-col items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
@@ -55,7 +55,7 @@ export function WeeklyConsistency({ workoutDates, loading, compact = false }: We
     }
 
     return (
-        <div className={`overflow-hidden ${compact ? 'px-1 py-2' : 'surface-card rounded-[1rem] p-4 sm:p-6'}`}>
+        <div className={`overflow-hidden ${compact ? 'px-1 py-2' : 'border-y border-white/8 py-4 sm:py-5'}`}>
             {!compact && (
                 <div className="mb-3 flex items-center justify-between sm:mb-5">
                     <div className="flex items-center gap-2">

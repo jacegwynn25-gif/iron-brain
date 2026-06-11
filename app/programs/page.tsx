@@ -919,7 +919,7 @@ export default function ProgramsPage() {
   const hasEditorSetFocus = editorSetFocus != null;
   const resolvedWeekCount = draft?.weekCount ?? draft?.weeks.length ?? 1;
   const resolvedDaysPerWeek = draft?.daysPerWeek ?? draft?.weeks[0]?.days.length ?? 1;
-  const hasProgramBuilderOverlay = Boolean(editorJumpPicker || exercisePickerOpen);
+  const hasProgramBuilderOverlay = Boolean((editorMode && draft) || editorJumpPicker || exercisePickerOpen);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

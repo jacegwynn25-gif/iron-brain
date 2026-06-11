@@ -18,7 +18,7 @@ import { useBodyScrollLock } from '@/app/lib/hooks/useBodyScrollLock';
 
 type Variant = 'neutral' | 'elevated' | 'action' | 'danger';
 type Density = 'compact' | 'default';
-type Tone = 'neutral' | 'emerald' | 'amber' | 'rose' | 'cyan';
+type Tone = 'neutral' | 'emerald' | 'amber' | 'rose';
 type MenuAlign = 'start' | 'end';
 
 export function cn(...values: Array<string | false | null | undefined>): string {
@@ -150,9 +150,7 @@ export function MetricChip({
             ? 'border-amber-300/25 bg-amber-300/[0.08] text-amber-100'
             : tone === 'rose'
               ? 'border-rose-300/25 bg-rose-300/[0.08] text-rose-100'
-              : tone === 'cyan'
-                ? 'border-cyan-300/20 bg-cyan-300/[0.07] text-cyan-100'
-                : 'border-white/8 bg-white/[0.04] text-zinc-100',
+              : 'border-white/8 bg-white/[0.04] text-zinc-100',
         className
       )}
     >
@@ -269,6 +267,7 @@ export function LiquidActionMenu({
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<CSSProperties | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const updatePosition = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
@@ -277,7 +276,8 @@ export function LiquidActionMenu({
     const viewportHeight = window.innerHeight;
     const margin = 12;
     const gap = 8;
-    const menuHeight = Math.min(360, viewportHeight - margin * 2);
+    const measuredHeight = menuRef.current?.getBoundingClientRect().height || menuRef.current?.scrollHeight || 360;
+    const menuHeight = Math.min(measuredHeight, viewportHeight - margin * 2);
     const belowTop = rect.bottom + gap;
     const aboveTop = rect.top - menuHeight - gap;
     const placeAbove = belowTop + menuHeight > viewportHeight - margin && aboveTop > margin;
@@ -299,17 +299,23 @@ export function LiquidActionMenu({
   useEffect(() => {
     if (!open) return;
     updatePosition();
+    let frame = 0;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
     const close = () => setOpen(false);
+    const handleScroll = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updatePosition);
+    };
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', handleScroll, true);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [open, updatePosition]);
 
@@ -321,7 +327,10 @@ export function LiquidActionMenu({
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={cn('inline-flex items-center justify-center', className)}
+        className={cn(
+          'inline-flex items-center justify-center rounded-[1.05rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45',
+          className
+        )}
         onClick={() => setOpen((current) => !current)}
       >
         {trigger}
@@ -336,6 +345,7 @@ export function LiquidActionMenu({
               onClick={() => setOpen(false)}
             />
             <div
+              ref={menuRef}
               role="menu"
               aria-label={label}
               className={cn('liquid-menu liquid-sheet-panel absolute max-h-[70dvh] overflow-y-auto p-1.5', menuClassName)}

@@ -168,7 +168,7 @@ export default function OnboardingPage() {
       </header>
 
       <form onSubmit={handleSubmit} className="stagger-item space-y-6 px-1">
-        <section className="surface-card p-6">
+        <section className="border-y border-white/8 py-5">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Primary Goal</p>
           <div className="mt-4 grid gap-3">
             {goals.map((item) => {
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
                   onClick={() => setGoal(item.id as Goal)}
                   className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors ${selected
                     ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                    : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+                    : 'border-white/8 bg-white/[0.035] text-zinc-300 hover:border-white/14'
                     }`}
                 >
                   <div
@@ -201,7 +201,7 @@ export default function OnboardingPage() {
           </div>
         </section>
 
-        <section className="surface-card p-6">
+        <section className="border-y border-white/8 py-5">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Experience</p>
           <div className="mt-4 grid gap-3">
             {experiences.map((item) => {
@@ -213,7 +213,7 @@ export default function OnboardingPage() {
                   onClick={() => setExperience(item.id as Experience)}
                   className={`flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors ${selected
                     ? 'border-emerald-400/60 bg-emerald-500/10 text-white'
-                    : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700'
+                    : 'border-white/8 bg-white/[0.035] text-zinc-300 hover:border-white/14'
                     }`}
                 >
                   <div>
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
           </div>
         </section>
 
-        <section className="surface-card p-6">
+        <section className="border-y border-white/8 py-5">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-500/80 sm:text-[10px] sm:tracking-[0.3em]">Biological Profile</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
@@ -239,7 +239,7 @@ export default function OnboardingPage() {
                 value={age ?? ''}
                 onChange={(e) => setAge(parseInt(e.target.value) || null)}
                 placeholder="Years"
-                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
+                className="liquid-field mt-2 w-full px-4 py-3 text-white"
               />
             </div>
 
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
                 ]}
                 onChange={(value) => setSex((value || null) as 'male' | 'female' | 'other' | null)}
                 ariaLabel="Biological sex"
-                buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
+                buttonClassName="liquid-field mt-3 px-4 py-3 text-sm font-semibold text-zinc-200"
               />
             </div>
 
@@ -268,7 +268,7 @@ export default function OnboardingPage() {
                 value={trainingAge ?? ''}
                 onChange={(e) => setTrainingAge(parseFloat(e.target.value) || null)}
                 placeholder="Years lifting"
-                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
+                className="liquid-field mt-2 w-full px-4 py-3 text-white"
               />
             </div>
 
@@ -291,7 +291,7 @@ export default function OnboardingPage() {
                   }
                 }}
                 placeholder={`e.g. ${weightUnit === 'kg' ? '75' : '165'}`}
-                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-white focus:border-emerald-400 focus:outline-none"
+                className="liquid-field mt-2 w-full px-4 py-3 text-white"
               />
             </div>
           </div>
@@ -308,7 +308,7 @@ export default function OnboardingPage() {
               ]}
               onChange={(value) => setUnitSystem(value === 'metric' ? 'metric' : 'imperial')}
               ariaLabel="Measurement system"
-              buttonClassName="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-zinc-700"
+              buttonClassName="liquid-field mt-3 px-4 py-3 text-sm font-semibold text-zinc-200"
             />
           </div>
         </section>
