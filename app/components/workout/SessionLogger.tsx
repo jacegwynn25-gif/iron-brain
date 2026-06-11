@@ -11,6 +11,7 @@ import {
   Flame,
   History,
   Info,
+  MoreHorizontal,
   Plus,
   Timer,
   Trash2,
@@ -46,6 +47,7 @@ import { fetchJsonWithAuth } from '@/app/lib/api/authed-fetch';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
+import { LiquidActionMenu, LiquidMenuRow } from '@/app/components/ui/liquid';
 import { saveWorkout, storage } from '@/app/lib/storage';
 import { createUuid, isValidUuid } from '@/app/lib/uuid';
 import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
@@ -369,29 +371,14 @@ function MuscleGlyph({ group }: { group: MuscleGroup }) {
   );
 }
 
-const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => {
-  const ringStyle = style.isCompound
-    ? { backgroundImage: `linear-gradient(135deg, ${style.primaryColor}, ${style.secondaryColor})` }
-    : { backgroundColor: style.primaryColor };
-
-  return (
-    <span
-      className="inline-flex overflow-hidden rounded-full p-px opacity-85"
-      style={ringStyle}
-    >
-      <span
-        className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white/8"
-        style={{
-          background: 'rgba(12,14,18,0.76)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.055)',
-          color: style.primaryColor,
-        }}
-      >
-        <MuscleGlyph group={style.primaryGroup} />
-      </span>
-    </span>
-  );
-};
+const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => (
+  <span
+    className="muscle-mark inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full"
+    data-compound={style.isCompound ? 'true' : undefined}
+  >
+    <MuscleGlyph group={style.primaryGroup} />
+  </span>
+);
 
 function formatSmartWeight(value: number | null | undefined, unit: WeightUnit | undefined): string | null {
   if (value == null || !Number.isFinite(value)) return null;
@@ -455,10 +442,7 @@ function SmartTargetReadout({
     );
 
   return (
-    <div
-      className="liquid-control-strip rounded-[1.2rem] px-3 py-2"
-      data-testid={testId}
-    >
+    <div className="liquid-control-strip rounded-[1.2rem] px-3 py-2" data-testid={testId}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-emerald-300">
@@ -471,16 +455,6 @@ function SmartTargetReadout({
         <p className="hidden shrink-0 text-right text-[10px] font-semibold text-zinc-500 min-[390px]:block">
           {formatRecommendationSource(recommendation.source)} · {formatRecommendationEvidence(recommendation)}
         </p>
-      </div>
-      <div className="mt-1.5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-[11px] leading-snug text-zinc-400">
-            {recommendation.reason}
-          </p>
-          <p className="truncate text-[10px] font-semibold text-zinc-600">
-            {formatRecommendationGuardrail(recommendation)}
-          </p>
-        </div>
         {canApply && (
           <button
             type="button"
@@ -492,6 +466,9 @@ function SmartTargetReadout({
           </button>
         )}
       </div>
+      <p className="sr-only">
+        {recommendation.reason} {formatRecommendationGuardrail(recommendation)}
+      </p>
     </div>
   );
 }
@@ -905,12 +882,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const [customExercisesLoading, setCustomExercisesLoading] = useState(true);
   const readinessModifier = readiness?.modifier ?? 1;
-  const readinessScore = readiness?.score ?? 72;
-  const readinessLabel = readiness?.source === 'manual'
-    ? 'Session Readiness'
-    : readiness?.source === 'training'
-      ? 'Training Readiness'
-      : 'Session Baseline';
   const readinessLoadModifiers = useMemo<ReadinessLoadModifiers>(() => ({
     overall: readinessModifier,
     upperBody: readiness?.focus_adjustments.upper_body_modifier ?? readinessModifier,
@@ -2829,6 +2800,11 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     ? nextSetContext.exercise.sets.findIndex((set) => set.id === nextSetContext.set.id)
     : null;
   const nextSetNumber = (nextSetIndex ?? 0) + 1;
+  const focusSetIndex = focusContext
+    ? focusContext.exercise.sets.findIndex((set) => set.id === focusContext.setId)
+    : -1;
+  const focusSetNumber = focusSetIndex >= 0 ? focusSetIndex + 1 : 1;
+  const focusTotalSets = focusContext?.exercise.sets.length ?? 0;
   const nextExerciseDisplayName = nextSetContext ? getExerciseDisplayName(nextSetContext.exercise) : undefined;
   const focusedExerciseDisplayName = focusedRef ? getExerciseDisplayName(focusedRef.exercise) : undefined;
   const restDurationSeconds = useMemo(() => {
@@ -2893,12 +2869,12 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="w-full flex-1 space-y-7 overflow-y-auto pb-32"
+              className="w-full flex-1 space-y-5 overflow-y-auto pb-32"
               ref={overviewScrollRef}
               data-swipe-ignore="true"
             >
-              <div className="px-4 pb-2 pt-12">
-                <div className="mb-7 flex items-center justify-between">
+              <div className="px-4 pb-1 pt-8">
+                <div className="mb-4 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={requestCancelWorkout}
@@ -2911,20 +2887,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   </button>
                   <div className="liquid-control-strip flex items-center gap-2 rounded-full px-3.5 py-2">
                     <Timer className="h-4 w-4 text-emerald-400" />
-                    <span className="text-lg font-black tabular-nums tracking-tight text-emerald-300">{elapsedDisplay}</span>
+                    <span className="workout-timer text-lg font-black tracking-tight text-emerald-300">{elapsedDisplay}</span>
                   </div>
                 </div>
 
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="iron-label">
-                      {readinessLabel}
-                    </p>
-                    <p className="mt-1 text-6xl font-black tracking-tight text-white">
-                      {Math.round(readinessScore)}
-                    </p>
-                  </div>
-                </div>
               </div>
 
 
@@ -3087,8 +3053,8 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               className="relative flex-1 w-full select-none overflow-y-auto pb-3"
               ref={cockpitScrollRef}
             >
-              <header className="mb-2 px-4">
-                <div className="flex min-w-0 items-start gap-3">
+              <header className="mb-2 px-4 pt-5">
+                <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -3105,36 +3071,57 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <span className="sr-only">Back</span>
                   </button>
 
-                  <div className="min-w-0 flex-1">
-
-                    {focusedRef && (() => {
-                      const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
-                      return (
-                        <div className="mb-0.5 flex items-center gap-2">
-                          <ExerciseBadge style={style} />
-                          <span className="text-[10px] font-semibold capitalize text-zinc-500">
-                            {style.label.toLowerCase()}
-                          </span>
-                          <span className="h-1 w-1 rounded-full bg-zinc-700" />
-                          <span className="text-[10px] font-semibold text-zinc-500">
-                            {style.isCompound ? 'compound' : 'isolation'}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <h2 className="truncate text-2xl font-black italic leading-none tracking-tight text-white sm:text-4xl">
-                      {focusedExerciseDisplayName ?? 'Exercise'}
-                    </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryOpen(true)}
+                      className="liquid-icon-button inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-100"
+                      aria-label="Open exercise history"
+                    >
+                      <History className="h-4 w-4" />
+                    </button>
+                    <div className="liquid-control-strip flex items-center gap-2 rounded-full px-3.5 py-2">
+                      <Timer className="h-4 w-4 text-emerald-400" />
+                      <span className="workout-timer text-base font-black tracking-tight text-emerald-300">{elapsedDisplay}</span>
+                    </div>
                   </div>
+                </div>
+
+                <div className="mt-4 min-w-0">
+                  {focusedRef && (() => {
+                    const style = getExerciseStyle(focusedRef.exercise, resolveMuscleProfile);
+                    return (
+                      <div className="mb-1.5 flex items-center gap-2 text-[10px] font-semibold text-zinc-500">
+                        <ExerciseBadge style={style} />
+                        <span className="capitalize">{style.label.toLowerCase()}</span>
+                        <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                        <span>{focusTotalSets} {focusTotalSets === 1 ? 'set' : 'sets'}</span>
+                      </div>
+                    );
+                  })()}
+                  <h2 className="iron-display break-words text-[1.85rem] text-white sm:text-4xl">
+                    {focusedExerciseDisplayName ?? 'Exercise'}
+                  </h2>
                 </div>
               </header>
 
 
               <div className="mt-2 px-4">
                 <div className="flex flex-col justify-center gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-zinc-500">Current set</p>
-                    <p className="text-zinc-500 text-xs">Prev {focusContext?.set.previous ?? '--'}</p>
+                  <div className="flex items-end justify-between border-y border-white/8 py-2.5">
+                    <div>
+                      <p className="text-sm font-black text-zinc-100">
+                        Set {focusSetNumber}{focusTotalSets > 0 ? ` of ${focusTotalSets}` : ''}
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-zinc-500">
+                        Prev {focusContext?.set.previous ?? '--'}
+                      </p>
+                    </div>
+                    {isEditingSet && (
+                      <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-2.5 py-1 text-[10px] font-bold text-emerald-300">
+                        Logged
+                      </span>
+                    )}
                   </div>
 
                   {(supersetSlotLabel || focusTempo || isClusterSet) && (
@@ -3194,7 +3181,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open plate calculator"
                       >
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-emerald-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-zinc-300">
                           <Calculator className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
@@ -3213,7 +3200,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         className="liquid-control-button group flex min-h-11 items-center gap-2 px-2.5 text-left"
                         aria-label="Open warm-up calculator"
                       >
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.055] text-amber-300">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-zinc-300">
                           <Flame className="h-4 w-4" />
                         </span>
                         <span className="min-w-0">
@@ -3293,49 +3280,42 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 </div>
               </div>
 
-              <footer className="mt-3 flex w-full flex-col items-center gap-2 px-4 pb-2">
-                <div className="liquid-control-strip flex h-14 w-full items-center rounded-[1.5rem] p-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsHistoryOpen(true)}
-                    className="liquid-control-button flex h-full flex-1 cursor-pointer items-center justify-center rounded-2xl text-zinc-400 transition-colors active:scale-95"
-                  >
-                    <History className="w-5.5 h-5.5" />
-                  </button>
-
+              <footer className="mt-3 flex w-full flex-col items-center px-4 pb-2">
+                <div className="grid h-14 w-full grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-2.5">
                   <button
                     type="button"
                     onClick={handleLogSet}
                     disabled={!focusContext}
-                    className={`liquid-action-button mx-1.5 flex h-full flex-[2] cursor-pointer items-center justify-center rounded-2xl text-sm font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98] disabled:opacity-40 ${justLogged ? 'brightness-110' : ''}`}
+                    className={`liquid-action-button flex h-full cursor-pointer items-center justify-center rounded-[1.45rem] text-sm font-black italic tracking-tight text-zinc-950 transition-all active:scale-[0.98] disabled:opacity-40 ${justLogged ? 'brightness-110' : ''}`}
                   >
                     {isEditingSet ? 'Save changes' : 'Log set'}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleOpenNotes}
-                    className={`liquid-control-button flex h-full flex-1 cursor-pointer items-center justify-center rounded-2xl transition-colors active:scale-95 ${currentSetNote
-                      ? 'text-emerald-300'
-                      : 'text-zinc-400'
-                      }`}
+                  <LiquidActionMenu
+                    label="Set actions"
+                    width={214}
+                    className="h-full w-full"
+                    trigger={
+                      <span className="liquid-icon-button flex h-14 w-14 items-center justify-center rounded-[1.45rem] text-zinc-300 transition-colors hover:text-zinc-100">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </span>
+                    }
                   >
-                    <FileText className="w-5.5 h-5.5" />
-                  </button>
+                    <LiquidMenuRow
+                      label={currentSetNote ? 'Edit note' : 'Add note'}
+                      icon={<FileText className="h-4 w-4" />}
+                      onClick={handleOpenNotes}
+                    />
+                    {!isEditingSet && (
+                      <LiquidMenuRow
+                        label="Skip Set"
+                        icon={<X className="h-4 w-4" />}
+                        danger
+                        onClick={handleSkipSet}
+                      />
+                    )}
+                  </LiquidActionMenu>
                 </div>
-
-                {!isEditingSet && (
-                  <div className="flex justify-center">
-                    <button
-                      type="button"
-                      onClick={handleSkipSet}
-                      className="liquid-icon-button group flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold text-zinc-500 transition-all hover:text-zinc-300 active:scale-95"
-                    >
-                      <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
-                      <span>Skip set</span>
-                    </button>
-                  </div>
-                )}
               </footer>
 
             </motion.div>

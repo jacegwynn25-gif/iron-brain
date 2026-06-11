@@ -337,7 +337,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 overflow-hidden pb-0 pt-2 sm:space-y-6 sm:pt-8">
+    <div className="dashboard-shell mx-auto w-full max-w-5xl space-y-3 overflow-x-clip overflow-y-visible pb-0 pt-2 sm:space-y-6 sm:pt-8">
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
@@ -347,7 +347,7 @@ export default function Dashboard() {
 
       <header className="flex items-center justify-between gap-4 px-1">
         <div className="min-w-0">
-          <h1 className="iron-display truncate text-3xl text-zinc-50 sm:text-4xl">
+          <h1 className="iron-display overflow-visible whitespace-nowrap py-1 text-3xl leading-[1.12] text-zinc-50 sm:text-4xl">
             Iron Brain
           </h1>
         </div>
@@ -409,16 +409,16 @@ export default function Dashboard() {
 
       <section
         data-testid="dashboard-command-center"
-        className="liquid-primary-card mx-1 p-4 sm:p-5"
+        className="liquid-primary-card dashboard-today-card mx-1 p-3 sm:p-5"
       >
         <div data-testid="dashboard-smart-action" className="relative">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="iron-label">Today</p>
-              <h2 className="iron-display mt-2 break-words text-[2rem] leading-[0.95] text-zinc-50 sm:text-5xl">
+              <h2 className="iron-display dashboard-hero-title mt-1.5 break-words text-zinc-50">
                 {displayTitle}
               </h2>
-              <p className="mt-2 truncate text-sm font-semibold text-zinc-400 sm:text-base">
+              <p className="mt-1.5 truncate text-sm font-semibold text-zinc-400 sm:text-base">
                 {displaySubtitle}
               </p>
             </div>
@@ -460,22 +460,22 @@ export default function Dashboard() {
             </LiquidActionMenu>
           </div>
 
-          <div data-testid="dashboard-next-session" className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <div data-testid="dashboard-next-session" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
             {sessionFacts.map((fact) => (
-              <div key={fact.label} className="iron-metric-tile">
+              <div key={fact.label} className="iron-metric-tile dashboard-session-tile">
                 <p className="iron-display truncate text-xl leading-none text-zinc-50">{fact.value}</p>
-                <p className="mt-2 truncate text-[10px] font-bold text-zinc-500">{fact.label}</p>
+                <p className="mt-1.5 truncate text-[10px] font-bold text-zinc-500">{fact.label}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_3.5rem] gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_3.25rem] gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
             <Link
               href={smartAction.href}
               aria-label={primaryActionLabel}
               className={liquidButtonClass({
                 variant: primaryButtonVariant,
-                className: 'min-h-14 w-full justify-between px-5 text-sm sm:min-w-60',
+                className: 'min-h-[3.25rem] w-full justify-between px-5 text-sm sm:min-h-14 sm:min-w-60',
               })}
             >
               <span>{primaryButtonText}</span>
@@ -487,7 +487,7 @@ export default function Dashboard() {
               aria-label="Start freestyle workout"
               className={liquidButtonClass({
                 variant: 'elevated',
-                className: 'min-h-14 w-14 justify-center px-0 sm:w-auto sm:min-w-32 sm:px-5',
+                className: 'min-h-[3.25rem] w-[3.25rem] justify-center px-0 sm:min-h-14 sm:w-auto sm:min-w-32 sm:px-5',
               })}
             >
               <Zap className="h-4 w-4" />
@@ -503,34 +503,34 @@ export default function Dashboard() {
 
       <section
         data-testid="dashboard-training-pulse"
-        className="mx-1 px-1 py-1"
+        className="dashboard-pulse mx-1 px-1 py-0.5"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-black text-zinc-100">Last 14 days</p>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-2.5">
-          <div className="iron-metric-tile">
+        <div className="mt-2.5 grid grid-cols-4 gap-2">
+          <div className="iron-metric-tile dashboard-pulse-tile">
             <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.sessions}</p>
-            <p className="mt-2 text-[10px] font-bold text-zinc-500">Sessions</p>
+            <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Sessions</p>
           </div>
-          <div className="iron-metric-tile">
+          <div className="iron-metric-tile dashboard-pulse-tile">
             <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.completedSets}</p>
-            <p className="mt-2 text-[10px] font-bold text-zinc-500">Sets</p>
+            <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Sets</p>
           </div>
-          <div className="iron-metric-tile">
+          <div className="iron-metric-tile dashboard-pulse-tile">
             <p className="iron-display text-xl leading-none text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
-            <p className="mt-2 text-[10px] font-bold text-zinc-500">Volume</p>
+            <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Volume</p>
           </div>
-          <div className="iron-metric-tile">
+          <div className="iron-metric-tile dashboard-pulse-tile">
             <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.prCount}</p>
-            <p className="mt-2 text-[10px] font-bold text-zinc-500">PRs</p>
+            <p className="mt-1.5 text-[10px] font-bold text-zinc-500">PRs</p>
           </div>
         </div>
       </section>
 
-      <section data-testid="dashboard-activity-mobile" className="mx-1">
+      <section data-testid="dashboard-activity-mobile" className="dashboard-activity mx-1">
         <WeeklyConsistency compact workoutDates={workoutDates} loading={workoutsLoading && workoutDates.length === 0} />
       </section>
 

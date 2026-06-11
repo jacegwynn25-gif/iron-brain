@@ -273,7 +273,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     : hasActiveMiniBar
       ? 'pb-[10.25rem] md:pb-12 md:pl-28'
     : isDashboardRoute
-      ? 'pb-[5.55rem] md:pb-12 md:pl-28'
+      ? 'pb-[5.1rem] md:pb-12 md:pl-28'
       : 'pb-24 md:pb-12 md:pl-28';
   const activeCommandRouteIndex = commandItems.findIndex((item) => isActivePath(pathname, item.href));
   const pendingCommandRouteIndex = pendingHref ? commandItems.findIndex((item) => item.href === pendingHref) : -1;
@@ -320,10 +320,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <nav
           data-testid="app-bottom-nav"
           aria-label="Primary navigation"
-          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
+          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.25rem)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
         >
           <div
-            className="liquid-command-dock relative z-10 grid min-h-[4.4rem] w-full items-center justify-center rounded-full p-1.5 md:hidden"
+            className="liquid-command-dock relative z-10 grid min-h-[4.15rem] w-full items-center justify-center rounded-full p-[0.32rem] md:hidden"
             style={commandDockStyle}
           >
             <span className="liquid-command-indicator" aria-hidden="true" />
