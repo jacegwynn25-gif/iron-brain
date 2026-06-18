@@ -1075,6 +1075,32 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.doesNotMatch(recommendation?.reason ?? '', /readiness is 0/i);
 }
 
+{
+  // C2: %TM applies 0.9 factor in the engine (matches useWorkoutSession.estimatePercentageWeight).
+  const tmRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: null, reps: 5, prescribedPercentage: 85, prescribedRPE: 8, prescriptionMethod: 'percentage_tm' },
+    personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
+    historySets: [],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+    weightUnit: 'lbs',
+  });
+  // 300 * 0.9 * 0.85 = 229.5 -> round to 5 lb = 230
+  assert.equal(tmRecommendation.target?.weight, 230);
+
+  const oneRmRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: null, reps: 5, prescribedPercentage: 85, prescribedRPE: 8, prescriptionMethod: 'percentage_1rm' },
+    personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
+    historySets: [],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+    weightUnit: 'lbs',
+  });
+  // 300 * 0.85 = 255
+  assert.equal(oneRmRecommendation.target?.weight, 255);
+  assert.notEqual(tmRecommendation.target?.weight, oneRmRecommendation.target?.weight);
+}
+
 Promise.all(asyncChecks)
   .then(() => {
     console.log('✅ Smart training recommendation QA passed');

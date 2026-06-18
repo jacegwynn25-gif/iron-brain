@@ -4,6 +4,7 @@ import { KG_TO_LBS } from '../units';
 import { storage } from '../storage';
 import {
   buildTrainingRecommendations,
+  roundSetWeight,
   type TrainingRecommendationInput,
   type TrainingSetInput,
 } from '../intelligence/training-recommendations';
@@ -316,6 +317,7 @@ type ExerciseHistoryCue = {
   weight: number | null;
   note: string | null;
   alreadyAdjusted?: boolean;
+  previousDisplay?: string | null;
 };
 
 function toInitialHistorySets() {
@@ -371,6 +373,7 @@ function buildInitialTrainingSetInput(
     completed: false,
     skipped: false,
     type: mapTemplateSetType(templateSet),
+    prescriptionMethod,
   };
 }
 
@@ -387,6 +390,9 @@ function getLastCueForExercise(
   if (!historyMap.has(cacheKey)) {
     const lastWorkout = storage.getLastWorkoutForExercise(exerciseId);
     const previousNote = lastWorkout?.bestSet.notes?.trim() || null;
+    const previousDisplay = lastWorkout?.bestSet && lastWorkout.bestSet.actualWeight != null
+      ? `${Number(lastWorkout.bestSet.actualWeight)}${lastWorkout.bestSet.weightUnit ?? unit} × ${lastWorkout.bestSet.actualReps ?? 8}`
+      : null;
     const currentSet = buildInitialTrainingSetInput(templateSet, exerciseId, exerciseName, unit, targetReps);
     const input: TrainingRecommendationInput = {
       currentSet,
@@ -397,7 +403,6 @@ function getLastCueForExercise(
         source: readinessModifier === 1 ? null : 'manual',
       },
       weightUnit: unit,
-      preferHistoryOverPrescription: true,
     };
     const smartTarget = buildTrainingRecommendations(input)
       .find((recommendation) => recommendation.scope === 'next_set');
@@ -408,50 +413,29 @@ function getLastCueForExercise(
         weight: smartWeight,
         note: previousNote,
         alreadyAdjusted: true,
+        previousDisplay,
       });
-      return historyMap.get(cacheKey) ?? { weight: smartWeight, note: previousNote, alreadyAdjusted: true };
+      return historyMap.get(cacheKey) ?? { weight: smartWeight, note: previousNote, alreadyAdjusted: true, previousDisplay };
     }
 
-    // Try to get actual history for this exercise
+    // Fall back to actual last performance, snapped to the equipment-aware grid.
     if (lastWorkout && lastWorkout.bestSet && lastWorkout.bestSet.actualWeight != null) {
       const bestSet = lastWorkout.bestSet;
       const actualWeight = Number(bestSet.actualWeight);
       const recordedUnit = bestSet.weightUnit ?? 'lbs';
-
-      // Convert if necessary to match the requested unit
-      let convertedWeight = actualWeight;
-      if (unit !== recordedUnit) {
-        convertedWeight = unit === 'lbs'
-          ? actualWeight * KG_TO_LBS
-          : actualWeight / KG_TO_LBS;
-      }
+      const convertedWeight = unit !== recordedUnit
+        ? (unit === 'lbs' ? actualWeight * KG_TO_LBS : actualWeight / KG_TO_LBS)
+        : actualWeight;
       historyMap.set(cacheKey, {
-        weight: roundToIncrement(convertedWeight, unit),
+        weight: roundSetWeight(convertedWeight, unit, { exerciseId, exerciseName }),
         note: previousNote,
+        previousDisplay,
       });
     } else {
-      // No recent history — check for 1RM data
-      const prs = storage.getPersonalRecords(exerciseId);
-      if (prs && prs.maxE1RM && prs.maxE1RM.e1rm > 0) {
-        // We have an estimated 1RM. Use it to suggest weight for targetReps.
-        // Default to 8 reps if not specified.
-        const reps = targetReps ?? 8;
-        const e1rm = prs.maxE1RM.e1rm; // e1rm is stored in lbs in the PR object
-
-        const suggestedWeightLbs = e1rm / (1 + reps / 30); // Reverse Epley
-
-        // Convert to requested unit
-        const suggestedWeight = unit === 'kg' ? suggestedWeightLbs / KG_TO_LBS : suggestedWeightLbs;
-
-        const rounded = roundToIncrement(suggestedWeight, unit);
-        historyMap.set(cacheKey, { weight: rounded, note: previousNote });
-      } else {
-        // Truly no data
-        historyMap.set(cacheKey, { weight: null, note: previousNote });
-      }
+      historyMap.set(cacheKey, { weight: null, note: previousNote, previousDisplay });
     }
   }
-  return historyMap.get(cacheKey) ?? { weight: null, note: null };
+  return historyMap.get(cacheKey) ?? { weight: null, note: null, previousDisplay: null };
 }
 
 function buildSessionSetFromTemplate(
@@ -497,6 +481,7 @@ function buildSessionSetFromTemplate(
     prescribedPercentage,
     prescribedWeight,
     prescribedSeconds,
+    prescriptionMethod,
     touchedWeight: false,
     touchedReps: false,
     touchedRpe: false,
@@ -504,7 +489,7 @@ function buildSessionSetFromTemplate(
     supersetGroup: templateSet.supersetGroup ?? defaults?.supersetGroup ?? null,
     cluster,
     completed: false,
-    previous: historyCue.weight != null ? `${historyCue.weight}${weightUnit} x ${effectiveReps ?? 8}` : null,
+    previous: historyCue.previousDisplay ?? (historyCue.weight != null ? `${historyCue.weight}${weightUnit} × ${effectiveReps ?? 8}` : null),
     previousNote: historyCue.note,
     notes: '',
   };

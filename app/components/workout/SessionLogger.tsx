@@ -43,7 +43,6 @@ import {
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { supabase } from '@/app/lib/supabase/client';
 import { resolveExerciseIds } from '@/app/lib/supabase/workouts';
-import { fetchJsonWithAuth } from '@/app/lib/api/authed-fetch';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
@@ -71,6 +70,7 @@ import {
   type TrainingRecommendationInput,
   type TrainingSetInput,
 } from '@/app/lib/intelligence/training-recommendations';
+import { formatSetTarget, formatRecommendationSource } from '@/app/lib/workout/format-set-target';
 import {
   mapLocalPersonalRecordsToTrainingRecords,
   mapWorkoutHistoryToTrainingHistory,
@@ -380,24 +380,6 @@ const ExerciseBadge = ({ style }: { style: ExerciseStyle }) => (
   </span>
 );
 
-function formatSmartWeight(value: number | null | undefined, unit: WeightUnit | undefined): string | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  const display = unit === 'kg' ? Number(value.toFixed(2)).toString() : Math.round(value).toString();
-  return `${display} ${unit ?? 'lbs'}`;
-}
-
-function formatRecommendationSource(source: TrainingRecommendation['source']): string {
-  if (source === 'exercise_history') return 'History';
-  if (source === 'session_fatigue') return 'Set Signal';
-  if (source === 'load_pressure') return 'Load';
-  if (source === 'performance_trend') return 'Trend';
-  if (source === 'prescription') return 'Plan';
-  if (source === 'readiness') return 'Readiness';
-  if (source === 'e1rm') return 'Max Data';
-  if (source === 'program_load') return 'Program';
-  return 'Baseline';
-}
-
 function SmartTargetReadout({
   recommendation,
   onApply,
@@ -413,10 +395,8 @@ function SmartTargetReadout({
 }) {
   if (!recommendation) return null;
 
-  const targetWeight = formatSmartWeight(recommendation.target?.weight, recommendation.target?.weightUnit);
-  const targetReps = recommendation.target?.reps != null ? `${Math.round(recommendation.target.reps)} reps` : null;
   const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s rest` : null;
-  const targetText = [targetWeight, targetReps].filter(Boolean).join(' x ') || restText || 'Baseline';
+  const targetText = formatSetTarget(recommendation.target, recommendation.target?.weightUnit) || restText || 'Baseline';
   const canApply =
     recommendationHasApplyPatch(recommendation) &&
     recommendation.confidence !== 'low' &&
@@ -766,6 +746,7 @@ function toTrainingSetInput(
     completed: set.completed,
     skipped: set.skipped,
     type: set.type,
+    prescriptionMethod: set.prescriptionMethod ?? null,
   };
 }
 
@@ -1170,7 +1151,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
   const [clusterProgressBySetId, setClusterProgressBySetId] = useState<Record<string, number>>({});
   const [tempoMetronomeEnabled, setTempoMetronomeEnabled] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
-  const [remoteSmartRecommendations, setRemoteSmartRecommendations] = useState<Record<string, TrainingRecommendation[]>>({});
   const [restBoostBySetId, setRestBoostBySetId] = useState<Record<string, number>>({});
   const [restContext, setRestContext] = useState<{
     blockId: string;
@@ -1722,10 +1702,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
     if (!focusTrainingSet) return [];
     return buildTrainingRecommendations(buildSmartInput(focusTrainingSet, focusContext?.exercise));
   }, [buildSmartInput, focusContext?.exercise, focusTrainingSet]);
-  const activeSmartRecommendations = useMemo(() => {
-    if (!focusTrainingSet?.setId) return localFocusRecommendations;
-    return remoteSmartRecommendations[focusTrainingSet.setId] ?? localFocusRecommendations;
-  }, [focusTrainingSet?.setId, localFocusRecommendations, remoteSmartRecommendations]);
+  const activeSmartRecommendations = localFocusRecommendations;
   const smartTargetRecommendation = useMemo(
     () => activeSmartRecommendations.find((recommendation) => recommendation.scope === 'next_set') ?? null,
     [activeSmartRecommendations]
@@ -1744,77 +1721,6 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
       weightUnit: sessionWeightUnit,
     }).filter((recommendation) => recommendation.scope === 'session').slice(0, 2);
   }, [isSummaryOpen, localHistorySets, readinessTrainingInput, sessionTrainingSets, sessionWeightUnit]);
-  const smartRequestKey = useMemo(() => {
-    if (!focusTrainingSet?.setId) return null;
-    const completedKey = sessionTrainingSets
-      .filter((set) => set.completed && !set.skipped)
-      .map((set) => `${set.setId}:${set.weight}:${set.reps}:${set.rpe}:${set.skipped ? 'skip' : 'done'}`)
-      .join(',');
-    return [
-      focusTrainingSet.setId,
-      focusTrainingSet.weight,
-      focusTrainingSet.reps,
-      focusTrainingSet.rpe,
-      focusTrainingSet.touchedWeight ? 'tw' : 'gw',
-      focusTrainingSet.touchedReps ? 'tr' : 'gr',
-      focusTrainingSet.touchedRpe ? 'te' : 'ge',
-      readinessTrainingInput.score,
-      readinessTrainingInput.modifier,
-      completedKey,
-    ].join('|');
-  }, [
-    focusTrainingSet?.reps,
-    focusTrainingSet?.rpe,
-    focusTrainingSet?.setId,
-    focusTrainingSet?.touchedReps,
-    focusTrainingSet?.touchedRpe,
-    focusTrainingSet?.touchedWeight,
-    focusTrainingSet?.weight,
-    readinessTrainingInput.modifier,
-    readinessTrainingInput.score,
-    sessionTrainingSets,
-  ]);
-
-  useEffect(() => {
-    if (!user?.id || !focusTrainingSet?.setId || !smartRequestKey) return;
-    if (viewMode !== 'cockpit') return;
-    let active = true;
-    const setId = focusTrainingSet.setId;
-    const requestInput = buildSmartInput(focusTrainingSet, focusContext?.exercise);
-
-    void fetchJsonWithAuth<{ recommendations: TrainingRecommendation[] }>('/api/training/recommendations', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(requestInput),
-    })
-      .then((payload) => {
-        if (!active) return;
-        setRemoteSmartRecommendations((current) => ({
-          ...current,
-          [setId]: payload.recommendations,
-        }));
-      })
-      .catch(() => {
-        if (!active) return;
-        setRemoteSmartRecommendations((current) => {
-          if (!(setId in current)) return current;
-          const next = { ...current };
-          delete next[setId];
-          return next;
-        });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [
-    buildSmartInput,
-    focusContext?.exercise,
-    focusTrainingSet,
-    smartRequestKey,
-    user?.id,
-    viewMode,
-  ]);
 
   useEffect(() => {
     setActiveInput(null);
@@ -2342,7 +2248,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             }),
             setIndex: index + 1,
             prescribedReps: String(reps),
-            prescribedRPE: set.prescribedRPE ?? set.rpe ?? null,
+            prescribedRPE: set.prescribedRPE ?? null,
             prescribedRIR: set.prescribedRIR ?? null,
             prescribedPercentage: set.prescribedPercentage ?? null,
             prescribedWeight: set.prescribedWeight ?? null,
