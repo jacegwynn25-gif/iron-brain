@@ -95,7 +95,7 @@ export function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07080b]/90 p-4 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-[#07080b]/90 p-4 backdrop-blur-xl">
       <div className="liquid-sheet-panel relative w-full max-w-md overflow-hidden p-5 text-white sm:p-7">
         {onClose && !hideClose && (
           <button

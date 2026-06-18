@@ -84,7 +84,7 @@ export default function FancySelect({
         <div
           ref={listRef}
           role="listbox"
-          className={`liquid-menu absolute z-[120] mt-2 w-full min-w-[10rem] overflow-hidden p-1 ${listClassName ?? ''}`}
+          className={`liquid-menu absolute z-[var(--z-popover)] mt-2 w-full min-w-[10rem] overflow-hidden p-1 ${listClassName ?? ''}`}
         >
           {options.map((option) => {
             const isSelected = option.value === value;

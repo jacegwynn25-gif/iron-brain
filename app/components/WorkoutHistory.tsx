@@ -939,7 +939,7 @@ export default function WorkoutHistory({
       </div>
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+          className="fixed inset-0 z-[var(--z-sheet)] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
           data-swipe-scope="local"
         >
           <div className="liquid-sheet-panel liquid-form-sheet w-full max-w-sm overflow-hidden rounded-[1.2rem] p-0">
@@ -983,7 +983,7 @@ export default function WorkoutHistory({
       )}
       {contentEditTarget && (
         <div
-          className="fixed inset-0 z-[120] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+2rem)]"
+          className="fixed inset-0 z-[var(--z-sheet)] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 sm:pt-[calc(env(safe-area-inset-top)+2rem)]"
           data-swipe-scope="local"
         >
           <div className="liquid-sheet-panel liquid-form-sheet flex w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[1.2rem] p-0 sm:max-h-[90dvh]">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   User,
@@ -13,15 +13,9 @@ import {
 import { useAuth } from '../lib/supabase/auth-context';
 import { buildLoginUrl, getReturnToFromLocation } from '../lib/auth/redirects';
 import { useDialog } from '@/app/providers/DialogProvider';
+import { useWorkoutDataContext } from '@/app/providers/WorkoutDataProvider';
 import { liquidButtonClass } from '../components/ui/liquid';
-
-import type {
-  WorkoutSession,
-  SessionMetadata,
-  SupabaseWorkoutSessionRow
-} from '../lib/types';
 import { storage, setUserNamespace } from '../lib/storage';
-import { supabase } from '../lib/supabase/client';
 import { parseLocalDate } from '../lib/dateUtils';
 
 const getIsoWeekKey = (date: Date) => {
@@ -37,130 +31,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const { alert } = useDialog();
   const { user, signOut } = useAuth();
+  const { workouts } = useWorkoutDataContext();
 
-  const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
-
-  // Unified namespace: user ID if authenticated, 'guest' for offline mode
   const namespaceId = user?.id ?? 'guest';
 
   useEffect(() => {
     setUserNamespace(namespaceId);
   }, [namespaceId]);
 
-  const loadWorkoutsFromBothSources = useCallback(async () => {
-    const localWorkouts = storage.getWorkoutHistory();
-    const getSortTime = (session: WorkoutSession) =>
-      new Date(session.endTime || session.startTime || session.date).getTime();
-    const sortedLocalWorkouts = [...localWorkouts].sort((a, b) => getSortTime(b) - getSortTime(a));
-
-    const resolveUserId = async () => {
-      // If we have a user from context, use it
-      if (user?.id) return user.id;
-
-      // If user is explicitly null (signed out), don't try to fetch from Supabase
-      if (user === null) return null;
-
-      // Only try to get user from Supabase if user state is undefined (initial load)
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        
-      }
-      return data.user?.id ?? null;
-    };
-
-    const resolvedUserId = await resolveUserId();
-    if (!resolvedUserId) {
-      setWorkoutHistory(sortedLocalWorkouts);
-      return;
-    }
-
-    if (!user && namespaceId !== resolvedUserId) {
-      setUserNamespace(resolvedUserId);
-    }
-
-    try {
-      const { data: sessions, error } = await supabase
-        .from('workout_sessions')
-        .select(`
-          *,
-          set_logs (*)
-        `)
-        .eq('user_id', resolvedUserId)
-        .is('deleted_at', null)
-        .order('date', { ascending: false });
-
-      if (error) {
-        
-        setWorkoutHistory(sortedLocalWorkouts);
-        return;
-      }
-
-      const sessionRows: SupabaseWorkoutSessionRow[] = sessions ?? [];
-      const supabaseWorkouts: WorkoutSession[] = sessionRows.map((s) => {
-        const metadata = (s.metadata ?? {}) as SessionMetadata;
-        const resolvedProgramName = metadata.programName || s.name || 'Workout';
-
-        return {
-          id: s.id,
-          date: s.date ?? (s.start_time ? s.start_time.split('T')[0] : new Date().toISOString().split('T')[0]),
-          startTime: s.start_time ?? undefined,
-          endTime: s.end_time ?? undefined,
-          durationMinutes: s.duration_minutes ?? undefined,
-          bodyweight: s.bodyweight ?? undefined,
-          notes: s.notes ?? undefined,
-          programId: metadata.programId || '',
-          programName: resolvedProgramName,
-          cycleNumber: metadata.cycleNumber || 0,
-          weekNumber: metadata.weekNumber || 0,
-          dayOfWeek: metadata.dayOfWeek != null ? String(metadata.dayOfWeek) : '',
-          dayName: metadata.dayName || '',
-          createdAt: s.created_at || new Date().toISOString(),
-          updatedAt: s.updated_at || new Date().toISOString(),
-          sets: (s.set_logs || []).map((set) => ({
-            id: set.id ?? undefined,
-            exerciseId: set.exercise_slug || set.exercise_id || '',
-            setIndex: set.set_index ?? 0,
-            prescribedReps: set.prescribed_reps != null ? String(set.prescribed_reps) : '0',
-            prescribedRPE: set.prescribed_rpe,
-            prescribedRIR: set.prescribed_rir,
-            prescribedPercentage: set.prescribed_percentage,
-            actualWeight: set.skipped === true ? null : set.actual_weight,
-            weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lbs',
-            actualReps: set.skipped === true ? null : set.actual_reps,
-            actualRPE: set.skipped === true ? null : set.actual_rpe,
-            actualRIR: set.skipped === true ? null : set.actual_rir,
-            e1rm: set.skipped === true ? null : set.e1rm,
-            volumeLoad: set.skipped === true ? null : set.volume_load,
-            restTakenSeconds: set.rest_seconds,
-            setDurationSeconds: set.actual_seconds,
-            notes: set.notes ?? undefined,
-            completed: set.completed === true && set.skipped !== true,
-            skipped: set.skipped === true,
-          })),
-        };
-      });
-
-      const stripPrefix = (id: string) => (id.startsWith('session_') ? id.substring(8) : id);
-      const supabaseIds = new Set(supabaseWorkouts.map(w => w.id));
-      const localOnlyWorkouts = localWorkouts.filter(w => !supabaseIds.has(stripPrefix(w.id)));
-
-      const mergedWorkouts = [...supabaseWorkouts, ...localOnlyWorkouts].sort(
-        (a, b) => getSortTime(b) - getSortTime(a)
-      );
-
-      setWorkoutHistory(mergedWorkouts);
-    } catch {
-      setWorkoutHistory(sortedLocalWorkouts);
-    }
-  }, [user, namespaceId]);
-
-  useEffect(() => {
-    loadWorkoutsFromBothSources();
-  }, [loadWorkoutsFromBothSources]);
-
   const weeklyStreak = useMemo(() => {
-    if (workoutHistory.length === 0) return 0;
-    const weekSet = new Set(workoutHistory.map(session => getIsoWeekKey(parseLocalDate(session.date))));
+    if (workouts.length === 0) return 0;
+    const weekSet = new Set(workouts.map(session => getIsoWeekKey(parseLocalDate(session.date))));
     const currentWeek = getIsoWeekKey(new Date());
 
     let streak = 0;
@@ -174,11 +55,11 @@ export default function ProfilePage() {
     }
 
     return weekSet.has(currentWeek) ? streak : 0;
-  }, [workoutHistory]);
+  }, [workouts]);
 
   const prCount = useMemo(() => {
     const exerciseIds = new Set<string>();
-    workoutHistory.forEach(session => {
+    workouts.forEach(session => {
       session.sets.forEach(set => {
         if (set.exerciseId) exerciseIds.add(set.exerciseId);
       });
@@ -191,7 +72,8 @@ export default function ProfilePage() {
       }
     });
     return count;
-  }, [workoutHistory]);
+  }, [workouts]);
+
 
   const menuItems = [
     { icon: Sparkles, label: 'Coach export', path: '/profile/coach' },
@@ -220,15 +102,15 @@ export default function ProfilePage() {
 
       <section className="stagger-item grid grid-cols-3 gap-2.5 border-y border-white/8 px-1 py-4 sm:gap-4">
         <div>
-          <div className="iron-display text-2xl text-white">{workoutHistory.length}</div>
+          <div className="iron-metric-value text-2xl text-white">{workouts.length}</div>
           <div className="text-xs text-zinc-500">Workouts</div>
         </div>
         <div>
-          <div className="iron-display text-2xl text-white">{weeklyStreak}</div>
+          <div className="iron-metric-value text-2xl text-white">{weeklyStreak}</div>
           <div className="text-xs text-zinc-500">Week streak</div>
         </div>
         <div>
-          <div className="iron-display text-2xl text-white">{prCount}</div>
+          <div className="iron-metric-value text-2xl text-white">{prCount}</div>
           <div className="text-xs text-zinc-500">PRs</div>
         </div>
       </section>
@@ -253,7 +135,7 @@ export default function ProfilePage() {
       )}
 
       <section className="stagger-item space-y-3 px-1">
-        <h2 className="iron-display text-xl text-zinc-100">Preferences</h2>
+        <h2 className="iron-label">Preferences</h2>
         <div className="divide-y divide-white/8 border-y border-white/8">
           {menuItems.map((item) => {
             const Icon = item.icon;

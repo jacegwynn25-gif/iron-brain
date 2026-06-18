@@ -2527,7 +2527,7 @@ export default function ProgramsPage() {
 
       {
         editorMode && draft && (
-          <div className="fixed inset-0 z-[70] flex flex-col bg-[#05070b] text-zinc-100">
+          <div className="fixed inset-0 z-[var(--z-sheet)] flex flex-col bg-[#05070b] text-zinc-100">
             <div className="liquid-ambient pointer-events-none fixed inset-0 opacity-70" />
             <div className="flex-1 overflow-y-auto px-4 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
               <div className="mx-auto w-full max-w-5xl">
@@ -2968,7 +2968,7 @@ export default function ProgramsPage() {
             </div>
 
             {pendingExerciseUndo && (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[140] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
+              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[var(--z-popover)] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
                 <div className="liquid-sheet-panel pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-2.5">
                   <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
                     {pendingExerciseUndo.message}
@@ -2990,7 +2990,7 @@ export default function ProgramsPage() {
 
       {
         exercisePickerOpen && (
-          <div className="fixed inset-0 z-[140] bg-transparent">
+          <div className="fixed inset-0 z-[var(--z-popover)] bg-transparent">
             <div
               className="liquid-sheet-panel fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto h-[calc(100dvh-env(safe-area-inset-top)-5.25rem)] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:h-auto sm:max-h-[82dvh] sm:w-[32rem]"
               data-program-exercise-picker-sheet="true"

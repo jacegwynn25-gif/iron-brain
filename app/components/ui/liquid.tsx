@@ -366,7 +366,7 @@ export function LiquidActionMenu({
       </button>
       {open &&
         createPortal(
-          <div className="fixed inset-0 z-[260]">
+          <div className="fixed inset-0 z-[var(--z-popover)]">
             <button
               type="button"
               aria-label="Dismiss menu"
@@ -433,7 +433,7 @@ export function ActionSheet({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[260] flex items-start justify-end px-3 pb-3 pt-[calc(env(safe-area-inset-top)+4.9rem)] sm:px-6 sm:pb-6 sm:pt-6">
+    <div className="fixed inset-0 z-[var(--z-sheet)] flex items-start justify-end px-3 pb-3 pt-[calc(env(safe-area-inset-top)+4.9rem)] sm:px-6 sm:pb-6 sm:pt-6">
       <button
         type="button"
         aria-label="Dismiss menu"

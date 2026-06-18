@@ -158,7 +158,7 @@ export default function AppResilienceStatus({ currentVersion }: AppResilienceSta
   const Icon = status.icon;
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[95] flex justify-center">
+    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[var(--z-toast)] flex justify-center">
       <div
         className={`liquid-sheet-panel pointer-events-auto flex w-full max-w-md items-center gap-3 px-3 py-2.5 ${status.tone}`}
         role="status"

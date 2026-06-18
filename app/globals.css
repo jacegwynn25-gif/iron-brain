@@ -36,6 +36,16 @@
   --liquid-action-text: #03140d;
   --liquid-focus: rgba(16, 185, 129, 0.28);
   --iron-dock-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  /* Shared z-index scale. Use via Tailwind arbitrary values, e.g. z-[var(--z-overlay)]. */
+  --z-base: 0;
+  --z-nav: 90;
+  --z-mini-bar: 69;
+  --z-toast: 95;
+  --z-route-progress: 120;
+  --z-sheet: 200;
+  --z-popover: 220;
+  --z-modal: 260;
+  --z-modal-tall: 300;
   --app-gradient:
     radial-gradient(980px circle at 14% 0%, rgba(255, 255, 255, 0.055), transparent 42%),
     radial-gradient(820px circle at 86% 8%, rgba(16, 185, 129, 0.035), transparent 40%),
@@ -407,11 +417,46 @@ nextjs-portal {
     border-radius: var(--radius);
   }
 
+  /* Solid content card for page-level surfaces (dashboard hero, target readouts,
+     passive chips). Use this instead of liquid-* glass on content — glass is
+     reserved for nav, menus, sheets, overlays, and source-attached popups. */
+  .iron-content-card {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008)),
+      var(--surface-strong);
+    box-shadow:
+      0 18px 60px -52px rgba(0, 0, 0, 0.96),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Solid pill for passive chips (timers, unit toggles) that previously used
+     liquid-control-strip glass. Keeps a subtle inset bezel without backdrop blur. */
+  .iron-chip-solid {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
   .iron-display {
     font-weight: 900;
     font-style: italic;
     letter-spacing: -0.02em;
     line-height: 1.05;
+  }
+
+  /* Numeric value inside a metric tile. Bold and tight like iron-display but
+     upright — italic display is reserved for brand/page-title moments. */
+  .iron-metric-value {
+    font-weight: 800;
+    font-style: normal;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 
   .iron-label {
@@ -1055,9 +1100,9 @@ button, a {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-button:active {
-  transform: scale(0.98);
-}
+/* Note: active-state scaling is handled by the liquid touch system in AppLayout
+   (.liquid-touching/.liquid-releasing) and per-component active:scale-* utilities.
+   A global button:active scale would double up with those, so it is intentionally omitted. */
 
 /* Remove number input spinners */
 input[type="number"]::-webkit-inner-spin-button,

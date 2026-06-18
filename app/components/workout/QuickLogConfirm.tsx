@@ -17,7 +17,7 @@ export default function QuickLogConfirm({ isOpen, onClose, onConfirm }: QuickLog
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5.15rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+      className="fixed inset-0 z-[var(--z-popover)] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5.15rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
       data-testid="quick-log-confirm"
     >
       <button

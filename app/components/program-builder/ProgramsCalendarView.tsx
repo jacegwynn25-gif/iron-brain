@@ -13,6 +13,7 @@ import {
 import { getProgramProgress } from '@/app/lib/programs/progress';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { trackUiEvent } from '@/app/lib/analytics/ui-events';
+import { liquidButtonClass } from '@/app/components/ui/liquid';
 
 type CalendarViewMode = 'month' | 'week';
 
@@ -436,7 +437,11 @@ export default function ProgramsCalendarView({ programs }: ProgramsCalendarViewP
           type="button"
           onClick={handleCreateEvent}
           disabled={saving || !selectedProgram}
-          className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 transition-colors hover:bg-emerald-400 disabled:opacity-60"
+          className={liquidButtonClass({
+            variant: 'action',
+            density: 'compact',
+            className: 'mt-3 h-11 w-full justify-center uppercase tracking-[0.2em]',
+          })}
         >
           {saving ? 'Saving...' : 'Add to Calendar'}
         </button>
