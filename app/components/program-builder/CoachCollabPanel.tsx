@@ -12,6 +12,7 @@ import {
 } from '@/app/lib/collab/collab-api';
 import { useAuth } from '@/app/lib/supabase/auth-context';
 import { trackUiEvent } from '@/app/lib/analytics/ui-events';
+import { liquidButtonClass } from '@/app/components/ui/liquid';
 
 type CoachCollabPanelProps = {
   programs: ProgramTemplate[];
@@ -202,7 +203,11 @@ export default function CoachCollabPanel({ programs }: CoachCollabPanelProps) {
             type="button"
             onClick={() => void handleCreateLink()}
             disabled={busy || !clientUserIdInput.trim()}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950 disabled:opacity-60"
+            className={liquidButtonClass({
+              variant: 'action',
+              density: 'compact',
+              className: 'h-11 gap-2 uppercase tracking-[0.2em]',
+            })}
           >
             <Send className="h-3.5 w-3.5" />
             Link
@@ -282,7 +287,11 @@ export default function CoachCollabPanel({ programs }: CoachCollabPanelProps) {
           type="button"
           onClick={() => void handleAssignProgram()}
           disabled={busy || !selectedClientId || !selectedProgramId}
-          className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.2em] text-zinc-950 disabled:opacity-60"
+          className={liquidButtonClass({
+            variant: 'action',
+            density: 'compact',
+            className: 'mt-3 h-11 w-full justify-center uppercase tracking-[0.2em]',
+          })}
         >
           Assign Program
         </button>

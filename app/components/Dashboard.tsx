@@ -409,7 +409,7 @@ export default function Dashboard() {
 
       <section
         data-testid="dashboard-command-center"
-        className="liquid-primary-card dashboard-today-card mx-1 p-3 sm:p-5"
+        className="iron-content-card dashboard-today-card mx-1 p-3 sm:p-5"
       >
         <div data-testid="dashboard-smart-action" className="relative">
           <div className="flex items-start justify-between gap-4">
@@ -463,7 +463,7 @@ export default function Dashboard() {
           <div data-testid="dashboard-next-session" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
             {sessionFacts.map((fact) => (
               <div key={fact.label} className="iron-metric-tile dashboard-session-tile">
-                <p className="iron-display truncate text-xl leading-none text-zinc-50">{fact.value}</p>
+                <p className="iron-metric-value truncate text-xl text-zinc-50">{fact.value}</p>
                 <p className="mt-1.5 truncate text-[10px] font-bold text-zinc-500">{fact.label}</p>
               </div>
             ))}
@@ -512,19 +512,19 @@ export default function Dashboard() {
         </div>
         <div className="mt-2.5 grid grid-cols-4 gap-2">
           <div className="iron-metric-tile dashboard-pulse-tile">
-            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.sessions}</p>
+            <p className="iron-metric-value text-xl text-zinc-100">{trainingPulse.sessions}</p>
             <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Sessions</p>
           </div>
           <div className="iron-metric-tile dashboard-pulse-tile">
-            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.completedSets}</p>
+            <p className="iron-metric-value text-xl text-zinc-100">{trainingPulse.completedSets}</p>
             <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Sets</p>
           </div>
           <div className="iron-metric-tile dashboard-pulse-tile">
-            <p className="iron-display text-xl leading-none text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
+            <p className="iron-metric-value text-xl text-zinc-100">{formatCompactNumber(trainingPulse.volume)}</p>
             <p className="mt-1.5 text-[10px] font-bold text-zinc-500">Volume</p>
           </div>
           <div className="iron-metric-tile dashboard-pulse-tile">
-            <p className="iron-display text-xl leading-none text-zinc-100">{trainingPulse.prCount}</p>
+            <p className="iron-metric-value text-xl text-zinc-100">{trainingPulse.prCount}</p>
             <p className="mt-1.5 text-[10px] font-bold text-zinc-500">PRs</p>
           </div>
         </div>

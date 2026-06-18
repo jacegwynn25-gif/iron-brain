@@ -132,7 +132,7 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
     : window.innerHeight / 2 - tooltipHeight / 2;
 
   return (
-    <div className="fixed inset-0 z-[90] pointer-events-none">
+    <div className="fixed inset-0 z-[var(--z-nav)] pointer-events-none">
       {hasTarget && targetRect && (
         <div
           className="absolute rounded-2xl ring-4 ring-emerald-400/90 shadow-[0_0_35px_rgba(52,211,153,0.55)] pointer-events-none"
@@ -170,7 +170,7 @@ export default function CoachMarks({ onComplete }: CoachMarksProps) {
           </span>
           <button
             onClick={handleNext}
-            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950"
+            className="liquid-action-button rounded-lg px-4 py-2 text-sm font-semibold text-zinc-950"
           >
             {currentIndex < coachMarks.length - 1 ? 'Next' : 'Got it!'}
           </button>

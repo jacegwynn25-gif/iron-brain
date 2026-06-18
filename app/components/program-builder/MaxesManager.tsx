@@ -294,7 +294,7 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[260] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+7rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center bg-transparent px-3 pt-[calc(env(safe-area-inset-top)+7rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]">
           <button
             type="button"
             aria-label="Close max editor"

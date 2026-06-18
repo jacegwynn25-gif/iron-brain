@@ -392,7 +392,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="liquid-ambient pointer-events-none fixed inset-0 -z-20 opacity-90" />
 
       {(pendingHref || isRoutePending) && (
-        <div className="fixed inset-x-0 top-0 z-[120] h-0.5 bg-emerald-500/15">
+        <div className="fixed inset-x-0 top-0 z-[var(--z-route-progress)] h-0.5 bg-emerald-500/15">
           <div className="h-full w-2/3 animate-pulse bg-emerald-500 shadow-[0_0_18px_rgba(16,185,129,0.62)]" />
         </div>
       )}
@@ -407,7 +407,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <nav
           data-testid="app-bottom-nav"
           aria-label="Primary navigation"
-          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[var(--iron-dock-bottom)] z-[90] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
+          className="app-bottom-nav pointer-events-auto fixed inset-x-4 bottom-[var(--iron-dock-bottom)] z-[var(--z-nav)] mx-auto flex max-w-[19rem] justify-center touch-manipulation md:inset-x-auto md:bottom-auto md:left-6 md:top-1/2 md:block md:w-[4.9rem] md:-translate-y-1/2"
         >
           <div
             className="liquid-command-dock relative z-10 grid min-h-[4.15rem] w-full items-center justify-center rounded-full p-[0.32rem] md:hidden"

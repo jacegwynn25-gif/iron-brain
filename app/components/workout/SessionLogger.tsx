@@ -428,7 +428,7 @@ function SmartTargetReadout({
 
   return (
     <div
-      className="liquid-control-strip rounded-[1.2rem] px-3 py-2"
+      className="iron-content-card rounded-[1.2rem] px-3 py-2"
       data-testid={testId}
       aria-label={`Smart target ${targetText}. ${formatRecommendationSource(recommendation.source)} signal.`}
     >
@@ -2871,7 +2871,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <X className="h-3 w-3 transition-transform group-hover:rotate-90" />
                     <span>Discard session</span>
                   </button>
-                  <div className="liquid-control-strip flex items-center gap-2 rounded-full px-3.5 py-2">
+                  <div className="iron-chip-solid flex items-center gap-2 px-3.5 py-2">
                     <Timer className="h-4 w-4 text-emerald-400" />
                     <span className="workout-timer text-lg font-black tracking-tight text-emerald-300">{elapsedDisplay}</span>
                   </div>
@@ -3066,7 +3066,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     >
                       <History className="h-4 w-4" />
                     </button>
-                    <div className="liquid-control-strip flex items-center gap-2 rounded-full px-3.5 py-2">
+                    <div className="iron-chip-solid flex items-center gap-2 px-3.5 py-2">
                       <Timer className="h-4 w-4 text-emerald-400" />
                       <span className="workout-timer text-base font-black tracking-tight text-emerald-300">{elapsedDisplay}</span>
                     </div>
@@ -3202,7 +3202,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   )}
 
                   {!bodyweightExercise && (
-                    <div className="workout-cockpit-unit liquid-control-strip flex items-center justify-between gap-3 rounded-[1.2rem] px-3 py-1.5">
+                    <div className="workout-cockpit-unit iron-chip-solid flex items-center justify-between gap-3 rounded-[1.2rem] px-3 py-1.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="text-xs font-semibold text-zinc-500">Set unit</p>
                         <button
@@ -3366,7 +3366,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[145] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+            className="fixed inset-0 z-[var(--z-sheet)] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setActiveTool(null)}
           >
@@ -3375,7 +3375,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="liquid-sheet-panel liquid-focus-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
+              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
               data-testid={activeTool === 'plates' ? 'load-calculator' : 'warmup-calculator'}
             >
@@ -3471,7 +3471,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[140] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+            className="fixed inset-0 z-[var(--z-sheet)] flex items-start justify-center p-4 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-swipe-ignore="true"
             onClick={() => setInfoPanel(null)}
           >
@@ -3480,7 +3480,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.18 }}
-              className="liquid-sheet-panel liquid-focus-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
+              className="liquid-sheet-panel w-full max-w-md overflow-hidden rounded-[1.2rem] p-0"
               onClick={(event) => event.stopPropagation()}
             >
 	              <div className="flex items-start justify-between gap-4 border-b border-white/8 p-4">
@@ -3548,7 +3548,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-0 z-[120] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)] flex flex-col"
+            className="fixed inset-0 z-[var(--z-sheet)] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+3rem)] flex flex-col"
             data-swipe-ignore="true"
           >
             <div className="flex items-center justify-between mb-8">
@@ -3706,7 +3706,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+4rem)] flex flex-col"
+            className="fixed inset-0 z-[var(--z-sheet)] bg-zinc-950 px-6 pb-6 pt-[calc(env(safe-area-inset-top)+4rem)] flex flex-col"
           >
             {pendingAddName !== null ? (
               /* ── Set-count step ── */
@@ -3868,7 +3868,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[260] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
+            className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center bg-black/35 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+6rem)]"
             data-testid="workout-discard-confirm"
             data-swipe-scope="local"
           >
@@ -3934,7 +3934,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-zinc-950 overflow-y-auto text-white scroll-smooth"
+            className="fixed inset-0 z-[var(--z-modal-tall)] bg-zinc-950 overflow-y-auto text-white scroll-smooth"
             data-swipe-ignore="true"
           >
             <div className="px-5 pb-[calc(11rem+env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:px-6 sm:pt-[calc(env(safe-area-inset-top)+3rem)]">
@@ -4161,7 +4161,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
               </div>
             </div>
 
-            <div className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[110] border-t border-white/10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-28px_80px_-42px_rgba(0,0,0,1)] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+            <div className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[var(--z-sheet)] border-t border-white/10 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-28px_80px_-42px_rgba(0,0,0,1)] sm:pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
@@ -4212,7 +4212,7 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 180, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[200] border-t border-white/10 pb-safe shadow-[0_-28px_80px_-40px_rgba(0,0,0,1)]"
+            className="liquid-form-sheet fixed bottom-0 left-0 right-0 z-[var(--z-sheet)] border-t border-white/10 pb-safe shadow-[0_-28px_80px_-40px_rgba(0,0,0,1)]"
           >
             <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
               <div className="mb-3 flex items-center justify-between">
