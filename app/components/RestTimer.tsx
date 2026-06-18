@@ -6,6 +6,7 @@ import {
   recommendationHasApplyPatch,
   type TrainingRecommendation,
 } from '../lib/intelligence/training-recommendations';
+import { formatSetTarget, formatSetTargetWeight, formatRecommendationSource } from '../lib/workout/format-set-target';
 
 interface NextSetInfo {
   exerciseName?: string;
@@ -33,24 +34,6 @@ interface RestTimerProps {
   exerciseName?: string;
   smartRecommendation?: TrainingRecommendation | null;
   onApplyRecommendation?: (recommendation: TrainingRecommendation) => void;
-}
-
-function formatRecommendationSource(source: TrainingRecommendation['source']): string {
-  if (source === 'exercise_history') return 'History';
-  if (source === 'session_fatigue') return 'Set Signal';
-  if (source === 'load_pressure') return 'Load';
-  if (source === 'performance_trend') return 'Trend';
-  if (source === 'prescription') return 'Plan';
-  if (source === 'readiness') return 'Readiness';
-  if (source === 'e1rm') return 'Max Data';
-  if (source === 'program_load') return 'Program';
-  return 'Baseline';
-}
-
-function formatTargetWeight(value: number | null | undefined, unit: 'lbs' | 'kg'): string | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  const rounded = unit === 'kg' ? Number(value.toFixed(2)) : Math.round(value);
-  return `${rounded}${unit}`;
 }
 
 function formatReps(value: string | number | null | undefined): string | null {
@@ -160,14 +143,10 @@ export default function RestTimer({
 
   const minutes = Math.floor(timeRemaining / 60);
   const seconds = timeRemaining % 60;
-  const smartWeight = smartRecommendation?.target?.weight;
   const smartUnit = smartRecommendation?.target?.weightUnit ?? weightUnit;
-  const smartReps = smartRecommendation?.target?.reps;
   const smartRest = smartRecommendation?.target?.restSeconds;
-  const smartTargetText = [
-    formatTargetWeight(smartWeight, smartUnit),
-    smartReps != null ? `${Math.round(smartReps)} reps` : null,
-  ].filter(Boolean).join(' • ') || (smartRest != null ? `+${smartRest}s rest` : null);
+  const smartTargetText = formatSetTarget(smartRecommendation?.target ?? null, smartUnit)
+    || (smartRest != null ? `+${smartRest}s rest` : null);
   const hasSmartTarget = Boolean(smartRecommendation && smartTargetText);
   const nextWeight = hasSmartTarget ? null : nextSetInfo?.weight ?? nextSetInfo?.suggestedWeight ?? null;
   const nextReps = hasSmartTarget ? null : nextSetInfo?.reps ?? nextSetInfo?.prescribedReps ?? null;
@@ -175,7 +154,7 @@ export default function RestTimer({
   const upNextTextParts = [
     nextExercise ? `Up next: ${nextExercise}` : 'Up next',
     nextSetInfo?.setNumber != null && !hasSmartTarget ? `Set ${nextSetInfo.setNumber}` : null,
-    nextWeight != null ? formatTargetWeight(nextWeight, weightUnit) : null,
+    nextWeight != null ? formatSetTargetWeight(nextWeight, weightUnit) : null,
     formatReps(nextReps),
   ].filter(Boolean);
 
