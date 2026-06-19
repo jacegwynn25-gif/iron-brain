@@ -35,3 +35,28 @@ export function formatRecommendationSource(source: TrainingRecommendation['sourc
   if (source === 'program_load') return 'Program';
   return 'Baseline';
 }
+
+export function formatRecommendationTrustLabel(
+  recommendation: Pick<TrainingRecommendation, 'confidence' | 'dataSufficiency' | 'evidenceSource'> | null | undefined
+): string | null {
+  if (!recommendation) return null;
+  if (
+    recommendation.dataSufficiency === 'baseline' ||
+    recommendation.evidenceSource === 'baseline'
+  ) {
+    return 'Baseline';
+  }
+  if (
+    recommendation.confidence === 'low' ||
+    recommendation.dataSufficiency === 'limited'
+  ) {
+    return 'Limited data';
+  }
+  return null;
+}
+
+export function formatRecommendationA11yDetail(recommendation: TrainingRecommendation): string {
+  const source = formatRecommendationSource(recommendation.source);
+  const data = recommendation.dataSufficiency ? `, ${recommendation.dataSufficiency} data` : '';
+  return `${source} signal. ${recommendation.confidence} confidence${data}.`;
+}

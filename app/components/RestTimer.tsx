@@ -6,7 +6,12 @@ import {
   recommendationHasApplyPatch,
   type TrainingRecommendation,
 } from '../lib/intelligence/training-recommendations';
-import { formatSetTarget, formatSetTargetWeight, formatRecommendationSource } from '../lib/workout/format-set-target';
+import {
+  formatRecommendationA11yDetail,
+  formatRecommendationTrustLabel,
+  formatSetTarget,
+  formatSetTargetWeight,
+} from '../lib/workout/format-set-target';
 
 interface NextSetInfo {
   exerciseName?: string;
@@ -147,6 +152,7 @@ export default function RestTimer({
   const smartRest = smartRecommendation?.target?.restSeconds;
   const smartTargetText = formatSetTarget(smartRecommendation?.target ?? null, smartUnit)
     || (smartRest != null ? `+${smartRest}s rest` : null);
+  const smartTrustLabel = formatRecommendationTrustLabel(smartRecommendation);
   const hasSmartTarget = Boolean(smartRecommendation && smartTargetText);
   const nextWeight = hasSmartTarget ? null : nextSetInfo?.weight ?? nextSetInfo?.suggestedWeight ?? null;
   const nextReps = hasSmartTarget ? null : nextSetInfo?.reps ?? nextSetInfo?.prescribedReps ?? null;
@@ -175,13 +181,20 @@ export default function RestTimer({
           <div
             className="liquid-sheet-panel w-full max-w-sm px-4 py-3 text-left"
             data-testid="smart-rest-target"
-            aria-label={`Rest target ${smartTargetText ?? smartRecommendation.title}. ${formatRecommendationSource(smartRecommendation.source)} signal.`}
+            aria-label={`Rest target ${smartTargetText ?? smartRecommendation.title}. ${formatRecommendationA11yDetail(smartRecommendation)}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-emerald-300">
-                  Target
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-emerald-300">
+                    Target
+                  </p>
+                  {smartTrustLabel && (
+                    <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">
+                      {smartTrustLabel}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-xl font-black tracking-tight text-white" data-testid="smart-rest-target-value">
                   {smartTargetText ?? smartRecommendation.title}
                 </p>

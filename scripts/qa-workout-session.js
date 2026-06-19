@@ -144,7 +144,8 @@ async function installWorkoutQaBootstrap(page) {
   await page.goto(`${BASE_URL}?program_id=qa_smart_start_program`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Bench Press \(Touch & Go\)/i).tap({ timeout: 10000 });
   await expectVisible(page.getByTestId('smart-target-card'), 'Smart target card shown for program-start set');
-  await expectVisible(page.getByText(/200 LBS X 6 REPS/i), 'Workout start prefill prefers recent history over stale fixed program weight');
+  await expectVisible(page.getByTestId('smart-target-card').getByText(/^200 lbs × 6$/i), 'Workout start target uses shared formatter and recent history cue');
+  await expectVisible(page.getByText(/Prev\s*200lbs\s*×\s*6/i).first(), 'Workout start Prev shows real prior performance');
   await page.getByRole('button', { name: /Back/i }).click();
   await page.close();
   page = await browser.newPage({

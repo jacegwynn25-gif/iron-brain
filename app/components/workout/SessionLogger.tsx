@@ -70,7 +70,11 @@ import {
   type TrainingRecommendationInput,
   type TrainingSetInput,
 } from '@/app/lib/intelligence/training-recommendations';
-import { formatSetTarget, formatRecommendationSource } from '@/app/lib/workout/format-set-target';
+import {
+  formatRecommendationA11yDetail,
+  formatRecommendationTrustLabel,
+  formatSetTarget,
+} from '@/app/lib/workout/format-set-target';
 import {
   mapLocalPersonalRecordsToTrainingRecords,
   mapWorkoutHistoryToTrainingHistory,
@@ -397,6 +401,7 @@ function SmartTargetReadout({
 
   const restText = recommendation.target?.restSeconds != null ? `+${recommendation.target.restSeconds}s rest` : null;
   const targetText = formatSetTarget(recommendation.target, recommendation.target?.weightUnit) || restText || 'Baseline';
+  const trustLabel = formatRecommendationTrustLabel(recommendation);
   const canApply =
     recommendationHasApplyPatch(recommendation) &&
     recommendation.confidence !== 'low' &&
@@ -410,13 +415,20 @@ function SmartTargetReadout({
     <div
       className="liquid-control-strip rounded-[1.2rem] px-3 py-2"
       data-testid={testId}
-      aria-label={`Smart target ${targetText}. ${formatRecommendationSource(recommendation.source)} signal.`}
+      aria-label={`Smart target ${targetText}. ${formatRecommendationA11yDetail(recommendation)}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-emerald-300">
-            {label}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold text-emerald-300">
+              {label}
+            </p>
+            {trustLabel && (
+              <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">
+                {trustLabel}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 truncate text-base font-black tracking-tight text-white">
             {targetText}
           </p>
