@@ -1,5 +1,6 @@
 import type { ProgramTemplate, SetTemplate, WeightUnit } from '@/app/lib/types';
 import { convertWeight } from '@/app/lib/units';
+import { estimate1RM } from '@/app/lib/stats/one-rep-max';
 
 export type RecommendationScope = 'next_set' | 'session' | 'program';
 export type RecommendationAction =
@@ -98,6 +99,7 @@ export interface TrainingSetInput {
   completed?: boolean | null;
   skipped?: boolean | null;
   type?: string | null;
+  prescriptionMethod?: string | null;
 }
 
 export interface TrainingHistorySet {
@@ -272,7 +274,7 @@ export function roundRecommendationWeight(value: number, unit: WeightUnit): numb
   return unit === 'kg' ? Number(rounded.toFixed(2)) : Math.round(rounded);
 }
 
-function roundSetWeight(value: number, unit: WeightUnit, set?: Pick<TrainingSetInput, 'exerciseId' | 'exerciseName'> | null): number {
+export function roundSetWeight(value: number, unit: WeightUnit, set?: Pick<TrainingSetInput, 'exerciseId' | 'exerciseName'> | null): number {
   const increment = recommendationWeightIncrement(unit, set);
   const rounded = Math.round(value / increment) * increment;
   return unit === 'kg' || !Number.isInteger(increment) ? Number(rounded.toFixed(2)) : Math.round(rounded);
@@ -331,9 +333,14 @@ function historyReps(set: TrainingHistorySet | null | undefined): number | null 
   return positiveNumber(set?.actualReps);
 }
 
-function e1rmFromLoad(weight: number | null, reps: number | null): number | null {
+function e1rmFromLoad(
+  weight: number | null,
+  reps: number | null,
+  rpe?: number | null
+): number | null {
   if (weight == null || reps == null || reps <= 0) return null;
-  return weight * (1 + reps / 30);
+  const estimated = estimate1RM(weight, reps, rpe ?? null);
+  return estimated > 0 ? estimated : null;
 }
 
 function representativeHistoryWeight(
@@ -346,7 +353,7 @@ function representativeHistoryWeight(
 
   const sourceUnit = normalizeUnit(entry.weightUnit, unit);
   const actualReps = historyReps(entry);
-  const e1rm = positiveNumber(entry.e1rm) ?? e1rmFromLoad(rawWeight, actualReps);
+  const e1rm = positiveNumber(entry.e1rm) ?? e1rmFromLoad(rawWeight, actualReps, entry.actualRPE);
   const shouldEstimateFromE1rm =
     e1rm != null &&
     targetReps != null &&
@@ -645,7 +652,7 @@ function historyE1rmLbs(entry: TrainingHistorySet): number | null {
   if (rawWeight == null || reps == null) return null;
   const unit = normalizeUnit(entry.weightUnit, DEFAULT_WEIGHT_UNIT);
   const weightLbs = unit === 'lbs' ? rawWeight : convertWeight(rawWeight, unit, 'lbs');
-  return e1rmFromLoad(weightLbs, reps);
+  return e1rmFromLoad(weightLbs, reps, entry.actualRPE);
 }
 
 function localLoadPressure(input: TrainingRecommendationInput, set: TrainingSetInput): LocalLoadPressureSignal {
@@ -1000,8 +1007,9 @@ function prescriptionLoad(input: TrainingRecommendationInput, set: TrainingSetIn
   const percentage = positiveNumber(set.prescribedPercentage);
   const e1rm = getE1rmForExercise(input, set.exerciseId, unit);
   if (percentage != null && e1rm != null) {
+    const baseMax = set.prescriptionMethod === 'percentage_tm' ? e1rm * 0.9 : e1rm;
     return {
-      weight: roundRecommendationWeight(e1rm * (percentage / 100), unit),
+      weight: roundRecommendationWeight(baseMax * (percentage / 100), unit),
       unit,
       source: 'prescription',
       confidence: 'medium',

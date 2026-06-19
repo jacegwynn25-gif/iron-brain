@@ -6,6 +6,7 @@ import {
   BarChart3,
   BookOpen,
   Dumbbell,
+  HeartPulse,
   LayoutDashboard,
   History,
   MoreHorizontal,
@@ -41,6 +42,7 @@ const navItems: NavItem[] = [
 const commandItems = navItems.filter((item) => ['dashboard', 'log', 'programs'].includes(item.id));
 
 const moreItems: NavItem[] = [
+  { id: 'checkin', label: 'Check-in', href: '/checkin', icon: HeartPulse },
   { id: 'history', label: 'History', href: '/history', icon: History, coach: 'history-tab' },
   { id: 'analytics', label: 'Insights', href: '/analytics', icon: BarChart3 },
   { id: 'profile', label: 'Profile', href: '/profile', icon: User },
@@ -52,6 +54,7 @@ const PREFETCH_ROUTES = [
   '/programs',
   '/history',
   '/analytics',
+  '/checkin',
   '/profile',
   '/profile/settings',
 ] as const;

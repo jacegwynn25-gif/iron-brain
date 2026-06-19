@@ -18,6 +18,7 @@ export interface Set {
   prescribedPercentage?: number | null;
   prescribedWeight?: number | null;
   prescribedSeconds?: number | null;
+  prescriptionMethod?: string | null;
   touchedWeight: boolean;
   touchedReps: boolean;
   touchedRpe: boolean;

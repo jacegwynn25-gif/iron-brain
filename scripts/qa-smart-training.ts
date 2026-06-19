@@ -11,7 +11,9 @@ import {
   mapWorkoutHistoryToTrainingHistory,
 } from '../app/lib/intelligence/training-inputs';
 import { calculateMuscleFatigue } from '../app/lib/fatigueModel';
+import { calculateWorkoutSFR } from '../app/lib/fatigue/sfr';
 import { storage } from '../app/lib/storage';
+import { formatRecommendationTrustLabel, formatSetTarget } from '../app/lib/workout/format-set-target';
 import { buildWarmupPlan, calculatePlateLoad } from '../app/lib/workout-tools';
 import type { ProgramTemplate } from '../app/lib/types';
 
@@ -105,6 +107,35 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 }
 
 {
+  assert.equal(formatSetTarget({ weight: 225, weightUnit: 'lbs', reps: 5 }), '225 lbs × 5');
+  assert.equal(formatSetTarget({ weight: 102.5, weightUnit: 'kg', reps: 3 }), '102.5 kg × 3');
+  assert.equal(
+    formatRecommendationTrustLabel({
+      confidence: 'low',
+      dataSufficiency: 'baseline',
+      evidenceSource: 'baseline',
+    }),
+    'Baseline'
+  );
+  assert.equal(
+    formatRecommendationTrustLabel({
+      confidence: 'low',
+      dataSufficiency: 'limited',
+      evidenceSource: 'direct_history',
+    }),
+    'Limited data'
+  );
+  assert.equal(
+    formatRecommendationTrustLabel({
+      confidence: 'high',
+      dataSufficiency: 'high',
+      evidenceSource: 'direct_history',
+    }),
+    null
+  );
+}
+
+{
   const fatigue = calculateMuscleFatigue([
     {
       exerciseId: 'back_squat',
@@ -126,6 +157,70 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
   assert.equal(contributor.volumeLoad, 1125);
   assert.equal(contributor.reachedFailure, true);
   assert.equal(contributor.actualRPE, 9.5);
+}
+
+{
+  const sfr = calculateWorkoutSFR([
+    {
+      exerciseId: 'bench_press',
+      exerciseName: 'Bench Press',
+      setIndex: 1,
+      prescribedReps: '5',
+      actualWeight: 185,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      timestamp: '2026-06-18T18:30:00.000Z',
+    },
+    {
+      exerciseId: 'back_squat',
+      exerciseName: 'Back Squat',
+      setIndex: 1,
+      prescribedReps: '5',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+      timestamp: '2026-06-18T18:00:00.000Z',
+    },
+  ]);
+
+  assert.deepEqual(
+    sfr.exerciseAnalyses.map((analysis) => analysis.exerciseId),
+    ['back_squat', 'bench_press']
+  );
+
+  const indexFallbackSfr = calculateWorkoutSFR([
+    {
+      exerciseId: 'bench_press',
+      exerciseName: 'Bench Press',
+      setIndex: 2,
+      prescribedReps: '5',
+      actualWeight: 185,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+    },
+    {
+      exerciseId: 'back_squat',
+      exerciseName: 'Back Squat',
+      setIndex: 1,
+      prescribedReps: '5',
+      actualWeight: 225,
+      weightUnit: 'lbs',
+      actualReps: 5,
+      actualRPE: 8,
+      completed: true,
+    },
+  ]);
+
+  assert.deepEqual(
+    indexFallbackSfr.exerciseAnalyses.map((analysis) => analysis.exerciseId),
+    ['back_squat', 'bench_press']
+  );
 }
 
 {
@@ -1073,6 +1168,32 @@ function squatHistory(daysAgo: number, overrides: Partial<NonNullable<TrainingRe
 
   assert.equal(recommendation?.action, 'hold_program');
   assert.doesNotMatch(recommendation?.reason ?? '', /readiness is 0/i);
+}
+
+{
+  // C2: %TM applies 0.9 factor in the engine (matches useWorkoutSession.estimatePercentageWeight).
+  const tmRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: null, reps: 5, prescribedPercentage: 85, prescribedRPE: 8, prescriptionMethod: 'percentage_tm' },
+    personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
+    historySets: [],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+    weightUnit: 'lbs',
+  });
+  // 300 * 0.9 * 0.85 = 229.5 -> round to 5 lb = 230
+  assert.equal(tmRecommendation.target?.weight, 230);
+
+  const oneRmRecommendation = nextSetRecommendation({
+    currentSet: { ...baseSet, weight: null, reps: 5, prescribedPercentage: 85, prescribedRPE: 8, prescriptionMethod: 'percentage_1rm' },
+    personalRecords: [{ exerciseId: 'back_squat', recordType: 'max_e1rm', e1rm: 300 }],
+    historySets: [],
+    sessionSets: [],
+    readiness: { score: 72, modifier: 1 },
+    weightUnit: 'lbs',
+  });
+  // 300 * 0.85 = 255
+  assert.equal(oneRmRecommendation.target?.weight, 255);
+  assert.notEqual(tmRecommendation.target?.weight, oneRmRecommendation.target?.weight);
 }
 
 Promise.all(asyncChecks)

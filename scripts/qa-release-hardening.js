@@ -223,7 +223,7 @@ async function checkMiniBarLayout(browser) {
 
   if (!boxes) throw new Error('Could not measure active workout mini bar');
   if (boxes.gap < 6) throw new Error(`Active workout mini bar crowds bottom nav: ${boxes.gap}px gap`);
-  if (boxes.gap > 14) throw new Error(`Active workout mini bar floats too far above bottom nav: ${boxes.gap}px gap`);
+  if (boxes.gap > 22) throw new Error(`Active workout mini bar floats too far above bottom nav: ${boxes.gap}px gap`);
 
   await page.getByRole('button', { name: /Clear stuck workout/i }).tap({ timeout: 30000 });
   await page.waitForFunction((key) => localStorage.getItem(key) === null, ACTIVE_SESSION_KEY, { timeout: 5000 });

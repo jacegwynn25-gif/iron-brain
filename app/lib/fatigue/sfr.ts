@@ -235,10 +235,62 @@ export function calculateWorkoutSFR(
   // fatigue from earlier ones, so their fatigue cost should reflect that.
   // Exercise 1 starts with 0 accumulated fatigue, exercise 2 includes
   // fatigue from exercise 1, and so on.
+  const firstSeenExerciseIndex = new Map<string, number>();
+  sets.forEach((set, index) => {
+    if (!firstSeenExerciseIndex.has(set.exerciseId)) {
+      firstSeenExerciseIndex.set(set.exerciseId, index);
+    }
+  });
+
+  // Sort by actual performance order: earliest valid timestamp first,
+  // then set index, then original exercise encounter order.
+  const earliestSetTime = (exerciseSets: SetLog[]): number | null => {
+    let earliest: number | null = null;
+    for (const set of exerciseSets) {
+      const ts = set.timestamp ?? (set as { performedAt?: string }).performedAt;
+      if (ts) {
+        const ms = Date.parse(ts);
+        if (Number.isFinite(ms)) {
+          earliest = earliest == null ? ms : Math.min(earliest, ms);
+        }
+      }
+    }
+    return earliest;
+  };
+
+  const earliestSetIndex = (exerciseSets: SetLog[]): number | null => {
+    const index = exerciseSets.reduce((min, set) => (
+      Number.isFinite(set.setIndex) ? Math.min(min, set.setIndex) : min
+    ), Infinity);
+    return Number.isFinite(index) ? index : null;
+  };
+
+  const orderedExercises = Array.from(setsByExercise.entries())
+    .map(([exerciseId, exerciseSets]) => ({
+      exerciseId,
+      exerciseSets,
+      firstSeenIndex: firstSeenExerciseIndex.get(exerciseId) ?? Number.MAX_SAFE_INTEGER,
+      firstTimestamp: earliestSetTime(exerciseSets),
+      firstSetIndex: earliestSetIndex(exerciseSets),
+    }))
+    .sort((a, b) => {
+      if (a.firstTimestamp != null && b.firstTimestamp != null && a.firstTimestamp !== b.firstTimestamp) {
+        return a.firstTimestamp - b.firstTimestamp;
+      }
+      if (a.firstTimestamp != null && b.firstTimestamp == null) return -1;
+      if (a.firstTimestamp == null && b.firstTimestamp != null) return 1;
+      if (a.firstSetIndex != null && b.firstSetIndex != null && a.firstSetIndex !== b.firstSetIndex) {
+        return a.firstSetIndex - b.firstSetIndex;
+      }
+      if (a.firstSetIndex != null && b.firstSetIndex == null) return -1;
+      if (a.firstSetIndex == null && b.firstSetIndex != null) return 1;
+      return a.firstSeenIndex - b.firstSeenIndex;
+    });
+
   const exerciseAnalyses: SFRAnalysis[] = [];
   let accumulatedFatigue = 0;
 
-  setsByExercise.forEach((exerciseSets, exerciseId) => {
+  orderedExercises.forEach(({ exerciseId, exerciseSets }) => {
     const exerciseOwnFatigue = calculateExerciseFatigueCost(exerciseSets);
     const totalFatigueForExercise = exerciseOwnFatigue + accumulatedFatigue;
 
