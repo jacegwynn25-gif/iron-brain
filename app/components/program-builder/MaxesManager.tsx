@@ -203,7 +203,10 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-[11px] font-semibold text-zinc-100 transition-colors hover:bg-white/[0.08] active:bg-white/[0.1]"
+              className={liquidButtonClass({
+                density: 'compact',
+                className: 'mt-5 min-h-11 rounded-xl px-4 text-[11px]',
+              })}
             >
               <Plus className="h-4 w-4" />
               Add first 1RM
@@ -415,7 +418,10 @@ export default function MaxesManager({ userId }: MaxesManagerProps) {
                 type="button"
                 onClick={handleCloseModal}
                 disabled={saving}
-                className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[0.045] px-5 text-[11px] font-semibold text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100 disabled:opacity-50"
+                className={liquidButtonClass({
+                  density: 'compact',
+                  className: 'min-h-12 flex-1 rounded-xl px-5 text-[11px] disabled:opacity-50',
+                })}
               >
                 Cancel
               </button>

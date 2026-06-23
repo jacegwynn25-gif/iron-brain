@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, Dumbbell, LogOut, Ruler, ShieldCheck, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../../lib/supabase/auth-context';
 import { useUnitPreference } from '../../lib/hooks/useUnitPreference';
+import { liquidButtonClass } from '../../components/ui/liquid';
 
 interface SettingsLinkRowProps {
   href: string;
@@ -144,7 +145,10 @@ export default function ProfileSettingsPage() {
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="liquid-control-button inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-[11px] font-semibold text-zinc-300 transition-colors hover:text-zinc-100 disabled:cursor-wait disabled:opacity-50"
+              className={liquidButtonClass({
+                density: 'compact',
+                className: 'min-h-10 rounded-full px-4 text-[11px] disabled:cursor-wait disabled:opacity-50',
+              })}
             >
               <LogOut className="h-4 w-4" />
               {isSigningOut ? 'Signing out...' : 'Sign out'}

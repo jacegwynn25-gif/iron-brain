@@ -442,7 +442,9 @@ async function checkStartPageLaunchpad(browser) {
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
-    const controls = Array.from(document.querySelectorAll('.liquid-control-button'))
+    const launchControlPattern = /^(Training day|Custom day|Change program|Choose program|Start freestyle session)/i;
+    const controls = Array.from(document.querySelectorAll('button'))
+      .filter((button) => launchControlPattern.test(button.getAttribute('aria-label') ?? ''))
       .map((button) => {
         const rect = button.getBoundingClientRect();
         return {
