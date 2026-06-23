@@ -230,7 +230,7 @@ export default function StartWorkoutPage() {
           </button>
 
           <div
-            className={`liquid-control-strip grid gap-1 p-1 ${selectedProgram && selectedProgramDay?.day
+            className={`grid gap-2 ${selectedProgram && selectedProgramDay?.day
               ? 'grid-cols-[1fr_1.12fr_1fr]'
               : 'grid-cols-2'
             }`}
@@ -244,7 +244,10 @@ export default function StartWorkoutPage() {
                 }}
                 aria-label={overrideProgress ? `Custom day, ${dayControlText}` : `Training day, ${dayControlText}`}
                 aria-expanded={dayPickerOpen}
-                className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
+                className={liquidButtonClass({
+                  density: 'compact',
+                  className: 'min-h-12 w-full justify-between px-2.5 py-2.5 text-left sm:px-3',
+                })}
               >
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {overrideProgress ? 'Custom day' : dayControlText}
@@ -265,7 +268,10 @@ export default function StartWorkoutPage() {
               }}
               aria-label={programControlLabel}
               aria-expanded={programPickerOpen}
-              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
+              className={liquidButtonClass({
+                density: 'compact',
+                className: 'min-h-12 w-full justify-between px-2.5 py-2.5 text-left sm:px-3',
+              })}
             >
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">{programControlText}</span>
               {programPickerOpen ? (
@@ -279,7 +285,10 @@ export default function StartWorkoutPage() {
               type="button"
               aria-label="Start freestyle session"
               onClick={() => setQuickLogConfirmOpen(true)}
-              className="liquid-control-button flex min-h-12 items-center justify-between gap-2 px-2.5 py-2.5 text-left sm:px-3"
+              className={liquidButtonClass({
+                density: 'compact',
+                className: 'min-h-12 w-full justify-between px-2.5 py-2.5 text-left sm:px-3',
+              })}
             >
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">Freestyle</span>
               <RotateCcw className="hidden h-4 w-4 shrink-0 text-zinc-100/40 sm:block" />
