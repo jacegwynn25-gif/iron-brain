@@ -210,16 +210,6 @@ nextjs-portal {
     -webkit-backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
   }
 
-  .liquid-focus-panel {
-    background: rgba(8, 10, 14, 0.94);
-    border-color: rgba(255, 255, 255, 0.17);
-    box-shadow:
-      0 30px 86px -44px rgba(0, 0, 0, 0.98),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-    backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
-    -webkit-backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
-  }
-
   .liquid-solid-cell {
     border: 1px solid rgba(255, 255, 255, 0.075);
     background: rgba(8, 10, 14, 0.86);
@@ -348,21 +338,6 @@ nextjs-portal {
     filter: brightness(1.06) saturate(1.02);
   }
 
-  .liquid-control-strip {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.095);
-    border-radius: 1.35rem;
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.014)),
-      rgba(255, 255, 255, 0.024);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.24);
-    backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
-    -webkit-backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
-  }
-
   .liquid-control-button {
     position: relative;
     overflow: hidden;
@@ -411,12 +386,6 @@ nextjs-portal {
     transform: scale(0.985);
   }
 
-  .surface-solid {
-    background: var(--surface-strong);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-
   /* Solid content card for page-level surfaces (dashboard hero, target readouts,
      passive chips). Use this instead of liquid-* glass on content — glass is
      reserved for nav, menus, sheets, overlays, and source-attached popups. */
@@ -432,8 +401,8 @@ nextjs-portal {
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* Solid pill for passive chips (timers, unit toggles) that previously used
-     liquid-control-strip glass. Keeps a subtle inset bezel without backdrop blur. */
+  /* Solid pill for passive chips (timers, unit toggles). Keeps a subtle inset
+     bezel without backdrop blur. */
   .iron-chip-solid {
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -464,23 +433,6 @@ nextjs-portal {
     font-size: 0.68rem;
     font-weight: 900;
     letter-spacing: 0;
-  }
-
-  .liquid-primary-card {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 1.875rem;
-    background:
-      radial-gradient(30rem 18rem at 68% -18%, rgba(255, 255, 255, 0.1), transparent 45%),
-      radial-gradient(16rem 14rem at 100% 0%, rgba(16, 185, 129, 0.1), transparent 48%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
-      rgba(13, 17, 24, 0.72);
-    box-shadow:
-      0 28px 90px -58px rgba(0, 0, 0, 1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(24px) saturate(1.24);
-    -webkit-backdrop-filter: blur(24px) saturate(1.24);
   }
 
   .liquid-icon-button {
