@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 const { spawn } = require('node:child_process');
+const { rmSync } = require('node:fs');
 
 const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:3000';
 
@@ -44,6 +45,7 @@ async function withDevServer(fn) {
   }
 
   console.log(`\n▶ npm run dev`);
+  rmSync('.next/dev', { recursive: true, force: true });
   const server = spawn('npm', ['run', 'dev'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: process.platform === 'win32',

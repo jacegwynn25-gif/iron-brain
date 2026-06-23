@@ -98,7 +98,7 @@ export default function RootLayout({
           }}
         />
         <div
-          className="app-offline-fallback pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[95] justify-center"
+          className="app-offline-fallback pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.65rem)] z-[var(--z-toast)] justify-center"
           data-testid="app-resilience-offline"
           role="status"
           aria-live="polite"

@@ -5,6 +5,23 @@ const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:3000';
 const ACTIVE_SESSION_KEY = 'iron_brain_active_session_v1__default';
 const ACTIVE_SESSION_CLEAR_MARKER_KEY = 'iron_brain_active_session_cleared_at';
 
+async function closeBrowserSafely(browser) {
+  const childProcess = typeof browser.process === 'function' ? browser.process() : null;
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('browser.close timeout')), 5000);
+  });
+
+  try {
+    await Promise.race([browser.close(), timeout]);
+  } catch (error) {
+    childProcess?.kill('SIGKILL');
+    console.warn(`⚠️ Browser shutdown needed force-close: ${error.message}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function activeSessionSnapshot(overrides = {}) {
   return {
     status: 'active',
@@ -442,7 +459,9 @@ async function checkStartPageLaunchpad(browser) {
 
   const report = await page.evaluate(() => {
     const text = document.body.innerText;
-    const controls = Array.from(document.querySelectorAll('.liquid-control-button'))
+    const launchControlPattern = /^(Training day|Custom day|Change program|Choose program|Start freestyle session)/i;
+    const controls = Array.from(document.querySelectorAll('button'))
+      .filter((button) => launchControlPattern.test(button.getAttribute('aria-label') ?? ''))
       .map((button) => {
         const rect = button.getBoundingClientRect();
         return {
@@ -712,10 +731,11 @@ async function checkBottomNavTapTargets(browser) {
     await checkSettingsPolish(browser);
     await checkBottomNavTapTargets(browser);
   } finally {
-    await browser.close();
+    await closeBrowserSafely(browser);
   }
 
   console.log('✅ Release hardening QA completed');
+  process.exit(0);
 })().catch((error) => {
   console.error('❌ Release hardening QA failed:', error);
   process.exit(1);

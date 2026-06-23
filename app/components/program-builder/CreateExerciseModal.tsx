@@ -144,10 +144,10 @@ export default function CreateExerciseModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
       <div className="liquid-sheet-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#0b0d12]/85 p-5 backdrop-blur-xl sm:p-6">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/8 bg-[#0b0d12]/95 p-5 sm:p-6">
           <h2 className="text-2xl font-black italic tracking-tight text-zinc-100">
             CREATE EXERCISE
           </h2>

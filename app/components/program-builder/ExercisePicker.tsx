@@ -106,7 +106,7 @@ export default function ExercisePicker({
 
   return (
     <>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
+      <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
         <div className="liquid-sheet-panel flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/8 p-5 sm:p-6">

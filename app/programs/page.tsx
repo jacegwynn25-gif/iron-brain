@@ -2304,7 +2304,11 @@ export default function ProgramsPage() {
                 type="button"
                 onClick={openCreateEditor}
                 disabled={loading}
-                className="liquid-action-button inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black italic tracking-tight text-zinc-950 transition-colors disabled:cursor-wait disabled:opacity-50"
+                className={liquidButtonClass({
+                  variant: 'action',
+                  density: 'compact',
+                  className: 'h-11 rounded-2xl px-4 disabled:cursor-wait disabled:opacity-50',
+                })}
               >
                 <CirclePlus className="h-4 w-4" />
                 New
@@ -2384,7 +2388,10 @@ export default function ProgramsPage() {
                     <button
                       type="button"
                       onClick={() => dismissTuneUp(programTuneUpKey)}
-                      className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200"
+                      className={liquidButtonClass({
+                        density: 'compact',
+                        className: 'rounded-xl px-3',
+                      })}
                       data-testid="program-tune-up-dismiss"
                     >
                       Dismiss
@@ -2405,7 +2412,10 @@ export default function ProgramsPage() {
                   <button
                     type="button"
                     onClick={openCreateEditor}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200"
+                    className={liquidButtonClass({
+                      density: 'compact',
+                      className: 'mt-4 rounded-xl px-4',
+                    })}
                   >
                     <CirclePlus className="h-4 w-4" />
                     Build from scratch
@@ -2527,7 +2537,7 @@ export default function ProgramsPage() {
 
       {
         editorMode && draft && (
-          <div className="fixed inset-0 z-[70] flex flex-col bg-[#05070b] text-zinc-100">
+          <div className="fixed inset-0 z-[var(--z-sheet)] flex flex-col bg-[#05070b] text-zinc-100">
             <div className="liquid-ambient pointer-events-none fixed inset-0 opacity-70" />
             <div className="flex-1 overflow-y-auto px-4 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6">
               <div className="mx-auto w-full max-w-5xl">
@@ -2968,7 +2978,7 @@ export default function ProgramsPage() {
             </div>
 
             {pendingExerciseUndo && (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[140] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
+              <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.6rem)] z-[var(--z-popover)] px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6">
                 <div className="liquid-sheet-panel pointer-events-auto mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-2.5">
                   <p className="min-w-0 truncate text-xs font-semibold text-zinc-300">
                     {pendingExerciseUndo.message}
@@ -2990,7 +3000,7 @@ export default function ProgramsPage() {
 
       {
         exercisePickerOpen && (
-          <div className="fixed inset-0 z-[140] bg-transparent">
+          <div className="fixed inset-0 z-[var(--z-popover)] bg-transparent">
             <div
               className="liquid-sheet-panel fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] mx-auto h-[calc(100dvh-env(safe-area-inset-top)-5.25rem)] max-w-2xl overflow-y-auto rounded-[1.35rem] px-4 pb-4 pt-4 sm:inset-x-auto sm:right-6 sm:h-auto sm:max-h-[82dvh] sm:w-[32rem]"
               data-program-exercise-picker-sheet="true"
@@ -3036,12 +3046,16 @@ export default function ProgramsPage() {
                     onClick={() => {
                       openCreateCustomExerciseForm();
                     }}
-                    className="mb-3 flex h-11 w-full items-center justify-between rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-left"
+                    className={liquidButtonClass({
+                      variant: 'action',
+                      density: 'compact',
+                      className: 'mb-3 h-11 w-full justify-between rounded-xl px-3 text-left',
+                    })}
                   >
-                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                    <span className="text-xs font-black italic tracking-tight text-zinc-950">
                       {`Create "${normalizedExerciseQuery}"`}
                     </span>
-                    <CirclePlus className="h-4 w-4 text-emerald-300" />
+                    <CirclePlus className="h-4 w-4 text-zinc-950" />
                   </button>
                 )}
 

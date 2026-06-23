@@ -36,6 +36,16 @@
   --liquid-action-text: #03140d;
   --liquid-focus: rgba(16, 185, 129, 0.28);
   --iron-dock-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  /* Shared z-index scale. Use via Tailwind arbitrary values, e.g. z-[var(--z-overlay)]. */
+  --z-base: 0;
+  --z-nav: 90;
+  --z-mini-bar: 69;
+  --z-toast: 95;
+  --z-route-progress: 120;
+  --z-sheet: 200;
+  --z-popover: 220;
+  --z-modal: 260;
+  --z-modal-tall: 300;
   --app-gradient:
     radial-gradient(980px circle at 14% 0%, rgba(255, 255, 255, 0.055), transparent 42%),
     radial-gradient(820px circle at 86% 8%, rgba(16, 185, 129, 0.035), transparent 40%),
@@ -200,16 +210,6 @@ nextjs-portal {
     -webkit-backdrop-filter: blur(34px) saturate(1.04) contrast(1.02);
   }
 
-  .liquid-focus-panel {
-    background: rgba(8, 10, 14, 0.94);
-    border-color: rgba(255, 255, 255, 0.17);
-    box-shadow:
-      0 30px 86px -44px rgba(0, 0, 0, 0.98),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-    backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
-    -webkit-backdrop-filter: blur(36px) saturate(1.04) contrast(1.04);
-  }
-
   .liquid-solid-cell {
     border: 1px solid rgba(255, 255, 255, 0.075);
     background: rgba(8, 10, 14, 0.86);
@@ -338,21 +338,6 @@ nextjs-portal {
     filter: brightness(1.06) saturate(1.02);
   }
 
-  .liquid-control-strip {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.095);
-    border-radius: 1.35rem;
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.014)),
-      rgba(255, 255, 255, 0.024);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.24);
-    backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
-    -webkit-backdrop-filter: blur(30px) saturate(1.16) contrast(1.03);
-  }
-
   .liquid-control-button {
     position: relative;
     overflow: hidden;
@@ -401,10 +386,28 @@ nextjs-portal {
     transform: scale(0.985);
   }
 
-  .surface-solid {
-    background: var(--surface-strong);
+  /* Solid content card for page-level surfaces (dashboard hero, target readouts,
+     passive chips). Use this instead of liquid-* glass on content — glass is
+     reserved for nav, menus, sheets, overlays, and source-attached popups. */
+  .iron-content-card {
+    position: relative;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: 1.5rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008)),
+      var(--surface-strong);
+    box-shadow:
+      0 18px 60px -52px rgba(0, 0, 0, 0.96),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Solid pill for passive chips (timers, unit toggles). Keeps a subtle inset
+     bezel without backdrop blur. */
+  .iron-chip-solid {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .iron-display {
@@ -414,28 +417,22 @@ nextjs-portal {
     line-height: 1.05;
   }
 
+  /* Numeric value inside a metric tile. Bold and tight like iron-display but
+     upright — italic display is reserved for brand/page-title moments. */
+  .iron-metric-value {
+    font-weight: 800;
+    font-style: normal;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
   .iron-label {
     color: rgba(148, 163, 184, 0.62);
     font-size: 0.68rem;
     font-weight: 900;
     letter-spacing: 0;
-  }
-
-  .liquid-primary-card {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 1.875rem;
-    background:
-      radial-gradient(30rem 18rem at 68% -18%, rgba(255, 255, 255, 0.1), transparent 45%),
-      radial-gradient(16rem 14rem at 100% 0%, rgba(16, 185, 129, 0.1), transparent 48%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
-      rgba(13, 17, 24, 0.72);
-    box-shadow:
-      0 28px 90px -58px rgba(0, 0, 0, 1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(24px) saturate(1.24);
-    -webkit-backdrop-filter: blur(24px) saturate(1.24);
   }
 
   .liquid-icon-button {
@@ -861,8 +858,10 @@ nextjs-portal {
   }
 
   .workout-timer {
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
+    letter-spacing: 0;
   }
 
   .muscle-mark {
@@ -1055,9 +1054,9 @@ button, a {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-button:active {
-  transform: scale(0.98);
-}
+/* Note: active-state scaling is handled by the liquid touch system in AppLayout
+   (.liquid-touching/.liquid-releasing) and per-component active:scale-* utilities.
+   A global button:active scale would double up with those, so it is intentionally omitted. */
 
 /* Remove number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
