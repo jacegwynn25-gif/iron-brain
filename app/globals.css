@@ -906,8 +906,10 @@ nextjs-portal {
   }
 
   .workout-timer {
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
+    letter-spacing: 0;
   }
 
   .muscle-mark {

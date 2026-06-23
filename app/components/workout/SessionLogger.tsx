@@ -46,7 +46,7 @@ import { resolveExerciseIds } from '@/app/lib/supabase/workouts';
 import HardyStepper from '@/app/components/workout/controls/HardyStepper';
 import RpeSlider from '@/app/components/workout/controls/RpeSlider';
 import RestTimer from '@/app/components/RestTimer';
-import { LiquidActionMenu, LiquidMenuRow } from '@/app/components/ui/liquid';
+import { LiquidActionMenu, LiquidMenuRow, liquidButtonClass } from '@/app/components/ui/liquid';
 import { saveWorkout, storage } from '@/app/lib/storage';
 import { createUuid, isValidUuid } from '@/app/lib/uuid';
 import { rpeAdjusted1RM } from '@/app/lib/stats/one-rep-max';
@@ -3351,7 +3351,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     <button
                       type="button"
                       onClick={handleApplyPlateLoad}
-	                      className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 active:scale-[0.98]"
+                      className={liquidButtonClass({
+                        variant: 'action',
+                        className: 'w-full rounded-2xl py-4 text-xs',
+                      })}
                       data-testid="plate-load-apply"
                     >
 	                      Apply load
@@ -3369,7 +3372,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                       type="button"
                       onClick={handleInsertWarmupPlan}
                       disabled={isEditingSet || warmupPlan.length === 0}
-	                      className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
+                      className={liquidButtonClass({
+                        variant: 'action',
+                        className: 'w-full rounded-2xl py-4 text-xs disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none',
+                      })}
                       data-testid="warmup-insert"
                     >
 	                      Insert warm-ups
@@ -3667,10 +3673,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                         key={n}
                         type="button"
                         onClick={() => setPendingSetCount(n)}
-                        className={`rounded-2xl py-4 text-xl font-black transition-all active:scale-95 ${pendingSetCount === n
-                          ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30'
-                          : 'bg-zinc-900 text-zinc-300'
-                          }`}
+                        className={liquidButtonClass({
+                          variant: pendingSetCount === n ? 'action' : 'neutral',
+                          className: 'rounded-2xl py-4 text-xl font-black',
+                        })}
                       >
                         {n}
                       </button>
@@ -3680,7 +3686,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   <button
                     type="button"
                     onClick={() => handleAddExercise(pendingAddName, pendingSetCount, pendingAddExerciseId)}
-                    className="w-full max-w-xs rounded-2xl bg-emerald-500 py-4 text-sm font-black uppercase tracking-[0.3em] text-zinc-950 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                    className={liquidButtonClass({
+                      variant: 'action',
+                      className: 'w-full max-w-xs rounded-2xl py-4 text-sm',
+                    })}
                   >
                     Add {pendingSetCount} Set{pendingSetCount !== 1 ? 's' : ''}
                   </button>
@@ -3826,7 +3835,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={handleConfirmDiscardWorkout}
                   disabled={isDiscardingWorkout}
-                  className="liquid-control-button flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black italic tracking-tight text-zinc-100 disabled:cursor-wait disabled:opacity-70"
+                  className={liquidButtonClass({
+                    density: 'compact',
+                    className: 'min-h-12 rounded-xl px-4 text-xs disabled:cursor-wait disabled:opacity-70',
+                  })}
                 >
                   <Trash2 className="h-4 w-4" strokeWidth={3} />
                   {isDiscardingWorkout ? 'Discarding...' : 'Discard'}
@@ -3835,7 +3847,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={() => setIsDiscardConfirmOpen(false)}
                   disabled={isDiscardingWorkout}
-                  className="min-h-12 rounded-xl border border-white/10 bg-white/[0.045] px-4 text-xs font-semibold text-zinc-400 active:bg-white/[0.08] disabled:opacity-40"
+                  className={liquidButtonClass({
+                    density: 'compact',
+                    className: 'min-h-12 rounded-xl px-4 text-xs disabled:opacity-40',
+                  })}
                 >
                   Keep training
                 </button>
@@ -3862,7 +3877,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                     type="button"
                     onClick={handleCloseSummary}
                     disabled={isFinishingWorkout || isDiscardingWorkout}
-                    className="rounded-full border border-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-40"
+                    className={liquidButtonClass({
+                      density: 'compact',
+                      className: 'min-h-8 rounded-full px-3 py-1.5 text-[10px] disabled:opacity-40',
+                    })}
                   >
                     Back
                   </button>
@@ -4085,7 +4103,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={handleShare}
                   disabled={isFinishingWorkout || isDiscardingWorkout}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.045] py-4 text-xs font-semibold text-zinc-200 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
+                  className={liquidButtonClass({
+                    className: 'w-full rounded-2xl py-4 text-xs disabled:opacity-40',
+                  })}
                 >
                   Share
                 </button>
@@ -4093,7 +4113,10 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                   type="button"
                   onClick={handleFinishWorkout}
                   disabled={isFinishingWorkout || isDiscardingWorkout}
-                  className="liquid-action-button w-full rounded-2xl py-4 text-xs font-black italic tracking-tight text-zinc-950 disabled:cursor-wait disabled:opacity-65"
+                  className={liquidButtonClass({
+                    variant: 'action',
+                    className: 'w-full rounded-2xl py-4 text-xs disabled:cursor-wait disabled:opacity-65',
+                  })}
                 >
                   {isFinishingWorkout ? (
                     <span className="flex items-center justify-center gap-2">
@@ -4113,7 +4136,9 @@ export default function SessionLogger({ initialData, initialProgress, ignoreActi
                 type="button"
                 onClick={requestCancelWorkout}
                 disabled={isFinishingWorkout || isDiscardingWorkout}
-                className="liquid-control-button w-full rounded-2xl py-4 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-40"
+                className={liquidButtonClass({
+                  className: 'w-full rounded-2xl py-4 text-xs disabled:opacity-40',
+                })}
               >
                 Cancel and discard workout
               </button>
